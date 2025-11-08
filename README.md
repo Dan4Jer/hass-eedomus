@@ -1,19 +1,19 @@
-# eedomus custom component
+# Eedomus Integration for Home Assistant
 
+This is a custom integration for Home Assistant to connect with Eedomus devices.
 
-Copier le contenu dans `/config/custom_components/eedomus/` puis redémarrer Home Assistant.
-Ensuite, aller dans Configuration -> Intégrations -> Ajouter -> eedomus, renseigner :
-- Host (IP ou host)
-- Api User
-- Api Secret
+## Installation
 
+1. Copy the `eedomus` folder to your `custom_components` directory in your Home Assistant configuration.
+2. Restart Home Assistant.
+3. Configure the integration via the Home Assistant UI.
 
-L'intégration utilise `DataUpdateCoordinator` et récupère les devices toutes les `SCAN_INTERVAL` secondes.
+## Configuration
 
+Add the following to your `configuration.yaml` (if needed):
 
-Pour les commandes, la plateforme `switch` appelle l'API eedomus via `client.async_set()`.
-
-
-Tests:
-- Vérifier que les sensors apparaissent
-- Forcer un `coordinator.async_request_refresh()` dans les logs
+```yaml
+eedomus:
+  host: YOUR_EEDOMUS_HOST
+  user: YOUR_EEDOMUS_USER
+  secret: YOUR_EEDOMUS_SECRET
