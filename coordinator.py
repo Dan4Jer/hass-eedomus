@@ -94,7 +94,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         """Return the list of lights."""
         if self.data is None:
             return []
-        return self.data.get("lights", [])
+        return self.data
 
     async def get_lights(self):
         """Return the list of lights (alias pour compatibilité)."""
