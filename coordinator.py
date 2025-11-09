@@ -36,6 +36,32 @@ class EedomusClient:
         async with self._session.get(url, timeout=10) as resp:
             return await resp.text()
 
+    async def get_lights(self) -> list[dict[str, Any]]:
+        """Return a list of lights from eedomus."""
+        # Appelle l'API eedomus pour récupérer les lumières
+        # Exemple de retour attendu:
+        # [
+        #     {"id": "1", "name": "Salon", "state": "on"},
+        #     {"id": "2", "name": "Cuisine", "state": "off"},
+        # ]
+        pass
+
+    async def set_light_state(self, light_id: str, state: bool) -> None:
+        """Set the state of a light."""
+        # Appelle l'API eedomus pour allumer/éteindre la lumière
+        pass
+
+    async def get_data(self):
+        """Fetch all data from Eedomus API."""
+        # Exemple de retour :
+        return {
+            "lights": [
+                {"id": "1", "name": "Salon", "state": "on"},
+                {"id": "2", "name": "Cuisine", "state": "off"},
+            ],
+            # ... autres données
+        }
+    
 class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
     def __init__(self, hass: HomeAssistant, host: str, user: str, secret: str):
         super().__init__(
@@ -62,3 +88,14 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             return list(new_map.values())
         except Exception as err:
             raise UpdateFailed(f"Failed to update eedomus data: {err}")
+
+    @property
+    def lights(self):
+        """Return the list of lights."""
+        if self.data is None:
+            return []
+        return self.data.get("lights", [])
+
+    async def get_lights(self):
+        """Return the list of lights (alias pour compatibilité)."""
+        return self.lights
