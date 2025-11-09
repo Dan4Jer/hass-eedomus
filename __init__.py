@@ -20,6 +20,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator = EedomusDataUpdateCoordinator(hass, host, user, secret)
     await coordinator.async_config_entry_first_refresh()
     hass.data[DOMAIN][entry.entry_id] = coordinator
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
 
     # Charge les plateformes
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

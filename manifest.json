@@ -1,8 +1,9 @@
 {
     "domain": "eedomus",
     "name": "eedomus",
-    "version": "0.2.1",
+    "version": "0.2.2",
     "documentation": "https://github.com/Dan4Jer/hass-eedomus",
+    "issue_tracker": "https://github.com/Dan4Jer/hass-eedomus/issues",
     "requirements": [
 	"aiohttp>=3.8",
 	"yarl>=1.8"
