@@ -1,0 +1,10 @@
+{
+  "title": "Eedomus",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connexion Eedomus"
+      }
+    }
+  }
+}

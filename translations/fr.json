@@ -1,0 +1,19 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connexion à eedomus",
+        "description": "Configurez l'accès à votre box eedomus",
+        "data": {
+          "host": "Adresse IP de la box",
+          "api_key": "API Key",
+          "secret": "Secret API"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Impossible de se connecter à eedomus",
+      "invalid_auth": "Clés API invalides"
+    }
+  }
+}

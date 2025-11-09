@@ -1,0 +1,18 @@
+{
+    "domain": "eedomus",
+    "name": "eedomus",
+    "version": "0.2.1",
+    "documentation": "https://github.com/Dan4Jer/hass-eedomus",
+    "requirements": [
+	"aiohttp>=3.8",
+	"yarl>=1.8"
+    ],
+    "codeowners": ["@Dan4Jer"],
+    "iot_class": "local_polling",
+    "config_flow": true,
+    "icon": "/homeassistant/custom_components/eedomus/icons/eedomus.png",
+    "logo": "/homeassistant/custom_components/eedomus/icons/eedomus.png",
+    "icons": {
+	"eedomus": "/icons/eedomus.png"
+    }
+}
