@@ -28,7 +28,7 @@ async def async_setup_entry(
     client = hass.data[DOMAIN][entry.entry_id]
 
     # Exemple: suppose que client.get_lights() retourne une liste de lumières
-    lights = await client.get_lights()
+    lights = client.lights
 
     entities = [
         EedomusLight(light, client)
