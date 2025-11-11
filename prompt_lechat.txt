@@ -59,3 +59,5 @@ Merci de me générer les fichiers complets suivants en tenant compte du code ex
  - light.py
  - cover.py
  - coordinator.py
+ - sensor.py
+ - switch.py

@@ -1,62 +1,71 @@
-"""Support for Eedomus lights."""
+"""Support for eedomus lights."""
 from __future__ import annotations
 
 import logging
 from typing import Any
 
 from homeassistant.components.light import (
+    ATTR_BRIGHTNESS,
+    ATTR_COLOR_TEMP,
+    ATTR_HS_COLOR,
+    ATTR_RGB_COLOR,
     ColorMode,
     LightEntity,
-    LightEntityDescription,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
-from .entity import EedomusEntity
+from .coordinator import EedomusDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    config_entry: ConfigType,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the Eedomus light platform."""
-    # Récupère le client eedomus depuis hass.data
-    client = hass.data[DOMAIN][entry.entry_id]
+    """Set up eedomus lights dynamically."""
+    coordinator: EedomusDataUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id]
 
-    # Exemple: suppose que client.get_lights() retourne une liste de lumières
-    lights = client.lights
+    lights = []
+    for peripheral in coordinator.data:
+        if peripheral.get("usage_id") in ["1", "82"]:  # Lampe and Couleur lumière
+            lights.append(EedomusLight(coordinator, peripheral))
 
-    entities = [
-        EedomusLight(light, client)
-        for light in lights
-    ]
-    async_add_entities(entities)
+    async_add_entities(lights)
 
-class EedomusLight(EedomusEntity, LightEntity):
-    """Representation of an Eedomus light."""
+class EedomusLight(CoordinatorEntity, LightEntity):
+    """Representation of an eedomus light."""
 
-    _attr_color_mode = ColorMode.ONOFF
-    _attr_supported_color_modes = {ColorMode.ONOFF}
-
-    def __init__(self, light: dict[str, Any], client: Any) -> None:
+    def __init__(self, coordinator: EedomusDataUpdateCoordinator, peripheral: dict) -> None:
         """Initialize the light."""
-        super().__init__(light, client)
-        self._attr_unique_id = light["id"]
-        self._attr_name = light["name"]
-        self._attr_is_on = light["state"] == "on"
+        super().__init__(coordinator)
+        self._peripheral = peripheral
+        self._attr_unique_id = peripheral["periph_id"]
+        self._attr_name = peripheral["name"]
+        self._attr_supported_color_modes = {ColorMode.ONOFF}
+
+        # Determine if the light supports color or color temperature
+        if peripheral.get("usage_id") == "82":  # Couleur lumière
+            self._attr_supported_color_modes = {ColorMode.RGB}
+        elif "Température" in peripheral["name"]:  # Check if it's a color temperature light
+            self._attr_supported_color_modes = {ColorMode.COLOR_TEMP}
+
+    @property
+    def is_on(self) -> bool:
+        """Return true if light is on."""
+        # Placeholder: need to fetch current state from API
+        return False
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the light on."""
-        await self._client.set_light_state(self._attr_unique_id, True)
-        self._attr_is_on = True
-        self.async_write_ha_state()
+        # Placeholder: need to implement based on API
+        pass
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the light off."""
-        await self._client.set_light_state(self._attr_unique_id, False)
-        self._attr_is_on = False
-        self.async_write_ha_state()
+        # Placeholder: need to implement based on API
+        pass
