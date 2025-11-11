@@ -1,41 +1,47 @@
-import asyncio
+"""The eedomus integration."""
+from __future__ import annotations
+
 import logging
+
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from .const import DOMAIN, PLATFORMS, CONF_API_HOST, CONF_API_USER, CONF_API_SECRET, SCAN_INTERVAL
+
+from .const import DOMAIN
 from .coordinator import EedomusDataUpdateCoordinator
+from .eedomus_client import EedomusClient
 
 _LOGGER = logging.getLogger(__name__)
 
-async def async_setup(hass: HomeAssistant, config: dict):
-    hass.data.setdefault(DOMAIN, {})
-    return True
+PLATFORMS = [
+    Platform.LIGHT,
+    Platform.COVER,
+    Platform.SENSOR,
+    Platform.SWITCH,
+]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    config = entry.data
-    host = config[CONF_API_HOST]
-    user = config[CONF_API_USER]
-    secret = config[CONF_API_SECRET]
+    """Set up eedomus from a config entry."""
+    hass.data.setdefault(DOMAIN, {})
 
-    coordinator = EedomusDataUpdateCoordinator(hass, host, user, secret)
+    api_user = entry.data["api_user"]
+    api_secret = entry.data["api_secret"]
+
+    session = aiohttp_client.async_get_clientsession(hass)
+    client = EedomusClient(api_user, api_secret, session)
+
+    coordinator = EedomusDataUpdateCoordinator(hass, client)
     await coordinator.async_config_entry_first_refresh()
-    hass.data[DOMAIN][entry.entry_id] = coordinator
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
 
-    # Charge les plateformes
+    hass.data[DOMAIN][entry.entry_id] = coordinator
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     return True
 
-
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    unload_ok = True
-    if hasattr(PLATFORMS, "__iter__") and len(PLATFORMS) > 0:
-        unload_ok = all(
-            await asyncio.gather(
-                *[hass.config_entries.async_forward_entry_unload(entry, platform) for platform in PLATFORMS]
-            )
-        )
-    if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id, None)
+    """Unload a config entry."""
+    if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
+        hass.data[DOMAIN].pop(entry.entry_id)
+
     return unload_ok

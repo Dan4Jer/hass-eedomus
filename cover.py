@@ -1,10 +1,14 @@
-"""Support for eedomus switches."""
+"""Support for eedomus covers (volets)."""
 from __future__ import annotations
 
 import logging
 from typing import Any
 
-from homeassistant.components.switch import SwitchEntity
+from homeassistant.components.cover import (
+    ATTR_POSITION,
+    CoverDeviceClass,
+    CoverEntity,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
@@ -20,38 +24,44 @@ async def async_setup_entry(
     config_entry: ConfigType,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up eedomus switches dynamically."""
+    """Set up eedomus covers dynamically."""
     coordinator: EedomusDataUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id]
 
-    switches = []
+    covers = []
     for peripheral in coordinator.data:
-        if peripheral.get("usage_id") in ["2", "43"]:  # Appareil électrique and Autre
-            switches.append(EedomusSwitch(coordinator, peripheral))
+        if peripheral.get("usage_id") == "48":  # Ouverture (volets)
+            covers.append(EedomusCover(coordinator, peripheral))
 
-    async_add_entities(switches)
+    async_add_entities(covers)
 
-class EedomusSwitch(CoordinatorEntity, SwitchEntity):
-    """Representation of an eedomus switch."""
+class EedomusCover(CoordinatorEntity, CoverEntity):
+    """Representation of an eedomus cover (volet)."""
 
     def __init__(self, coordinator: EedomusDataUpdateCoordinator, peripheral: dict) -> None:
-        """Initialize the switch."""
+        """Initialize the cover."""
         super().__init__(coordinator)
         self._peripheral = peripheral
         self._attr_unique_id = peripheral["periph_id"]
         self._attr_name = peripheral["name"]
+        self._attr_device_class = CoverDeviceClass.SHUTTER
 
     @property
-    def is_on(self) -> bool:
-        """Return true if switch is on."""
+    def is_closed(self) -> bool | None:
+        """Return if the cover is closed."""
         # Placeholder: need to fetch current state from API
-        return False
+        return None
 
-    async def async_turn_on(self, **kwargs: Any) -> None:
-        """Turn the switch on."""
+    async def async_open_cover(self, **kwargs: Any) -> None:
+        """Open the cover."""
         # Placeholder: need to implement based on API
         pass
 
-    async def async_turn_off(self, **kwargs: Any) -> None:
-        """Turn the switch off."""
+    async def async_close_cover(self, **kwargs: Any) -> None:
+        """Close the cover."""
+        # Placeholder: need to implement based on API
+        pass
+
+    async def async_set_cover_position(self, **kwargs: Any) -> None:
+        """Move the cover to a specific position."""
         # Placeholder: need to implement based on API
         pass
