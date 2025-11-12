@@ -16,12 +16,13 @@ Toujours utiliser api_user et api_secret en paramètres GET pour les requêtes e
 Est-ce que tu peux tenir compte des difficultés de la box eedomus a gere le content type json ? le code suivant te donnera en exemple qui marche https://github.com/Dan4Jer/hass-eedomus/blob/c2067faef2eba3a4005e79a032153510bb46883f/config_flow.py
 
 Peux-tu repartir du code exitant suivant :
-https://github.com/Dan4Jer/hass-eedomus/blob/c2067faef2eba3a4005e79a032153510bb46883f/const.py
-https://github.com/Dan4Jer/hass-eedomus/blob/c2067faef2eba3a4005e79a032153510bb46883f/__init__.py
-https://github.com/Dan4Jer/hass-eedomus/blob/c2067faef2eba3a4005e79a032153510bb46883f/config_flow.py
-https://github.com/Dan4Jer/hass-eedomus/blob/c2067faef2eba3a4005e79a032153510bb46883f/sensor.py
-https://github.com/Dan4Jer/hass-eedomus/blob/c2067faef2eba3a4005e79a032153510bb46883f/switch.py
-https://github.com/Dan4Jer/hass-eedomus/blob/c2067faef2eba3a4005e79a032153510bb46883f/coordinator.py
+https://github.com/Dan4Jer/hass-eedomus/blob/main/const.py
+https://github.com/Dan4Jer/hass-eedomus/blob/main/__init__.py
+https://github.com/Dan4Jer/hass-eedomus/blob/main/config_flow.py
+https://github.com/Dan4Jer/hass-eedomus/blob/main/sensor.py
+https://github.com/Dan4Jer/hass-eedomus/blob/main/switch.py
+https://github.com/Dan4Jer/hass-eedomus/blob/main/coordinator.py
+https://github.com/Dan4Jer/hass-eedomus/blob/main/eedomus_client.py
 
 
 
