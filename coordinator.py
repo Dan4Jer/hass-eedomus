@@ -8,6 +8,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .eedomus_client import EedomusClient
+from .const import SCAN_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             hass,
             _LOGGER,
             name="eedomus",
-            update_interval=timedelta(seconds=30),
+            update_interval=timedelta(seconds=SCAN_INTERVAL),
         )
         self.client = client
         self.peripherals = []
@@ -31,6 +32,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             data = await self.client.get_periph_list()
             if data and data.get("success", 0) == 1:
                 self.peripherals = data.get("body", [])
+                # Update each peripheral's state
+                for peripheral in self.peripherals:
+                    periph_data = await self.client.get_periph_caract(peripheral["periph_id"])
+                    if periph_data and periph_data.get("success", 0) == 1:
+                        peripheral.update(periph_data.get("body", {}))
                 return self.peripherals
             return []
         except Exception as err:

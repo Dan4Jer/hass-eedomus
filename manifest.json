@@ -4,9 +4,10 @@
     "version": "0.3.1",
     "documentation": "https://github.com/Dan4Jer/hass-eedomus",
     "issue_tracker": "https://github.com/Dan4Jer/hass-eedomus/issues",
+    
     "requirements": [
 	"aiohttp>=3.8",
-	"yarl>=1.8"
+	"yarl>=1.8" 
     ],
     "codeowners": ["@Dan4Jer"],
     "iot_class": "local_polling",

@@ -4,31 +4,25 @@ from __future__ import annotations
 import logging
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import DOMAIN
+from .const import DOMAIN, CONF_API_HOST, CONF_API_USER, CONF_API_SECRET, PLATFORMS
 from .coordinator import EedomusDataUpdateCoordinator
 from .eedomus_client import EedomusClient
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = [
-    Platform.LIGHT,
-    Platform.COVER,
-    Platform.SENSOR,
-    Platform.SWITCH,
-]
-
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up eedomus from a config entry."""
     hass.data.setdefault(DOMAIN, {})
 
-    api_user = entry.data["api_user"]
-    api_secret = entry.data["api_secret"]
+    api_user = entry.data[CONF_API_USER]
+    api_secret = entry.data[CONF_API_SECRET]
+    api_host = entry.data[CONF_API_HOST]  # Récupérer l'hôte depuis la configuration
 
-    session = aiohttp_client.async_get_clientsession(hass)
-    client = EedomusClient(api_user, api_secret, session)
+    session = async_get_clientsession(hass)
+    client = EedomusClient(api_user, api_secret, session, api_host)
 
     coordinator = EedomusDataUpdateCoordinator(hass, client)
     await coordinator.async_config_entry_first_refresh()
