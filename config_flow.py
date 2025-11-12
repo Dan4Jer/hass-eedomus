@@ -34,10 +34,11 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     )
 
     # Test the connection by trying to fetch peripheral list
-    data = await client.auth_test()
-    if not data or data.get("success", 0) != 1:
+    rdata = await client.auth_test()
+    if not rdata or rdata.get("success", 0) != 1:
         raise vol.Invalid("Cannot connect to eedomus API - please check your credentials and host")
 
+    #return {"title": f"Eedomus (xxx)"}
     return {"title": f"Eedomus ({data[CONF_API_HOST]})"}
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
