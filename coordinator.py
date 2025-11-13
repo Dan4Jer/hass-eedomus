@@ -1,43 +1,97 @@
-"""Data update coordinator for eedomus."""
-from __future__ import annotations
-
+"""DataUpdateCoordinator for eedomus integration."""
 from datetime import timedelta
 import logging
-
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-
-from .eedomus_client import EedomusClient
-from .const import SCAN_INTERVAL
+from .const import DOMAIN, DEFAULT_SCAN_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
 
 class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
-    """Class to manage fetching eedomus data."""
+    """Eedomus data update coordinator."""
 
-    def __init__(self, hass: HomeAssistant, client: EedomusClient) -> None:
+    def __init__(self, hass: HomeAssistant, client):
         """Initialize the coordinator."""
         super().__init__(
             hass,
             _LOGGER,
-            name="eedomus",
-            update_interval=timedelta(seconds=SCAN_INTERVAL),
+            name=DOMAIN,
+            update_interval=timedelta(seconds=DEFAULT_SCAN_INTERVAL),
         )
         self.client = client
-        self.peripherals = []
+        self._initial_load = True  # Flag for first deep data load
 
     async def _async_update_data(self):
         """Fetch data from eedomus API."""
         try:
-            data = await self.client.get_periph_list()
-            if data and data.get("success", 0) == 1:
-                self.peripherals = data.get("body", [])
-                # Update each peripheral's state
-                for peripheral in self.peripherals:
-                    periph_data = await self.client.get_periph_caract(peripheral["periph_id"])
-                    if periph_data and periph_data.get("success", 0) == 1:
-                        peripheral.update(periph_data.get("body", {}))
-                return self.peripherals
-            return []
+            _LOGGER.debug("Starting data update from eedomus API")
+
+            # Fetch all peripherals
+            peripherals = await self.hass.async_add_executor_job(
+                self.client.get_periph_list
+            )
+            data = {}
+
+            for periph in peripherals:
+                periph_id = periph["id"]
+                _LOGGER.debug("Processing peripheral: %s", periph_id)
+
+                # Fetch characteristics for the peripheral
+                caracts = await self.hass.async_add_executor_job(
+                    self.client.get_periph_caract, periph_id
+                )
+                data[periph_id] = {
+                    "info": periph,
+                    "caracts": {},
+                }
+
+                for caract in caracts:
+                    caract_id = caract["id"]
+                    _LOGGER.debug("Processing characteristic: %s for peripheral: %s", caract_id, periph_id)
+
+                    # Fetch current value
+                    current_value = await self.hass.async_add_executor_job(
+                        self.client.get_periph_value, periph_id, caract_id
+                    )
+
+                    # Fetch value list if type is 'list'
+                    value_list = None
+                    if caract.get("type") == "list":
+                        value_list = await self.hass.async_add_executor_job(
+                            self.client.get_periph_value_list, periph_id, caract_id
+                        )
+                        _LOGGER.debug("Fetched value list for %s: %s", caract_id, value_list)
+
+                    # Fetch history (deep load on first run, incremental afterwards)
+                    history = []
+                    if self._initial_load:
+                        history = await self.hass.async_add_executor_job(
+                            self.client.get_periph_history, periph_id, caract_id
+                        )
+                        _LOGGER.debug("Fetched full history for %s: %s entries", caract_id, len(history))
+                    else:
+                        # Incremental update: fetch only the latest value
+                        latest_history = await self.hass.async_add_executor_job(
+                            self.client.get_periph_history, periph_id, caract_id, limit=1
+                        )
+                        if latest_history:
+                            history = latest_history
+                            _LOGGER.debug("Fetched incremental history for %s: 1 entry", caract_id)
+
+                    data[periph_id]["caracts"][caract_id] = {
+                        "info": caract,
+                        "current_value": current_value,
+                        "value_list": value_list,
+                        "history": history,
+                    }
+
+            if self._initial_load:
+                self._initial_load = False
+                _LOGGER.debug("Completed initial deep data load")
+
+            _LOGGER.debug("Data update completed successfully")
+            return data
+
         except Exception as err:
-            raise UpdateFailed(f"Error communicating with eedomus API: {err}") from err
+            _LOGGER.exception("Error updating eedomus data: %s", err)
+            raise UpdateFailed(f"Error updating eedomus data: {err}") from err
