@@ -83,6 +83,11 @@ class EedomusClient:
         }
         return await self.fetch_data('periph.value', params)
 
+    async def get_periph_value(self, periph_id: str) -> Optional[Dict]:
+        """Get the current value of a peripheral."""
+        params = {'periph_id': periph_id, 'action': 'get'}
+        return await self.fetch_data('periph.value', params)
+    
     async def get_periph_caract(self, periph_id: str) -> Optional[Dict]:
         """Get characteristics of a peripheral."""
         params = {'periph_id': periph_id}
