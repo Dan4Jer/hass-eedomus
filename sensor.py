@@ -1,3 +1,33 @@
+"""Sensor entity for eedomus integration."""
+import logging
+from homeassistant.components.sensor import SensorEntity
+from .entity import EedomusEntity
+from .const import SENSOR_DEVICE_CLASSES
+
+_LOGGER = logging.getLogger(__name__)
+
+class EedomusSensor(EedomusEntity, SensorEntity):
+    """Representation of an eedomus sensor."""
+
+    def __init__(self, coordinator, periph_id, caract_id):
+        """Initialize the sensor."""
+        super().__init__(coordinator, periph_id, caract_id)
+        _LOGGER.debug("Initializing sensor entity for periph_id=%s, caract_id=%s", periph_id, caract_id)
+
+    @property
+    def native_value(self):
+        """Return the state of the sensor."""
+        value = self.coordinator.data[self._periph_id]["caracts"][self._caract_id]["current_value"]
+        _LOGGER.debug("Sensor %s native_value: %s", self._caract_id, value)
+        return value
+
+    @property
+    def device_class(self):
+        """Return the device class of the sensor."""
+        caract_type = self.coordinator.data[self._periph_id]["caracts"][self._caract_id]["info"].get("type")
+        device_class = SENSOR_DEVICE_CLASSES.get(caract_type)
+        _LOGGER.debug("Sensor %s device_class: %s", self._caract_id, device_class)
+        return device_class
 """Support for eedomus sensors."""
 from __future__ import annotations
 
@@ -65,3 +95,10 @@ class EedomusSensor(CoordinatorEntity, SensorEntity):
         """Return the state of the sensor."""
         # Placeholder: need to fetch current state from API
         return None
+
+    @property
+    def native_unit_of_measurement(self):
+        """Return the unit of measurement."""
+        unit = self.coordinator.data[self._periph_id]["caracts"][self._caract_id]["info"].get("unit")
+        _LOGGER.debug("Sensor %s unit_of_measurement: %s", self._caract_id, unit)
+        return unit

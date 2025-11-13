@@ -38,7 +38,6 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     if not rdata or rdata.get("success", 0) != 1:
         raise vol.Invalid("Cannot connect to eedomus API - please check your credentials and host")
 
-    #return {"title": f"Eedomus (xxx)"}
     return {"title": f"Eedomus ({data[CONF_API_HOST]})"}
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):

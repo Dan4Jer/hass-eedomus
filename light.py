@@ -1,73 +1,68 @@
-"""Support for eedomus lights."""
-from __future__ import annotations
-
+"""Light entity for eedomus integration."""
 import logging
-from typing import Any
-
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_COLOR_TEMP,
-    ATTR_HS_COLOR,
     ATTR_RGB_COLOR,
     ColorMode,
     LightEntity,
 )
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
-
-
-from .const import DOMAIN, CONF_API_HOST, CONF_API_USER, CONF_API_SECRET, PLATFORMS
-from .coordinator import EedomusDataUpdateCoordinator
-
+from .entity import EedomusEntity
+from .const import ATTR_VALUE_LIST
 
 _LOGGER = logging.getLogger(__name__)
 
-async def async_setup_entry(
-    hass: HomeAssistant,
-    config_entry: ConfigType,
-    async_add_entities: AddEntitiesCallback,
-) -> None:
-    """Set up eedomus lights dynamically."""
-    coordinator: EedomusDataUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id]
-
-    lights = []
-    for peripheral in coordinator.data:
-        if peripheral.get("usage_id") in ["1", "82"]:  # Lampe and Couleur lumière
-            lights.append(EedomusLight(coordinator, peripheral))
-
-    async_add_entities(lights)
-
-class EedomusLight(CoordinatorEntity, LightEntity):
+class EedomusLight(EedomusEntity, LightEntity):
     """Representation of an eedomus light."""
 
-    def __init__(self, coordinator: EedomusDataUpdateCoordinator, peripheral: dict) -> None:
+    def __init__(self, coordinator, periph_id, caract_id):
         """Initialize the light."""
-        super().__init__(coordinator)
-        self._peripheral = peripheral
-        self._attr_unique_id = peripheral["periph_id"]
-        self._attr_name = peripheral["name"]
+        super().__init__(coordinator, periph_id, caract_id)
         self._attr_supported_color_modes = {ColorMode.ONOFF}
+        caract_type = self.coordinator.data[periph_id]["caracts"][caract_id]["info"].get("type")
 
-        # Determine if the light supports color or color temperature
-        if peripheral.get("usage_id") == "82":  # Couleur lumière
-            self._attr_supported_color_modes = {ColorMode.RGB}
-        elif "Température" in peripheral["name"]:  # Check if it's a color temperature light
-            self._attr_supported_color_modes = {ColorMode.COLOR_TEMP}
+        if caract_type == "rgb":
+            self._attr_supported_color_modes.add(ColorMode.RGB)
+        elif caract_type == "color_temp":
+            self._attr_supported_color_modes.add(ColorMode.COLOR_TEMP)
+
+        _LOGGER.debug(
+            "Initializing light entity for periph_id=%s, caract_id=%s, supported_color_modes=%s",
+            periph_id, caract_id, self._attr_supported_color_modes
+        )
 
     @property
-    def is_on(self) -> bool:
-        """Return true if light is on."""
-        # Placeholder: need to fetch current state from API
-        return False
+    def is_on(self):
+        """Return true if the light is on."""
+        value = self.coordinator.data[self._periph_id]["caracts"][self._caract_id]["current_value"]
+        _LOGGER.debug("Light %s is_on: %s", self._caract_id, value == "on")
+        return value == "on"
 
-    async def async_turn_on(self, **kwargs: Any) -> None:
+    async def async_turn_on(self, **kwargs):
         """Turn the light on."""
-        # Placeholder: need to implement based on API
-        pass
+        _LOGGER.debug("Turning on light %s with kwargs: %s", self._caract_id, kwargs)
+        brightness = kwargs.get(ATTR_BRIGHTNESS)
+        rgb_color = kwargs.get(ATTR_RGB_COLOR)
+        color_temp = kwargs.get(ATTR_COLOR_TEMP)
 
-    async def async_turn_off(self, **kwargs: Any) -> None:
+        value = "on"
+        if brightness is not None:
+            value = f"on:{brightness}"
+        if rgb_color is not None:
+            value = f"rgb:{rgb_color[0]},{rgb_color[1]},{rgb_color[2]}"
+        if color_temp is not None:
+            value = f"color_temp:{color_temp}"
+
+        await self.hass.async_add_executor_job(
+            self.coordinator.client.set_periph_value, self._periph_id, self._caract_id, value
+        )
+        await self.coordinator.async_request_refresh()
+        _LOGGER.debug("Light %s turned on with value: %s", self._caract_id, value)
+
+    async def async_turn_off(self, **kwargs):
         """Turn the light off."""
-        # Placeholder: need to implement based on API
-        pass
+        _LOGGER.debug("Turning off light %s", self._caract_id)
+        await self.hass.async_add_executor_job(
+            self.coordinator.client.set_periph_value, self._periph_id, self._caract_id, "off"
+        )
+        await self.coordinator.async_request_refresh()

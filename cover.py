@@ -1,67 +1,46 @@
-"""Support for eedomus covers (volets)."""
-from __future__ import annotations
-
+"""Cover entity for eedomus integration."""
 import logging
-from typing import Any
-
-from homeassistant.components.cover import (
-    ATTR_POSITION,
-    CoverDeviceClass,
-    CoverEntity,
-)
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
-
-from .const import DOMAIN, CONF_API_HOST, CONF_API_USER, CONF_API_SECRET, PLATFORMS
-from .coordinator import EedomusDataUpdateCoordinator
+from homeassistant.components.cover import CoverEntity
+from .entity import EedomusEntity
 
 _LOGGER = logging.getLogger(__name__)
 
-async def async_setup_entry(
-    hass: HomeAssistant,
-    config_entry: ConfigType,
-    async_add_entities: AddEntitiesCallback,
-) -> None:
-    """Set up eedomus covers dynamically."""
-    coordinator: EedomusDataUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id]
+class EedomusCover(EedomusEntity, CoverEntity):
+    """Representation of an eedomus cover."""
 
-    covers = []
-    for peripheral in coordinator.data:
-        if peripheral.get("usage_id") == "48":  # Ouverture (volets)
-            covers.append(EedomusCover(coordinator, peripheral))
-
-    async_add_entities(covers)
-
-class EedomusCover(CoordinatorEntity, CoverEntity):
-    """Representation of an eedomus cover (volet)."""
-
-    def __init__(self, coordinator: EedomusDataUpdateCoordinator, peripheral: dict) -> None:
+    def __init__(self, coordinator, periph_id, caract_id):
         """Initialize the cover."""
-        super().__init__(coordinator)
-        self._peripheral = peripheral
-        self._attr_unique_id = peripheral["periph_id"]
-        self._attr_name = peripheral["name"]
-        self._attr_device_class = CoverDeviceClass.SHUTTER
+        super().__init__(coordinator, periph_id, caract_id)
+        _LOGGER.debug("Initializing cover entity for periph_id=%s, caract_id=%s", periph_id, caract_id)
 
     @property
-    def is_closed(self) -> bool | None:
-        """Return if the cover is closed."""
-        # Placeholder: need to fetch current state from API
-        return None
+    def is_closed(self):
+        """Return true if the cover is closed."""
+        value = self.coordinator.data[self._periph_id]["caracts"][self._caract_id]["current_value"]
+        is_closed = value == "closed"
+        _LOGGER.debug("Cover %s is_closed: %s", self._caract_id, is_closed)
+        return is_closed
 
-    async def async_open_cover(self, **kwargs: Any) -> None:
+    async def async_open_cover(self, **kwargs):
         """Open the cover."""
-        # Placeholder: need to implement based on API
-        pass
+        _LOGGER.debug("Opening cover %s", self._caract_id)
+        await self.hass.async_add_executor_job(
+            self.coordinator.client.set_periph_value, self._periph_id, self._caract_id, "open"
+        )
+        await self.coordinator.async_request_refresh()
 
-    async def async_close_cover(self, **kwargs: Any) -> None:
+    async def async_close_cover(self, **kwargs):
         """Close the cover."""
-        # Placeholder: need to implement based on API
-        pass
+        _LOGGER.debug("Closing cover %s", self._caract_id)
+        await self.hass.async_add_executor_job(
+            self.coordinator.client.set_periph_value, self._periph_id, self._caract_id, "closed"
+        )
+        await self.coordinator.async_request_refresh()
 
-    async def async_set_cover_position(self, **kwargs: Any) -> None:
-        """Move the cover to a specific position."""
-        # Placeholder: need to implement based on API
-        pass
+    async def async_stop_cover(self, **kwargs):
+        """Stop the cover."""
+        _LOGGER.debug("Stopping cover %s", self._caract_id)
+        await self.hass.async_add_executor_job(
+            self.coordinator.client.set_periph_value, self._periph_id, self._caract_id, "stop"
+        )
+        await self.coordinator.async_request_refresh()
