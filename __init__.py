@@ -1,7 +1,10 @@
 """The eedomus integration."""
 import logging
+import aiohttp
+import async_timeout
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import aiohttp_client
 from .const import DOMAIN, PLATFORMS, COORDINATOR
 from .coordinator import EedomusDataUpdateCoordinator
 from .eedomus_client import EedomusClient
@@ -12,7 +15,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up eedomus from a config entry."""
     _LOGGER.debug("Setting up eedomus integration with entry: %s", entry.title)
 
+    # Create an aiohttp session for the client
+    session = aiohttp_client.async_get_clientsession(hass)
+
     client = EedomusClient(
+        session=session,
         api_user=entry.data["api_user"],
         api_secret=entry.data["api_secret"],
         api_host=entry.data["api_host"],
@@ -28,10 +35,3 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     _LOGGER.debug("eedomus integration setup completed for entry: %s", entry.title)
     return True
-
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload a config entry."""
-    if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
-        hass.data[DOMAIN].pop(entry.entry_id)
-        _LOGGER.debug("eedomus integration unloaded for entry: %s", entry.title)
-    return unload_ok
