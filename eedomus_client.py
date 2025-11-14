@@ -39,8 +39,8 @@ class EedomusClient:
                     # Lire les données brutes
                     raw_data = await resp.read()
                     
-                    _LOGGER.debug("Request URL: %s", url)
-                    _LOGGER.debug("Request params: %s", params)
+                    #_LOGGER.debug("Request URL: %s", url)
+                    #_LOGGER.debug("Request params: %s", params)
                     
                     # Essayer de décoder avec UTF-8 d'abord
                     try:

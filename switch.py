@@ -13,12 +13,19 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
     """Set up eedomus switch entities from config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+    all_peripherals = coordinator.get_all_peripherals()
 
-    # Filter peripherals that are switches
     switches = []
-    for periph_id, periph_data in coordinator.data.items():
-        periph_info = periph_data["info"]
-        if periph_info.get("value_type") == "list" and "Interrupteur" in periph_info.get("usage_name", ""):
+    for periph_id, periph in all_peripherals.items():
+        usage_name = periph.get("usage_name", "").lower()
+        name = periph.get("name", "").lower()
+
+        if ("interrupteur" in usage_name or
+            "switch" in usage_name or
+            "interrupteur" in name or
+            "détection" in name or
+            "mouvement" in name or
+            "decoration" in name.lower()):
             switches.append(EedomusSwitch(coordinator, periph_id))
 
     async_add_entities(switches, True)

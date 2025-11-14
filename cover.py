@@ -13,12 +13,17 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
     """Set up eedomus cover entities from config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+    all_peripherals = coordinator.get_all_peripherals()
 
-    # Filter peripherals that are covers/shutters
     covers = []
-    for periph_id, periph_data in coordinator.data.items():
-        periph_info = periph_data["info"]
-        if periph_info.get("value_type") == "list" and "Ouverture" in periph_info.get("usage_name", ""):
+    for periph_id, periph in all_peripherals.items():
+        usage_name = periph.get("usage_name", "").lower()
+        name = periph.get("name", "").lower()
+
+        if ("ouverture" in usage_name or
+            "shutter" in usage_name or
+            "volet" in name or
+            "store" in name):
             covers.append(EedomusCover(coordinator, periph_id))
 
     async_add_entities(covers, True)

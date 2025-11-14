@@ -13,14 +13,19 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
     """Set up eedomus sensor entities from config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+    all_peripherals = coordinator.get_all_peripherals()
 
-    # Filter peripherals that are sensors
     sensors = []
-    for periph_id, periph_data in coordinator.data.items():
-        periph_info = periph_data["info"]
-        value_type = periph_info.get("value_type")
-        unit = periph_info.get("unit")
-        if value_type in ["float", "string"] and unit in ["°C", "%", "Lux", "W", "Wh"]:
+    for periph_id, periph in all_peripherals.items():
+        value_type = periph.get("value_type")
+        unit = periph.get("unit")
+        usage_name = periph.get("usage_name", "").lower()
+
+        if ((value_type in ["float", "string"] and unit in ["°C", "%", "Lux", "W", "Wh"]) or
+            ("température" in usage_name or
+             "humidité" in usage_name or
+             "luminosité" in usage_name or
+             "consommation" in usage_name)):
             sensors.append(EedomusSensor(coordinator, periph_id))
 
     async_add_entities(sensors, True)
