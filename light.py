@@ -20,11 +20,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     """Set up eedomus light entities from config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
 
-    # Filter peripherals that are lights
+    # Get ALL peripherals (not just dynamic ones)
+    all_peripherals = coordinator.get_all_peripherals()
+
+    # Filter for lights (any peripheral with "Lampe" in usage_name or name)
     lights = []
-    for periph_id, periph_data in coordinator.data.items():
-        periph_info = periph_data["info"]
-        if periph_info.get("value_type") in ["list", "rgb", "color_temp"] and "Lampe" in periph_info.get("usage_name", ""):
+    for periph_id, periph in all_peripherals.items():
+        usage_name = periph.get("usage_name", "").lower()
+        name = periph.get("name", "").lower()
+
+        if ("lampe" in usage_name or
+            "light" in usage_name or
+            "lampe" in name or
+            "light" in name):
             lights.append(EedomusLight(coordinator, periph_id))
 
     async_add_entities(lights, True)
@@ -37,7 +45,9 @@ class EedomusLight(EedomusEntity, LightEntity):
         super().__init__(coordinator, periph_id, periph_id)
         self._attr_supported_color_modes = {ColorMode.ONOFF}
 
-        periph_type = self.coordinator.data[periph_id]["info"].get("value_type")
+        periph_info = self.coordinator.data[periph_id]["info"]
+        periph_type = periph_info.get("value_type")
+
         if periph_type == "rgb":
             self._attr_supported_color_modes.add(ColorMode.RGB)
         elif periph_type == "color_temp":

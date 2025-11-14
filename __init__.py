@@ -1,7 +1,7 @@
 """The eedomus integration."""
+from __future__ import annotations
+
 import logging
-import aiohttp
-import async_timeout
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import aiohttp_client
@@ -13,11 +13,10 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up eedomus from a config entry."""
-    _LOGGER.debug("Setting up eedomus integration with entry: %s", entry.title)
+    _LOGGER.debug("Setting up eedomus integration")
 
-    # Create an aiohttp session for the client
+    # Create session and client
     session = aiohttp_client.async_get_clientsession(hass)
-
     client = EedomusClient(
         session=session,
         api_user=entry.data["api_user"],
@@ -25,13 +24,33 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         api_host=entry.data["api_host"],
     )
 
+    # Initialize coordinator
     coordinator = EedomusDataUpdateCoordinator(hass, client)
+
+    # Perform initial full refresh
     await coordinator.async_config_entry_first_refresh()
 
+    # Store coordinator for later use
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
         COORDINATOR: coordinator,
     }
 
+    # Forward setup to platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    _LOGGER.debug("eedomus integration setup completed for entry: %s", entry.title)
+
+    # Register service to force full refresh
+    async def handle_refresh_service(call):
+        """Handle service call to refresh data."""
+        await coordinator.request_full_refresh()
+
+    hass.services.async_register(DOMAIN, "refresh", handle_refresh_service)
+
+    _LOGGER.debug("eedomus integration setup completed")
     return True
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload a config entry."""
+    if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
+        hass.data[DOMAIN].pop(entry.entry_id)
+        _LOGGER.debug("eedomus integration unloaded")
+    return unload_ok
