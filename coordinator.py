@@ -22,19 +22,22 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         )
         self.client = client
         self._full_refresh_needed = True
-        self._all_peripherals = {}      # Tous les périphériques (statiques + dynamiques)
-        self._dynamic_peripherals = {}  # Seuls les périphériques dynamiques
+        self._all_peripherals = {}
+        self._dynamic_peripherals = {}
 
     async def _async_update_data(self):
-        """Fetch data from eedomus API with optimized strategy."""
+        """Fetch data from eedomus API with improved error handling."""
         try:
             if self._full_refresh_needed:
                 return await self._async_full_refresh()
             else:
-                return await self._async_partial_refresh()
+                return await self._async_partial_refresh()  # Cette méthode existe maintenant
 
         except Exception as err:
             _LOGGER.exception("Error updating eedomus data: %s", err)
+            # Return last known good data if available
+            if hasattr(self, 'data') and self.data:
+                return self.data
             raise UpdateFailed(f"Error updating data: {err}") from err
 
     async def _async_full_refresh(self):
@@ -44,21 +47,26 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         peripherals_response = await self.client.get_periph_list()
         _LOGGER.debug("Raw API response: %s", peripherals_response)
 
-        if not peripherals_response or not isinstance(peripherals_response, dict):
-            raise UpdateFailed("Invalid API response: not a dictionary")
+        if not isinstance(peripherals_response, dict):
+            _LOGGER.error("Invalid API response format: %s", peripherals_response)
+            raise UpdateFailed("Invalid API response format")
 
-        if peripherals_response.get("success") != 1:
-            raise UpdateFailed(f"API request failed: {peripherals_response}")
+        if peripherals_response.get("success", 0) != 1:
+            error = peripherals_response.get("error", "Unknown API error")
+            _LOGGER.error("API request failed: %s", error)
+            _LOGGER.debug("API peripherals_response %s", peripherals_response)
+            raise UpdateFailed(f"API request failed: {error}")
 
         peripherals = peripherals_response.get("body", [])
         if not isinstance(peripherals, list):
-            raise UpdateFailed(f"Invalid response body: {peripherals_response}")
+            _LOGGER.error("Invalid peripherals list: %s", peripherals)
+            peripherals = []
 
         _LOGGER.debug("Found %d peripherals in total", len(peripherals))
 
         data = {}
-        self._all_peripherals = {}    # Reset all peripherals list
-        self._dynamic_peripherals = {}  # Reset dynamic peripherals list
+        self._all_peripherals = {}
+        self._dynamic_peripherals = {}
 
         for periph in peripherals:
             if not isinstance(periph, dict) or "periph_id" not in periph:
@@ -66,10 +74,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 continue
 
             periph_id = periph["periph_id"]
-            periph_type = periph.get("value_type")
+            periph_type = periph.get("value_type", "")
             periph_name = periph.get("name", "N/A")
 
-            # Store ALL peripherals in data
             data[periph_id] = {
                 "info": periph,
                 "current_value": None,
@@ -77,16 +84,15 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 "value_list": None
             }
 
-            # Store in all peripherals list
             self._all_peripherals[periph_id] = periph
 
-            # Get current value for ALL peripherals (but only store dynamic ones for updates)
             try:
-                current_value = await self.client.set_periph_value(periph_id, "get")
-                if current_value and isinstance(current_value, dict):
-                    data[periph_id]["current_value"] = current_value.get("value")
+                #current_value = await self.client.set_periph_value(periph_id, "get")
+                current_value = await self.client.get_periph_caract(periph_id)
+                if isinstance(current_value, dict):
+                    data[periph_id]["current_value"] = current_value.get("last_value")
+                    data[periph_id]["last_value_change"] = current_value.get("last_change")
 
-                # Classify as dynamic if needed
                 if self._is_dynamic_peripheral(periph):
                     self._dynamic_peripherals[periph_id] = periph
             except Exception as e:
@@ -109,9 +115,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # Update only dynamic peripherals
         for periph_id in self._dynamic_peripherals:
             try:
-                current_value = await self.client.set_periph_value(periph_id, "get")
-                if current_value and isinstance(current_value, dict):
-                    data[periph_id]["current_value"] = current_value.get("value")
+                current_value = await self.client.get_periph_caract(periph_id)
+                if isinstance(current_value, dict):
+                    data[periph_id]["current_value"] = current_value.get("last_value")
+                    data[periph_id]["last_value_change"] = current_value.get("last_change")
             except Exception as e:
                 _LOGGER.warning("Failed to update peripheral %s: %s", periph_id, e)
 
@@ -119,21 +126,16 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
     def _is_dynamic_peripheral(self, periph):
         """Determine if a peripheral needs regular updates."""
-        value_type = periph.get("value_type")
+        value_type = periph.get("value_type", "")
         usage_name = periph.get("usage_name", "").lower()
         name = periph.get("name", "").lower()
 
-        # Types that change frequently
         dynamic_types = ["float", "string"]
-
-        # Usage names that indicate dynamic peripherals
         dynamic_usages = [
             "température", "temperature", "humidité", "humidity",
             "luminosité", "luminosity", "consommation", "consumption",
             "puissance", "power", "débit", "flow", "niveau", "level"
         ]
-
-        # Special cases (like your Decorations)
         special_cases = ["decoration", "détection", "mouvement", "caméra"]
 
         return (value_type in dynamic_types or

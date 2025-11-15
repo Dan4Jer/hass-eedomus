@@ -48,9 +48,7 @@ class EedomusCover(EedomusEntity, CoverEntity):
         """Open the cover."""
         _LOGGER.debug("Opening cover %s", self._periph_id)
         try:
-            await self.hass.async_add_executor_job(
-                self.coordinator.client.set_periph_value, self._periph_id, "open"
-            )
+            response = await self.coordinator.client.set_periph_value(self._periph_id, "100")
             await self.coordinator.async_request_refresh()
         except Exception as e:
             _LOGGER.error("Failed to open cover %s: %s", self._periph_id, e)
@@ -60,9 +58,7 @@ class EedomusCover(EedomusEntity, CoverEntity):
         """Close the cover."""
         _LOGGER.debug("Closing cover %s", self._periph_id)
         try:
-            await self.hass.async_add_executor_job(
-                self.coordinator.client.set_periph_value, self._periph_id, "closed"
-            )
+            response = await self.coordinator.client.set_periph_value(self._periph_id, "0")
             await self.coordinator.async_request_refresh()
         except Exception as e:
             _LOGGER.error("Failed to close cover %s: %s", self._periph_id, e)
@@ -72,8 +68,8 @@ class EedomusCover(EedomusEntity, CoverEntity):
         """Stop the cover."""
         _LOGGER.debug("Stopping cover %s", self._periph_id)
         try:
-            await self.hass.async_add_executor_job(
-                self.coordinator.client.set_periph_value, self._periph_id, "stop"
+            response = await self.coordinator.client.set_periph_value(
+                self._periph_id, str(self.coordinator.data[self._periph_id].get("current_value"))
             )
             await self.coordinator.async_request_refresh()
         except Exception as e:
