@@ -1,0 +1,4 @@
+# eedomus/services.yaml
+refresh:
+  name: Refresh eedomus data
+  description: Force a full refresh of all eedomus peripherals

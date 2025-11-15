@@ -23,8 +23,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         if ("interrupteur" in usage_name or
             "switch" in usage_name or
             "interrupteur" in name or
-            "détection" in name or
-            "mouvement" in name or
             "decoration" in name.lower()):
             switches.append(EedomusSwitch(coordinator, periph_id))
 
@@ -49,9 +47,10 @@ class EedomusSwitch(EedomusEntity, SwitchEntity):
         """Turn the switch on."""
         _LOGGER.debug("Turning on switch %s", self._periph_id)
         try:
-            await self.hass.async_add_executor_job(
-                self.coordinator.client.set_periph_value, self._periph_id, "on"
-            )
+            response = await self.coordinator.client.set_periph_value(self._periph_id, "100")
+            if isinstance(response, dict) and response.get("success") != 1:
+                _LOGGER.error("Failed to turn on switch %s: %s", self._periph_id, response.get("error", "Unknown error"))
+                raise Exception(f"Failed to turn on switch: {response.get('error', 'Unknown error')}")
             await self.coordinator.async_request_refresh()
         except Exception as e:
             _LOGGER.error("Failed to turn on switch %s: %s", self._periph_id, e)
@@ -61,10 +60,13 @@ class EedomusSwitch(EedomusEntity, SwitchEntity):
         """Turn the switch off."""
         _LOGGER.debug("Turning off switch %s", self._periph_id)
         try:
-            await self.hass.async_add_executor_job(
-                self.coordinator.client.set_periph_value, self._periph_id, "off"
-            )
+            response = await self.coordinator.client.set_periph_value(self._periph_id, "0")
+            if isinstance(response, dict) and response.get("success") != 1:
+                _LOGGER.error("Failed to turn off switch %s: %s", self._periph_id, response.get("error", "Unknown error"))
+                raise Exception(f"Failed to turn off switch: {response.get('error', 'Unknown error')}")
+
             await self.coordinator.async_request_refresh()
+
         except Exception as e:
             _LOGGER.error("Failed to turn off switch %s: %s", self._periph_id, e)
             raise

@@ -22,9 +22,9 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_show_form(
                 step_id="user",
                 data_schema=vol.Schema({
+                    vol.Required(CONF_API_HOST, default=DEFAULT_API_HOST): str,
                     vol.Required(CONF_API_USER): str,
                     vol.Required(CONF_API_SECRET): str,
-                    vol.Required(CONF_API_HOST, default=DEFAULT_API_HOST): str,
                 })
             )
 

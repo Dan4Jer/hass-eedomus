@@ -20,10 +20,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     """Set up eedomus light entities from config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
 
-    # Get ALL peripherals (not just dynamic ones)
+    # Get all peripherals
     all_peripherals = coordinator.get_all_peripherals()
 
-    # Filter for lights (any peripheral with "Lampe" in usage_name or name)
+    # Filter for lights
     lights = []
     for periph_id, periph in all_peripherals.items():
         usage_name = periph.get("usage_name", "").lower()
@@ -81,11 +81,16 @@ class EedomusLight(EedomusEntity, LightEntity):
             value = f"color_temp:{color_temp_kelvin}"
 
         try:
-            await self.hass.async_add_executor_job(
-                self.coordinator.client.set_periph_value, self._periph_id, value
-            )
+            response = await self.coordinator.client.set_periph_value(self._periph_id, "100")
+
+            # Correction: le bloc if doit être correctement indenté
+            if isinstance(response, dict) and response.get("success") != 1:
+                _LOGGER.error("Failed to set light value: %s", response.get("error", "Unknown error"))
+                raise Exception(f"Failed to set light value: {response.get('error', 'Unknown error')}")
+
             await self.coordinator.async_request_refresh()
             _LOGGER.debug("Light %s turned on with value: %s", self._periph_id, value)
+
         except Exception as e:
             _LOGGER.error("Failed to turn on light %s: %s", self._periph_id, e)
             raise
@@ -94,10 +99,13 @@ class EedomusLight(EedomusEntity, LightEntity):
         """Turn the light off."""
         _LOGGER.debug("Turning off light %s", self._periph_id)
         try:
-            await self.hass.async_add_executor_job(
-                self.coordinator.client.set_periph_value, self._periph_id, "off"
-            )
+            response = await self.coordinator.client.set_periph_value(self._periph_id, 0)
+            if isinstance(response, dict) and response.get("success") != 1:
+                _LOGGER.error("Failed to turn off light %s: %s", self._periph_id, response.get("error", "Unknown error"))
+                raise Exception(f"Failed to turn off light: {response.get('error', 'Unknown error')}")
+
             await self.coordinator.async_request_refresh()
+
         except Exception as e:
             _LOGGER.error("Failed to turn off light %s: %s", self._periph_id, e)
             raise

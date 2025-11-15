@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, ServiceResponse, callback
 from homeassistant.helpers import aiohttp_client
 from .const import DOMAIN, PLATFORMS, COORDINATOR
 from .coordinator import EedomusDataUpdateCoordinator
@@ -38,12 +38,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Forward setup to platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Register service to force full refresh
-    async def handle_refresh_service(call):
+    # Register refresh service
+    @callback
+    def refresh_service(call: ServiceResponse) -> None:
         """Handle service call to refresh data."""
-        await coordinator.request_full_refresh()
+        hass.async_create_task(coordinator.request_full_refresh())
+        call.return_response()
 
-    hass.services.async_register(DOMAIN, "refresh", handle_refresh_service)
+    hass.services.async_register(DOMAIN, "refresh", refresh_service)
 
     _LOGGER.debug("eedomus integration setup completed")
     return True

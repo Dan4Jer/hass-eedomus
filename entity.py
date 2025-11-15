@@ -45,6 +45,12 @@ class EedomusEntity(CoordinatorEntity):
             if "value_list" in periph_data:
                 attrs["value_list"] = periph_data["value_list"]
 
+            if "room_name" in periph_data:
+                attrs["room"] = periph_data["room_name"]
+
+            if "value_type" in periph_data:
+                attrs["type"] = periph_data["value_type"]
+
         return attrs
 
     @property

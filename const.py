@@ -9,7 +9,7 @@ from homeassistant.const import Platform
 CONF_API_USER = "api_user"
 CONF_API_SECRET = "api_secret"
 CONF_API_HOST = "api_host"
-DEFAULT_API_HOST = "https://api.eedomus.com"
+DEFAULT_API_HOST = "192.168.1.2"
 
 # Platforms
 PLATFORMS = [
