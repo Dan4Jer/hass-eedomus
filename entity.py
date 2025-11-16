@@ -18,7 +18,10 @@ class EedomusEntity(CoordinatorEntity):
         self._caract_id = caract_id
         self._attr_unique_id = f"{periph_id}_{caract_id}"
         _LOGGER.debug("Initializing entity for periph_id=%s, caract_id=%s", periph_id, caract_id)
-
+        _LOGGER.debug("Extra data for periph_id=%s, data=%s", periph_id, self.coordinator.data[periph_id]["info"])
+        if self.coordinator.data[periph_id]["info"]["name"]:
+            self._attr_name = self.coordinator.data[periph_id]["info"]["name"]
+        
     @property
     def device_info(self) -> DeviceInfo:
         """Return device information."""

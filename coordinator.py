@@ -27,6 +27,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         """Fetch data from eedomus API with improved error handling."""
+        _LOGGER.info("Update eedomus data")
         try:
             if self._full_refresh_needed:
                 return await self._async_full_refresh()
@@ -42,7 +43,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_full_refresh(self):
         """Perform a complete refresh of all peripherals."""
-        _LOGGER.debug("Performing full data refresh from eedomus API")
+        _LOGGER.info("Performing full data refresh from eedomus API")
 
         peripherals_response = await self.client.get_periph_list()
         _LOGGER.debug("Raw API response: %s", peripherals_response)
@@ -62,7 +63,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.error("Invalid peripherals list: %s", peripherals)
             peripherals = []
 
-        _LOGGER.debug("Found %d peripherals in total", len(peripherals))
+        _LOGGER.info("Found %d peripherals in total", len(peripherals))
 
         data = {}
         self._all_peripherals = {}
@@ -72,7 +73,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             if not isinstance(periph, dict) or "periph_id" not in periph:
                 _LOGGER.warning("Skipping invalid peripheral: %s", periph)
                 continue
-
+            _LOGGER.debug("peripherals periph_id=%s data=%s", periph["periph_id"], periph)
             periph_id = periph["periph_id"]
             periph_type = periph.get("value_type", "")
             periph_name = periph.get("name", "N/A")
@@ -90,9 +91,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 #current_value = await self.client.set_periph_value(periph_id, "get")
                 current_value = await self.client.get_periph_caract(periph_id)
                 if isinstance(current_value, dict):
-                    data[periph_id]["current_value"] = current_value.get("last_value")
-                    data[periph_id]["last_value_change"] = current_value.get("last_change")
-
+                    data[periph_id]["current_value"] = current_value["body"].get("last_value")
+                    data[periph_id]["last_value_change"] = current_value["body"].get("last_change")
+                    data[periph_id]["lastest_caract_data"] = current_value
                 if self._is_dynamic_peripheral(periph):
                     self._dynamic_peripherals[periph_id] = periph
             except Exception as e:
@@ -117,8 +118,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             try:
                 current_value = await self.client.get_periph_caract(periph_id)
                 if isinstance(current_value, dict):
-                    data[periph_id]["current_value"] = current_value.get("last_value")
-                    data[periph_id]["last_value_change"] = current_value.get("last_change")
+                    data[periph_id]["current_value"] = current_value["body"].get("last_value")
+                    data[periph_id]["last_value_change"] = current_value["body"].get("last_change")
+                    data[periph_id]["lastest_caract_data"] = current_value
+                _LOGGER.debug("Performing partial refresh for %s %s", periph_id, current_value)
             except Exception as e:
                 _LOGGER.warning("Failed to update peripheral %s: %s", periph_id, e)
 
@@ -137,10 +140,12 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             "puissance", "power", "débit", "flow", "niveau", "level"
         ]
         special_cases = ["decoration", "détection", "mouvement", "caméra"]
-
-        return (value_type in dynamic_types or
-                any(usage in usage_name for usage in dynamic_usages) or
-                any(case in name for case in special_cases))
+        if (value_type in dynamic_types or
+            any(usage in usage_name for usage in dynamic_usages) or
+            any(case in name for case in special_cases)):
+            _LOGGER.info("Peripheral is dynamic ! %s", periph)
+            return True
+        return False
 
     def get_all_peripherals(self):
         """Return all peripherals (for entity setup)."""

@@ -40,7 +40,7 @@ class EedomusSwitch(EedomusEntity, SwitchEntity):
     def is_on(self):
         """Return true if the switch is on."""
         value = self.coordinator.data[self._periph_id].get("current_value")
-        _LOGGER.debug("Switch %s is_on: %s", self._periph_id, value == "on")
+        _LOGGER.debug("Switch %s is_on: %s", self._periph_id, value)
         return value == "on"
 
     async def async_turn_on(self, **kwargs):
