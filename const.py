@@ -10,6 +10,8 @@ CONF_API_USER = "api_user"
 CONF_API_SECRET = "api_secret"
 CONF_API_HOST = "api_host"
 DEFAULT_API_HOST = "192.168.1.2"
+DEFAULT_API_USER = "4pYrgk"
+DEFAULT_API_SECRET = "ChJKkudDrYhoh2NR"
 
 # Platforms
 PLATFORMS = [
@@ -43,7 +45,7 @@ SENSOR_DEVICE_CLASSES = {
 
 # Schema for config flow (do not modify)
 STEP_USER_DATA_SCHEMA = {
+    "api_host": str,
     "api_user": str,
     "api_secret": str,
-    "api_host": str,
 }

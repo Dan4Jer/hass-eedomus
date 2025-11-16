@@ -21,7 +21,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         session=session,
         api_user=entry.data["api_user"],
         api_secret=entry.data["api_secret"],
-        api_host=entry.data["api_host"],
+        api_host=entry.data["api_host"]
     )
 
     # Initialize coordinator
