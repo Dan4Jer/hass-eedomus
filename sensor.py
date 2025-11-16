@@ -20,7 +20,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         value_type = periph.get("value_type")
         unit = periph.get("unit")
         usage_name = periph.get("usage_name", "").lower()
-
+        _LOGGER.debug("Setup sensor entity for periph_id=%s data=%s", periph_id, coordinator.data[periph_id])
         if ((value_type in ["float", "string"] and unit in ["°C", "%", "Lux", "W", "Wh"]) or
             ("température" in usage_name or
              "humidité" in usage_name or

@@ -3,36 +3,15 @@ Procédons par etape
 
 Prends connaissance de la documentation suivante :
 https://doc.eedomus.com/view/API_eedomus
+https://www.home-assistant.io/docs/configuration/state_object/
 
 ⚠️ Règles à respecter absolument :
 1/ Ne jamais modifier STEP_USER_DATA_SCHEMA ou les clés CONF_API_*.
-2/ Centralisation des contraintes dans EedomusClient (api_user, api_secret, headers, parsing JSON).
-3/ Gestion dynamique des entités via EedomusEntity et le coordinator.
-4/ Concerver en l'état eedomus_client
-5/ Me prévenir si je m’écarte de ton code GitHub en citant le fichier et la ligne.
-6/ Indiquer en commentaire les modifications réaliser dans le code : ==> Modification proposée
-7/ Centraliser le respect des contraintes (comme l'utilisation de api_user et api_secret) uniquement dans la classe EedomusClient, tout en gardant une logique claire et dynamique pour la gestion des interrupteurs.
-8/ garder des commentaires en anglais dans le code
-9/ rester au plus proche de la persistance de HA https://www.home-assistant.io/docs/configuration/state_object/
-10/ Générer des traces de débug dans les points structurants
-
-Contraintes :
-Utiliser api_host (issu de CONF_API_HOST) pour tous les appels API, sans distinction local/cloud.
-Ne pas modifier eedomus_client.py (la gestion de l’URL est déjà centralisée).
-Conserver CONF_API_HOST dans le config_flow et le transmettre à EedomusClient.
-Ajouter un log de debug au démarrage : 'Using eedomus API at: {api_host}'."*
-
-
-1/ Ne jamais modifier STEP_USER_DATA_SCHEMA ou les clés CONF_API_*.
-2/ Ne jamais modifier le fichier eedomus_client.py ni la logique d'appel API existante. Considérer que la gestion des paramètres api_user et api_secret est déjà correctement implémentée et centralisée dans ce fichier.
-3/ Centraliser les contraintes (comme l'utilisation de api_user et api_secret) uniquement dans la classe EedomusClient sans y apporter de modifications.
-4/ Gestion dynamique des entités via EedomusEntity et le coordinator.
-5/ Me prévenir si je m’écarte du code GitHub existant en citant le fichier et la ligne.
-6/ Indiquer en commentaire les modifications réalisées dans le code : ==> Modification proposée.
-7/ Garder des commentaires en anglais dans le code.
-8/ Rester au plus proche de la persistance de HA.
-9/ Générer des traces de debug dans les points structurants.
-
+2/ Les parties config_flow et eedomus_client sont arrivés à maturité
+3/ Indiquer en commentaire les modifications réaliser dans le code : ==> Modification proposée
+4/ garder des commentaires en anglais dans le code
+5/ rester au plus proche de la persistance de HA https://www.home-assistant.io/docs/configuration/state_object/
+6/ Générer des traces de débug dans les points structurants
 
 En repartant du code suivant :
 https://github.com/Dan4Jer/hass-eedomus/blob/main/__init__.py
@@ -44,26 +23,11 @@ https://github.com/Dan4Jer/hass-eedomus/blob/main/cover.py
 https://github.com/Dan4Jer/hass-eedomus/blob/main/eedomus_client.py
 https://github.com/Dan4Jer/hass-eedomus/blob/main/entity.py
 https://github.com/Dan4Jer/hass-eedomus/blob/main/light.py
+https://github.com/Dan4Jer/hass-eedomus/blob/main/manifest.json
 https://github.com/Dan4Jer/hass-eedomus/blob/main/sensor.py
 https://github.com/Dan4Jer/hass-eedomus/blob/main/services.py
+https://github.com/Dan4Jer/hass-eedomus/blob/main/services.yaml
 https://github.com/Dan4Jer/hass-eedomus/blob/main/switch.py
 https://github.com/Dan4Jer/hass-eedomus/blob/main/test.py
 
 
-Exigences : Je veux qu'il y ait un enrichissement des périphérique dans HA avec
-P1 / récupération des caratéristiques et la valeur courante avec la méthode du client eedomus get_periph_caract
-P2 / récupération de l'historiques des valeurs avec get_periph_history
-P3 / récupération et l'usage des valeur possible quand c'est un périphérique de type List avec get_periph_value_list
-P4 / Le regroupement dynamique des entités en device 
-
-L1 / Je veux une gestion des lights on et off en utilisant set_periph_value
-
-S1 / Je veux une gestion des swith on et off en utilisant set_periph_value
-
-L2 / Je veux une gestion des couleurs pour les lumières RGB par device
-L3 / Je veux La gestion de la température de couleur 
-
-P6 / Je veux la gestion des volets par device
-
-
-Merci de me générer les fichiers complets suivants en tenant compte du code existant pour agir sur une lumière
