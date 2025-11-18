@@ -21,7 +21,6 @@ class EedomusEntity(CoordinatorEntity):
         _LOGGER.debug("Extra data for periph_id=%s, data=%s", periph_id, self.coordinator.data[periph_id]["info"])
         if self.coordinator.data[periph_id]["info"]["name"]:
             self._attr_name = self.coordinator.data[periph_id]["info"]["name"]
-        
     @property
     def device_info(self) -> DeviceInfo:
         """Return device information."""
@@ -51,9 +50,20 @@ class EedomusEntity(CoordinatorEntity):
             if "room_name" in periph_data:
                 attrs["room"] = periph_data["room_name"]
 
-            if "value_type" in periph_data:
-                attrs["type"] = periph_data["value_type"]
+            if "value_type" in periph_data["info"]:
+                attrs["type"] = periph_data["info"]["value_type"]
 
+            attrs["eedomus_id"] = self._periph_id
+
+##Bug:cover with a false temperature sensor.
+#if  periph_data["info"]["value_type"] == 'float' and periph_data["current_value"] == "":
+#    periph_data["current_value"] = 0
+#if  periph_data["info"]["value_type"] == ' ' and periph_data["current_value"] == "":
+#    periph_data["current_value"] = 0
+                
+            if not "room" in attrs and "room_name" in periph_data["info"]:
+                attrs["room"] = periph_data["info"]["room_name"]
+        #_LOGGER.debug("Extra State Attributes for periph_id=%s, attrs=%s, periph_data=%s", self._periph_id, attrs, periph_data)
         return attrs
 
     @property

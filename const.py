@@ -12,6 +12,7 @@ CONF_API_HOST = "api_host"
 DEFAULT_API_HOST = "192.168.1.2"
 DEFAULT_API_USER = "4pYrgk"
 DEFAULT_API_SECRET = "ChJKkudDrYhoh2NR"
+CONF_ENABLE_HISTORY = False
 
 # Platforms
 PLATFORMS = [
@@ -19,6 +20,7 @@ PLATFORMS = [
     Platform.SWITCH,
     Platform.COVER,
     Platform.SENSOR,
+    Platform.BINARY_SENSOR,
 ]
 
 # Attributes

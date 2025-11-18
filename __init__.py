@@ -5,9 +5,12 @@ import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceResponse, callback
 from homeassistant.helpers import aiohttp_client
-from .const import DOMAIN, PLATFORMS, COORDINATOR
+from homeassistant.const import Platform
+from .const import DOMAIN, PLATFORMS, COORDINATOR, CONF_ENABLE_HISTORY
 from .coordinator import EedomusDataUpdateCoordinator
 from .eedomus_client import EedomusClient
+from .sensor import EedomusSensor
+
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,7 +33,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Perform initial full refresh
     await coordinator.async_config_entry_first_refresh()
 
-    # Store coordinator for later use
+    entities = []
+    for device in coordinator.data:
+        entities.append(EedomusSensor(coordinator, device))
+        if entry.data.get(CONF_ENABLE_HISTORY):
+            entities.append(EedomusHistoryProgressSensor(coordinator, device))
+
+        # Store coordinator for later use
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
         COORDINATOR: coordinator,
     }

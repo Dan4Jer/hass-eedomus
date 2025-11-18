@@ -43,6 +43,14 @@ class EedomusSensor(EedomusEntity, SensorEntity):
         """Return the state of the sensor."""
         value = self.coordinator.data[self._periph_id].get("current_value")
         _LOGGER.debug("Sensor %s native_value: %s", self._periph_id, value)
+        # Gestion des valeurs vides ou invalides
+        if not value or value == "":
+            return None  # Renvoie None pour indiquer une valeur indisponible
+
+        try:
+            return float(value)  # Conversion en float
+        except (ValueError, TypeError):
+            return None  # En cas d'erreur de conversion
         return value
 
     @property
@@ -83,3 +91,35 @@ class EedomusSensor(EedomusEntity, SensorEntity):
             attrs["value_list"] = periph_data["value_list"]
 
         return attrs
+
+
+
+# Dans sensor.py
+class EedomusHistoryProgressSensor(EedomusEntity, SensorEntity):
+    """Capteur pour afficher la progression de l'import de l'historique."""
+
+    def __init__(self, coordinator, device_data):
+        super().__init__(coordinator, device_data)
+        self._attr_unique_id = f"eedomus_history_progress_{device_data['id']}"
+        self._attr_name = f"{device_data['name']} (History Progress)"
+        self._attr_icon = "mdi:progress-clock"
+
+    @property
+    def native_value(self):
+        """Retourne le pourcentage de progression."""
+        progress = self.coordinator._history_progress.get(self._device_id, {})
+        if progress.get("completed"):
+            return 100
+        return 0  # À améliorer avec une estimation réelle
+
+    @property
+    def extra_state_attributes(self):
+        """Retourne des détails sur la progression."""
+        progress = self.coordinator._history_progress.get(self._device_id, {})
+        return {
+            "last_timestamp": progress.get("last_timestamp", 0),
+            "completed": progress.get("completed", False),
+            "last_import": datetime.fromtimestamp(progress.get("last_timestamp", 0)).isoformat()
+            if progress.get("last_timestamp")
+            else "Not started",
+        }
