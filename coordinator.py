@@ -24,7 +24,12 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         self._full_refresh_needed = True
         self._all_peripherals = {}
         self._dynamic_peripherals = {}
+        self._history_progress = {}  # Format: {periph_id: {"last_timestamp": int, "completed": bool}}
 
+        # Charger la progression depuis le stockage (si elle existe)
+        self._load_history_progress()
+
+        
     async def _async_update_data(self):
         """Fetch data from eedomus API with improved error handling."""
         _LOGGER.info("Update eedomus data")
@@ -101,7 +106,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
             _LOGGER.debug("Processed peripheral %s (%s, type: %s)",
                          periph_id, periph_name, periph_type)
-
+            if (current_value["body"].get("unit") == "°C" and current_value["body"].get("last_value") == ""):
+                _LOGGER.info("Unit null for %s current_value=%s", periph_id, current_value)
+            if periph_id == "3445482":
+                _LOGGER.info("log to delete !!! null for %s current_value=%s", periph_id, current_value) 
+        
         self._full_refresh_needed = False
         return data
 
@@ -156,3 +165,107 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         _LOGGER.debug("Requesting full data refresh")
         self._full_refresh_needed = True
         await self.async_request_refresh()
+
+
+    async def _load_history_progress(self):
+        """Charge la progression depuis le stockage HA."""
+        if (progress := await self.hass.async_add_executor_job(
+                lambda: self.hass.states.async_all(f"{DOMAIN}.history_progress")
+        )):
+            for state in progress:
+                self._history_progress[state.entity_id.split("_")[-1]] = {
+                    "last_timestamp": int(state.state),
+                    "completed": state.attributes.get("completed", False),
+                }
+
+    async def _save_history_progress(self):
+        """Sauvegarde la progression dans le stockage HA."""
+        for periph_id, progress in self._history_progress.items():
+            entity_id = f"{DOMAIN}.history_progress_{periph_id}"
+            self.hass.states.async_set(
+                entity_id,
+                progress["last_timestamp"],
+                {
+                    "completed": progress["completed"],
+                    "periph_name": next(
+                        (d["name"] for d in self.data if d["id"] == periph_id),
+                        "Unknown",
+                    ),
+                },
+            )
+            
+    async def async_fetch_history_chunk(self, periph_id):
+        """Récupère un chunk de 10 000 points d'historique."""
+        if periph_id not in self._history_progress:
+            self._history_progress[periph_id] = {"last_timestamp": 0, "completed": False}
+
+        progress = self._history_progress[periph_id]
+        if progress["completed"]:
+            return []
+
+        _LOGGER.info(
+            "Fetching history for %s (from %s, limit=10000)",
+            periph_id,
+            datetime.fromtimestamp(progress["last_timestamp"]).isoformat() if progress["last_timestamp"] else "start",
+        )
+
+        chunk = await self.client.get_device_history(
+            periph_id,
+            start_timestamp=progress["last_timestamp"],
+        )
+
+        if not chunk:
+            _LOGGER.error("No history data received for %s", periph_id)
+            return []
+
+        if len(chunk) < 10000:
+            progress["completed"] = True
+            _LOGGER.info("History fully fetched for %s", periph_id)
+
+        # Mettre à jour le dernier timestamp
+        progress["last_timestamp"] = max(
+            int(datetime.fromisoformat(entry["timestamp"]).timestamp())
+            for entry in chunk
+        )
+
+        await self._save_history_progress()
+        return chunk
+
+    async def async_import_history_chunk(self, periph_id, chunk):
+        """Importe un chunk d'historique dans la base de données de HA."""
+        if not hasattr(self.hass, "components.recorder"):
+            _LOGGER.warning("Recorder component not available. History will not be imported.")
+            return
+
+        entity_id = f"sensor.eedomus_{periph_id}"
+        states = [
+            State(
+                entity_id,
+                entry["value"],
+                last_changed=datetime.fromisoformat(entry["timestamp"]),
+            )
+            for entry in chunk
+        ]
+
+        try:
+            await self.hass.components.recorder.async_add_executor_job(
+                lambda: self.hass.components.recorder.history.async_add_states(states)
+            )
+            _LOGGER.info("Imported %d historical states for %s", len(states), entity_id)
+        except Exception as e:
+            _LOGGER.error("Failed to import history: %s", e)
+
+    async def async_update_data(self):
+        """Met à jour les données et récupère l'historique si activé."""
+        data = await self.client.get_devices()
+
+        if self.config_entry.data.get(CONF_ENABLE_HISTORY):
+            # Traiter 1 périphérique par cycle
+            for device in data:
+                if not self._history_progress.get(device["id"], {}).get("completed"):
+                    chunk = await self.async_fetch_history_chunk(device["id"])
+                    if chunk:
+                        await self.async_import_history_chunk(device["id"], chunk)
+                    break  # 1 périphérique par cycle
+
+        return data

@@ -5,6 +5,7 @@ import aiohttp
 import asyncio
 import json
 import logging
+import time
 from typing import Optional, Dict, Any
 from async_timeout import timeout as async_timeout
 
@@ -34,6 +35,8 @@ EEDOMUS_ERROR_CODES = {
     '20': 'Invalid notification'
 }
 
+HISTORY_API_URL = "https://api.eedomus.com"
+
 class EedomusClient:
     """Client for interacting with eedomus API with proper encoding handling."""
 
@@ -50,14 +53,13 @@ class EedomusClient:
         """Fetch data from eedomus API with proper encoding handling."""
         if params is None:
             params = {}
-
         params['api_user'] = self.api_user
         params['api_secret'] = self.api_secret
-
         url = self.base_url_set if use_set else self.base_url_get
         url = f"{url}?action={endpoint}"
         self.url = url
         self.params = params
+
         try:
             async with async_timeout(10):
                 async with self.session.get(url, params=params) as resp:
@@ -70,7 +72,6 @@ class EedomusClient:
                             error_text = raw_data.decode('utf-8', errors='replace')
                         except UnicodeDecodeError:
                             error_text = raw_data.decode('iso-8859-1', errors='replace')
-
                         _LOGGER.error("HTTP %s error for %s: %s", resp.status, endpoint, error_text)
                         return self._format_error_response(
                             f"HTTP {resp.status} error",
@@ -111,9 +112,11 @@ class EedomusClient:
         except asyncio.TimeoutError:
             _LOGGER.error("Request timed out for %s", endpoint)
             return self._format_error_response("Request timed out")
+
         except aiohttp.ClientError as e:
             _LOGGER.error("Client error for %s: %s", endpoint, str(e))
             return self._format_error_response(str(e))
+
         except Exception as e:
             _LOGGER.error("Unexpected error for %s: %s", endpoint, str(e))
             return self._format_error_response(str(e))
@@ -121,7 +124,6 @@ class EedomusClient:
     def _decode_response(self, raw_data: bytes) -> str:
         """Try multiple encodings to decode the response."""
         encodings = ['utf-8', 'iso-8859-1', 'latin-1', 'windows-1252']
-
         for encoding in encodings:
             try:
                 return raw_data.decode(encoding)
@@ -138,31 +140,26 @@ class EedomusClient:
             "success": 0,
             "error": error,
         }
-
         if http_status:
             response["http_status"] = http_status
         if raw_response:
             response["raw_response"] = raw_response
-
         return response
 
     def _handle_eedomus_error(self, response: Dict) -> Dict:
         """Handle eedomus-specific error responses."""
         error_code = None
         error_msg = "Unknown eedomus error"
-
         if isinstance(response, dict):
             body = response.get('body', {})
             if isinstance(body, dict):
                 error_code = body.get('error_code')
                 error_msg = body.get('error_msg', error_msg)
-
         if error_code and str(error_code) in EEDOMUS_ERROR_CODES:
             error_msg = f"{EEDOMUS_ERROR_CODES[str(error_code)]} (code: {error_code})"
-
         _LOGGER.error("Eedomus API error: %s (code: %s). Full response: %s",
                      error_msg, error_code, response)
-        
+
         _LOGGER.debug("Eedomus API error request url %s params %s", self.url, self.params)
         return {
             "success": 0,
@@ -174,15 +171,12 @@ class EedomusClient:
     async def set_periph_value(self, periph_id: str, value: str) -> Dict:
         """Set or get the value of a peripheral."""
         _LOGGER.debug("set_periph_value called with periph_id=%s, value=%s", periph_id, value)
-
         params = {
             'periph_id': periph_id,
             'value': value
         }
-
         result = await self.fetch_data('periph.value', params, use_set=True)
         _LOGGER.debug("set_periph_value response: %s", result)
-
         if isinstance(result, dict):
             if result.get('success') == 0:
                 error = result.get('error', 'Unknown error')
@@ -193,7 +187,6 @@ class EedomusClient:
             if 'body' in result and 'result' in result['body']:
                 result['success'] = 1
                 result['message'] = result['body']['result']
-
         return result
 
     async def get_periph_value(self, periph_id: str) -> Dict:
@@ -201,75 +194,106 @@ class EedomusClient:
         _LOGGER.debug("get_periph_value called with periph_id=%s", periph_id)
         params = {'periph_id': periph_id, 'action': 'get'}
         result = await self.fetch_data('periph.value', params)
-
         if isinstance(result, dict):
             if result.get('success') == 0:
                 return result
-
             if 'body' in result and isinstance(result['body'], dict):
                 if 'value' not in result:
                     result['value'] = result['body'].get('value')
-
         return result
 
     async def get_periph_list(self) -> Dict:
         """Get list of all peripherals."""
         result = await self.fetch_data('periph.list')
-
         # Normalisation de la réponse
         if not isinstance(result, dict):
             return self._format_error_response("Invalid response format", str(result))
-
         if result.get('success') == 0:
             return result
-
         # Assure que body est une liste
         if 'body' not in result or not isinstance(result['body'], list):
             result['body'] = []
-
         return result
 
     async def get_periph_caract(self, periph_id: str) -> Dict:
         """Get characteristics of a peripheral."""
         params = {'periph_id': periph_id}
         result = await self.fetch_data('periph.caract', params)
-
         if isinstance(result, dict) and result.get('success') == 0:
             return result
-
         if 'body' not in result:
             result['body'] = {}
-
         return result
 
     async def get_periph_history(self, periph_id: str) -> Dict:
         """Get history of a peripheral."""
         params = {'periph_id': periph_id}
         result = await self.fetch_data('periph.history', params)
-
         if isinstance(result, dict):
             if result.get('success') == 0:
                 return result
-
             if 'body' not in result or not isinstance(result['body'], list):
                 result['body'] = []
-
         return result
 
-    async def get_periph_value_list(self, periph_id: str) -> Dict: #API inexistante
+    async def get_periph_value_list(self, periph_id: str) -> Dict:  # API inexistante
         """Get possible values for a peripheral of type list."""
         params = {'periph_id': periph_id}
         result = await self.fetch_data('periph.value_list', params)
-
         if isinstance(result, dict):
             if result.get('success') == 0:
                 return result
-
             if 'body' not in result or not isinstance(result['body'], list):
                 result['body'] = []
-
         return result
 
     async def auth_test(self) -> Dict:
         """Authorization check."""
         return await self.fetch_data('auth.test')
+
+    async def get_device_history(self, periph_id: str, start_timestamp: int = 0, end_timestamp: Optional[int] = None) -> Optional[list]:
+        """
+        Récupère l'historique d'un périphérique depuis api.eedomus.com.
+
+        Args:
+            periph_id (str): ID du périphérique.
+            start_timestamp (int): Timestamp de début (0 = depuis le début).
+            end_timestamp (int): Timestamp de fin (None = maintenant).
+
+        Returns:
+            list: Liste de dictionnaires {"value": str, "timestamp": str}.
+        """
+        endpoint = (
+            f"{HISTORY_API_URL}/get?"
+            f"action=periph.history&"
+            f"periph_id={periph_id}&"
+            f"start={start_timestamp}&"
+            f"end={end_timestamp or int(time.time())}&"
+            f"api_user={self.api_user}&"
+            f"api_secret={self.api_secret}"
+        )
+
+        try:
+            async with async_timeout(10):
+                async with self.session.get(
+                    endpoint,
+                    headers={"Content-Type": "application/json"},
+                ) as response:
+                    # Lire les données brutes
+                    data = await response.json()
+                    if data.get("success") == 1:
+                        return [
+                            {
+                                "value": entry["last_value"],
+                                "timestamp": entry["last_value_change"],
+                            }
+                            for entry in data.get("body", {}).get("history", [])
+                        ]
+                    else:
+                        _LOGGER.error("Failed to fetch history: %s", data.get("message", "Unknown error"))
+                        _LOGGER.debug("Failed to fetch history full data: %s", data)
+                        return None
+
+        except Exception as e:
+            _LOGGER.error("Error fetching history: %s", e)
+            return None
