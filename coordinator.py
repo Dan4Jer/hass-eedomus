@@ -93,7 +93,6 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             self._all_peripherals[periph_id] = periph
 
             try:
-                #current_value = await self.client.set_periph_value(periph_id, "get")
                 current_value = await self.client.get_periph_caract(periph_id)
                 if isinstance(current_value, dict):
                     data[periph_id]["current_value"] = current_value["body"].get("last_value")
@@ -106,11 +105,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
             _LOGGER.debug("Processed peripheral %s (%s, type: %s)",
                          periph_id, periph_name, periph_type)
-            if (current_value["body"].get("unit") == "°C" and current_value["body"].get("last_value") == ""):
-                _LOGGER.info("Unit null for %s current_value=%s", periph_id, current_value)
-            if periph_id == "3445482":
-                _LOGGER.info("log to delete !!! null for %s current_value=%s", periph_id, current_value) 
-        
+                   
         self._full_refresh_needed = False
         return data
 

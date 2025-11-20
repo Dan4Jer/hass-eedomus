@@ -10,6 +10,17 @@ from .const import DOMAIN, SENSOR_DEVICE_CLASSES
 
 _LOGGER = logging.getLogger(__name__)
 
+# Mapping des device_class vers les unités par défaut
+DEVICE_CLASS_UNITS = {
+    "temperature": "°C",
+    "humidity": "%",
+    "illuminance": "lx",
+    "power": "W",
+    "energy": "Wh",
+    "voltage": "V",
+    "current": "A",
+}
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
     """Set up eedomus sensor entities from config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
@@ -68,7 +79,7 @@ class EedomusSensor(EedomusEntity, SensorEntity):
             elif unit == "Lux":
                 return "illuminance"
             elif unit in ["W", "Wh"]:
-                return "power"
+                return "power" if unit == "W" else "energy"
         return None
 
     @property
@@ -76,7 +87,19 @@ class EedomusSensor(EedomusEntity, SensorEntity):
         """Return the unit of measurement."""
         unit = self.coordinator.data[self._periph_id]["info"].get("unit")
         _LOGGER.debug("Sensor %s unit_of_measurement: %s", self._periph_id, unit)
+        # Si l'unité est None, utiliser une unité par défaut en fonction de la device_class
+        if unit is None:
+            device_class = self.device_class
+            if device_class in DEVICE_CLASS_UNITS:
+                return DEVICE_CLASS_UNITS[device_class]
+
+        # Normaliser l'unité pour la device_class 'illuminance'
+        if self.device_class == "illuminance" and unit == "Lux":
+            return "lx"
+        
         return unit
+
+
 
     @property
     def extra_state_attributes(self):
