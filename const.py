@@ -12,7 +12,8 @@ CONF_API_HOST = "api_host"
 DEFAULT_API_HOST = "192.168.1.2"
 DEFAULT_API_USER = "4pYrgk"
 DEFAULT_API_SECRET = "ChJKkudDrYhoh2NR"
-CONF_ENABLE_HISTORY = False
+CONF_ENABLE_HISTORY = True
+DEFAULT_SCAN_INTERVAL = 300  # 5 minutes
 
 # Platforms
 PLATFORMS = [
@@ -33,7 +34,7 @@ ATTR_LAST_UPDATED = "last_updated"
 # Domain
 DOMAIN = "eedomus"
 COORDINATOR = "coordinator"
-DEFAULT_SCAN_INTERVAL = 300  # 5 minutes
+
 
 # Device classes for sensors
 SENSOR_DEVICE_CLASSES = {
