@@ -9,7 +9,7 @@ from homeassistant.const import Platform
 from .const import DOMAIN, PLATFORMS, COORDINATOR, CONF_ENABLE_HISTORY
 from .coordinator import EedomusDataUpdateCoordinator
 from .eedomus_client import EedomusClient
-from .sensor import EedomusSensor
+from .sensor import EedomusSensor, EedomusHistoryProgressSensor
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -22,9 +22,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     session = aiohttp_client.async_get_clientsession(hass)
     client = EedomusClient(
         session=session,
-        api_user=entry.data["api_user"],
-        api_secret=entry.data["api_secret"],
-        api_host=entry.data["api_host"]
+        config_entry=entry,
     )
 
     # Initialize coordinator
@@ -37,7 +35,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     for device in coordinator.data:
         entities.append(EedomusSensor(coordinator, device))
         if entry.data.get(CONF_ENABLE_HISTORY):
-            entities.append(EedomusHistoryProgressSensor(coordinator, device))
+            _LOGGER.info("Retrieve history enabled device=%s", device)
+            _LOGGER.debug("Retrieve history enabled device.data=%s", coordinator.data[device]["info"])
+            entities.append(EedomusHistoryProgressSensor(coordinator, {
+                "periph_id": device,
+                "name": coordinator.data[device]["info"]["name"],
+            }))
 
         # Store coordinator for later use
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {

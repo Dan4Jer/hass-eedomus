@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import time
+import traceback
 from typing import Optional, Dict, Any
 from async_timeout import timeout as async_timeout
 
@@ -40,16 +41,17 @@ HISTORY_API_URL = "https://api.eedomus.com"
 class EedomusClient:
     """Client for interacting with eedomus API with proper encoding handling."""
 
-    def __init__(self, session: aiohttp.ClientSession, api_user: str, api_secret: str, api_host: str):
+    def __init__(self, session: aiohttp.ClientSession, config_entry: ConfigEntry):
         """Initialize the client."""
         self.session = session
-        self.api_user = api_user
-        self.api_secret = api_secret
-        self.api_host = api_host
+        self.config_entry = config_entry
+        self.api_user = config_entry.data["api_user"]
+        self.api_secret = config_entry.data["api_secret"]
+        self.api_host = config_entry.data["api_host"]
         self.base_url_get = f"http://{self.api_host}/api/get"
         self.base_url_set = f"http://{self.api_host}/api/set"
 
-    async def fetch_data(self, endpoint: str, params: Optional[Dict] = None, use_set: bool = False) -> Dict:
+    async def fetch_data(self, endpoint: str, params: Optional[Dict] = None, use_set: bool = False, history_mode: bool = False) -> Dict:
         """Fetch data from eedomus API with proper encoding handling."""
         if params is None:
             params = {}
@@ -57,6 +59,8 @@ class EedomusClient:
         params['api_secret'] = self.api_secret
         url = self.base_url_set if use_set else self.base_url_get
         url = f"{url}?action={endpoint}"
+        if history_mode: #url is fully build by caller
+            url = endpoint
         self.url = url
         self.params = params
 
@@ -274,26 +278,21 @@ class EedomusClient:
         )
 
         try:
-            async with async_timeout(10):
-                async with self.session.get(
-                    endpoint,
-                    headers={"Content-Type": "application/json"},
-                ) as response:
-                    # Lire les données brutes
-                    data = await response.json()
-                    if data.get("success") == 1:
-                        return [
-                            {
-                                "value": entry["last_value"],
-                                "timestamp": entry["last_value_change"],
-                            }
-                            for entry in data.get("body", {}).get("history", [])
-                        ]
-                    else:
-                        _LOGGER.error("Failed to fetch history: %s", data.get("message", "Unknown error"))
-                        _LOGGER.debug("Failed to fetch history full data: %s", data)
-                        return None
+            data = await self.fetch_data(endpoint, None, use_set=False, history_mode=True)
+            if data.get("success") == 1:
+                return [
+                    {
+                        "value": entry[0],
+                        "timestamp": entry[1],
+                    }
+                    for entry in data.get("body", {}).get("history", [])
+                ]
+            else:
+                _LOGGER.error("Failed to fetch history: %s", data.get("message", "Unknown error"))
+                _LOGGER.debug("Failed to fetch history full data: %s", data)
+                return None
 
         except Exception as e:
-            _LOGGER.error("Error fetching history: %s", e)
+            _LOGGER.error("Error fetching history: %s\nStack trace :\n%s", e, traceback.format_exc())
+            _LOGGER.debug("Error fetching history data :%s", data)
             return None
