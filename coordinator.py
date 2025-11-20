@@ -1,11 +1,10 @@
 """DataUpdateCoordinator for eedomus integration."""
 from __future__ import annotations
-
 import logging
-from datetime import timedelta
-from homeassistant.core import HomeAssistant
+from datetime import timedelta, datetime  
+from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from .const import DOMAIN, DEFAULT_SCAN_INTERVAL
+from .const import DOMAIN, DEFAULT_SCAN_INTERVAL, CONF_ENABLE_HISTORY
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -26,10 +25,13 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         self._dynamic_peripherals = {}
         self._history_progress = {}  # Format: {periph_id: {"last_timestamp": int, "completed": bool}}
 
-        # Charger la progression depuis le stockage (si elle existe)
-        self._load_history_progress()
-
+ 
+    async def async_config_entry_first_refresh(self):
+        """Effectue le premier rafraîchissement des données et charge la progression de l'historique."""
         
+        await self._load_history_progress()
+        await super().async_config_entry_first_refresh()
+
     async def _async_update_data(self):
         """Fetch data from eedomus API with improved error handling."""
         _LOGGER.info("Update eedomus data")
@@ -37,10 +39,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             if self._full_refresh_needed:
                 return await self._async_full_refresh()
             else:
-                return await self._async_partial_refresh()  # Cette méthode existe maintenant
-
+                return await self._async_partial_refresh()
         except Exception as err:
-            _LOGGER.exception("Error updating eedomus data: %s", err)
+            _LOGGER.exception("Error updating eedomus data: %s", err) 
             # Return last known good data if available
             if hasattr(self, 'data') and self.data:
                 return self.data
@@ -49,31 +50,24 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_full_refresh(self):
         """Perform a complete refresh of all peripherals."""
         _LOGGER.info("Performing full data refresh from eedomus API")
-
         peripherals_response = await self.client.get_periph_list()
         _LOGGER.debug("Raw API response: %s", peripherals_response)
-
         if not isinstance(peripherals_response, dict):
             _LOGGER.error("Invalid API response format: %s", peripherals_response)
             raise UpdateFailed("Invalid API response format")
-
         if peripherals_response.get("success", 0) != 1:
             error = peripherals_response.get("error", "Unknown API error")
             _LOGGER.error("API request failed: %s", error)
             _LOGGER.debug("API peripherals_response %s", peripherals_response)
             raise UpdateFailed(f"API request failed: {error}")
-
         peripherals = peripherals_response.get("body", [])
         if not isinstance(peripherals, list):
             _LOGGER.error("Invalid peripherals list: %s", peripherals)
             peripherals = []
-
         _LOGGER.info("Found %d peripherals in total", len(peripherals))
-
         data = {}
         self._all_peripherals = {}
         self._dynamic_peripherals = {}
-
         for periph in peripherals:
             if not isinstance(periph, dict) or "periph_id" not in periph:
                 _LOGGER.warning("Skipping invalid peripheral: %s", periph)
@@ -82,16 +76,13 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             periph_id = periph["periph_id"]
             periph_type = periph.get("value_type", "")
             periph_name = periph.get("name", "N/A")
-
             data[periph_id] = {
                 "info": periph,
                 "current_value": None,
                 "history": None,
                 "value_list": None
             }
-
             self._all_peripherals[periph_id] = periph
-
             try:
                 current_value = await self.client.get_periph_caract(periph_id)
                 if isinstance(current_value, dict):
@@ -102,17 +93,17 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     self._dynamic_peripherals[periph_id] = periph
             except Exception as e:
                 _LOGGER.warning("Failed to get current value for %s: %s", periph_id, e)
-
             _LOGGER.debug("Processed peripheral %s (%s, type: %s)",
                          periph_id, periph_name, periph_type)
-                   
+
         self._full_refresh_needed = False
         return data
 
     async def _async_partial_refresh(self):
         """Update only dynamic peripherals that change frequently."""
-        _LOGGER.debug("Performing partial refresh for %d dynamic peripherals",
-                     len(self._dynamic_peripherals))
+        history_retrieval = self.client.config_entry.data.get(CONF_ENABLE_HISTORY, False)
+        _LOGGER.info("Performing partial refresh for %d dynamic peripherals, history=%s",
+                      len(self._dynamic_peripherals), history_retrieval)
 
         # Start with all peripherals data
         data = {pid: self.data[pid] for pid in self.data}
@@ -129,6 +120,14 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             except Exception as e:
                 _LOGGER.warning("Failed to update peripheral %s: %s", periph_id, e)
 
+            if history_retrieval:
+                if not self._history_progress.get(periph_id, {}).get("completed"):
+                    _LOGGER.info("Retrieving data history %s", periph_id)
+                    chunk = await self.async_fetch_history_chunk(periph_id)
+                    if chunk:
+                        await self.async_import_history_chunk(periph_id, chunk)
+                    history_retrieval=False 
+
         return data
 
     def _is_dynamic_peripheral(self, periph):
@@ -136,7 +135,6 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         value_type = periph.get("value_type", "")
         usage_name = periph.get("usage_name", "").lower()
         name = periph.get("name", "").lower()
-
         dynamic_types = ["float", "string"]
         dynamic_usages = [
             "température", "temperature", "humidité", "humidity",
@@ -161,45 +159,53 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         self._full_refresh_needed = True
         await self.async_request_refresh()
 
-
     async def _load_history_progress(self):
         """Charge la progression depuis le stockage HA."""
-        if (progress := await self.hass.async_add_executor_job(
-                lambda: self.hass.states.async_all(f"{DOMAIN}.history_progress")
-        )):
-            for state in progress:
-                self._history_progress[state.entity_id.split("_")[-1]] = {
-                    "last_timestamp": int(state.state),
-                    "completed": state.attributes.get("completed", False),
-                }
+        _LOGGER.debug("Starting to load history progress")
+        if hasattr(self.hass, "components.recorder"):
+            if (progress := await self.hass.async_add_executor_job(
+                    lambda: self.hass.states.async_all(f"{DOMAIN}.history_progress_*")
+            )):
+                for state in progress:
+                    periph_id = state.entity_id.split("_")[-1]
+                    self._history_progress[periph_id] = {
+                        "last_timestamp": int(float(state.state)),
+                        "completed": state.attributes.get("completed", False),
+                    }
+                    _LOGGER.debug("Loaded progress for %s: %s", periph_id, self._history_progress[periph_id])
+        else:
+            _LOGGER.warning("Recorder component not available. Cannot load history progress.")
 
     async def _save_history_progress(self):
         """Sauvegarde la progression dans le stockage HA."""
-        for periph_id, progress in self._history_progress.items():
-            entity_id = f"{DOMAIN}.history_progress_{periph_id}"
-            self.hass.states.async_set(
-                entity_id,
-                progress["last_timestamp"],
-                {
-                    "completed": progress["completed"],
-                    "periph_name": next(
-                        (d["name"] for d in self.data if d["id"] == periph_id),
-                        "Unknown",
-                    ),
-                },
-            )
-            
-    async def async_fetch_history_chunk(self, periph_id):
+        _LOGGER.debug("Saving history progress...")
+        if hasattr(self.hass, "components.recorder"):
+            for periph_id, progress in self._history_progress.items():
+                entity_id = f"{DOMAIN}.history_progress_{periph_id}"
+                self.hass.states.async_set(
+                    entity_id,
+                    str(progress["last_timestamp"]), 
+                    {
+                        "completed": progress["completed"],
+                        "periph_name": self.data[periph_id]["info"]["name"] if periph_id in self.data else "Unknown",
+                    },
+                )
+                _LOGGER.debug("Saved progress for %s: %s", periph_id, progress)
+        else:
+            _LOGGER.warning("Recorder component not available. History progress will not be saved.")
+
+    async def async_fetch_history_chunk(self, periph_id: str) -> list:
         """Récupère un chunk de 10 000 points d'historique."""
         if periph_id not in self._history_progress:
             self._history_progress[periph_id] = {"last_timestamp": 0, "completed": False}
 
         progress = self._history_progress[periph_id]
         if progress["completed"]:
+            _LOGGER.debug("History already fully fetched for %s", periph_id)
             return []
 
         _LOGGER.info(
-            "Fetching history for %s (from %s, limit=10000)",
+            "Fetching history for %s (from %s)",
             periph_id,
             datetime.fromtimestamp(progress["last_timestamp"]).isoformat() if progress["last_timestamp"] else "start",
         )
@@ -213,54 +219,75 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.error("No history data received for %s", periph_id)
             return []
 
-        if len(chunk) < 10000:
+        if len(chunk) < 10000:  # ⚠️ À adapter selon la réponse réelle de l'API eedomus
             progress["completed"] = True
-            _LOGGER.info("History fully fetched for %s", periph_id)
+            _LOGGER.info("History fully fetched for %s (%s) (received %d entries)",
+                         periph_id,
+                         self.data[periph_id]["info"]["name"] if periph_id in self.data else "Unknown",
+                         len(chunk))
 
-        # Mettre à jour le dernier timestamp
-        progress["last_timestamp"] = max(
-            int(datetime.fromisoformat(entry["timestamp"]).timestamp())
-            for entry in chunk
-        )
+
+        if chunk:
+            progress["last_timestamp"] = max(
+                int(datetime.fromisoformat(entry["timestamp"]).timestamp())
+                for entry in chunk
+            )
+            _LOGGER.debug("Updated last_timestamp for %s to %s", periph_id, progress["last_timestamp"])
 
         await self._save_history_progress()
         return chunk
 
-    async def async_import_history_chunk(self, periph_id, chunk):
+    async def async_import_history_chunk(self, periph_id: str, chunk: list) -> None:
         """Importe un chunk d'historique dans la base de données de HA."""
         if not hasattr(self.hass, "components.recorder"):
             _LOGGER.warning("Recorder component not available. History will not be imported.")
             return
 
         entity_id = f"sensor.eedomus_{periph_id}"
-        states = [
-            State(
-                entity_id,
-                entry["value"],
-                last_changed=datetime.fromisoformat(entry["timestamp"]),
-            )
-            for entry in chunk
-        ]
+
+        if not isinstance(chunk, list) or not chunk:
+            _LOGGER.warning("Invalid history chunk for %s: %s", periph_id, chunk)
+            return
+
+        states = []
+        for entry in chunk:
+            try:
+                if not isinstance(entry, dict):
+                    _LOGGER.warning("Invalid history entry (not a dict): %s", entry)
+                    continue
+
+                value = entry.get("value")
+                timestamp_str = entry.get("timestamp")
+
+                if value is None or timestamp_str is None:
+                    _LOGGER.warning("History entry missing data: %s", entry)
+                    continue
+
+                try:
+                    last_changed = datetime.fromisoformat(timestamp_str)
+                except ValueError as e:
+                    _LOGGER.warning("Invalid timestamp format in entry %s: %s", entry, e)
+                    continue
+
+                states.append(
+                    State(
+                        entity_id,
+                        str(value),
+                        last_changed=last_changed,
+                    )
+                )
+            except Exception as e:
+
+                _LOGGER.warning("Failed to create state for entry %s: %s", entry, e)
+
+        if not states:
+            _LOGGER.warning("No valid states to import for %s", periph_id)
+            return
 
         try:
             await self.hass.components.recorder.async_add_executor_job(
                 lambda: self.hass.components.recorder.history.async_add_states(states)
             )
-            _LOGGER.info("Imported %d historical states for %s", len(states), entity_id)
+            _LOGGER.info("Successfully imported %d historical states for %s", len(states), entity_id)
         except Exception as e:
-            _LOGGER.error("Failed to import history: %s", e)
-
-    async def async_update_data(self):
-        """Met à jour les données et récupère l'historique si activé."""
-        data = await self.client.get_devices()
-
-        if self.config_entry.data.get(CONF_ENABLE_HISTORY):
-            # Traiter 1 périphérique par cycle
-            for device in data:
-                if not self._history_progress.get(device["id"], {}).get("completed"):
-                    chunk = await self.async_fetch_history_chunk(device["id"])
-                    if chunk:
-                        await self.async_import_history_chunk(device["id"], chunk)
-                    break  # 1 périphérique par cycle
-
-        return data
+            _LOGGER.exception("Failed to import history for %s: %s", entity_id, e)

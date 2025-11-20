@@ -122,8 +122,11 @@ class EedomusHistoryProgressSensor(EedomusEntity, SensorEntity):
     """Capteur pour afficher la progression de l'import de l'historique."""
 
     def __init__(self, coordinator, device_data):
-        super().__init__(coordinator, device_data)
-        self._attr_unique_id = f"eedomus_history_progress_{device_data['id']}"
+        super().__init__(coordinator,
+                         periph_id=device_data["periph_id"],  # ⬅️ Chaîne simple
+                         caract_id=None,  # ou device_data.get("caract_id") si disponible
+                         )
+        self._attr_unique_id = f"eedomus_history_progress_{device_data['periph_id']}"
         self._attr_name = f"{device_data['name']} (History Progress)"
         self._attr_icon = "mdi:progress-clock"
 

@@ -11,11 +11,11 @@ _LOGGER = logging.getLogger(__name__)
 class EedomusEntity(CoordinatorEntity):
     """Base class for eedomus entities."""
 
-    def __init__(self, coordinator, periph_id, caract_id):
+    def __init__(self, coordinator, periph_id: str, caract_id: str | None = None):
         """Initialize the entity."""
         super().__init__(coordinator)
         self._periph_id = periph_id
-        self._caract_id = caract_id
+        self._caract_id = caract_id if caract_id is not None else periph_id
         self._attr_unique_id = f"{periph_id}_{caract_id}"
         _LOGGER.debug("Initializing entity for periph_id=%s, caract_id=%s", periph_id, caract_id)
         _LOGGER.debug("Extra data for periph_id=%s, data=%s", periph_id, self.coordinator.data[periph_id]["info"])
