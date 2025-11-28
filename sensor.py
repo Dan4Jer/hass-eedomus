@@ -6,7 +6,7 @@ from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from .entity import EedomusEntity
-from .const import DOMAIN, SENSOR_DEVICE_CLASSES
+from .const import DOMAIN, SENSOR_DEVICE_CLASSES, CLASS_MAPPING
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -22,6 +22,24 @@ DEVICE_CLASS_UNITS = {
 }
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
+    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+    sensors = []
+    
+    for periph_id, periph in coordinator.get_all_peripherals().items():
+        entity_type = None
+        supported_classes = periph.get("SUPPORTED_CLASSES", "").split(",")
+        for class_id in supported_classes:
+            if class_id in CLASS_MAPPING:
+                entity_type = CLASS_MAPPING[class_id]["ha_entity"]
+        if not entity_type == "sensor":
+            continue
+        coordinator.data[periph_id]["entity_type"] = entity_type
+        sensors.append(EedomusSensor(coordinator, periph_id))
+
+    async_add_entities(sensors, True)
+
+
+async def async_setup_entry_old(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
     """Set up eedomus sensor entities from config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
     all_peripherals = coordinator.get_all_peripherals()
@@ -46,13 +64,13 @@ class EedomusSensor(EedomusEntity, SensorEntity):
 
     def __init__(self, coordinator, periph_id):
         """Initialize the sensor."""
-        super().__init__(coordinator, periph_id, periph_id)
+        super().__init__(coordinator, periph_id)
         _LOGGER.debug("Initializing sensor entity for periph_id=%s", periph_id)
 
     @property
     def native_value(self):
         """Return the state of the sensor."""
-        value = self.coordinator.data[self._periph_id].get("current_value")
+        value = self.coordinator.data[self._periph_id].get("last_value")
         _LOGGER.debug("Sensor %s native_value: %s", self._periph_id, value)
         # Gestion des valeurs vides ou invalides
         if not value or value == "":
@@ -67,7 +85,7 @@ class EedomusSensor(EedomusEntity, SensorEntity):
     @property
     def device_class(self):
         """Return the device class of the sensor."""
-        periph_info = self.coordinator.data[self._periph_id]["info"]
+        periph_info = self.coordinator.data[self._periph_id]
         value_type = periph_info.get("value_type")
         unit = periph_info.get("unit")
 
@@ -85,7 +103,7 @@ class EedomusSensor(EedomusEntity, SensorEntity):
     @property
     def native_unit_of_measurement(self):
         """Return the unit of measurement."""
-        unit = self.coordinator.data[self._periph_id]["info"].get("unit")
+        unit = self.coordinator.data[self._periph_id].get("unit")
         _LOGGER.debug("Sensor %s unit_of_measurement: %s", self._periph_id, unit)
         # Si l'unité est None, utiliser une unité par défaut en fonction de la device_class
         if unit is None:

@@ -6,11 +6,28 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from .entity import EedomusEntity
-from .const import DOMAIN
+from .const import DOMAIN, CLASS_MAPPING
 
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
+    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+    switches = []
+    
+    for periph_id, periph in coordinator.get_all_peripherals().items():
+        entity_type = None
+        supported_classes = periph.get("SUPPORTED_CLASSES", "").split(",")
+        for class_id in supported_classes:
+            if class_id in CLASS_MAPPING:
+                entity_type = CLASS_MAPPING[class_id]["ha_entity"]
+        if not entity_type == "switch":
+            continue
+        coordinator.data[periph_id]["entity_type"] = entity_type
+        switches.append(EedomusSwitch(coordinator, periph_id))
+
+    async_add_entities(switches, True)
+
+async def async_setup_entry_old(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
     """Set up eedomus switch entities from config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
     all_peripherals = coordinator.get_all_peripherals()
@@ -33,7 +50,7 @@ class EedomusSwitch(EedomusEntity, SwitchEntity):
 
     def __init__(self, coordinator, periph_id):
         """Initialize the switch."""
-        super().__init__(coordinator, periph_id, periph_id)
+        super().__init__(coordinator, periph_id)
         _LOGGER.debug("Initializing switch entity for periph_id=%s", periph_id)
 
     @property

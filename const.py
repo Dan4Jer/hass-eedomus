@@ -1,9 +1,11 @@
-#PLATFORMS = ["sensor", "switch", "binary_sensor", "light", "cover"]
-#PLATFORMS = ["sensor", "switch"]
-#SCAN_INTERVAL = 300 #seconds
-
 """Constants for the eedomus integration."""
+from typing import Dict, Any
 from homeassistant.const import Platform
+#Ensure required imports are available
+from homeassistant.components.light import (
+    ColorMode,
+    LightEntityFeature,
+)
 
 # Configuration
 CONF_API_USER = "api_user"
@@ -29,7 +31,6 @@ PLATFORMS = [
 ATTR_VALUE_LIST = "value_list"
 ATTR_HISTORY = "history"
 ATTR_PERIPH_ID = "periph_id"
-ATTR_CARACT_ID = "caract_id"
 ATTR_LAST_UPDATED = "last_updated"
 
 # Domain
@@ -53,3 +54,26 @@ STEP_USER_DATA_SCHEMA = {
     "api_user": str,
     "api_secret": str,
 }
+
+
+# Table de correspondance entre les classes eedomus et les entités Home Assistant
+CLASS_MAPPING: Dict[str, Dict[str, Any]] = {
+    "39:1": {"ha_entity": "light", "attributes": {"color_mode": "brightness"}},
+    "96:3": {"ha_entity": "light", "attributes": {"color_mode": "rgbw"}},
+    "96:4": {"ha_entity": "light", "attributes": {"color_mode": "rgbw"}},
+    "38:1": {"ha_entity": "sensor", "attributes": {"device_class": "humidity"}},
+    "38:3": {"ha_entity": "sensor", "attributes": {"device_class": "humidity"}},
+    "50:2": {"ha_entity": "sensor", "attributes": {"device_class": "pressure"}},
+    "50:3": {"ha_entity": "sensor", "attributes": {"device_class": "pressure"}},
+    "49:2": {"ha_entity": "sensor", "attributes": {"device_class": "wind_speed"}},
+    "51:1": {"ha_entity": "sensor", "attributes": {"device_class": "illuminance"}},
+    "114:1": {"ha_entity": "sensor", "attributes": {"device_class": "temperature"}},
+    "134:1": {"ha_entity": "sensor", "attributes": {"device_class": "battery"}},
+    "133:2": {"ha_entity": "binary_sensor", "attributes": {"device_class": "moisture"}},
+    "37:1": {"ha_entity": "switch", "attributes": {}},
+    "48:1": {"ha_entity": "binary_sensor", "attributes": {"device_class": "motion"}},
+    "32:1": {"ha_entity": "switch", "attributes": {}},
+    "142:2": {"ha_entity": "cover", "attributes": {}},
+    # ... (ajoute les autres classes ici)
+}
+
