@@ -184,7 +184,7 @@ class EedomusClient:
         if isinstance(result, dict):
             if result.get('success') == 0:
                 error = result.get('error', 'Unknown error')
-                _LOGGER.error("Failed to set peripheral value: %s", error)
+                _LOGGER.error("Failed to set peripheral value: (id=%s val=%s) %s", periph_id, value, error)
                 return result
 
             # Normalisation de la réponse pour les commandes réussies
@@ -219,9 +219,13 @@ class EedomusClient:
             result['body'] = []
         return result
 
-    async def get_periph_caract(self, periph_id: str) -> Dict:
+    async def get_periph_caract(self, periph_id: str, show_config: bool = False) -> Dict:
         """Get characteristics of a peripheral."""
         params = {'periph_id': periph_id}
+        if show_config:
+            params['show_config'] = 1
+        else:
+            params['show_config'] = 0
         result = await self.fetch_data('periph.caract', params)
         if isinstance(result, dict) and result.get('success') == 0:
             return result

@@ -6,11 +6,28 @@ from homeassistant.components.cover import CoverEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from .entity import EedomusEntity
-from .const import DOMAIN
+from .const import DOMAIN, CLASS_MAPPING
 
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
+    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+    cover = []
+
+    for periph_id, periph in coordinator.get_all_peripherals().items():
+        entity_type = None
+        supported_classes = periph.get("SUPPORTED_CLASSES", "").split(",")
+        for class_id in supported_classes:
+            if class_id in CLASS_MAPPING:
+                entity_type = CLASS_MAPPING[class_id]["ha_entity"]
+        if not entity_type == "cover":
+            continue
+        coordinator.data[periph_id]["entity_type"] = entity_type
+        cover.append(EedomusCover(coordinator, periph_id))
+
+    async_add_entities(cover, True)
+
+async def async_setup_entry_old(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
     """Set up eedomus cover entities from config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
     all_peripherals = coordinator.get_all_peripherals()
@@ -33,13 +50,13 @@ class EedomusCover(EedomusEntity, CoverEntity):
 
     def __init__(self, coordinator, periph_id):
         """Initialize the cover."""
-        super().__init__(coordinator, periph_id, periph_id)
+        super().__init__(coordinator, periph_id)
         _LOGGER.debug("Initializing cover entity for periph_id=%s", periph_id)
 
     @property
     def is_closed(self):
         """Return true if the cover is closed."""
-        value = self.coordinator.data[self._periph_id].get("current_value")
+        value = self.coordinator.data[self._periph_id].get("last_value")
         is_closed = value == "closed"
         _LOGGER.debug("Cover %s is_closed: %s", self._periph_id, is_closed)
         return is_closed
@@ -69,7 +86,7 @@ class EedomusCover(EedomusEntity, CoverEntity):
         _LOGGER.debug("Stopping cover %s", self._periph_id)
         try:
             response = await self.coordinator.client.set_periph_value(
-                self._periph_id, str(self.coordinator.data[self._periph_id].get("current_value"))
+                self._periph_id, str(self.coordinator.data[self._periph_id].get("last_value"))
             )
             await self.coordinator.async_request_refresh()
         except Exception as e:

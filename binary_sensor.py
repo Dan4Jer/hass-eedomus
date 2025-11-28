@@ -12,7 +12,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 from .entity import EedomusEntity
-from .const import DOMAIN
+from .const import DOMAIN, CLASS_MAPPING
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -32,6 +32,23 @@ EEDOMUS_TO_HA_DEVICE_CLASS = {
 }
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
+    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+
+    binary_sensors = []
+    for periph_id, periph in coordinator.get_all_peripherals().items():
+        entity_type = None
+        supported_classes = periph.get("SUPPORTED_CLASSES", "").split(",")
+        for class_id in supported_classes:
+            if class_id in CLASS_MAPPING:
+                entity_type = CLASS_MAPPING[class_id]["ha_entity"]
+        if not entity_type == "binary_sensors":
+            continue
+        coordinator.data[periph_id]["entity_type"] = entity_type
+        binary_sensors.append(EedomusBinarySensor(coordinator, periph_id))
+
+    async_add_entities(binary_sensors, True)
+
+async def async_setup_entry_old(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
     """Set up eedomus binary sensor entities from config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
     all_peripherals = coordinator.get_all_peripherals()
@@ -62,13 +79,13 @@ class EedomusBinarySensor(EedomusEntity, BinarySensorEntity):
 
     def __init__(self, coordinator, periph_id):
         """Initialize the binary sensor."""
-        super().__init__(coordinator, periph_id, periph_id)
+        super().__init__(coordinator, periph_id)
         _LOGGER.debug("Initializing binary sensor entity for periph_id=%s", periph_id)
 
     @property
     def is_on(self) -> bool | None:
         """Return true if the binary sensor is on."""
-        value = self.coordinator.data[self._periph_id].get("current_value")
+        value = self.coordinator.data[self._periph_id].get("last_value")
         _LOGGER.debug("Binary sensor %s is_on: %s", self._periph_id, value)
 
         # Gestion des valeurs vides ou invalides
@@ -83,7 +100,7 @@ class EedomusBinarySensor(EedomusEntity, BinarySensorEntity):
     @property
     def device_class(self) -> BinarySensorDeviceClass | None:
         """Return the device class of the binary sensor."""
-        periph_info = self.coordinator.data[self._periph_id]["info"]
+        periph_info = self.coordinator.data[self._periph_id]
         usage_name = periph_info.get("usage_name", "").lower()
 
         if "mouvement" in usage_name:
