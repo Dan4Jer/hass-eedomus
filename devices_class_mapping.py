@@ -195,7 +195,12 @@ DEVICES_CLASS_MAPPING = {
             "2304": {  # Modules RGBW Fibaro (ex: FGWPE/F-102)
                 "ha_entity": "light",
                 "ha_subtype": "rgbw",
-                "justification": "PRODUCT_TYPE_ID=2304 correspond aux modules RGBW Fibaro (ex: FGWPE/F-102).",
+                "justification": "PRODUCT_TYPE_ID=2304 correspond aux modules RGBW Fibaro (ex:  FGRGBWM-441-RGBW).",
+            },
+            "2306": {  # Modules RGBW Fibaro 
+                "ha_entity": "light",
+                "ha_subtype": "rgbw",
+                "justification": "PRODUCT_TYPE_ID=2306 correspond aux modules RGBW Fibaro - RGBW Controller 2 (FGRGBW-442).",
             },
             "258": {  # Interrupteurs muraux Fibaro (ex: FGS-224)
                 "ha_entity": "switch",

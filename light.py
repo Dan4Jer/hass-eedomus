@@ -7,6 +7,7 @@ from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_COLOR_MODE,
     ATTR_RGBW_COLOR,
+    ATTR_COLOR_TEMP_KELVIN,
     ColorMode,
     LightEntity,
     LightEntityFeature,
@@ -116,7 +117,7 @@ class EedomusLight(EedomusEntity, LightEntity):
         periph_name = periph_info.get("name")
 
         if periph_type == "rgb" or periph_type == "rgbw":
-            self._attr_supported_color_modes.add(ColorMode.RGB)
+            self._attr_supported_color_modes.add(ColorMode.RGBW)
         elif periph_type == "color_temp":
             self._attr_supported_color_modes.add(ColorMode.COLOR_TEMP)
 
@@ -139,7 +140,7 @@ class EedomusLight(EedomusEntity, LightEntity):
         """Turn the light on."""
         _LOGGER.debug("Turning on light %s (%s) with kwargs: %s", self._attr_name, self._periph_id, kwargs)
         brightness = kwargs.get(ATTR_BRIGHTNESS)
-        rgb_color = kwargs.get(ATTR_RGB_COLOR)
+        rgb_color = kwargs.get(ATTR_RGBW_COLOR)
         color_temp_kelvin = kwargs.get(ATTR_COLOR_TEMP_KELVIN)
 
         value = "on"
@@ -164,6 +165,7 @@ class EedomusLight(EedomusEntity, LightEntity):
         except Exception as e:
             _LOGGER.error("Failed to turn on light %s (%s): %s", self._attr_name, self._periph_id, e)
             raise
+ 
 
     async def async_turn_off(self, **kwargs):
         """Turn the light off."""
@@ -179,7 +181,7 @@ class EedomusLight(EedomusEntity, LightEntity):
         except Exception as e:
             _LOGGER.error("Failed to turn off light %s (%s): %s", self._attr_name, self._periph_id, e)
             raise
-
+ 
 
     def percent_to_octal(self, percent: float) -> int:
         """Convertit un pourcentage (0-100) en valeur 0-255."""
@@ -235,13 +237,15 @@ class EedomusRGBWLight(EedomusLight):
     @property
     def is_on(self):
         """Return true if any child channel is on."""
-        _LOGGER.debug("Light RGBW %s is_on: %s => should be %s with children=%s",
+        _LOGGER.debug("Light RGBW %s is_on: %s => should be %s-%s %s with children=%s",
                       self.coordinator.data[self._periph_id]["name"],
                       self._global_brightness_percent,
+                      self.coordinator.data[self._periph_id]["ha_subtype"],
                       self.coordinator.data[self._periph_id].get("last_value", "Unknown"),
+                      self.coordinator.data[self._periph_id].get("last_value_change", "Unknown"),
                       ", ".join(
                           f"{self.coordinator.data[child_id].get('name', child_id)} "
-                          f"({self.coordinator.data[child_id].get('usage_name', '?')}-{child_id})[{self.coordinator.data[child_id].get('last_value', '?')}]"
+                          f"({self.coordinator.data[child_id].get('usage_name', '?')}-{child_id})[{self.coordinator.data[child_id].get('last_value', '?')} => {self.coordinator.data[child_id].get('last_value_change', '?')}] {self.coordinator.data[child_id].get('ha_subtype', '!')}"
                           for child_id in self._child_devices.keys()
                       ),
                     )
@@ -279,7 +283,7 @@ class EedomusRGBWLight(EedomusLight):
         # Logique pour récupérer les valeurs R, G, B, W depuis les enfants
         _LOGGER.debug("RGBW color child control with children=%s", ", ".join(
                 f"{self.coordinator.data[child_id].get('name', child_id)} "
-                f"({self.coordinator.data[child_id].get('usage_name', '?')}-{child_id})[{self.coordinator.data[child_id].get('last_value', '?')}]"
+                f"({self.coordinator.data[child_id].get('usage_name', '?')}-{child_id})[{self.coordinator.data[child_id].get('last_value', '?')}] {self.coordinator.data[child_id].get('ha_subtype', '!')}"
                 for child_id in self._child_devices.keys()
             ),)
         #self._red_percent = int(self._child_devices[1].get("last_value", 0))
@@ -373,9 +377,15 @@ class EedomusRGBWLight(EedomusLight):
                 f"{self.coordinator.data[child_id].get('name', child_id)} "
                 f"({self.coordinator.data[child_id].get('usage_name', '?')}-{child_id})[{self.coordinator.data[child_id].get('last_value', '?')}]"
                 for child_id in self._child_devices.keys()
-            ),
-        )
+            ),    
 
+
+        )
+        self.schedule_update_ha_state()
+        await self.coordinator.async_request_refresh() # a essayer
+
+
+        
     async def async_turn_off(self, **kwargs):
         """Turn the light off."""
         _LOGGER.debug("Turning off RGBW light '%s'",
@@ -385,3 +395,5 @@ class EedomusRGBWLight(EedomusLight):
         # Éteindre tous les canaux enfants
         #for child_id in self._child_devices:
         #    await self.coordinator.async_set_periph_value(child_id, "off")
+        self.schedule_update_ha_state()
+        await self.coordinator.async_request_refresh() # a essayer

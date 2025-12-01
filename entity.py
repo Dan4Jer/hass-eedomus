@@ -17,6 +17,8 @@ class EedomusEntity(CoordinatorEntity):
         super().__init__(coordinator)
         self._periph_id = periph_id
         self._parent_id = self.coordinator.data[periph_id].get("parent_periph_id", None)
+        if self.coordinator.client:
+            self._client = self.coordinator.client
         if self._parent_id is None:
             self._attr_unique_id = f"{periph_id}"
         else:
@@ -82,20 +84,42 @@ class EedomusEntity(CoordinatorEntity):
 
     def update(self) -> None:
         """Update entity state."""
+        _LOGGER.debug("Update for %s (%s) type=%s client=%s", self._attr_name, self._periph_id, type(self), type(self._client))
         try:
-            caract_value = self.client.get_periph_caract(self._periph_id)
+            caract_value = self._client.get_periph_caract(self._periph_id)
             if isinstance(caract_value, dict):
-                for att in ["last_value", "last_value_change", "last_value_text", "battery"]:
-                    self.coordinator.data[self._periph_id][attr] = caract_value["body"].get(attr)
+                self.coordinator.data[self._periph_id].update(caract_value)
+#                for att in ["last_value", "last_value_change", "last_value_text", "battery"]:
+#                    self.coordinator.data[self._periph_id][attr] = caract_value["body"].get(attr)
         except Exception as e:
             if self.available:  # Read current state, no need to prefix with _attr_
-                LOGGER.warning("Update failed for %s (%s) : %s", self._attr_name, self._periph_id, e)
+                _LOGGER.warning("Update failed for %s (%s) : %s", self._attr_name, self._periph_id, e)
                 self._attr_available = False  # Set property value
                 return
 
         self._attr_available = True
         # We don't need to check if device available here
         self._attr_native_value = self.coordinator.data[self._periph_id]["last_value"]
+
+    async def async_update(self) -> None:
+        """Update entity state."""
+        _LOGGER.debug("Async Update for %s (%s) type=%s client=%s", self._attr_name, self._periph_id, type(self), type(self._client))
+        try:
+            caract_value = await self._client.get_periph_caract(self._periph_id)
+            if isinstance(caract_value, dict):
+                self.coordinator.data[self._periph_id].update(caract_value)
+#                for att in ["last_value", "last_value_change", "last_value_text", "battery"]:
+#                    self.coordinator.data[self._periph_id][attr] = caract_value["body"].get(attr)
+        except Exception as e:
+            if self.available:  # Read current state, no need to prefix with _attr_
+                _LOGGER.warning("Update failed for %s (%s) : %s", self._attr_name, self._periph_id, e)
+                self._attr_available = False  # Set property value
+                return
+
+        self._attr_available = True
+        # We don't need to check if device available here
+        self._attr_native_value = self.coordinator.data[self._periph_id]["last_value"]
+
         
 def map_device_to_ha_entity(device_data, default_ha_entity: str = "sensor"):
     """        Mappe un périphérique eedomus vers une entité Home Assistant.

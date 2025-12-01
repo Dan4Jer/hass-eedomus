@@ -141,7 +141,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 skipped += 1
                 continue
 
-            _LOGGER.debug("Processing peripheral (ID: %s, data: %s)", periph_id, periph_data)
+            #_LOGGER.debug("Processing peripheral (ID: %s, data: %s)", periph_id, periph_data)
 
             if self._is_dynamic_peripheral(periph_data):
                 self._dynamic_peripherals[periph_id] = periph_data
@@ -164,14 +164,14 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             if not isinstance(periph, dict) or "periph_id" not in periph:
                 _LOGGER.warning("Skipping invalid peripheral: %s", periph)
                 continue
-            _LOGGER.debug("peripherals_value_list periph_id=%s (type=%s) data=%s", periph["periph_id"], type(periph["periph_id"]), periph)
+            #_LOGGER.debug("peripherals_value_list periph_id=%s (type=%s) data=%s", periph["periph_id"], type(periph["periph_id"]), periph)
             periph_id = periph["periph_id"]
             value_list[periph["periph_id"]] = periph
         for periph in peripherals:
             if not isinstance(periph, dict) or "periph_id" not in periph:
                 _LOGGER.warning("Skipping invalid peripheral: %s", periph)
                 continue
-            _LOGGER.debug("peripherals periph_id=%s data=%s", periph["periph_id"], periph)
+            #_LOGGER.debug("peripherals periph_id=%s data=%s", periph["periph_id"], periph)
             periph_id = periph["periph_id"]
             periph_type = periph.get("value_type", "")
             periph_name = periph.get("name", "N/A")
@@ -193,6 +193,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             try:
                 caract_value = await self.client.get_periph_caract(periph_id)
                 if isinstance(caract_value, dict):
+                    #data[periph_id].update(caract_value.get("body"))
                     data[periph_id]["current_value"] = caract_value["body"].get("last_value")
                     data[periph_id]["last_value"] = caract_value["body"].get("last_value")
                     data[periph_id]["last_value_change"] = caract_value["body"].get("last_value_change")
@@ -221,10 +222,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             try:
                 current_value = await self.client.get_periph_caract(periph_id)
                 if isinstance(current_value, dict):
+                    #data[periph_id].update(current_value.get("body"))
                     data[periph_id]["last_value"] = current_value["body"].get("last_value")
                     data[periph_id]["last_value_change"] = current_value["body"].get("last_value_change")
                     data[periph_id]["lastest_caract_data"] = current_value
-                _LOGGER.debug("Performing partial refresh for %s %s", periph_id, current_value)
+                #_LOGGER.debug("Performing partial refresh for %s %s", periph_id, current_value)
             except Exception as e:
                 _LOGGER.warning("Failed to update peripheral %s: %s", periph_id, e)
 
@@ -404,16 +406,39 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
     async def async_set_periph_value(self, periph_id: str, value: str):
         """Set the value of a specific peripheral."""
         _LOGGER.debug("Setting value '%s' for peripheral '%s' (%s) ", value, periph_id, self.data[periph_id]["name"])
+        #try:
+        ret = await self.client.set_periph_value(periph_id, value)
+        if ret.get("success") == 0 and ret.get("error_code") == "6":
+            next_value = self.next_best_value(periph_id, value)
+            _LOGGER.warn("Retry once with the next best value (%s => %s) for %s", value, next_value, periph_id)
+            await self.client.set_periph_value(periph_id, next_value.get("value"))
+        #except Exception as e:
+        #    _LOGGER.error(
+        #        "Failed to set value for peripheral '%s': %s\ndata=%s\n\nalldata=%s",
+        #        periph_id,
+        #        e,
+        #        self.data[periph_id],
+        #        self._all_peripherals[periph_id],
+        #        )
+        #    raise
+        #await self.async_request_refresh()
+
+    def next_best_value(self, periph_id: str, value: str):
+        values_list = self.data.get(periph_id, {}).get("values", [])
+        available_entries = []
+        for item in values_list:
+            try:
+                available_entries.append((int(item["value"]), item))
+            except (ValueError, KeyError):
+                continue
+        if not values_list:
+            raise ValueError(f"Aucune valeur disponible pour le périphérique {periph_id}")
+
         try:
-            await self.client.set_periph_value(periph_id, value)
-        except Exception as e:
-            _LOGGER.error(
-                "Failed to set value for peripheral '%s': %s\ndata=%s\n\nalldata=%s",
-                periph_id,
-                e,
-                self.data[periph_id],
-                self._all_peripherals[periph_id],
-            )
-            raise
-        await self.async_request_refresh()
-                    
+            target_value = int(value)
+        except ValueError:
+            raise ValueError(f"La valeur cible '{value}' n'est pas un nombre valide.")    
+        if not available_entries:
+            raise ValueError(f"Aucune valeur numérique valide trouvée pour le périphérique {periph_id}")
+        
+        return min(available_entries, key=lambda x: abs(x[0] - target_value))[1]
