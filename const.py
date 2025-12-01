@@ -11,7 +11,7 @@ from homeassistant.components.light import (
 CONF_API_USER = "api_user"
 CONF_API_SECRET = "api_secret"
 CONF_API_HOST = "api_host"
-CONF_ENABLE_HISTORY = "History retrieval mode"
+CONF_ENABLE_HISTORY = "history"
 DEFAULT_API_HOST = "192.168.1.2"
 DEFAULT_API_USER = "4pYrgk"
 DEFAULT_API_SECRET = "ChJKkudDrYhoh2NR"

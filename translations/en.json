@@ -5,9 +5,10 @@
         "title": "Connect to eedomus",
         "description": "Configure access to your eedomus box",
         "data": {
-          "host": "Box IP address",
-          "api_key": "API Key",
-          "secret": "Secret API"
+            "host": "Box IP address",
+            "api_key": "API Key",
+            "secret": "Secret API",
+	    "history": "Enable history retrieval mode from cloud"
         }
       }
     },
