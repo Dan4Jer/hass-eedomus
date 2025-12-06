@@ -16,48 +16,11 @@ import logging
 import json
 from homeassistant.components.http import HomeAssistantView
 
-
 _LOGGER = logging.getLogger(__name__)
-
-async def async_setup_entry_old(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up eedomus from a config entry."""
-    _LOGGER.debug("Setting up eedomus integration")
-
-    # Create session and client
-    session = aiohttp_client.async_get_clientsession(hass)
-    client = EedomusClient(
-        session=session,
-        config_entry=entry,
-    )
-
-    # Initialize coordinator
-    coordinator = EedomusDataUpdateCoordinator(hass, client)
-
-    # Perform initial full refresh
-    await coordinator.async_config_entry_first_refresh()
-
-    entities = []
-    for device in coordinator.data:
-        entities.append(EedomusSensor(coordinator, device))
-        if entry.data.get(CONF_ENABLE_HISTORY):
-            _LOGGER.info("Retrieve history enabled device=%s", device)
-            _LOGGER.debug("Retrieve history enabled device.data=%s", coordinator.data[device])
-            entities.append(EedomusHistoryProgressSensor(coordinator, {
-                "periph_id": device,
-                "name": coordinator.data[device]["name"],
-            }))
-
-        # Store coordinator for later use
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-        COORDINATOR: coordinator,
-    }
-
-    # Forward setup to platforms
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up eedomus from a config entry."""
-    _LOGGER.debug("Setting up eedomus integration")
+    _LOGGER.debug("Setting up eedomus integration with entry_id: %s", entry.entry_id)
 
     # Create session and client
     session = aiohttp_client.async_get_clientsession(hass)
@@ -95,28 +58,32 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if entities:
             async_add_entities(entities, True)
 
-    # Store coordinator and client for later use
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-        COORDINATOR: coordinator,
-    }
+
+    # Stockage sécurisé
+    if DOMAIN not in hass.data:
+        hass.data[DOMAIN] = {}
+    hass.data[DOMAIN][entry.entry_id] = {COORDINATOR: coordinator}
+    _LOGGER.debug("Coordinator stored successfully for entry_id: %s", entry.entry_id)
+
+    # Enregistrement du webhook et service
+    hass.http.register_view(EedomusWebhookView(entry.entry_id))
+
+    async def refresh_service(_):
+        if entry.entry_id in hass.data[DOMAIN] and COORDINATOR in hass.data[DOMAIN][entry.entry_id]:
+            await hass.data[DOMAIN][entry.entry_id][COORDINATOR].request_full_refresh()
+        else:
+            _LOGGER.error("Coordinator not available for refresh")
+
+    hass.services.async_register(DOMAIN, "refresh", refresh_service)
+
+                        
+    #hass.data.setdefault("eedomus_entry_id", entry.entry_id) 
 
     # Forward setup to platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
-    return True
-
-    
-# Register refresh service
-@callback
-def refresh_service(call: ServiceResponse) -> None:
-    """Handle service call to refresh data."""
-    hass.async_create_task(coordinator.request_full_refresh())
-    call.return_response()
-    
-    hass.services.async_register(DOMAIN, "refresh", refresh_service)
-    
     _LOGGER.debug("eedomus integration setup completed")
     return True
+
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
@@ -128,58 +95,41 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 ## webhook
-from aiohttp import web
-import logging
-import json
-from homeassistant.components.http import HomeAssistantView
-
-_LOGGER = logging.getLogger(__name__)
-
-async def handle_eedomus_webhook(request):
-    """Gère les requêtes POST de l'actionneur HTTP eedomus pour déclencher un rafraîchissement global."""
-    try:
-        # Vérifier que l'action est bien "refresh"
-        data = await request.json()
-        if data.get("action") != "refresh":
-            _LOGGER.warning("Action non reconnue dans le payload : %s", data)
-            return web.Response(text="Action non reconnue", status=400)
-
-        # Déclencher un rafraîchissement global de toutes les entités eedomus
-        hass = request.app["hass"]
-
-        # Option 1 : Rafraîchir toutes les entités du domaine "sensor" liées à eedomus
-        # (à adapter selon le domaine réel utilisé par ton custom_component)
-        await hass.services.async_call(
-            "homeassistant",
-            "update_entity",
-            {"entity_id": "sensor.eedomus_all"},  # ou un service personnalisé si disponible
-            blocking=False,
-        )
-
-        # Option 2 : Appeler un service personnalisé si ton custom_component en propose un
-        # Exemple : "eedomus.refresh_all"
-        # await hass.services.async_call("eedomus", "refresh_all", {}, blocking=False)
-
-        _LOGGER.info("Rafraîchissement global déclenché pour tous les périphériques eedomus")
-        return web.Response(text="OK")
-
-    except json.JSONDecodeError:
-        _LOGGER.error("Payload JSON invalide")
-        return web.Response(text="Payload JSON invalide", status=400)
-    except Exception as e:
-        _LOGGER.error("Erreur lors du traitement du webhook : %s", e)
-        return web.Response(text="Erreur interne", status=500)
-
 class EedomusWebhookView(HomeAssistantView):
-    """Vue pour gérer les requêtes webhook de eedomus."""
     requires_auth = False
     url = "/api/eedomus/webhook"
     name = "api:eedomus:webhook"
 
-    async def post(self, request):
-        return await handle_eedomus_webhook(request)
+    def __init__(self, entry_id: str):
+        self.entry_id = entry_id
 
-def setup(hass, config):
-    """Configuration du custom_component eedomus."""
-    hass.http.register_view(EedomusWebhookView())
-    return True
+    async def post(self, request):
+        hass = request.app["hass"]
+        try:
+            # 1. Parse JSON first (fail fast if invalid)
+            data = await request.json()
+            if data.get("action") != "refresh" and data.get("action") != "partial_refresh":
+                return web.Response(text="Unrecognized action", status=400)
+
+            # 2. Get coordinator safely
+            domain_data = hass.data.get(DOMAIN, {})
+            entry_data = domain_data.get(self.entry_id, {})
+            coordinator = entry_data.get(COORDINATOR)
+
+            if coordinator is None:
+                _LOGGER.error("Coordinator not found for entry_id: %s", self.entry_id)
+                return web.Response(text="Coordinator not available", status=500)
+
+            # 3. Execute refresh
+            _LOGGER.info("Triggering eedomus %s", data.get("action"))
+            if data.get("action") == "refresh":
+                await coordinator._async_full_refresh()
+            if data.get("action") == "partial_refresh":
+                await coordinator._async_partial_refresh()    
+            return web.Response(text="OK")
+
+        except json.JSONDecodeError:
+            return web.Response(text="Invalid JSON", status=400)
+        except Exception as e:
+            _LOGGER.error("Webhook error: %s", str(e), exc_info=True)
+            return web.Response(text="Internal error", status=500)
