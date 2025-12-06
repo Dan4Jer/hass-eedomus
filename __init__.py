@@ -11,6 +11,11 @@ from .coordinator import EedomusDataUpdateCoordinator
 from .eedomus_client import EedomusClient
 from .sensor import EedomusSensor, EedomusHistoryProgressSensor
 
+from aiohttp import web
+import logging
+import json
+from homeassistant.components.http import HomeAssistantView
+
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -119,3 +124,62 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data[DOMAIN].pop(entry.entry_id)
         _LOGGER.debug("eedomus integration unloaded")
     return unload_ok
+
+
+
+## webhook
+from aiohttp import web
+import logging
+import json
+from homeassistant.components.http import HomeAssistantView
+
+_LOGGER = logging.getLogger(__name__)
+
+async def handle_eedomus_webhook(request):
+    """Gère les requêtes POST de l'actionneur HTTP eedomus pour déclencher un rafraîchissement global."""
+    try:
+        # Vérifier que l'action est bien "refresh"
+        data = await request.json()
+        if data.get("action") != "refresh":
+            _LOGGER.warning("Action non reconnue dans le payload : %s", data)
+            return web.Response(text="Action non reconnue", status=400)
+
+        # Déclencher un rafraîchissement global de toutes les entités eedomus
+        hass = request.app["hass"]
+
+        # Option 1 : Rafraîchir toutes les entités du domaine "sensor" liées à eedomus
+        # (à adapter selon le domaine réel utilisé par ton custom_component)
+        await hass.services.async_call(
+            "homeassistant",
+            "update_entity",
+            {"entity_id": "sensor.eedomus_all"},  # ou un service personnalisé si disponible
+            blocking=False,
+        )
+
+        # Option 2 : Appeler un service personnalisé si ton custom_component en propose un
+        # Exemple : "eedomus.refresh_all"
+        # await hass.services.async_call("eedomus", "refresh_all", {}, blocking=False)
+
+        _LOGGER.info("Rafraîchissement global déclenché pour tous les périphériques eedomus")
+        return web.Response(text="OK")
+
+    except json.JSONDecodeError:
+        _LOGGER.error("Payload JSON invalide")
+        return web.Response(text="Payload JSON invalide", status=400)
+    except Exception as e:
+        _LOGGER.error("Erreur lors du traitement du webhook : %s", e)
+        return web.Response(text="Erreur interne", status=500)
+
+class EedomusWebhookView(HomeAssistantView):
+    """Vue pour gérer les requêtes webhook de eedomus."""
+    requires_auth = False
+    url = "/api/eedomus/webhook"
+    name = "api:eedomus:webhook"
+
+    async def post(self, request):
+        return await handle_eedomus_webhook(request)
+
+def setup(hass, config):
+    """Configuration du custom_component eedomus."""
+    hass.http.register_view(EedomusWebhookView())
+    return True

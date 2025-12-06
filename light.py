@@ -16,7 +16,16 @@ from homeassistant.components.light import (
 from homeassistant.util.color import (
     value_to_brightness,
     color_rgb_to_rgbw,
-#    color_rgbw_to_rgbw,
+    color_temperature_to_rgb,
+    color_rgbw_to_rgb,
+    color_rgb_to_rgbw,
+    color_RGB_to_xy,
+#color_rgb_to_kelvin,
+    #color_rgb_to_xy,
+#    color_rgbw_to_xy,
+#    color_rgbw_to_temperature,
+#    color_xy_to_color_temperature
+
 )
 
 from homeassistant.config_entries import ConfigEntry
@@ -111,7 +120,10 @@ class EedomusLight(EedomusEntity, LightEntity):
         """Initialize the light."""
         super().__init__(coordinator, periph_id)
         self._attr_supported_color_modes = {ColorMode.ONOFF}
-
+        self._attr_rgb_color = None
+        self._attr_brightness = None
+        self._attr_color_temp_kelvin = None
+        self._attr_xy_color = None
         periph_info = self.coordinator.data[periph_id]
         periph_type = periph_info.get("ha_subtype")
         periph_name = periph_info.get("name")
@@ -140,14 +152,14 @@ class EedomusLight(EedomusEntity, LightEntity):
         """Turn the light on."""
         _LOGGER.debug("Turning on light %s (%s) with kwargs: %s", self._attr_name, self._periph_id, kwargs)
         brightness = kwargs.get(ATTR_BRIGHTNESS)
-        rgb_color = kwargs.get(ATTR_RGBW_COLOR)
+        rgbw_color = kwargs.get(ATTR_RGBW_COLOR)
         color_temp_kelvin = kwargs.get(ATTR_COLOR_TEMP_KELVIN)
 
         value = "on"
         if brightness is not None:
             value = f"on:{brightness}"
-        if rgb_color is not None:
-            value = f"rgb:{rgb_color[0]},{rgb_color[1]},{rgb_color[2]}"
+        if rgbw_color is not None:
+            value = f"rgbw:{rgb_color[0]},{rgb_color[1]},{rgb_color[2]},{rgb_color[3]}"
         if color_temp_kelvin is not None:
             value = f"color_temp:{color_temp_kelvin}"
 
@@ -201,7 +213,12 @@ class EedomusRGBWLight(EedomusLight):
         self._parent_device = self.coordinator.data[periph_id]
         self._child_devices = {child["periph_id"]: child for child in child_devices}
         self._color_mode = ColorMode.RGBW
-        self._supported_color_modes = {ColorMode.RGBW}
+        self._supported_color_modes = {
+             #ColorMode.ONOFF,
+             ColorMode.RGBW
+  #           ColorMode.XY,  # Ajoute le support du mode XY
+  #           ColorMode.COLOR_TEMP
+        }
         self._supported_features = LightEntityFeature.EFFECT | LightEntityFeature(0)  # Support pour le mode RGBW
         self._global_brightness_percent = 0
         self._red_percent = 0
@@ -312,6 +329,11 @@ class EedomusRGBWLight(EedomusLight):
             self.percent_to_octal(self._white_percent),
         )
 
+    @property
+    def xy_color(self):
+        """Retourne les coordonnées xy de la couleur actuelle."""
+        return self._attr_xy_color
+
 
     async def async_turn_on(self, **kwargs):
         """Turn the light on with optional color and brightness."""
@@ -367,6 +389,10 @@ class EedomusRGBWLight(EedomusLight):
             self._white_percent = self.octal_to_percent(w)
             await self.coordinator.async_set_periph_value(white_periph_id, self._white_percent)
             self._global_brightness_percent = self.octal_to_percent(max(r,g,b,w))
+            self._attr_rgbw_color = (r,g,b,w)
+            self._attr_rgb_color = color_util.color_rgbw_to_rgb(self._attr_rgbw_color)
+ #           self._attr_xy_color = color_util.color_RGB_to_xy(self._attr_rgb_color)
+ #           self._attr_color_temp_kelvin = color_util.color_rgb_to_kelvin(self._attr_rgb_color)
         await self.coordinator.async_set_periph_value(self._parent_id, self._global_brightness_percent)
 
         _LOGGER.debug(
@@ -381,6 +407,9 @@ class EedomusRGBWLight(EedomusLight):
 
 
         )
+        self._attr_is_on = self._global_brightness_percent > 0
+        self._attr_brightness = int(self._global_brightness_percent)
+        self.async_write_ha_state()
         self.schedule_update_ha_state()
         await self.coordinator.async_request_refresh() # a essayer
 
@@ -397,3 +426,5 @@ class EedomusRGBWLight(EedomusLight):
         #    await self.coordinator.async_set_periph_value(child_id, "off")
         self.schedule_update_ha_state()
         await self.coordinator.async_request_refresh() # a essayer
+
+
