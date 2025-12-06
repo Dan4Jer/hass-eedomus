@@ -390,7 +390,7 @@ class EedomusRGBWLight(EedomusLight):
             await self.coordinator.async_set_periph_value(white_periph_id, self._white_percent)
             self._global_brightness_percent = self.octal_to_percent(max(r,g,b,w))
             self._attr_rgbw_color = (r,g,b,w)
-            self._attr_rgb_color = color_util.color_rgbw_to_rgb(self._attr_rgbw_color)
+            self._attr_rgb_color = color_rgbw_to_rgb(r,g,b,w)
  #           self._attr_xy_color = color_util.color_RGB_to_xy(self._attr_rgb_color)
  #           self._attr_color_temp_kelvin = color_util.color_rgb_to_kelvin(self._attr_rgb_color)
         await self.coordinator.async_set_periph_value(self._parent_id, self._global_brightness_percent)
