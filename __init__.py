@@ -6,7 +6,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceResponse, callback
 from homeassistant.helpers import aiohttp_client
 from homeassistant.const import Platform
-from .const import DOMAIN, PLATFORMS, COORDINATOR, CONF_ENABLE_HISTORY, CLASS_MAPPING
+from .const import DOMAIN, PLATFORMS, COORDINATOR, CONF_ENABLE_HISTORY, CLASS_MAPPING, CONF_API_HOST
 from .coordinator import EedomusDataUpdateCoordinator
 from .eedomus_client import EedomusClient
 from .sensor import EedomusSensor, EedomusHistoryProgressSensor
@@ -66,7 +66,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.debug("Coordinator stored successfully for entry_id: %s", entry.entry_id)
 
     # Enregistrement du webhook et service
-    hass.http.register_view(EedomusWebhookView(entry.entry_id))
+    hass.http.register_view(EedomusWebhookView(entry.entry_id, allowed_ips = [entry.data.get(CONF_API_HOST)]))
 
     async def refresh_service(_):
         if entry.entry_id in hass.data[DOMAIN] and COORDINATOR in hass.data[DOMAIN][entry.entry_id]:
@@ -100,10 +100,20 @@ class EedomusWebhookView(HomeAssistantView):
     url = "/api/eedomus/webhook"
     name = "api:eedomus:webhook"
 
-    def __init__(self, entry_id: str):
-        self.entry_id = entry_id
 
+    def __init__(self, entry_id: str, allowed_ips: list = None):
+        self.entry_id = entry_id
+        self.allowed_ips = allowed_ips
+        
     async def post(self, request):
+        client_ip = request.remote
+        _LOGGER.debug(f"Request from {client_ip}")
+
+        # Vérification de l'IP
+        if client_ip not in self.allowed_ips:
+            _LOGGER.warning(f"Unauthorized IP: {client_ip}")
+            return web.Response(text="Unauthorized", status=403)
+        
         hass = request.app["hass"]
         try:
             # 1. Parse JSON first (fail fast if invalid)
