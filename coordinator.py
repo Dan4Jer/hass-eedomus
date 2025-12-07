@@ -72,7 +72,6 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         if not isinstance(peripherals_value_list, list):
             _LOGGER.error("Invalid peripherals list: %s", peripherals_value_list)
             peripherals_value_list = []
-        _LOGGER.info("Found %d peripherals value list in total", len(peripherals_value_list))
         if not isinstance(peripherals_caract, list):
             _LOGGER.error("Invalid peripherals list: %s", peripherals_caract)
             peripherals_caract = []

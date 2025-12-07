@@ -34,68 +34,68 @@ from .entity import EedomusEntity, map_device_to_ha_entity
 from .const import DOMAIN, CLASS_MAPPING
 
 _LOGGER = logging.getLogger(__name__)
-
-async def async_setup_entry_old(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
-    """Set up eedomus light entities from config entry."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
-
-    # Get all peripherals
-    all_peripherals = coordinator.get_all_peripherals()
-
-    # Filter for lights
-    lights = []
-    for periph_id, periph in all_peripherals.items():
-        usage_name = periph.get("usage_name", "").lower()
-        name = periph.get("name", "").lower()
-
-        if ("lampe" in usage_name or
-            "light" in usage_name or
-            "lampe" in name or
-            "light" in name):
-            lights.append(EedomusLight(coordinator, periph_id))
-
-    async_add_entities(lights, True)
-
-# ==> Modification proposée: Update entity creation to handle RGBW aggregation
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
     """Set up eedomus lights from config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
     entities = []
    
-    _LOGGER.debug("Coordinator type: %s", type(coordinator))
     #devices = coordinator.data.get("periph_list", {}).get("body", [])
     all_peripherals = coordinator.get_all_peripherals()
     parent_to_children = {}
+
     for periph_id, periph in all_peripherals.items():
         if periph.get("parent_periph_id"):
             parent_id = periph["parent_periph_id"]
             if parent_id not in parent_to_children:
                 parent_to_children[parent_id] = []
             parent_to_children[parent_id].append(periph)
-
-    for periph_id, periph in coordinator.get_all_peripherals().items():
-        entity_type = None
-        if "entity_type" in coordinator.data[periph_id]:
-            entity_type = coordinator.data[periph_id]["entity_type"]
-        else:
-            if periph.get("parent_periph_id") and coordinator.data[periph["parent_periph_id"]].get("entity_type"):
-                eedomus_mapping = map_device_to_ha_entity(periph, coordinator.data[periph["parent_periph_id"]]["entity_type"])
-            else:
-                eedomus_mapping = map_device_to_ha_entity(periph)
-            #_LOGGER.debug("Eedomus Mapping %s (%s) data=%s", periph["name"], periph_id,  eedomus_mapping)
+        if not "ha_entity" in coordinator.data[periph_id]:
+            eedomus_mapping = map_device_to_ha_entity(periph)
             coordinator.data[periph_id].update(eedomus_mapping)
-            entity_type = eedomus_mapping["ha_entity"]
+            
+            
 
-        if eedomus_mapping is None or not "light" in eedomus_mapping.values():
+    for periph_id, periph in all_peripherals.items():
+        ha_entity = None
+        if "ha_entity" in coordinator.data[periph_id]:
+            ha_entity = coordinator.data[periph_id]["ha_entity"]
+
+        parent_id = periph.get("parent_periph_id", None)
+        if parent_id and coordinator.data[parent_id]["ha_entity"] == "light":
+            #les enfants sont gérés par le parent... est-ce une bonne idée ?
+            eedomus_mapping = None
+            if periph.get("usage_id") == "1":
+                eedomus_mapping = {
+                    "ha_entity": "light",
+                    "ha_subtype": "brightness",
+                    "justification": "Parent is a light"
+                }
+            if periph.get("usage_id") == "82":
+                eedomus_mapping = {
+                    "ha_entity": "text",
+                    "ha_subtype": None,
+                    "justification": "Parent is a light - text- Couleur Prédéfinie"
+                }
+            if periph.get("usage_id") == "26":
+                eedomus_mapping = {
+                    "ha_entity": "sensor",
+                    "ha_subtype": None,
+                    "justification": "Parent is a light - sensor - Consometre"
+                }
+            if not eedomus_mapping is None:
+                coordinator.data[periph_id].update(eedomus_mapping)
+
+    for periph_id, periph in all_peripherals.items():
+        ha_entity = None
+        if "ha_entity" in coordinator.data[periph_id]:
+            ha_entity = coordinator.data[periph_id]["ha_entity"]
+
+        if ha_entity is None or not ha_entity == "light":
             continue
 
-        if periph.get("parent_periph_id"):
-            continue  # Ignorer les enfants, ils seront gérés par le parent
-
-        _LOGGER.debug("Go for a light !!! %s (%s) mapping=%s", periph["name"], periph_id,  eedomus_mapping)
-        if "light" in eedomus_mapping.values():
-            if "rgbw" in eedomus_mapping.values():
-                _LOGGER.debug("Create a RGBW light entity %s (%s) mapping=%s", periph["name"], periph_id,  eedomus_mapping)
+        _LOGGER.debug("Go for a light !!! %s (%s) mapping=%s", periph["name"], periph_id,  periph)
+        if "light" in coordinator.data[periph_id].get("ha_entity", None):
+            if "rgbw" in coordinator.data[periph_id].get("ha_subtype", None):
                 # Créer une entité RGBW agrégée
                 entities.append(
                     EedomusRGBWLight(
@@ -127,7 +127,8 @@ class EedomusLight(EedomusEntity, LightEntity):
         periph_info = self.coordinator.data[periph_id]
         periph_type = periph_info.get("ha_subtype")
         periph_name = periph_info.get("name")
-
+        if periph_type == "brightness":
+            self._attr_supported_color_modes = {ColorMode.BRIGHTNESS}
         if periph_type == "rgb" or periph_type == "rgbw":
             self._attr_supported_color_modes.add(ColorMode.RGBW)
         elif periph_type == "color_temp":
@@ -142,7 +143,6 @@ class EedomusLight(EedomusEntity, LightEntity):
     def is_on(self):
         """Return true if the light is on."""
         value = self.coordinator.data[self._periph_id].get("last_value")
-        #_LOGGER.debug("Light %s (%s) is_on: %s",  self.coordinator.data[self._periph_id]["name"], self._periph_id, value)
         if type(value) == "NoneType" or value == "None":
             return false
 
@@ -226,15 +226,6 @@ class EedomusRGBWLight(EedomusLight):
         self._blue_percent = 0
         self._white_percent = 0
         _ = self.rgbw_color #to setup x percent values
-        _LOGGER.debug(
-            "Initialized RGBW light '%s' (%s) with children: %s",
-            self._parent_id, self.coordinator.data[self._parent_id]["name"],
-            ", ".join(
-                f"{self.coordinator.data[child_id].get('name', child_id)} "
-                f"({self.coordinator.data[child_id].get('usage_name', '?')}-{child_id})"
-                for child_id in self._child_devices.keys()
-            ),
-        )
 
     @property
     def color_mode(self):
@@ -262,22 +253,17 @@ class EedomusRGBWLight(EedomusLight):
                       self.coordinator.data[self._periph_id].get("last_value_change", "Unknown"),
                       ", ".join(
                           f"{self.coordinator.data[child_id].get('name', child_id)} "
-                          f"({self.coordinator.data[child_id].get('usage_name', '?')}-{child_id})[{self.coordinator.data[child_id].get('last_value', '?')} => {self.coordinator.data[child_id].get('last_value_change', '?')}] {self.coordinator.data[child_id].get('ha_subtype', '!')}"
+                          f"({self.coordinator.data[child_id].get('usage_name', '?')}-{child_id})[{self.coordinator.data[child_id].get('last_value', '?')} => {self.coordinator.data[child_id].get('last_value_change', '?')}] {self.coordinator.data[child_id].get('ha_entity', '!')}"
                           for child_id in self._child_devices.keys()
                       ),
                     )
-        #self._global_brightness_percent = int(self.coordinator.data[self._periph_id].get("current_value", 0))
         return self._global_brightness_percent > 0
 
     @property
     def brightness(self):
         """Return the brightness of the light (average of all channels)."""
         self._global_brightness_percent = int(self.coordinator.data[self._parent_id].get("last_value",0))
-        _LOGGER.debug("Brightness parent '%s' (%s) %s", self._parent_id,
-                      self.coordinator.data[self._parent_id].get("name","Unknown"),
-                      self.coordinator.data[self._parent_id].get("last_value",0),
-                      )
-
+ 
         return self.percent_to_octal(self._global_brightness_percent)
         
     @property
@@ -297,16 +283,6 @@ class EedomusRGBWLight(EedomusLight):
         blue_periph_id = str(int(self._parent_id) + 3)
         white_periph_id = str(int(self._parent_id) + 4)
 
-        # Logique pour récupérer les valeurs R, G, B, W depuis les enfants
-        _LOGGER.debug("RGBW color child control with children=%s", ", ".join(
-                f"{self.coordinator.data[child_id].get('name', child_id)} "
-                f"({self.coordinator.data[child_id].get('usage_name', '?')}-{child_id})[{self.coordinator.data[child_id].get('last_value', '?')}] {self.coordinator.data[child_id].get('ha_subtype', '!')}"
-                for child_id in self._child_devices.keys()
-            ),)
-        #self._red_percent = int(self._child_devices[1].get("last_value", 0))
-        #self._green_percent = int(self._child_devices[0].get("last_value", 0))
-        #self._blue_percent = int(self._child_devices[2].get("last_value", 0))
-        #self._white_percent = int(self._child_devices[3].get("last_value", 0))
         self._red_percent = int(self.coordinator.data[red_periph_id].get('last_value', 0))
         self._green_percent = int(self.coordinator.data[green_periph_id].get('last_value', 0))
         self._blue_percent = int(self.coordinator.data[blue_periph_id].get('last_value', 0))
@@ -318,7 +294,7 @@ class EedomusRGBWLight(EedomusLight):
             self._red_percent, self._green_percent, self._blue_percent, self._white_percent, self._global_brightness_percent,
             ", ".join(
                 f"{self.coordinator.data[child_id].get('name', child_id)} "
-                f"({self.coordinator.data[child_id].get('usage_name', '?')}-{child_id})[{self.coordinator.data[child_id].get('last_value', '?')}]"
+                f"({self.coordinator.data[child_id].get('usage_name', '?')}-{child_id})[{self.coordinator.data[child_id].get('last_value', '?')}] => {self.coordinator.data[child_id].get('ha_entity', '?')}:{self.coordinator.data[child_id].get('usage_id', '?')}"
                 for child_id in self._child_devices.keys()
             ),
         )
@@ -395,18 +371,6 @@ class EedomusRGBWLight(EedomusLight):
  #           self._attr_color_temp_kelvin = color_util.color_rgb_to_kelvin(self._attr_rgb_color)
         await self.coordinator.async_set_periph_value(self._parent_id, self._global_brightness_percent)
 
-        _LOGGER.debug(
-            "Turn on RGBW color '%s' with (%d,%d,%d,%d){%d} with children: %s",
-            self.coordinator.data[self._parent_id]["name"],
-            self._red_percent, self._green_percent, self._blue_percent, self._white_percent, self._global_brightness_percent,
-            ", ".join(
-                f"{self.coordinator.data[child_id].get('name', child_id)} "
-                f"({self.coordinator.data[child_id].get('usage_name', '?')}-{child_id})[{self.coordinator.data[child_id].get('last_value', '?')}]"
-                for child_id in self._child_devices.keys()
-            ),    
-
-
-        )
         self._attr_is_on = self._global_brightness_percent > 0
         self._attr_brightness = int(self._global_brightness_percent)
         self.async_write_ha_state()
@@ -417,8 +381,6 @@ class EedomusRGBWLight(EedomusLight):
         
     async def async_turn_off(self, **kwargs):
         """Turn the light off."""
-        _LOGGER.debug("Turning off RGBW light '%s'",
-                      self.coordinator.data[self._parent_id]["name"])
         self._global_brightness_percent = 0
         await self.coordinator.async_set_periph_value(self._parent_id, self._global_brightness_percent)
         # Éteindre tous les canaux enfants
