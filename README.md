@@ -1,12 +1,31 @@
 # Intégration eedomus pour Home Assistant
 
-Cette intégration permet de connecter votre box domotique **eedomus** à **Home Assistant**.
+Cette intégration permet de connecter votre box domotique **eedomus** à **Home Assistant**. Bref comment étendre la fiabilité eedomus avec les gadgets.
 
 Ce module récupère et découvre, via l'API eedomus (https://doc.eedomus.com/view/API_eedomus), les informations et pilotes les périphériques eedomus.
 L'objectif est de faire communiquer HA et eedomus de manière efficace, il y a trois étapes :
  - L'initialisation, démarrage ou setup, qui collecte toutes les informations sur les périphériques eedomus pour faire un mapping dans avec les entitées eedomus.
  - Un refresh périodique (5 minutes, c'est bien), pour raffaichir les états des périphériques dont la valeur évolue.
  - Un refresh partiel sur évènement, une action dans HA ou bien un webhook depuis eedomus (avec un actionneur http)
+
+## 📋 Fonctionnalités
+- Mapping des entités HA et eedomus en fonction des class zwaves
+- Contrôle des lumières, interrupteurs, volets, capteurs et détecteurs eedomus.
+- Rafraîchissement manuel des données.
+- Historique des valeurs (optionnel).
+- Configuration simplifiée via l’UI de Home Assistant.
+
+## Plateformes HA supportées
+- Lumière (light)
+
+## Plateformes HA bientôt supportées
+- Interrupteurs (switch)
+- Volets/Stores (cover)
+- Capteurs (sensor)
+- Capteurs binaires (binary_sensor) : Détection de mouvement, porte/fenêtre, fumée, inondation, présence, contact, vibration, etc.
+
+
+
 
 ---
 

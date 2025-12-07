@@ -6,15 +6,21 @@ from homeassistant.components.light import (
     ColorMode,
     LightEntityFeature,
 )
+try:
+    from .private_const import DEFAULT_API_HOST, DEFAULT_API_USER, DEFAULT_API_SECRET
+except ImportError:
+    # Gérer le cas où le fichier n'existe pas
+    private_const = None
+    # ou définir des valeurs par défaut
+    DEFAULT_API_HOST =""
+    DEFAULT_API_USER =""
+    DEFAULT_API_SECRET = ""
 
 # Configuration
 CONF_API_USER = "api_user"
 CONF_API_SECRET = "api_secret"
 CONF_API_HOST = "api_host"
 CONF_ENABLE_HISTORY = "history"
-DEFAULT_API_HOST = "192.168.1.2"
-DEFAULT_API_USER = "4pYrgk"
-DEFAULT_API_SECRET = "ChJKkudDrYhoh2NR"
 DEFAULT_CONF_ENABLE_HISTORY = True
 DEFAULT_SCAN_INTERVAL = 300  # 5 minutes
 
