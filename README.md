@@ -119,6 +119,24 @@ Vous pouvez également déclencher un rafraîchissement depuis Home Assistant :
 | **Aucune réponse**                | Vérifiez que Home Assistant est accessible depuis votre box eedomus (pare-feu, réseau, etc.).|
 
 ---
+## Configuration avancée
+
+### Constantes et mappings
+Le fichier [`const.py`](const.py) contient toutes les constantes utilisées par l'intégration, notamment :
+- **Plateformes supportées** : `light`, `switch`, `cover`, `sensor`, `binary_sensor`
+- **Classes de capteurs** : Mappings entre les types eedomus et les classes Home Assistant (ex : `temperature`, `humidity`, `pressure`, etc.)
+- **Attributs personnalisés** : `periph_id`, `last_updated`, `history`, etc.
+- **Valeurs par défaut** : Intervalle de scan (`5 minutes`), activation de l'historique, etc.
+
+#### Exemple de mapping
+   Classe eedomus | Entité Home Assistant | Classe de capteur |
+ |----------------|-----------------------|-------------------|
+ | `39:1`         | `light`               | `brightness`      |
+ | `96:3`         | `light`               | `rgbw`            |
+ | `114:1`        | `sensor`              | `temperature`     |
+ | `48:1`         | `binary_sensor`       | `motion`          |
+
+> **Note** : Pour utiliser des valeurs personnalisées (hôte API, identifiants), créez un fichier `private_const.py` à la racine du projet.
 
 ### Logs
 Pour diagnostiquer les problèmes, activez les logs en mode debug :
