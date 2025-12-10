@@ -14,6 +14,7 @@ L'objectif est de faire communiquer HA et eedomus de manière efficace, il y a t
 - Rafraîchissement manuel des données.
 - Historique des valeurs (optionnel).
 - Configuration simplifiée via l’UI de Home Assistant.
+- Api proxy pour supporter directement les requetes de l'actionneur HTTP
 
 ## Plateformes HA supportées
 - Lumière (light)
