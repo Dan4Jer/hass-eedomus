@@ -51,14 +51,9 @@ Lors de la configuration, vous devrez fournir les informations suivantes :
 
 | Champ               | Description                                      | Exemple                     |
 |---------------------|--------------------------------------------------|-----------------------------|
-| `Adresse IP`        | Adresse IP de votre box eedomus                  | `192.168.1.2`               |
-<<<<<<< HEAD
+| `Adresse IP`        | Adresse IP de votre box eedomus                  | `192.168.1.2`              
 | `api_user`          | Nom d'utilisateur pour l'API eedomus             | `5vJvgkl`		       |
 | `api_secret`        | Mot de passe pour l'API eedomus                  | `XxXxXXxxXxxXxXxXx` 	       |
-=======
-| `api_user`          | Nom d'utilisateur pour l'API eedomus             | `votre_utilisateur`         |
-| `api_secret`        | Mot de passe pour l'API eedomus                  | `votre_mot_de_passe`        |
->>>>>>> retrieve_17e970c
 
 ---
 
@@ -138,6 +133,7 @@ Une requête envoyée depuis eedomus vers : POST http://<IP_HOME_ASSISTANT>:8123
 avec le corps JSON :
 ```json
 {"entity_id": "light.lampe_led_chambre_parent"}
+```
 
 sera automatiquement redirigée vers le service Home Assistant light.turn_on avec les mêmes données.
 
@@ -145,12 +141,12 @@ Configurer un actionneur HTTP dans eedomus
 
 Allez dans l'interface de votre box eedomus.
 Créez un actionneur HTTP avec les paramètres suivants :
-
+```
 URL : http://<IP_HOME_ASSISTANT>:8123/api/eedomus/apiproxy/services/<domain>/<service>
 (ex: http://192.168.1.4:8123/api/eedomus/apiproxy/services/light/turn_on)
 Méthode : POST
 Corps (Body) : JSON valide correspondant aux données attendues par le service HomeAssistant
-
+```
 
 ## Configuration avancée
 
