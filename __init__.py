@@ -68,13 +68,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Enregistrement du webhook et service
     hass.http.register_view(EedomusWebhookView(entry.entry_id, allowed_ips = [entry.data.get(CONF_API_HOST)]))
 
-    async def refresh_service(_):
-        if entry.entry_id in hass.data[DOMAIN] and COORDINATOR in hass.data[DOMAIN][entry.entry_id]:
-            await hass.data[DOMAIN][entry.entry_id][COORDINATOR].request_full_refresh()
-        else:
-            _LOGGER.error("Coordinator not available for refresh")
-
-    hass.services.async_register(DOMAIN, "refresh", refresh_service)
+    #async def refresh_service(_):
+    #    if entry.entry_id in hass.data[DOMAIN] and COORDINATOR in hass.data[DOMAIN][entry.entry_id]:
+    #        await hass.data[DOMAIN][entry.entry_id][COORDINATOR].request_full_refresh()
+    #    else:
+    #        _LOGGER.error("Coordinator not available for refresh")
+    #
+    #hass.services.async_register(DOMAIN, "refresh", refresh_service)
 
                         
     #hass.data.setdefault("eedomus_entry_id", entry.entry_id) 
