@@ -51,8 +51,13 @@ Lors de la configuration, vous devrez fournir les informations suivantes :
 | Champ               | Description                                      | Exemple                     |
 |---------------------|--------------------------------------------------|-----------------------------|
 | `Adresse IP`        | Adresse IP de votre box eedomus                  | `192.168.1.2`               |
+<<<<<<< HEAD
 | `api_user`          | Nom d'utilisateur pour l'API eedomus             | `5vJvgkl`		       |
 | `api_secret`        | Mot de passe pour l'API eedomus                  | `XxXxXXxxXxxXxXxXx` 	       |
+=======
+| `api_user`          | Nom d'utilisateur pour l'API eedomus             | `votre_utilisateur`         |
+| `api_secret`        | Mot de passe pour l'API eedomus                  | `votre_mot_de_passe`        |
+>>>>>>> retrieve_17e970c
 
 ---
 

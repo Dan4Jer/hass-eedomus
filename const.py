@@ -6,15 +6,18 @@ from homeassistant.components.light import (
     ColorMode,
     LightEntityFeature,
 )
+
 try:
-    from .private_const import DEFAULT_API_HOST, DEFAULT_API_USER, DEFAULT_API_SECRET
+    from .private_const import (
+        DEFAULT_API_HOST,
+        DEFAULT_API_USER,
+        DEFAULT_API_SECRET,
+    )
 except ImportError:
-    # Gérer le cas où le fichier n'existe pas
-    private_const = None
-    # ou définir des valeurs par défaut
-    DEFAULT_API_HOST =""
-    DEFAULT_API_USER =""
-    DEFAULT_API_SECRET = ""
+    # Valeurs par défaut (ou lève une erreur si requis)
+    DEFAULT_API_HOST = "xxx.XXX.xxx.XXX"
+    DEFAULT_API_USER = None
+    DEFAULT_API_SECRET = None
 
 # Configuration
 CONF_API_USER = "api_user"
