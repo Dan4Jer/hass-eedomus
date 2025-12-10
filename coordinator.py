@@ -169,11 +169,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         _LOGGER.warning("Skipped %d invalid peripherals", skipped)
         _LOGGER.warning("Found %d dynamic peripherals", dynamic)
 
-        return aggregated_data
-    
 
-    async def _async_partial_refresh(self):
-        """Update only dynamic peripherals that change frequently."""
         _LOGGER.debug("Mapping Table %s","\n".join("Map: "
                           f"{aggregated_data[id].get('ha_entity', '?')}/"
                           f"{aggregated_data[id].get('ha_subtype', '?')} "
@@ -214,32 +210,6 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     history_retrieval=False 
 
         return self.data
-
-    async def _async_partial_refresh_old(self):
-        """Update only dynamic peripherals that change frequently."""
-        history_retrieval = self.client.config_entry.data.get(CONF_ENABLE_HISTORY, False)
-        _LOGGER.info("Performing partial refresh for %d dynamic peripherals, history=%s",
-                      len(self._dynamic_peripherals), history_retrieval)
-
-        # Update only dynamic peripherals
-        for periph_id in self._dynamic_peripherals:
-            try:
-                current_value = await self.client.get_periph_caract(periph_id)
-                if isinstance(current_value, dict):
-                    self.data[periph_id].update(current_value.get("body"))
-            except Exception as e:
-                _LOGGER.warning("Failed to update peripheral %s: %s", periph_id, e)
-
-            if history_retrieval:
-                if not self._history_progress.get(periph_id, {}).get("completed"):
-                    _LOGGER.info("Retrieving data history %s", periph_id)
-                    chunk = await self.async_fetch_history_chunk(periph_id)
-                    if chunk:
-                        await self.async_import_history_chunk(periph_id, chunk)
-                    history_retrieval=False 
-
-        return self.data
-        #return None
 
     def _is_dynamic_peripheral(self, periph):
         """Determine if a peripheral needs regular updates."""

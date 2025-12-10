@@ -14,6 +14,7 @@ L'objectif est de faire communiquer HA et eedomus de manière efficace, il y a t
 - Rafraîchissement manuel des données.
 - Historique des valeurs (optionnel).
 - Configuration simplifiée via l’UI de Home Assistant.
+- Api proxy pour supporter directement les requetes de l'actionneur HTTP
 
 ## Plateformes HA supportées
 - Lumière (light)
@@ -124,6 +125,33 @@ Vous pouvez également déclencher un rafraîchissement depuis Home Assistant :
 | **Aucune réponse**                | Vérifiez que Home Assistant est accessible depuis votre box eedomus (pare-feu, réseau, etc.).|
 
 ---
+## API Proxy pour eedomus
+
+la version actuelle de l'actionneur http eedomus ne permet de modifier les headers HTTP pour y insérer les mécanismes d'authentification. Cette intégration propose un **endpoint API Proxy** spécialement conçu pour permettre à votre box eedomus d'appeler les services Home Assistant **sans authentification**, tout en restant sécurisé via une restriction par IP.
+
+---
+### **Fonctionnement**
+L'endpoint `/api/eedomus/apiproxy/services/<domain>/<service>` permet de rediriger les requêtes HTTP en provenance de votre box eedomus vers les services Home Assistant internes, en contournant l'authentification standard.
+
+**Exemple :**
+Une requête envoyée depuis eedomus vers : POST http://<IP_HOME_ASSISTANT>:8123/api/eedomus/apiproxy/services/light/turn_on
+avec le corps JSON :
+```json
+{"entity_id": "light.lampe_led_chambre_parent"}
+
+sera automatiquement redirigée vers le service Home Assistant light.turn_on avec les mêmes données.
+
+Configurer un actionneur HTTP dans eedomus
+
+Allez dans l'interface de votre box eedomus.
+Créez un actionneur HTTP avec les paramètres suivants :
+
+URL : http://<IP_HOME_ASSISTANT>:8123/api/eedomus/apiproxy/services/<domain>/<service>
+(ex: http://192.168.1.4:8123/api/eedomus/apiproxy/services/light/turn_on)
+Méthode : POST
+Corps (Body) : JSON valide correspondant aux données attendues par le service HomeAssistant
+
+
 ## Configuration avancée
 
 ### Constantes et mappings
@@ -142,6 +170,8 @@ Le fichier [`const.py`](const.py) contient toutes les constantes utilisées par 
  | `48:1`         | `binary_sensor`       | `motion`          |
 
 > **Note** : Pour utiliser des valeurs personnalisées (hôte API, identifiants), créez un fichier `private_const.py` à la racine du projet.
+
+
 
 ### Logs
 Pour diagnostiquer les problèmes, activez les logs en mode debug :
