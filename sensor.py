@@ -255,7 +255,11 @@ class EedomusAggregatedSensor(EedomusSensor):
     @property
     def extra_state_attributes(self):
         """Return extended state attributes including child values."""
-        attrs = super().extra_state_attributes()
+        # Get parent's extra state attributes (which is a dict, not a method)
+        attrs = super().extra_state_attributes
+
+        # Create a new dict to avoid modifying the parent's attributes
+        result_attrs = dict(attrs) if attrs else {}
 
         # Add child device values
         child_attrs = {}
@@ -268,8 +272,8 @@ class EedomusAggregatedSensor(EedomusSensor):
                 "type": child_data.get("ha_subtype")
             }
 
-        attrs["child_devices"] = child_attrs
-        return attrs
+        result_attrs["child_devices"] = child_attrs
+        return result_attrs
 
 # In sensor.py
 class EedomusHistoryProgressSensor(EedomusEntity, SensorEntity):
