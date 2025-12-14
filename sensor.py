@@ -5,7 +5,7 @@ import logging
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from .entity import EedomusEntity
+from .entity import EedomusEntity, map_device_to_ha_entity
 from .const import DOMAIN, SENSOR_DEVICE_CLASSES, CLASS_MAPPING
 
 _LOGGER = logging.getLogger(__name__)
@@ -22,21 +22,75 @@ DEVICE_CLASS_UNITS = {
 }
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
+    """Set up eedomus sensor entities from config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
-    sensors = []
+    entities = []
     
-    for periph_id, periph in coordinator.get_all_peripherals().items():
-        entity_type = None
-        supported_classes = periph.get("SUPPORTED_CLASSES", "").split(",")
-        for class_id in supported_classes:
-            if class_id in CLASS_MAPPING:
-                entity_type = CLASS_MAPPING[class_id]["ha_entity"]
-        if not entity_type == "sensor":
-            continue
-        coordinator.data[periph_id]["entity_type"] = entity_type
-        sensors.append(EedomusSensor(coordinator, periph_id))
+    # Get all peripherals and build parent-to-children mapping like in light.py
+    all_peripherals = coordinator.get_all_peripherals()
+    parent_to_children = {}
 
-    async_add_entities(sensors, True)
+    for periph_id, periph in all_peripherals.items():
+        if periph.get("parent_periph_id"):
+            parent_id = periph["parent_periph_id"]
+            if parent_id not in parent_to_children:
+                parent_to_children[parent_id] = []
+            parent_to_children[parent_id].append(periph)
+        if not "ha_entity" in coordinator.data[periph_id]:
+            eedomus_mapping = map_device_to_ha_entity(periph)
+            coordinator.data[periph_id].update(eedomus_mapping)
+
+    # Handle parent-child relationships for sensors like in light.py
+    for periph_id, periph in all_peripherals.items():
+        ha_entity = None
+        if "ha_entity" in coordinator.data[periph_id]:
+            ha_entity = coordinator.data[periph_id]["ha_entity"]
+
+        parent_id = periph.get("parent_periph_id", None)
+        if parent_id and coordinator.data[parent_id]["ha_entity"] == "sensor":
+            # Children are managed by parent... similar to light logic
+            eedomus_mapping = None
+            if periph.get("usage_id") == "26":  # Consometer like in light.py
+                eedomus_mapping = {
+                    "ha_entity": "sensor",
+                    "ha_subtype": "energy",
+                    "justification": "Parent is a sensor - energy meter"
+                }
+            if periph.get("usage_id") == "82":  # Text/color like in light.py
+                eedomus_mapping = {
+                    "ha_entity": "sensor",
+                    "ha_subtype": "text",
+                    "justification": "Parent is a sensor - text/color"
+                }
+            if not eedomus_mapping is None:
+                coordinator.data[periph_id].update(eedomus_mapping)
+
+    # Create sensor entities
+    for periph_id, periph in all_peripherals.items():
+        ha_entity = None
+        if "ha_entity" in coordinator.data[periph_id]:
+            ha_entity = coordinator.data[periph_id]["ha_entity"]
+
+        if ha_entity is None or not ha_entity == "sensor":
+            continue
+
+        _LOGGER.debug("Creating sensor entity for %s (%s) mapping=%s", periph["name"], periph_id, coordinator.data[periph_id])
+
+        # Check if this sensor has children that should be aggregated
+        if periph_id in parent_to_children and len(parent_to_children[periph_id]) > 0:
+            # Create aggregated sensor entity (similar to RGBW light)
+            entities.append(
+                EedomusAggregatedSensor(
+                    coordinator,
+                    periph_id,
+                    parent_to_children[periph_id],
+                )
+            )
+        else:
+            # Create regular sensor entity
+            entities.append(EedomusSensor(coordinator, periph_id))
+
+    async_add_entities(entities)
 
 
 async def async_setup_entry_old(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
@@ -67,6 +121,24 @@ class EedomusSensor(EedomusEntity, SensorEntity):
         super().__init__(coordinator, periph_id)
         _LOGGER.debug("Initializing sensor entity for periph_id=%s", periph_id)
 
+        # Set sensor-specific attributes based on ha_subtype
+        periph_info = self.coordinator.data[periph_id]
+        periph_type = periph_info.get("ha_subtype")
+
+        if periph_type == "temperature":
+            self._attr_device_class = "temperature"
+            self._attr_native_unit_of_measurement = "°C"
+        elif periph_type == "humidity":
+            self._attr_device_class = "humidity"
+            self._attr_native_unit_of_measurement = "%"
+        elif periph_type == "energy":
+            self._attr_device_class = "energy"
+            self._attr_native_unit_of_measurement = "Wh"
+        elif periph_type == "power":
+            self._attr_device_class = "power"
+            self._attr_native_unit_of_measurement = "W"
+        # Add more specific types as needed
+
     @property
     def native_value(self):
         """Return the state of the sensor."""
@@ -85,6 +157,10 @@ class EedomusSensor(EedomusEntity, SensorEntity):
     @property
     def device_class(self):
         """Return the device class of the sensor."""
+        # Use the device_class set in __init__ or fall back to dynamic detection
+        if hasattr(self, '_attr_device_class'):
+            return self._attr_device_class
+
         periph_info = self.coordinator.data[self._periph_id]
         value_type = periph_info.get("value_type")
         unit = periph_info.get("unit")
@@ -103,15 +179,20 @@ class EedomusSensor(EedomusEntity, SensorEntity):
     @property
     def native_unit_of_measurement(self):
         """Return the unit of measurement."""
+        # Use the unit set in __init__ or fall back to dynamic detection
+        if hasattr(self, '_attr_native_unit_of_measurement'):
+            return self._attr_native_unit_of_measurement
+
         unit = self.coordinator.data[self._periph_id].get("unit")
         _LOGGER.debug("Sensor %s unit_of_measurement: %s", self._periph_id, unit)
-        # Si l'unité est None, utiliser une unité par défaut en fonction de la device_class
+
+        # If unit is None, use default unit based on device_class
         if unit is None:
             device_class = self.device_class
             if device_class in DEVICE_CLASS_UNITS:
                 return DEVICE_CLASS_UNITS[device_class]
 
-        # Normaliser l'unité pour la device_class 'illuminance'
+        # Normalize unit for 'illuminance' device_class
         if self.device_class == "illuminance" and unit == "Lux":
             return "lx"
         
@@ -134,6 +215,60 @@ class EedomusSensor(EedomusEntity, SensorEntity):
         return attrs
 
 
+
+class EedomusAggregatedSensor(EedomusSensor):
+    """Representation of an eedomus aggregated sensor, combining parent and child devices."""
+
+    def __init__(self, coordinator, periph_id, child_devices):
+        """Initialize the aggregated sensor with parent and child devices."""
+        super().__init__(coordinator, periph_id)
+        self._parent_id = periph_id
+        self._parent_device = self.coordinator.data[periph_id]
+        self._child_devices = {child["periph_id"]: child for child in child_devices}
+
+        _LOGGER.debug(
+            "Initializing aggregated sensor %s with children: %s",
+            self._parent_device["name"],
+            ", ".join(child["periph_id"] for child in child_devices)
+        )
+
+    @property
+    def native_value(self):
+        """Return the aggregated value from parent and children."""
+        parent_value = super().native_value
+
+        # Example: sum values from children for energy sensors
+        if self._parent_device.get("ha_subtype") == "energy":
+            total = parent_value or 0
+            for child_id in self._child_devices:
+                child_value = self.coordinator.data[child_id].get("last_value")
+                try:
+                    total += float(child_value or 0)
+                except (ValueError, TypeError):
+                    continue
+            return total
+
+        # For other types, just return parent value
+        return parent_value
+
+    @property
+    def extra_state_attributes(self):
+        """Return extended state attributes including child values."""
+        attrs = super().extra_state_attributes()
+
+        # Add child device values
+        child_attrs = {}
+        for child_id, child in self._child_devices.items():
+            child_data = self.coordinator.data.get(child_id, {})
+            child_attrs[child_id] = {
+                "name": child_data.get("name"),
+                "value": child_data.get("last_value"),
+                "unit": child_data.get("unit"),
+                "type": child_data.get("ha_subtype")
+            }
+
+        attrs["child_devices"] = child_attrs
+        return attrs
 
 # Dans sensor.py
 class EedomusHistoryProgressSensor(EedomusEntity, SensorEntity):
