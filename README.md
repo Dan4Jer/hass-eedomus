@@ -27,6 +27,13 @@ L'objectif est de faire communiquer HA et eedomus de manière efficace, il y a t
 
 
 
+# Mon Projet
+
+Description courte du projet.
+
+## Contact
+📧 [Ouvrir une issue](https://github.com/Dan4Jer/hass-eedomus/issues) pour toute question.
+👤 [Mon profil GitHub](https://github.com/Dan4Jer) ouvert à l'occasion de ce projet.
 
 ---
 
