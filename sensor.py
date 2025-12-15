@@ -93,26 +93,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     async_add_entities(entities)
 
 
-async def async_setup_entry_old(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
-    """Set up eedomus sensor entities from config entry."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
-    all_peripherals = coordinator.get_all_peripherals()
-
-    sensors = []
-    for periph_id, periph in all_peripherals.items():
-        value_type = periph.get("value_type")
-        unit = periph.get("unit")
-        usage_name = periph.get("usage_name", "").lower()
-        _LOGGER.debug("Setup sensor entity for %s (periph_id=%s) data=%s", coordinator.data[periph_id].get("name", "unknown"), periph_id, coordinator.data[periph_id])
-        if ((value_type in ["float", "string"] and unit in ["°C", "%", "Lux", "W", "Wh"]) or
-            ("température" in usage_name or
-             "humidité" in usage_name or
-             "luminosité" in usage_name or
-             "consommation" in usage_name)):
-            sensors.append(EedomusSensor(coordinator, periph_id))
-
-    async_add_entities(sensors, True)
-
 class EedomusSensor(EedomusEntity, SensorEntity):
     """Representation of an eedomus sensor."""
 

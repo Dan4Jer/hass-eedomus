@@ -21,6 +21,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             update_interval=timedelta(seconds=DEFAULT_SCAN_INTERVAL),
         )
         self.client = client
+        self._last_update_start_time = datetime.now()
         self._full_refresh_needed = True
         self._all_peripherals = {}
         self._dynamic_peripherals = {}
@@ -35,14 +36,26 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         """Fetch data from eedomus API with improved error handling."""
+        start_time = datetime.now()
+
         _LOGGER.info("Update eedomus data")
+        if (start_time - self._last_update_start_time).total_seconds() > DEFAULT_SCAN_INTERVAL:
+            self._full_refresh_needed = True
+        self._last_update_start_time = start_time
         try:
             if self._full_refresh_needed:
-                return await self._async_full_refresh()
+                ret = await self._async_full_refresh()
+                elapsed = (datetime.now() - start_time).total_seconds()
+                _LOGGER.info("Full refresh done in %.3f seconds",elapsed)
+                return ret
             else:
-                return await self._async_partial_refresh()
+                ret = await self._async_partial_refresh()
+                elapsed = (datetime.now() - start_time).total_seconds()
+                _LOGGER.info("Partial refresh done in %.3f seconds", elapsed)
+                return ret
         except Exception as err:
-            _LOGGER.exception("Error updating eedomus data: %s", err) 
+            elapsed = (datetime.now() - start_time).total_seconds()
+            _LOGGER.exception("Error updating eedomus after %.3f seconds data: %s", elapsed, err) 
             # Return last known good data if available
             if hasattr(self, 'data') and self.data:
                 return self.data
