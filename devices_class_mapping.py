@@ -122,8 +122,8 @@ USAGE_ID_MAPPING = {
    },
    "48": { 
        "ha_entity": "cover",
-       "ha_subtype": "",
-       "justification": "Not Z-Wave using usage_id=48."
+       "ha_subtype": "shutter",
+       "justification": "Not Z-Wave using usage_id=48 for shutters."
    },
    "50": { 
        "ha_entity": "switch",

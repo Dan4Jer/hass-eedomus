@@ -17,15 +17,16 @@ L'objectif est de faire communiquer HA et eedomus de manière efficace, il y a t
 - Api proxy pour supporter directement les requêtes de l'actionneur HTTP
 - Gestion améliorée des capteurs avec support des valeurs manquantes et des formats non standard
 - Support des entités texte pour afficher des informations complexes (ex: détection réseau)
+- Support des volets et stores (covers) avec contrôle de position via l'API eedomus
 
 ## Plateformes HA supportées
 - Lumière (light)
 - Capteurs (sensor) : Température, humidité, luminosité, consommation électrique, etc.
 - Capteurs binaires (binary_sensor) : Détection de mouvement, porte/fenêtre, fumée, inondation, présence, contact, vibration, etc.
+- Volets/Stores (cover) : Contrôle des volets et stores via l'API eedomus.
 
 ## Plateformes HA bientôt supportées
 - Interrupteurs (switch)
-- Volets/Stores (cover)
 - Entités texte (text) : Pour afficher des informations complexes comme la détection réseau.
 
 
