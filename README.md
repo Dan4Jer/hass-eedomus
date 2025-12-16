@@ -9,21 +9,24 @@ L'objectif est de faire communiquer HA et eedomus de manière efficace, il y a t
  - Un refresh partiel sur évènement, une action dans HA ou bien un webhook depuis eedomus (avec un actionneur http)
 
 ## 📋 Fonctionnalités
-- Mapping des entités HA et eedomus en fonction des class zwaves
+- Mapping des entités HA et eedomus en fonction des classes zwaves
 - Contrôle des lumières, interrupteurs, volets, capteurs et détecteurs eedomus.
 - Rafraîchissement manuel des données.
 - Historique des valeurs (optionnel).
 - Configuration simplifiée via l’UI de Home Assistant.
-- Api proxy pour supporter directement les requetes de l'actionneur HTTP
+- Api proxy pour supporter directement les requêtes de l'actionneur HTTP
+- Gestion améliorée des capteurs avec support des valeurs manquantes et des formats non standard
+- Support des entités texte pour afficher des informations complexes (ex: détection réseau)
 
 ## Plateformes HA supportées
 - Lumière (light)
+- Capteurs (sensor) : Température, humidité, luminosité, consommation électrique, etc.
+- Capteurs binaires (binary_sensor) : Détection de mouvement, porte/fenêtre, fumée, inondation, présence, contact, vibration, etc.
 
 ## Plateformes HA bientôt supportées
 - Interrupteurs (switch)
 - Volets/Stores (cover)
-- Capteurs (sensor)
-- Capteurs binaires (binary_sensor) : Détection de mouvement, porte/fenêtre, fumée, inondation, présence, contact, vibration, etc.
+- Entités texte (text) : Pour afficher des informations complexes comme la détection réseau.
 
 
 
