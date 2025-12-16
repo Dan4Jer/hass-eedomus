@@ -235,6 +235,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         if (ha_entity in dynamic_types):
             _LOGGER.debug("Peripheral is dynamic ! %s (%s)", periph.get("name"), periph.get("periph_id"))
             return True
+        
+        _LOGGER.debug("Peripheral is NOT dynamic ! %s (%s)", periph.get("name"), periph.get("periph_id"))
         return False
 
     def get_all_peripherals(self):

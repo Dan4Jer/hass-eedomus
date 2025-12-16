@@ -117,6 +117,9 @@ class EedomusSensor(EedomusEntity, SensorEntity):
         elif periph_type == "power":
             self._attr_device_class = "power"
             self._attr_native_unit_of_measurement = "W"
+        elif periph_type == "time":
+            self._attr_device_class = "duration"
+            self._attr_native_unit_of_measurement = "h"
         # Add more specific types as needed
 
     @property
@@ -124,15 +127,25 @@ class EedomusSensor(EedomusEntity, SensorEntity):
         """Return the state of the sensor."""
         value = self.coordinator.data[self._periph_id].get("last_value")
         _LOGGER.debug("Sensor %s (periph_id=%s) native_value: %s", self.coordinator.data[self._periph_id].get("name", "unknown"), self._periph_id, value)
+        
         # Handle empty or invalid values
         if not value or value == "":
+            _LOGGER.warning("Missing or empty value for sensor %s (periph_id=%s)", self.coordinator.data[self._periph_id].get("name", "unknown"), self._periph_id)
             return None  # Return None to indicate unavailable value
+
+        # Handle non-standard value formats (e.g., "8 (31)")
+        if isinstance(value, str) and "(" in value:
+            # Extract the first part of the value (e.g., "8" from "8 (31)")
+            value = value.split("(")[0].strip()
+            _LOGGER.warning("Non-standard value format corrected for sensor %s (periph_id=%s): %s -> %s", 
+                          self.coordinator.data[self._periph_id].get("name", "unknown"), self._periph_id, value, value)
 
         try:
             return float(value)  # Convert to float
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as e:
+            _LOGGER.error("Value conversion error for sensor %s (periph_id=%s): %s", 
+                        self.coordinator.data[self._periph_id].get("name", "unknown"), self._periph_id, e)
             return None  # In case of conversion error
-        return value
 
     @property
     def device_class(self):
@@ -171,6 +184,10 @@ class EedomusSensor(EedomusEntity, SensorEntity):
             device_class = self.device_class
             if device_class in DEVICE_CLASS_UNITS:
                 return DEVICE_CLASS_UNITS[device_class]
+            else:
+                _LOGGER.warning("Missing unit of measurement for sensor %s (periph_id=%s, device_class=%s)", 
+                              self.coordinator.data[self._periph_id].get("name", "unknown"), self._periph_id, device_class)
+                return None
 
         # Normalize unit for 'illuminance' device_class
         if self.device_class == "illuminance" and unit == "Lux":
