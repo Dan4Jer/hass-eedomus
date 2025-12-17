@@ -14,13 +14,67 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     """Set up eedomus cover entities from config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
     entities = []
-
-    # Get all peripherals
+    
+    # Get all peripherals and build parent-to-children mapping
     all_peripherals = coordinator.get_all_peripherals()
+    parent_to_children = {}
 
     for periph_id, periph in all_peripherals.items():
-        if "ha_entity" in coordinator.data[periph_id] and coordinator.data[periph_id]["ha_entity"] == "cover":
-            _LOGGER.debug("Creating cover entity for %s (periph_id=%s)", periph["name"], periph_id)
+        if periph.get("parent_periph_id"):
+            parent_id = periph["parent_periph_id"]
+            if parent_id not in parent_to_children:
+                parent_to_children[parent_id] = []
+            parent_to_children[parent_id].append(periph)
+        if not "ha_entity" in coordinator.data[periph_id]:
+            eedomus_mapping = map_device_to_ha_entity(periph)
+            coordinator.data[periph_id].update(eedomus_mapping)
+            
+    for periph_id, periph in all_peripherals.items():
+        ha_entity = None
+        if "ha_entity" in coordinator.data[periph_id]:
+            ha_entity = coordinator.data[periph_id]["ha_entity"]
+
+        parent_id = periph.get("parent_periph_id", None)
+        if parent_id and coordinator.data[parent_id]["ha_entity"] == "cover":
+            # Children are managed by parent... similar to light logic
+            eedomus_mapping = None
+            if periph.get("usage_id") == "26":  # Energy meter
+                eedomus_mapping = {
+                    "ha_entity": "sensor",
+                    "ha_subtype": "energy",
+                    "justification": "Parent is a cover - energy meter"
+                }
+            if periph.get("usage_id") == "48":  # Slats
+                eedomus_mapping = {
+                    "ha_entity": "cover",
+                    "ha_subtype": "shutter",
+                    "justification": "Parent is a cover - slats"
+                }
+            if not eedomus_mapping is None:
+                coordinator.data[periph_id].update(eedomus_mapping)
+
+    for periph_id, periph in all_peripherals.items():
+        ha_entity = None
+        if "ha_entity" in coordinator.data[periph_id]:
+            ha_entity = coordinator.data[periph_id]["ha_entity"]
+
+        if ha_entity is None or not ha_entity == "cover":
+            continue
+
+        _LOGGER.debug("Creating cover entity for %s (periph_id=%s)", periph["name"], periph_id)
+        
+        # Check if this cover has children that should be aggregated
+        if periph_id in parent_to_children and len(parent_to_children[periph_id]) > 0:
+            # Create aggregated cover entity (similar to RGBW light)
+            entities.append(
+                EedomusAggregatedCover(
+                    coordinator,
+                    periph_id,
+                    parent_to_children[periph_id],
+                )
+            )
+        else:
+            # Create regular cover entity
             entities.append(EedomusCover(coordinator, periph_id))
 
     async_add_entities(entities)
@@ -77,3 +131,53 @@ class EedomusCover(EedomusEntity, CoverEntity):
     async def async_stop_cover(self, **kwargs):
         """Stop the cover (not supported by eedomus shutters)."""
         _LOGGER.warning("Stopping cover is not supported by eedomus shutters for %s (periph_id=%s)", self.coordinator.data[self._periph_id].get("name", "unknown"), self._periph_id)
+
+
+class EedomusAggregatedCover(EedomusCover):
+    """Representation of an eedomus aggregated cover, combining parent and child devices."""
+
+    def __init__(self, coordinator, periph_id, child_devices):
+        """Initialize the aggregated cover with parent and child devices."""
+        super().__init__(coordinator, periph_id)
+        self._parent_id = periph_id
+        self._parent_device = self.coordinator.data[periph_id]
+        self._child_devices = {child["periph_id"]: child for child in child_devices}
+
+        _LOGGER.debug(
+            "Initializing aggregated cover %s (periph_id=%s) with children: %s",
+            self._parent_device["name"],
+            self._parent_id,
+            ", ".join(f"{child['name']} (periph_id={child['periph_id']})" for child in child_devices)
+        )
+
+    @property
+    def current_cover_position(self):
+        """Return the current position of the cover (0-100)."""
+        position = self.coordinator.data[self._parent_id].get("last_value")
+        try:
+            return int(position)
+        except (ValueError, TypeError):
+            return 0
+
+    @property
+    def extra_state_attributes(self):
+        """Return extended state attributes including child values."""
+        # Get parent's extra state attributes (which is a dict, not a method)
+        attrs = super().extra_state_attributes
+
+        # Create a new dict to avoid modifying the parent's attributes
+        result_attrs = dict(attrs) if attrs else {}
+
+        # Add child device values
+        child_attrs = {}
+        for child_id, child in self._child_devices.items():
+            child_data = self.coordinator.data.get(child_id, {})
+            child_attrs[child_id] = {
+                "name": child_data.get("name"),
+                "value": child_data.get("last_value"),
+                "unit": child_data.get("unit"),
+                "type": child_data.get("ha_subtype")
+            }
+
+        result_attrs["child_devices"] = child_attrs
+        return result_attrs
