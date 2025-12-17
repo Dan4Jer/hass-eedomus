@@ -134,6 +134,7 @@ def map_device_to_ha_entity(device_data, default_ha_entity: str = "sensor"):
     supported_classes = device_data.get("SUPPORTED_CLASSES", "").split(",") if isinstance(device_data.get("SUPPORTED_CLASSES"), str) else []
     generic = device_data.get("GENERIC", "")
     product_type_id = device_data.get("PRODUCT_TYPE_ID", "")
+    specific = device_data.get("SPECIFIC", "")
 
     zwave_class = None
     for cls in supported_classes:
@@ -161,6 +162,23 @@ def map_device_to_ha_entity(device_data, default_ha_entity: str = "sensor"):
                 "ha_subtype": DEVICES_CLASS_MAPPING[zwave_class].get("ha_subtype"),
                 "justification": f"Classe {zwave_class} + GENERIC={generic}: {DEVICES_CLASS_MAPPING[zwave_class]['justification']}",
             }
+        
+        # Vérifier les exceptions basées sur SPECIFIC et le nom
+        for exception in DEVICES_CLASS_MAPPING[zwave_class].get("exceptions", []):
+            condition = exception["condition"]
+            if "SPECIFIC=6" in condition and specific == "6":
+                mapping = exception
+                mapping["justification"] = f"Exception: {condition} for {device_data['name']}"
+                break
+            if "name contains 'Volet'" in condition and "Volet" in device_data.get("name", ""):
+                mapping = exception
+                mapping["justification"] = f"Exception: {condition} for {device_data['name']}"
+                break
+            if "name contains 'Shutter'" in condition and "Shutter" in device_data.get("name", ""):
+                mapping = exception
+                mapping["justification"] = f"Exception: {condition} for {device_data['name']}"
+                break
+
     else:
         mapping = USAGE_ID_MAPPING.get(device_data["usage_id"])
 

@@ -18,12 +18,17 @@ L'objectif est de faire communiquer HA et eedomus de manière efficace, il y a t
 - Gestion améliorée des capteurs avec support des valeurs manquantes et des formats non standard
 - Support des entités texte pour afficher des informations complexes (ex: détection réseau)
 - Support des volets et stores (covers) avec contrôle de position via l'API eedomus
+  - Mapping basé sur PRODUCT_TYPE_ID=770 pour les volets Fibaro
+  - Mapping basé sur SPECIFIC=6 pour les volets génériques
+  - Mapping basé sur le nom contenant 'Volet' ou 'Shutter'
 
 ## Plateformes HA supportées
 - Lumière (light)
 - Capteurs (sensor) : Température, humidité, luminosité, consommation électrique, etc.
 - Capteurs binaires (binary_sensor) : Détection de mouvement, porte/fenêtre, fumée, inondation, présence, contact, vibration, etc.
 - Volets/Stores (cover) : Contrôle des volets et stores via l'API eedomus.
+  - Support des volets Fibaro (FGR-223) avec PRODUCT_TYPE_ID=770
+  - Support des volets basés sur SPECIFIC=6 ou nom contenant 'Volet'/'Shutter'
 
 ## Plateformes HA bientôt supportées
 - Interrupteurs (switch)
