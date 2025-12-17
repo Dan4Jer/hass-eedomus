@@ -21,6 +21,7 @@ L'objectif est de faire communiquer HA et eedomus de manière efficace, il y a t
   - Mapping basé sur PRODUCT_TYPE_ID=770 pour les volets Fibaro
   - Mapping basé sur SPECIFIC=6 pour les volets génériques
   - Mapping basé sur le nom contenant 'Volet' ou 'Shutter'
+  - **Important**: L'API eedomus n'accepte que les valeurs prédéfinies pour chaque périphérique. Les valeurs intermédiaires seront rejetées avec une erreur "Unknown peripheral value". Il est nécessaire d'utiliser uniquement les valeurs définies dans la liste des valeurs acceptées par le périphérique.
 
 ## Plateformes HA supportées
 - Lumière (light)
