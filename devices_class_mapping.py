@@ -189,7 +189,7 @@ DEVICES_CLASS_MAPPING = {
         "PRODUCT_TYPE_ID": {
             "770": {  # Volets Fibaro (ex: FGR-223)
                 "ha_entity": "cover",
-                "ha_subtype": None,
+                "ha_subtype": "shutter",
                 "justification": "PRODUCT_TYPE_ID=770 correspond aux volets Fibaro (ex: FGR-223).",
             },
             "2304": {  # Modules RGBW Fibaro (ex: FGWPE/F-102)
