@@ -190,7 +190,7 @@ DEVICES_CLASS_MAPPING = {
             "770": {  # Volets Fibaro (ex: FGR-223)
                 "ha_entity": "cover",
                 "ha_subtype": "shutter",
-                "justification": "PRODUCT_TYPE_ID=770 correspond aux volets Fibaro (ex: FGR-223).",
+                "justification": "PRODUCT_TYPE_ID=770 corresponds to Fibaro FGR-223 shutters.",
             },
             "2304": {  # Modules RGBW Fibaro (ex: FGWPE/F-102)
                 "ha_entity": "light",
@@ -212,10 +212,10 @@ DEVICES_CLASS_MAPPING = {
         "ha_subtype": "dimmable",
         "exceptions": [
             {
-                "condition": "SPECIFIC=6 (volets) ou nom contient 'Volet'/'Shutter'",
+                "condition": "SPECIFIC=6 (volets) or name contains 'Volet'/'Shutter'",
                 "ha_entity": "cover",
-                "ha_subtype": None,
-                "example_periph_id": ["1078123", "1078129", "1078120"],
+                "ha_subtype": "shutter",
+                "example_periph_id": ["1078123", "1078129", "1078120", "1078843"],
             },
             {
                 "condition": "SUPPORTED_CLASSES contient '96:3' (RGB) ou nom contient 'RGBW'",
