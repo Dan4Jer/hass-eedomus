@@ -136,6 +136,16 @@ def map_device_to_ha_entity(device_data, default_ha_entity: str = "sensor"):
     product_type_id = device_data.get("PRODUCT_TYPE_ID", "")
     specific = device_data.get("SPECIFIC", "")
 
+    # Vérifier d'abord si c'est un périphérique virtuel (PRODUCT_TYPE_ID=999)
+    if product_type_id == "999":
+        mapping = {
+            "ha_entity": "scene",
+            "ha_subtype": "virtual",
+            "justification": f"PRODUCT_TYPE_ID=999: Périphérique virtuel eedomus pour scène"
+        }
+        _LOGGER.debug("Virtual device mapping for %s (%s): %s", device_data["name"], device_data["periph_id"], mapping)
+        return mapping
+
     zwave_class = None
     for cls in supported_classes:
         cls_num = cls.split(":")[0]  # Extraire le numéro de classe (ex: "38:3" → "38")
@@ -175,6 +185,10 @@ def map_device_to_ha_entity(device_data, default_ha_entity: str = "sensor"):
                 mapping["justification"] = f"Exception: {condition} for {device_data['name']}"
                 break
             if "name contains 'Shutter'" in condition and "Shutter" in device_data.get("name", ""):
+                mapping = exception
+                mapping["justification"] = f"Exception: {condition} for {device_data['name']}"
+                break
+            if "name contient 'Consigne'" in condition and "Consigne" in device_data.get("name", ""):
                 mapping = exception
                 mapping["justification"] = f"Exception: {condition} for {device_data['name']}"
                 break

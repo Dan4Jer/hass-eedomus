@@ -37,13 +37,13 @@ USAGE_ID_MAPPING = {
    },
    "14": { 
        "ha_entity": "scene",
-       "ha_subtype": "",
+       "ha_subtype": "shutter_group",
        "justification": "Périphérique Virtuel eedomus type groupement de volet/rebond alexa"
    },
    "15": { 
-       "ha_entity": "scene",
-       "ha_subtype": "",
-       "justification": "Périphérique Virtuel Consigne de chauffage"
+       "ha_entity": "climate",
+       "ha_subtype": "temperature_setpoint",
+       "justification": "Périphérique Virtuel Consigne de chauffage - thermostat virtuel"
    },
    "18": { 
        "ha_entity": "texte",
@@ -52,13 +52,13 @@ USAGE_ID_MAPPING = {
    },
    "19": { #fil pilote
        "ha_entity": "climate",
-       "ha_subtype": "",
-       "justification": "Consigne de tempérture eedomus"
+       "ha_subtype": "fil_pilote",
+       "justification": "Consigne de température eedomus - chauffage fil pilote"
    },
    "20": { #fil pilote
        "ha_entity": "climate",
-       "ha_subtype": "",
-       "justification": "Not Z-Wave using usage_id=20."
+       "ha_subtype": "fil_pilote",
+       "justification": "Consigne de température eedomus - chauffage fil pilote"
    },
    "22": {
        "ha_entity": "sensor",
@@ -111,14 +111,14 @@ USAGE_ID_MAPPING = {
        "justification": "Not Z-Wave using usage_id=38."
    },
    "42": { 
-       "ha_entity": "switch",
-       "ha_subtype": "",
-       "justification": "Scene Eedomus (Périphérique Virtuel)" #à vérifier
+       "ha_entity": "scene",
+       "ha_subtype": "shutter_group",
+       "justification": "Centralisation des ouvertures de volets eedomus"
    },
    "43": { 
-       "ha_entity": "switch",
-       "ha_subtype": "",
-       "justification": "Scene Eedomus (Périphérique Virtuel)" #à vérifier
+       "ha_entity": "scene",
+       "ha_subtype": "automation",
+       "justification": "Scene Eedomus (Périphérique Virtuel) - type autre"
    },
    "48": { 
        "ha_entity": "cover",
@@ -298,6 +298,13 @@ DEVICES_CLASS_MAPPING = {
                 "ha_subtype": "humidity",
                 "example_periph_id": ["3381721", "3387331"],
             },
+            {
+                "condition": "nom contient 'Consigne' et unit='°C'",
+                "ha_entity": "climate",
+                "ha_subtype": "temperature_setpoint",
+                "example_periph_id": ["1252440", "1252441", "1252442"],
+                "justification": "Capteurs de consigne de température qui devraient être des thermostats.",
+            },
         ],
         "justification": "Classe 49 = SensorMultilevel. PRODUCT_TYPE_ID permet de distinguer les capteurs spécifiques (ex: FGK-101 pour la température).",
     },
@@ -324,12 +331,12 @@ DEVICES_CLASS_MAPPING = {
         "PRODUCT_TYPE_ID": {
             "4": {  # Têtes thermostatiques (ex: FGT-001)
                 "ha_entity": "climate",
-                "ha_subtype": None,
+                "ha_subtype": "thermostat",
                 "justification": "PRODUCT_TYPE_ID=4 correspond aux têtes thermostatiques (ex: FGT-001).",
             },
         },
         "ha_entity": "climate",
-        "ha_subtype": None,
+        "ha_subtype": "thermostat",
         "exceptions": [],
         "justification": "Classe 67 = Thermostat SetPoint. GENERIC=8 pour les thermostats. PRODUCT_TYPE_ID=4 pour les têtes thermostatiques.",
     },
@@ -366,6 +373,22 @@ DEVICES_CLASS_MAPPING = {
             },
         ],
         "justification": "Classe 48 = SensorBinary. GENERIC=7 pour les capteurs binaires. PRODUCT_TYPE_ID permet de distinguer les modèles (ex: FGMS-001 pour le mouvement).",
+    },
+
+    # --- Périphériques virtuels (PRODUCT_TYPE_ID=999) ---
+    "999": {
+        "GENERIC": [],
+        "PRODUCT_TYPE_ID": {
+            "999": {  # Périphériques virtuels eedomus
+                "ha_entity": "scene",
+                "ha_subtype": "virtual",
+                "justification": "PRODUCT_TYPE_ID=999 correspond aux périphériques virtuels eedomus pour déclenchement de scènes.",
+            },
+        },
+        "ha_entity": "scene",
+        "ha_subtype": "virtual",
+        "exceptions": [],
+        "justification": "Périphériques virtuels eedomus (PRODUCT_TYPE_ID=999) pour scènes et automations.",
     },
 
     # --- Classes non fonctionnelles (ignorées) ---

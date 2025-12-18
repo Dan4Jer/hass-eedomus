@@ -34,6 +34,8 @@ PLATFORMS = [
     Platform.COVER,
     Platform.SENSOR,
     Platform.BINARY_SENSOR,
+    Platform.SCENE,
+    Platform.CLIMATE,
 ]
 
 # Attributes

@@ -9,11 +9,11 @@ L'objectif est de faire communiquer HA et eedomus de manière efficace, il y a t
  - Un refresh partiel sur évènement, une action dans HA ou bien un webhook depuis eedomus (avec un actionneur http)
 
 ## 📋 Fonctionnalités
-- Mapping des entités HA et eedomus en fonction des classes zwaves
-- Contrôle des lumières, interrupteurs, volets, capteurs et détecteurs eedomus.
-- Rafraîchissement manuel des données.
-- Historique des valeurs (optionnel).
-- Configuration simplifiée via l’UI de Home Assistant.
+- Mapping des entités HA et eedomus en fonction des classes zwaves, PRODUCT_TYPE_ID, usage_id et noms
+- Contrôle des lumières, interrupteurs, volets, capteurs, détecteurs, scènes et thermostats eedomus
+- Rafraîchissement manuel des données
+- Historique des valeurs (optionnel)
+- Configuration simplifiée via l’UI de Home Assistant
 - Api proxy pour supporter directement les requêtes de l'actionneur HTTP
 - Gestion améliorée des capteurs avec support des valeurs manquantes et des formats non standard
 - Support des entités texte pour afficher des informations complexes (ex: détection réseau)
@@ -23,13 +23,55 @@ L'objectif est de faire communiquer HA et eedomus de manière efficace, il y a t
   - Mapping basé sur le nom contenant 'Volet' ou 'Shutter'
   - **Important**: L'API eedomus n'accepte que les valeurs prédéfinies pour chaque périphérique. Les valeurs intermédiaires seront rejetées avec une erreur "Unknown peripheral value". Il est nécessaire d'utiliser uniquement les valeurs définies dans la liste des valeurs acceptées par le périphérique.
 
+## 🆕 Nouveautés dans la version 0.8.0
+
+### Scènes (Scene Entities)
+- **Support complet des scènes eedomus** via la plateforme `scene`
+- Types de scènes supportés:
+  - `usage_id=14`: Groupes de volets (ex: "Tous les Volets Entrée")
+  - `usage_id=42`: Centralisation des ouvertures (ex: "Ouverture volets Passe Lumière")
+  - `usage_id=43`: Scènes virtuelles et automations
+  - `PRODUCT_TYPE_ID=999`: Périphériques virtuels pour déclenchement de scènes
+- Fonctionnalités:
+  - Activation des scènes via l'interface Home Assistant
+  - Support des groupes de volets pour contrôle centralisé
+  - Intégration avec les automations Home Assistant
+
+### Thermostats et Consignes de Température (Climate Entities)
+- **Support complet des thermostats et consignes de température** via la plateforme `climate`
+- Types de thermostats supportés:
+  - `usage_id=15`: Consignes de température virtuelles (ex: "Consigne de Zone de chauffage Salon")
+  - `usage_id=19/20`: Chauffage fil pilote (ex: "Chauffage Salle de bain")
+  - `PRODUCT_TYPE_ID=4` (classe 67): Têtes thermostatiques Z-Wave (ex: FGT-001)
+  - Exception pour les capteurs avec "Consigne" dans le nom
+- Fonctionnalités:
+  - Contrôle de la température cible (7.0°C à 30.0°C par pas de 0.5°C)
+  - Support des modes HVAC: Chauffage (HEAT) et Arrêt (OFF)
+  - Affichage de la température actuelle si disponible
+  - Intégration complète avec le tableau de bord climat de Home Assistant
+
+### Capteurs Binaires Améliorés
+- Mapping automatique basé sur `ha_subtype` du système de mapping
+- Support étendu des types de capteurs:
+  - Mouvement (motion)
+  - Porte/Fenêtre (door)
+  - Fumée (smoke)
+  - Inondation (moisture)
+  - Présence (presence)
+  - Vibration (vibration)
+  - Contact (door)
+- Meilleure détection basée sur le nom et l'usage_name
+
 ## Plateformes HA supportées
-- Lumière (light)
+- Lumière (light) : Lampes, RGBW, variateurs
 - Capteurs (sensor) : Température, humidité, luminosité, consommation électrique, etc.
 - Capteurs binaires (binary_sensor) : Détection de mouvement, porte/fenêtre, fumée, inondation, présence, contact, vibration, etc.
-- Volets/Stores (cover) : Contrôle des volets et stores via l'API eedomus.
+- Volets/Stores (cover) : Contrôle des volets et stores via l'API eedomus
   - Support des volets Fibaro (FGR-223) avec PRODUCT_TYPE_ID=770
   - Support des volets basés sur SPECIFIC=6 ou nom contenant 'Volet'/'Shutter'
+- Scènes (scene) : Groupes de volets, centralisation des ouvertures, automations virtuelles
+- Thermostats (climate) : Consignes de température, chauffage fil pilote, têtes thermostatiques Z-Wave
+- Interrupteurs (switch) : Interrupteurs simples et consommateurs électriques
 
 ## Plateformes HA bientôt supportées
 - Interrupteurs (switch)

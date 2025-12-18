@@ -1,0 +1,170 @@
+"""Climate entity for eedomus integration."""
+from __future__ import annotations
+
+import logging
+from homeassistant.components.climate import ClimateEntity
+from homeassistant.components.climate.const import (
+    HVACMode,
+    ClimateEntityFeature,
+)
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from .entity import EedomusEntity, map_device_to_ha_entity
+from .const import DOMAIN
+
+_LOGGER = logging.getLogger(__name__)
+
+async def async_setup_entry(
+    hass: HomeAssistant, 
+    entry: ConfigEntry, 
+    async_add_entities: AddEntitiesCallback
+) -> None:
+    """Set up eedomus climate entities."""
+    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+    climates = []
+
+    all_peripherals = coordinator.get_all_peripherals()
+    
+    # First pass: ensure all peripherals have proper mapping
+    for periph_id, periph in all_peripherals.items():
+        if "ha_entity" not in coordinator.data[periph_id]:
+            eedomus_mapping = map_device_to_ha_entity(periph)
+            coordinator.data[periph_id].update(eedomus_mapping)
+
+    # Second pass: create climate entities
+    for periph_id, periph in all_peripherals.items():
+        ha_entity = coordinator.data[periph_id].get("ha_entity")
+        
+        if ha_entity != "climate":
+            continue
+        
+        _LOGGER.debug("Creating climate entity for %s (%s)", periph["name"], periph_id)
+        climates.append(EedomusClimate(coordinator, periph_id))
+
+    async_add_entities(climates, True)
+
+
+class EedomusClimate(EedomusEntity, ClimateEntity):
+    """Representation of an eedomus climate device."""
+
+    def __init__(self, coordinator, periph_id: str):
+        """Initialize the climate device."""
+        super().__init__(coordinator, periph_id)
+        self._attr_name = self.coordinator.data[periph_id]["name"]
+        self._attr_unique_id = f"{periph_id}_climate"
+        
+        # Climate-specific attributes
+        self._attr_hvac_modes = [HVACMode.HEAT, HVACMode.OFF]
+        self._attr_supported_features = (
+            ClimateEntityFeature.TARGET_TEMPERATURE
+        )
+        
+        # Default temperature range (can be adjusted based on device capabilities)
+        self._attr_min_temp = 7.0
+        self._attr_max_temp = 30.0
+        self._attr_target_temperature_step = 0.5
+        
+        _LOGGER.debug("Initializing climate entity for %s (%s)", self._attr_name, periph_id)
+        self._update_climate_state()
+
+    def _update_climate_state(self):
+        """Update the climate state from eedomus data."""
+        periph_data = self.coordinator.data[self._periph_id]
+        
+        # Map eedomus values to Home Assistant HVAC modes
+        current_value = periph_data.get("last_value", "")
+        
+        # For eedomus, we need to map the specific values to HVAC modes
+        # This is a simplified mapping - may need adjustment based on actual device behavior
+        if current_value in ["1", "on", "heat"]:
+            self._attr_hvac_mode = HVACMode.HEAT
+        else:
+            self._attr_hvac_mode = HVACMode.OFF
+        
+        # Try to get target temperature if available
+        # This might come from a separate sensor or be part of the device data
+        target_temp = None
+        if "target_temperature" in periph_data:
+            target_temp = float(periph_data["target_temperature"])
+        elif "last_value" in periph_data and periph_data["last_value"].replace(".", "").isdigit():
+            # If last_value looks like a temperature
+            target_temp = float(periph_data["last_value"])
+        
+        if target_temp is not None:
+            self._attr_target_temperature = target_temp
+        
+        # Get current temperature from associated sensor if available
+        current_temp = None
+        if "current_temperature" in periph_data:
+            current_temp = float(periph_data["current_temperature"])
+        
+        if current_temp is not None:
+            self._attr_current_temperature = current_temp
+
+    @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        return self.coordinator.data[self._periph_id].get("last_value", "") != ""
+
+    async def async_set_temperature(self, **kwargs):
+        """Set new target temperature."""
+        temperature = kwargs.get("temperature")
+        if temperature is None:
+            return
+        
+        _LOGGER.info("Setting temperature for %s to %.1f°C", self._attr_name, temperature)
+        
+        try:
+            # Send the temperature set command to eedomus
+            # The exact command depends on the device type
+            result = await self._client.set_periph_value(self._periph_id, str(temperature))
+            
+            if result.get("success", 0) == 1:
+                _LOGGER.debug("Successfully set temperature for %s to %.1f°C", self._attr_name, temperature)
+                # Update the target temperature immediately
+                self._attr_target_temperature = temperature
+                await self.coordinator.async_request_refresh()
+                self.async_write_ha_state()
+            else:
+                _LOGGER.error("Failed to set temperature for %s: %s", 
+                            self._attr_name, result.get("error", "Unknown error"))
+        except Exception as e:
+            _LOGGER.error("Exception while setting temperature for %s: %s", self._attr_name, str(e))
+            raise
+
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode):
+        """Set new HVAC mode."""
+        _LOGGER.info("Setting HVAC mode for %s to %s", self._attr_name, hvac_mode)
+        
+        try:
+            # Map Home Assistant HVAC mode to eedomus command
+            if hvac_mode == HVACMode.HEAT:
+                eedomus_value = "heat"
+            elif hvac_mode == HVACMode.OFF:
+                eedomus_value = "off"
+            else:
+                _LOGGER.warning("Unsupported HVAC mode %s for %s", hvac_mode, self._attr_name)
+                return
+            
+            result = await self._client.set_periph_value(self._periph_id, eedomus_value)
+            
+            if result.get("success", 0) == 1:
+                _LOGGER.debug("Successfully set HVAC mode for %s to %s", self._attr_name, hvac_mode)
+                self._attr_hvac_mode = hvac_mode
+                await self.coordinator.async_request_refresh()
+                self.async_write_ha_state()
+            else:
+                _LOGGER.error("Failed to set HVAC mode for %s: %s", 
+                            self._attr_name, result.get("error", "Unknown error"))
+        except Exception as e:
+            _LOGGER.error("Exception while setting HVAC mode for %s: %s", self._attr_name, str(e))
+            raise
+
+    async def async_update(self) -> None:
+        """Update the climate state."""
+        await super().async_update()
+        self._update_climate_state()
+        _LOGGER.debug("Updated climate state for %s: mode=%s, target=%.1f°C", 
+                     self._attr_name, self._attr_hvac_mode, 
+                     self._attr_target_temperature if self._attr_target_temperature else "N/A")

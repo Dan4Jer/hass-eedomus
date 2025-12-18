@@ -32,18 +32,28 @@ EEDOMUS_TO_HA_DEVICE_CLASS = {
 }
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
+    """Set up eedomus binary sensor entities."""
+    from .entity import map_device_to_ha_entity
+    
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
-
     binary_sensors = []
-    for periph_id, periph in coordinator.get_all_peripherals().items():
-        entity_type = None
-        supported_classes = periph.get("SUPPORTED_CLASSES", "").split(",")
-        for class_id in supported_classes:
-            if class_id in CLASS_MAPPING:
-                entity_type = CLASS_MAPPING[class_id]["ha_entity"]
-        if not entity_type == "binary_sensors":
+
+    all_peripherals = coordinator.get_all_peripherals()
+    
+    # First pass: ensure all peripherals have proper mapping
+    for periph_id, periph in all_peripherals.items():
+        if "ha_entity" not in coordinator.data[periph_id]:
+            eedomus_mapping = map_device_to_ha_entity(periph)
+            coordinator.data[periph_id].update(eedomus_mapping)
+
+    # Second pass: create binary sensor entities
+    for periph_id, periph in all_peripherals.items():
+        ha_entity = coordinator.data[periph_id].get("ha_entity")
+        
+        if ha_entity != "binary_sensor":
             continue
-        coordinator.data[periph_id]["entity_type"] = entity_type
+        
+        _LOGGER.debug("Creating binary sensor entity for %s (%s)", periph["name"], periph_id)
         binary_sensors.append(EedomusBinarySensor(coordinator, periph_id))
 
     async_add_entities(binary_sensors, True)
@@ -101,23 +111,31 @@ class EedomusBinarySensor(EedomusEntity, BinarySensorEntity):
     def device_class(self) -> BinarySensorDeviceClass | None:
         """Return the device class of the binary sensor."""
         periph_info = self.coordinator.data[self._periph_id]
+        ha_subtype = periph_info.get("ha_subtype", "")
         usage_name = periph_info.get("usage_name", "").lower()
-
+        
+        # D'abord utiliser le ha_subtype si disponible
+        if ha_subtype:
+            return EEDOMUS_TO_HA_DEVICE_CLASS.get(ha_subtype, None)
+        
+        # Ensuite utiliser le nom et l'usage_name
         if "mouvement" in usage_name:
             return BinarySensorDeviceClass.MOTION
         elif "porte" in usage_name or "fenêtre" in usage_name:
             return BinarySensorDeviceClass.DOOR
-        elif "fumée" in usage_name:
+        elif "fumée" in usage_name or "smoke" in usage_name:
             return BinarySensorDeviceClass.SMOKE
-        elif "inondation" in usage_name or "eau" in usage_name:
+        elif "inondation" in usage_name or "eau" in usage_name or "flood" in usage_name:
             return BinarySensorDeviceClass.MOISTURE
-        elif "présence" in usage_name:
+        elif "présence" in usage_name or "presence" in usage_name:
             return BinarySensorDeviceClass.PRESENCE
         elif "contact" in usage_name:
             return BinarySensorDeviceClass.DOOR
         elif "vibration" in usage_name:
             return BinarySensorDeviceClass.VIBRATION
-
+        elif "mouvement" in usage_name or "motion" in usage_name:
+            return BinarySensorDeviceClass.MOTION
+        
         # Utiliser le mapping par type si disponible
         periph_type = periph_info.get("type", "").lower()
         return EEDOMUS_TO_HA_DEVICE_CLASS.get(periph_type, None)
