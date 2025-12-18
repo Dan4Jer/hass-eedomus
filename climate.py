@@ -123,19 +123,60 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
         _LOGGER.info("Setting temperature for %s to %.1f°C", self._attr_name, temperature)
         
         try:
-            # Send the temperature set command to eedomus
-            # The exact command depends on the device type
-            result = await self._client.set_periph_value(self._periph_id, str(temperature))
+            # Get the list of acceptable values for this peripheral
+            periph_data = self.coordinator.data[self._periph_id]
+            acceptable_values = {}
+            
+            # Build a mapping of description to value from the peripheral's value list
+            if "values" in periph_data:
+                for value_item in periph_data["values"]:
+                    value = value_item.get("value", "")
+                    description = value_item.get("description", "").lower()
+                    acceptable_values[description] = value
+                    acceptable_values[value] = value  # Also allow direct value matching
+            
+            _LOGGER.debug("Acceptable temperature values for %s: %s", self._attr_name, acceptable_values)
+            
+            # Find the closest acceptable temperature value
+            eedomus_value = None
+            
+            # First try exact match
+            temp_str = str(int(temperature))  # Try as integer first
+            if temp_str in acceptable_values:
+                eedomus_value = acceptable_values[temp_str]
+            else:
+                # Try to find the closest value
+                numeric_values = []
+                for val in acceptable_values.values():
+                    try:
+                        numeric_values.append(float(val))
+                    except ValueError:
+                        pass
+                
+                if numeric_values:
+                    closest_value = min(numeric_values, key=lambda x: abs(x - temperature))
+                    eedomus_value = str(int(closest_value)) if closest_value.is_integer() else str(closest_value)
+            
+            if eedomus_value is None:
+                _LOGGER.error("No acceptable temperature value found for %s. Available: %s", 
+                            self._attr_name, list(acceptable_values.keys()))
+                return
+            
+            _LOGGER.debug("Setting %s temperature to eedomus value: %s (requested: %.1f°C)", 
+                        self._attr_name, eedomus_value, temperature)
+            
+            result = await self._client.set_periph_value(self._periph_id, str(eedomus_value))
             
             if result.get("success", 0) == 1:
-                _LOGGER.debug("Successfully set temperature for %s to %.1f°C", self._attr_name, temperature)
+                _LOGGER.debug("Successfully set temperature for %s to %.1f°C (eedomus value: %s)", 
+                            self._attr_name, temperature, eedomus_value)
                 # Update the target temperature immediately
                 self._attr_target_temperature = temperature
                 await self.coordinator.async_request_refresh()
                 self.async_write_ha_state()
             else:
-                _LOGGER.error("Failed to set temperature for %s: %s", 
-                            self._attr_name, result.get("error", "Unknown error"))
+                _LOGGER.error("Failed to set temperature for %s: %s (tried value: %s, requested: %.1f°C)", 
+                            self._attr_name, result.get("error", "Unknown error"), eedomus_value, temperature)
         except Exception as e:
             _LOGGER.error("Exception while setting temperature for %s: %s", self._attr_name, str(e))
             raise
@@ -145,25 +186,53 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
         _LOGGER.info("Setting HVAC mode for %s to %s", self._attr_name, hvac_mode)
         
         try:
-            # Map Home Assistant HVAC mode to eedomus command
+            # Get the list of acceptable values for this peripheral
+            periph_data = self.coordinator.data[self._periph_id]
+            acceptable_values = {}
+            
+            # Build a mapping of description to value from the peripheral's value list
+            if "values" in periph_data:
+                for value_item in periph_data["values"]:
+                    value = value_item.get("value", "")
+                    description = value_item.get("description", "").lower()
+                    acceptable_values[description] = value
+                    acceptable_values[value] = value  # Also allow direct value matching
+            
+            _LOGGER.debug("Acceptable values for %s: %s", self._attr_name, acceptable_values)
+            
+            # Map Home Assistant HVAC mode to eedomus command using acceptable values
+            eedomus_value = None
             if hvac_mode == HVACMode.HEAT:
-                eedomus_value = "heat"
+                # Try different variations that might be in the acceptable values
+                for heat_variant in ["on", "heat", "chauffage", "marche", "1"]:
+                    if heat_variant in acceptable_values:
+                        eedomus_value = acceptable_values[heat_variant]
+                        break
             elif hvac_mode == HVACMode.OFF:
-                eedomus_value = "off"
-            else:
-                _LOGGER.warning("Unsupported HVAC mode %s for %s", hvac_mode, self._attr_name)
+                # Try different variations for off
+                for off_variant in ["off", "arrêt", "0", "stop"]:
+                    if off_variant in acceptable_values:
+                        eedomus_value = acceptable_values[off_variant]
+                        break
+            
+            if eedomus_value is None:
+                _LOGGER.error("No acceptable value found for HVAC mode %s for %s. Available: %s", 
+                            hvac_mode, self._attr_name, list(acceptable_values.keys()))
                 return
             
-            result = await self._client.set_periph_value(self._periph_id, eedomus_value)
+            _LOGGER.debug("Setting %s HVAC mode to eedomus value: %s", self._attr_name, eedomus_value)
+            
+            result = await self._client.set_periph_value(self._periph_id, str(eedomus_value))
             
             if result.get("success", 0) == 1:
-                _LOGGER.debug("Successfully set HVAC mode for %s to %s", self._attr_name, hvac_mode)
+                _LOGGER.debug("Successfully set HVAC mode for %s to %s (eedomus value: %s)", 
+                            self._attr_name, hvac_mode, eedomus_value)
                 self._attr_hvac_mode = hvac_mode
                 await self.coordinator.async_request_refresh()
                 self.async_write_ha_state()
             else:
-                _LOGGER.error("Failed to set HVAC mode for %s: %s", 
-                            self._attr_name, result.get("error", "Unknown error"))
+                _LOGGER.error("Failed to set HVAC mode for %s: %s (tried value: %s)", 
+                            self._attr_name, result.get("error", "Unknown error"), eedomus_value)
         except Exception as e:
             _LOGGER.error("Exception while setting HVAC mode for %s: %s", self._attr_name, str(e))
             raise
