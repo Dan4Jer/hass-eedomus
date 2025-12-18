@@ -246,6 +246,13 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
         """Update the climate state."""
         await super().async_update()
         self._update_climate_state()
-        _LOGGER.debug("Updated climate state for %s: mode=%s, target=%.1f°C", 
-                     self._attr_name, self._attr_hvac_mode, 
-                     self._attr_target_temperature if self._attr_target_temperature else "N/A")
+        
+        # Format the debug message safely
+        target_temp = self._attr_target_temperature if self._attr_target_temperature else "N/A"
+        if isinstance(target_temp, (int, float)):
+            target_str = f"{target_temp:.1f}°C"
+        else:
+            target_str = str(target_temp)
+            
+        _LOGGER.debug("Updated climate state for %s: mode=%s, target=%s", 
+                     self._attr_name, self._attr_hvac_mode, target_str)
