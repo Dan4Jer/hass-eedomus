@@ -9,7 +9,8 @@ L'objectif est de faire communiquer HA et eedomus de manière efficace, il y a t
  - Un refresh partiel sur évènement, une action dans HA ou bien un webhook depuis eedomus (avec un actionneur http)
 
 ## 📋 Fonctionnalités
-- Mapping des entités HA et eedomus en fonction des classes zwaves, PRODUCT_TYPE_ID, usage_id et noms
+- Mapping des entités HA et eedomus en fonction des classes zwaves, PRODUCT_TYPE_ID, usage_id et SPECIFIC
+- **PAS de mapping basé sur le nom des périphériques** - approche robuste et déterministe
 - Contrôle des lumières, interrupteurs, volets, capteurs, détecteurs, scènes et thermostats eedomus
 - Rafraîchissement manuel des données
 - Historique des valeurs (optionnel)
@@ -62,20 +63,24 @@ L'objectif est de faire communiquer HA et eedomus de manière efficace, il y a t
   - Contact (door)
 - Meilleure détection basée sur le nom et l'usage_name
 
-## Plateformes HA supportées
+## Plateformes HA pleinement supportées
 - Lumière (light) : Lampes, RGBW, variateurs
 - Capteurs (sensor) : Température, humidité, luminosité, consommation électrique, etc.
 - Capteurs binaires (binary_sensor) : Détection de mouvement, porte/fenêtre, fumée, inondation, présence, contact, vibration, etc.
 - Volets/Stores (cover) : Contrôle des volets et stores via l'API eedomus
   - Support des volets Fibaro (FGR-223) avec PRODUCT_TYPE_ID=770
-  - Support des volets basés sur SPECIFIC=6 ou nom contenant 'Volet'/'Shutter'
-- Scènes (scene) : Groupes de volets, centralisation des ouvertures, automations virtuelles
-- Thermostats (climate) : Consignes de température, chauffage fil pilote, têtes thermostatiques Z-Wave
+  - Support des volets basés sur SPECIFIC=6
 - Interrupteurs (switch) : Interrupteurs simples et consommateurs électriques
 
-## Plateformes HA bientôt supportées
-- Interrupteurs (switch)
-- Entités texte (text) : Pour afficher des informations complexes comme la détection réseau.
+## Plateformes HA partiellement supportées (en test)
+- Scènes (scene) : Groupes de volets, centralisation des ouvertures, automations virtuelles
+  - Statut : Implémenté mais non testé en production
+  - Nécessite validation avec périphériques réels
+- Thermostats (climate) : Consignes de température, chauffage fil pilote, têtes thermostatiques Z-Wave
+  - Statut : Implémenté mais non testé en production
+  - Nécessite validation avec périphériques réels
+
+---
 
 
 

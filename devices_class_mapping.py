@@ -212,13 +212,13 @@ DEVICES_CLASS_MAPPING = {
         "ha_subtype": "dimmable",
         "exceptions": [
             {
-                "condition": "SPECIFIC=6 (volets) or name contains 'Volet'/'Shutter'",
+                "condition": "SPECIFIC=6 (volets)",
                 "ha_entity": "cover",
                 "ha_subtype": "shutter",
                 "example_periph_id": ["1078123", "1078129", "1078120", "1078843"],
             },
             {
-                "condition": "SUPPORTED_CLASSES contient '96:3' (RGB) ou nom contient 'RGBW'",
+                "condition": "SUPPORTED_CLASSES contient '96:3' (RGB)",
                 "ha_entity": "light",
                 "ha_subtype": "rgbw",
                 "example_periph_id": ["1077644", "1077645", "1077646", "1077647", "1077648"],
