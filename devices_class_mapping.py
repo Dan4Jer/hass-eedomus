@@ -241,6 +241,11 @@ DEVICES_CLASS_MAPPING = {
                 "ha_subtype": None,
                 "justification": "PRODUCT_TYPE_ID=256 correspond aux prises intelligentes (ex: FGWP102).",
             },
+            "3074": {  # Détecteurs de fumée Fibaro (ex: FGSD-002)
+                "ha_entity": "binary_sensor",
+                "ha_subtype": "smoke",
+                "justification": "PRODUCT_TYPE_ID=3074 correspond aux détecteurs de fumée Fibaro (ex: FGSD-002).",
+            },
         },
         "ha_entity": "switch",
         "ha_subtype": None,
@@ -254,9 +259,14 @@ DEVICES_CLASS_MAPPING = {
             {
                 "condition": "Nom contient 'Inondation' ou 'Fumée'",
                 "ha_entity": "binary_sensor",
-                "ha_subtype": "flood", 
-#                "ha_subtype": "flood" if "Inondation" in device_data["name"] else "smoke", #TO FIX !!!
-                "example_periph_id": ["3415417", "2486570"],
+                "ha_subtype": "flood",
+                "example_periph_id": ["3415417"],  # Inondation seulement
+            },
+            {
+                "condition": "Nom contient 'Fumée' ou 'Smoke'",
+                "ha_entity": "binary_sensor",
+                "ha_subtype": "smoke",
+                "example_periph_id": ["2486570"],  # Fumée seulement
             },
         ],
         "justification": "Classe 37 = SwitchBinary. GENERIC=10/11 pour les interrupteurs. PRODUCT_TYPE_ID permet de distinguer les capteurs (ex: mouvement) des interrupteurs.",
