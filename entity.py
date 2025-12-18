@@ -146,6 +146,25 @@ def map_device_to_ha_entity(device_data, default_ha_entity: str = "sensor"):
         _LOGGER.debug("Virtual device mapping for %s (%s): %s", device_data["name"], device_data["periph_id"], mapping)
         return mapping
 
+    # Vérifier les PRODUCT_TYPE_ID spécifiques qui doivent être prioritaires
+    if product_type_id == "770":  # Volets Fibaro
+        mapping = {
+            "ha_entity": "cover",
+            "ha_subtype": "shutter",
+            "justification": f"PRODUCT_TYPE_ID=770: Volet Fibaro (prioritaire sur usage_id)"
+        }
+        _LOGGER.debug("Fibaro shutter mapping for %s (%s): %s", device_data["name"], device_data["periph_id"], mapping)
+        return mapping
+
+    if product_type_id == "4" and device_data.get("usage_id") in ["38", "19", "20"]:  # Chauffages fil pilote
+        mapping = {
+            "ha_entity": "climate",
+            "ha_subtype": "fil_pilote",
+            "justification": f"PRODUCT_TYPE_ID=4 avec usage_id={device_data.get('usage_id')}: Chauffage fil pilote (prioritaire)"
+        }
+        _LOGGER.debug("Fil pilote climate mapping for %s (%s): %s", device_data["name"], device_data["periph_id"], mapping)
+        return mapping
+
     zwave_class = None
     for cls in supported_classes:
         cls_num = cls.split(":")[0]  # Extraire le numéro de classe (ex: "38:3" → "38")
