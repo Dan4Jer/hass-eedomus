@@ -60,10 +60,17 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
             ClimateEntityFeature.TARGET_TEMPERATURE
         )
         
+        # Temperature unit (required by Home Assistant)
+        self._attr_temperature_unit = "°C"  # Celsius
+        
         # Default temperature range (can be adjusted based on device capabilities)
         self._attr_min_temp = 7.0
         self._attr_max_temp = 30.0
         self._attr_target_temperature_step = 0.5
+        
+        # Initialize default values
+        self._attr_target_temperature = 19.0  # Default target temperature
+        self._attr_current_temperature = None  # Will be set if available
         
         _LOGGER.debug("Initializing climate entity for %s (%s)", self._attr_name, periph_id)
         self._update_climate_state()
@@ -160,6 +167,11 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
         except Exception as e:
             _LOGGER.error("Exception while setting HVAC mode for %s: %s", self._attr_name, str(e))
             raise
+
+    @property
+    def temperature_unit(self) -> str:
+        """Return the temperature unit."""
+        return self._attr_temperature_unit
 
     async def async_update(self) -> None:
         """Update the climate state."""
