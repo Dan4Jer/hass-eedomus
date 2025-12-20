@@ -35,10 +35,10 @@ USAGE_ID_MAPPING = {
        "ha_subtype": "temperature",
        "justification": "Not Z-Wave using usage_id=7. Standard temperature sensor."
    },
-   "23": {  # CPU usage and internal indicators
+   "23": {  # Internal indicators (messages, free space, etc.)
        "ha_entity": "sensor",
-       "ha_subtype": "cpu_usage",
-       "justification": "Eedomus internal CPU usage monitoring - percentage value"
+       "ha_subtype": "internal_indicator",
+       "justification": "Eedomus internal indicators - messages, free space, etc."
    },
    "14": { 
        "ha_entity": "scene",
@@ -79,6 +79,11 @@ USAGE_ID_MAPPING = {
        "ha_entity": "sensor",
        "ha_subtype": "luminosity",
        "justification": "Not Z-Wave using usage_id=24."
+   },
+   "37": {  # Motion sensors
+       "ha_entity": "binary_sensor",
+       "ha_subtype": "motion",
+       "justification": "Motion detection sensors - usage_id=37"
    },
    "26": { 
        "ha_entity": "sensor",

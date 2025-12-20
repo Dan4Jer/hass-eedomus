@@ -14,7 +14,8 @@ from .const import (
     CONF_ENABLE_HISTORY, DEFAULT_API_HOST, DEFAULT_API_USER, 
     DEFAULT_API_SECRET, DEFAULT_CONF_ENABLE_HISTORY, DEFAULT_SCAN_INTERVAL,
     CONF_ENABLE_API_EEDOMUS, CONF_ENABLE_API_PROXY, DEFAULT_CONF_ENABLE_API_EEDOMUS,
-    DEFAULT_CONF_ENABLE_API_PROXY, CONF_API_PROXY_DISABLE_SECURITY, DEFAULT_API_PROXY_DISABLE_SECURITY
+    DEFAULT_CONF_ENABLE_API_PROXY, CONF_API_PROXY_DISABLE_SECURITY, DEFAULT_API_PROXY_DISABLE_SECURITY,
+    CONF_ENABLE_SET_VALUE_RETRY, DEFAULT_ENABLE_SET_VALUE_RETRY
 )
 from .eedomus_client import EedomusClient
 
@@ -80,6 +81,7 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 STEP_ADVANCED_DATA_SCHEMA = vol.Schema(
     {
         vol.Optional("enable_extended_attributes", default=False): bool,
+        vol.Optional(CONF_ENABLE_SET_VALUE_RETRY, default=DEFAULT_ENABLE_SET_VALUE_RETRY): bool,
         vol.Optional("max_retries", default=3): int,
         vol.Optional(CONF_API_PROXY_DISABLE_SECURITY, default=DEFAULT_API_PROXY_DISABLE_SECURITY): bool,
     }
@@ -239,6 +241,7 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_SCAN_INTERVAL: scan_interval,
                         CONF_ENABLE_API_EEDOMUS: api_eedomus_enabled,
                         CONF_ENABLE_API_PROXY: api_proxy_enabled,
+                        CONF_ENABLE_SET_VALUE_RETRY: data.get(CONF_ENABLE_SET_VALUE_RETRY, DEFAULT_ENABLE_SET_VALUE_RETRY),
                         CONF_API_PROXY_DISABLE_SECURITY: data.get(CONF_API_PROXY_DISABLE_SECURITY, DEFAULT_API_PROXY_DISABLE_SECURITY)
                     },
                     source="user",
