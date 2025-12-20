@@ -149,13 +149,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Forward setup to platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     
-    # Set up options flow handler
-    entry.async_on_unload(entry.add_update_listener(update_listener))
-
+    # Define update listener first
     async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Handle options update."""
         _LOGGER.info("🔧 Eedomus configuration options updated - reloading integration")
         await hass.config_entries.async_reload(entry.entry_id)
+    
+    # Set up options flow handler
+    entry.async_on_unload(entry.add_update_listener(update_listener))
     
     _LOGGER.debug("eedomus integration setup completed")
     return True
