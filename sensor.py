@@ -105,6 +105,10 @@ class EedomusSensor(EedomusEntity, SensorEntity):
         periph_info = self.coordinator.data[periph_id]
         periph_type = periph_info.get("ha_subtype")
 
+        # Set default device class for all sensors
+        self._attr_device_class = None
+        self._attr_native_unit_of_measurement = None
+
         if periph_type == "temperature":
             self._attr_device_class = "temperature"
             self._attr_native_unit_of_measurement = "°C"
@@ -121,8 +125,8 @@ class EedomusSensor(EedomusEntity, SensorEntity):
             self._attr_device_class = "duration"
             self._attr_native_unit_of_measurement = "h"
         elif periph_type == "text":
-            self._attr_device_class = None  # Explicitly set to None for text sensors
-            self._attr_native_unit_of_measurement = None
+            # Text sensors explicitly have no device class
+            pass
         # Add more specific types as needed
 
     @property
