@@ -113,6 +113,7 @@ enable_history: true   # Activation de l'historique
    - Journalisation de débogage
    - Attributs étendus
    - Nombre maximal de tentatives de reconnexion
+   - **Désactiver la validation IP du proxy** (⚠️ Non recommandé pour la production)
 
 ### Validation et Messages d'Erreur
 
@@ -181,6 +182,55 @@ enable_debug_logging: true
 | Nécessite des identifiants    | ✅ Oui      | ❌ Non    |
 | Fonctionne avec pare-feu strict| ❌ Non      | ✅ Oui    |
 | Charge sur l'API              | ⚠️ Moyenne  | 🟢 Faible |
+
+## 🔒 Sécurité
+
+### Validation IP par Défaut
+
+Par défaut, le mode API Proxy inclut une **validation stricte des adresses IP** pour protéger vos webhooks contre les accès non autorisés. Seules les requêtes provenant de l'hôte API configuré sont acceptées.
+
+### Option de Désactivation de la Sécurité (Debug uniquement)
+
+⚠️ **ATTENTION**: Une option avancée permet de désactiver la validation IP **uniquement pour le débogage**. Cette option:
+
+- **Désactive la validation IP** pour les webhooks
+- **Expose vos endpoints** à des requêtes potentielles de n'importe quelle adresse IP
+- **Doit uniquement être utilisée** temporairement dans des environnements sécurisés
+- **Génère des avertissements de sécurité** dans les logs
+
+**Utilisation recommandée**:
+```yaml
+# Pour le débogage TEMPORAIRE uniquement
+api_proxy_disable_security: true  # ❌ À désactiver en production
+```
+
+**Logs lorsque la sécurité est désactivée**:
+```
+WARNING: ⚠️ SECURITY WARNING: API Proxy IP validation has been disabled for debugging purposes.
+WARNING:   This exposes your webhook endpoints to potential abuse from any IP address.
+WARNING:   Only use this setting temporarily for debugging in secure environments.
+```
+
+### Bonnes Pratiques de Sécurité
+
+1. **Toujours garder la validation IP activée** en production
+2. **Utiliser des réseaux sécurisés** pour les communications
+3. **Surveiller les logs** pour détecter les activités suspectes
+4. **Mettre à jour régulièrement** l'intégration pour les correctifs de sécurité
+5. **Comprendre les limitations de sécurité de la box Eedomus**:
+
+   ⚠️ **IMPORTANT**: La box Eedomus en local **ne gère pas HTTPS** pour les communications. Cela signifie:
+   - Les communications entre Eedomus et Home Assistant se font en **HTTP non chiffré**
+   - Les webhooks et les requêtes API sont envoyés en **texte clair** sur votre réseau local
+   - **Ne jamais exposer directement** votre box Eedomus ou Home Assistant sur Internet sans protection supplémentaire
+
+### Recommandations pour les Environnements de Production
+
+1. **Isolez votre réseau local**: Placez votre box Eedomus et Home Assistant sur un réseau local sécurisé
+2. **Utilisez un VPN**: Si vous avez besoin d'un accès distant, utilisez un VPN plutôt que d'exposer directement les ports
+3. **Activez les pare-feux**: Configurez les règles de pare-feu pour limiter l'accès aux seuls appareils nécessaires
+4. **Utilisez la validation IP**: La validation IP intégrée offre une couche de sécurité supplémentaire
+5. **Évitez de désactiver la sécurité**: L'option de désactivation de la validation IP ne doit être utilisée que temporairement pour le débogage
 
 ## 🎯 Recommandations
 

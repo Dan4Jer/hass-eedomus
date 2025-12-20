@@ -14,7 +14,7 @@ from .const import (
     CONF_ENABLE_HISTORY, DEFAULT_API_HOST, DEFAULT_API_USER, 
     DEFAULT_API_SECRET, DEFAULT_CONF_ENABLE_HISTORY, DEFAULT_SCAN_INTERVAL,
     CONF_ENABLE_API_EEDOMUS, CONF_ENABLE_API_PROXY, DEFAULT_CONF_ENABLE_API_EEDOMUS,
-    DEFAULT_CONF_ENABLE_API_PROXY
+    DEFAULT_CONF_ENABLE_API_PROXY, CONF_API_PROXY_DISABLE_SECURITY, DEFAULT_API_PROXY_DISABLE_SECURITY
 )
 from .eedomus_client import EedomusClient
 
@@ -47,6 +47,15 @@ CONNECTION_MODES_EXPLANATION = """
 💡 You can enable both modes for redundancy and optimal performance!
    - API Eedomus for full data access and history
    - API Proxy for real-time updates via webhooks
+
+⚠️ SECURITY NOTE: API Proxy mode includes IP validation by default for security.
+   This can be disabled in advanced options for debugging, but this is NOT RECOMMENDED
+   for production environments as it exposes your webhook endpoints to potential abuse.
+
+🔒 IMPORTANT SECURITY CONSIDERATION:
+   The Eedomus box does NOT support HTTPS for local communications.
+   All communications between Eedomus and Home Assistant are in PLAIN TEXT.
+   Never expose your Eedomus box or Home Assistant directly to the internet!
 """
 
 _LOGGER = logging.getLogger(__name__)
@@ -73,6 +82,7 @@ STEP_ADVANCED_DATA_SCHEMA = vol.Schema(
         vol.Optional("enable_debug_logging", default=False): bool,
         vol.Optional("enable_extended_attributes", default=False): bool,
         vol.Optional("max_retries", default=3): int,
+        vol.Optional(CONF_API_PROXY_DISABLE_SECURITY, default=DEFAULT_API_PROXY_DISABLE_SECURITY): bool,
     }
 )
 
@@ -183,7 +193,8 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_ENABLE_HISTORY: data.get(CONF_ENABLE_HISTORY, DEFAULT_CONF_ENABLE_HISTORY),
                         CONF_SCAN_INTERVAL: scan_interval,
                         CONF_ENABLE_API_EEDOMUS: api_eedomus_enabled,
-                        CONF_ENABLE_API_PROXY: api_proxy_enabled
+                        CONF_ENABLE_API_PROXY: api_proxy_enabled,
+                        CONF_API_PROXY_DISABLE_SECURITY: data.get(CONF_API_PROXY_DISABLE_SECURITY, DEFAULT_API_PROXY_DISABLE_SECURITY)
                     },
                     source="user",
                     unique_id=f"eedomus_{data[CONF_API_HOST]}",
