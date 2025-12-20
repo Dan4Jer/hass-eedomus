@@ -33,7 +33,12 @@ USAGE_ID_MAPPING = {
    "7": {
        "ha_entity": "sensor",
        "ha_subtype": "temperature",
-       "justification": "Not Z-Wave using usage_id=7."
+       "justification": "Not Z-Wave using usage_id=7. Standard temperature sensor."
+   },
+   "23": {  # CPU usage and internal indicators
+       "ha_entity": "sensor",
+       "ha_subtype": "cpu_usage",
+       "justification": "Eedomus internal CPU usage monitoring - percentage value"
    },
    "14": { 
        "ha_entity": "scene",
