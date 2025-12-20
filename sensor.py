@@ -278,8 +278,7 @@ class EedomusHistoryProgressSensor(EedomusEntity, SensorEntity):
 
     def __init__(self, coordinator, device_data):
         super().__init__(coordinator,
-                         periph_id=device_data["periph_id"],  # Simple string
-                         caract_id=None,  # or device_data.get("caract_id") if available
+                         periph_id=device_data["periph_id"]  # Simple string
                          )
         self._attr_unique_id = f"eedomus_history_progress_{device_data['periph_id']}"
         self._attr_name = f"{device_data['name']} (History Progress)"
