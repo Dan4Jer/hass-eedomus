@@ -28,9 +28,11 @@ CONF_SCAN_INTERVAL = "scan_interval"
 CONF_ENABLE_API_EEDOMUS = "enable_api_eedomus"
 CONF_ENABLE_API_PROXY = "enable_api_proxy"
 CONF_API_PROXY_DISABLE_SECURITY = "api_proxy_disable_security"
+CONF_ENABLE_SET_VALUE_RETRY = "enable_set_value_retry"
 DEFAULT_CONF_ENABLE_HISTORY = True
 DEFAULT_CONF_ENABLE_API_EEDOMUS = True
 DEFAULT_CONF_ENABLE_API_PROXY = False
+DEFAULT_ENABLE_SET_VALUE_RETRY = True  # Set value retry enabled by default
 DEFAULT_API_PROXY_DISABLE_SECURITY = False  # Security enabled by default
 DEFAULT_SCAN_INTERVAL = 300  # 5 minutes
 
