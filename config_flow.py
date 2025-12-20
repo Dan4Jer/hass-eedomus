@@ -74,7 +74,7 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Optional(CONF_API_SECRET, default=DEFAULT_API_SECRET or ""): str,
         vol.Optional(CONF_ENABLE_HISTORY, default=DEFAULT_CONF_ENABLE_HISTORY): bool,
         vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int,
-        vol.Optional("show_advanced", default=False): bool,
+        vol.Optional("show_advanced_options", default=False): bool,
     }
 )
 
@@ -119,13 +119,13 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         _LOGGER.info("Selected modes - API Eedomus: %s, API Proxy: %s", api_eedomus_enabled, api_proxy_enabled)
         
         # Log if advanced options are being shown
-        show_advanced = user_input.get("show_advanced", False)
+        show_advanced = user_input.get("show_advanced_options", False)
         if show_advanced:
             _LOGGER.info("Advanced options are enabled in the form")
         
         # Check if user wants to see advanced options
-        if user_input.get("show_advanced", False):
-            _LOGGER.info("User requested advanced options - showing advanced form")
+        if user_input.get("show_advanced_options", False):
+            _LOGGER.info("🔧 User requested advanced options - showing advanced configuration form")
             return await self.async_step_advanced()
         
         # Validate the input (only if not coming back from advanced options)
@@ -176,12 +176,13 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         _LOGGER.debug("Advanced options: %s", user_input)
         self._advanced_options = user_input
         
-        # Go back to user step to finalize, but keep show_advanced=True to show the button as active
+        # Go back to user step to finalize, but keep show_advanced_options=True to show the button as active
         # Don't validate again, just show the form with the advanced options
-        user_input_with_advanced = {**self._user_input, "show_advanced": True}
+        user_input_with_advanced = {**self._user_input, "show_advanced_options": True}
         
         # Log the combined data for debugging
-        _LOGGER.info("Returning to main form with advanced options enabled")
+        _LOGGER.info("✅ Advanced options saved - returning to main configuration form")
+        _LOGGER.info("💡 User can now review all settings and click Submit to finalize configuration")
         _LOGGER.debug("Combined data: %s", user_input_with_advanced)
         
         return self.async_show_form(
