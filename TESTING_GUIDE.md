@@ -9,6 +9,33 @@ Ce guide vous aidera à tester les nouvelles fonctionnalités des modes de conne
 - Accès à votre box Eedomus
 - Identifiants API Eedomus (pour tester le mode API Eedomus)
 
+## ⚠️ Avertissements de Sécurité Importants
+
+### Communications Non Chiffrées
+
+⚠️ **CRITIQUE**: La box Eedomus **ne supporte pas HTTPS** pour les communications locales. Cela signifie:
+
+- Toutes les communications entre Eedomus et Home Assistant se font en **HTTP (non chiffré)**
+- Les webhooks et requêtes API sont envoyés en **texte clair** sur votre réseau
+- Les identifiants et données sont **visibles** sur votre réseau local
+
+### Recommandations de Test
+
+1. **Testez uniquement sur un réseau local sécurisé**
+2. **Ne testez pas sur des réseaux publics** (cafés, hôtels, etc.)
+3. **Désactivez temporairement les autres appareils** sur votre réseau pendant les tests
+4. **Utilisez un réseau dédié** pour les tests de sécurité si possible
+5. **Ne jamais exposer** votre environnement de test sur Internet
+
+### Configuration de Production
+
+Pour une utilisation en production:
+- **Isolez** votre box Eedomus et Home Assistant sur un VLAN dédié
+- **Utilisez un VPN** pour l'accès distant (WireGuard, OpenVPN)
+- **Activez les pare-feux** pour limiter l'accès
+- **Gardez la validation IP activée** (ne désactivez jamais en production)
+- **Surveillez les logs** régulièrement pour détecter les activités suspectes
+
 ## 🔧 Scénarios de Test
 
 ### Test 1: Mode API Eedomus uniquement
@@ -115,6 +142,34 @@ INFO: API Proxy mode enabled - setting up webhook endpoints
 1. Configurez un intervalle de scan < 30 secondes
 2. **Résultat attendu**: Erreur "Scan interval must be at least 30 seconds"
 
+### Test 5: Sécurité des Webhooks
+
+**Objectif**: Vérifier que la sécurité des webhooks fonctionne correctement.
+
+**Test 5a: Validation IP par défaut**
+1. Activez le mode API Proxy avec la sécurité activée (par défaut)
+2. Essayez d'envoyer une requête webhook depuis une IP non autorisée
+3. **Résultat attendu**: Réponse 403 Unauthorized
+4. **Logs attendus**: "Unauthorized IP: [IP_NON_AUTORISÉE]"
+
+**Test 5b: Désactivation de la sécurité (debug)**
+1. Activez le mode API Proxy et l'option "Désactiver la validation IP du proxy"
+2. **Résultat attendu**: Avertissements de sécurité dans les logs
+3. **Logs attendus**:
+   ```
+   WARNING: ⚠️ SECURITY WARNING: API Proxy IP validation has been disabled for debugging purposes.
+   WARNING:   This exposes your webhook endpoints to potential abuse from any IP address.
+   ```
+4. Essayez d'envoyer une requête webhook depuis une IP non autorisée
+5. **Résultat attendu**: Requête acceptée (mais avec avertissement de sécurité)
+6. **Logs attendus**: "SECURITY WARNING: IP validation disabled for debugging. Request from [IP_NON_AUTORISÉE]"
+
+**Test 5c: Réactivation de la sécurité**
+1. Désactivez l'option "Désactiver la validation IP du proxy"
+2. **Résultat attendu**: Plus d'avertissements de sécurité
+3. Essayez à nouveau d'envoyer une requête depuis une IP non autorisée
+4. **Résultat attendu**: Réponse 403 Unauthorized (comportement normal restauré)
+
 ## 🔍 Vérifications Techniques
 
 ### Vérification des Entités
@@ -183,6 +238,9 @@ curl -X POST "http://localhost:8123/api/webhook/eedomus_[votre_entry_id]" \
 - [ ] Les logs sont clairs et informatifs
 - [ ] La documentation est à jour
 - [ ] La compatibilité ascendante est maintenue
+- [ ] La sécurité des webhooks fonctionne correctement (validation IP)
+- [ ] L'option de désactivation de la sécurité fonctionne (avec avertissements)
+- [ ] Les avertissements de sécurité sont clairs et visibles
 
 ## 🐛 Rapport de Bugs
 
@@ -205,11 +263,19 @@ Si vous rencontrez des problèmes, veuillez fournir:
 
 ## 📝 Notes de Version
 
-**Version**: 0.9.0 (Dual API Modes)
+**Version**: 0.9.0 (Dual API Modes with Security Options)
 **Date**: [Date du test]
 **Testeur**: [Votre nom]
 **Résultats**: [Succès/Échec/Partiel]
 **Commentaires**: [Notes supplémentaires]
+
+### Nouveautés dans cette version:
+- ✅ Deux modes de connexion indépendants (API Eedomus + API Proxy)
+- ✅ Validation IP stricte par défaut pour la sécurité
+- ✅ Option de désactivation de la sécurité pour le débogage (avec avertissements)
+- ✅ Documentation complète et guide de test
+- ✅ Avertissements de sécurité clairs dans les logs
+- ✅ Compatibilité ascendante maintenue
 
 ---
 

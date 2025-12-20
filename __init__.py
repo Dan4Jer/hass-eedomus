@@ -10,7 +10,8 @@ from .const import (
     DOMAIN, PLATFORMS, COORDINATOR, CONF_ENABLE_HISTORY, 
     CLASS_MAPPING, CONF_API_HOST, DEFAULT_SCAN_INTERVAL, 
     CONF_SCAN_INTERVAL, CONF_ENABLE_API_EEDOMUS, CONF_ENABLE_API_PROXY,
-    DEFAULT_CONF_ENABLE_API_EEDOMUS, DEFAULT_CONF_ENABLE_API_PROXY
+    DEFAULT_CONF_ENABLE_API_EEDOMUS, DEFAULT_CONF_ENABLE_API_PROXY,
+    CONF_API_PROXY_DISABLE_SECURITY, DEFAULT_API_PROXY_DISABLE_SECURITY
 )
 from .coordinator import EedomusDataUpdateCoordinator
 from .eedomus_client import EedomusClient
@@ -111,8 +112,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id] = entry_data
 
     # Enregistrement du webhook et service (always register webhooks)
-    hass.http.register_view(EedomusWebhookView(entry.entry_id, allowed_ips = [entry.data.get(CONF_API_HOST)]))
-    hass.http.register_view(EedomusApiProxyView(entry.entry_id, allowed_ips = [entry.data.get(CONF_API_HOST)]))
+    disable_security = entry.data.get(CONF_API_PROXY_DISABLE_SECURITY, DEFAULT_API_PROXY_DISABLE_SECURITY)
+    
+    # Log security warning if disabled
+    if disable_security:
+        _LOGGER.warning("⚠️ SECURITY WARNING: API Proxy IP validation has been disabled for debugging purposes.")
+        _LOGGER.warning("   This exposes your webhook endpoints to potential abuse from any IP address.")
+        _LOGGER.warning("   Only use this setting temporarily for debugging in secure environments.")
+    
+    hass.http.register_view(EedomusWebhookView(
+        entry.entry_id, 
+        allowed_ips=[entry.data.get(CONF_API_HOST)], 
+        disable_security=disable_security
+    ))
+    hass.http.register_view(EedomusApiProxyView(
+        entry.entry_id, 
+        allowed_ips=[entry.data.get(CONF_API_HOST)], 
+        disable_security=disable_security
+    ))
     
 #    async def refresh_service(_):
 #        if entry.entry_id in hass.data[DOMAIN] and COORDINATOR in hass.data[DOMAIN][entry.entry_id]:
