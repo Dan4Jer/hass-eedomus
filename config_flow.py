@@ -126,20 +126,36 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.info("User requested advanced options - showing advanced form")
             return await self.async_step_advanced()
         
-        # Validate the input
-        errors = {}
-
-        try:
-            info = await self.validate_input(user_input)
-        except vol.Invalid as err:
-            errors["base"] = str(err)
-        except Exception:  # pylint: disable=broad-except
-            _LOGGER.exception("Unexpected exception")
-            errors["base"] = "unknown"
+        # Validate the input (only if not coming back from advanced options)
+        # If we have advanced options stored, we're coming back from advanced form
+        if self._advanced_options:
+            _LOGGER.info("Finalizing configuration with advanced options")
+            # Combine user input and advanced options for final validation
+            final_user_input = {**user_input, **self._advanced_options}
+            
+            try:
+                info = await self.validate_input(final_user_input)
+            except vol.Invalid as err:
+                errors["base"] = str(err)
+            except Exception:  # pylint: disable=broad-except
+                _LOGGER.exception("Unexpected exception during final validation")
+                errors["base"] = "unknown"
+            else:
+                # Create entry with combined data
+                return self.async_create_entry(title=info["title"], data=final_user_input)
         else:
-            # Combine user input and advanced options
-            final_data = {**user_input, **self._advanced_options}
-            return self.async_create_entry(title=info["title"], data=final_data)
+            # Normal validation for first submission
+            try:
+                info = await self.validate_input(user_input)
+            except vol.Invalid as err:
+                errors["base"] = str(err)
+            except Exception:  # pylint: disable=broad-except
+                _LOGGER.exception("Unexpected exception")
+                errors["base"] = "unknown"
+            else:
+                # Combine user input and advanced options (if any)
+                final_data = {**user_input, **self._advanced_options}
+                return self.async_create_entry(title=info["title"], data=final_data)
 
         return self.async_show_form(
             step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
@@ -159,8 +175,18 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._advanced_options = user_input
         
         # Go back to user step to finalize, but keep show_advanced=True to show the button as active
+        # Don't validate again, just show the form with the advanced options
         user_input_with_advanced = {**self._user_input, "show_advanced": True}
-        return await self.async_step_user(user_input_with_advanced)
+        
+        # Log the combined data for debugging
+        _LOGGER.info("Returning to main form with advanced options enabled")
+        _LOGGER.debug("Combined data: %s", user_input_with_advanced)
+        
+        return self.async_show_form(
+            step_id="user",
+            data_schema=STEP_USER_DATA_SCHEMA,
+            description_placeholders={"explanation": CONNECTION_MODES_EXPLANATION}
+        )
     
     async def validate_input(self, data: dict[str, Any]) -> dict[str, Any]:
         """Validate the user input allows us to connect."""
