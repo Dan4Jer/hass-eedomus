@@ -69,8 +69,8 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_API_HOST, default=DEFAULT_API_HOST): str,
         vol.Required(CONF_ENABLE_API_EEDOMUS, default=DEFAULT_CONF_ENABLE_API_EEDOMUS): bool,
         vol.Required(CONF_ENABLE_API_PROXY, default=DEFAULT_CONF_ENABLE_API_PROXY): bool,
-        vol.Optional(CONF_API_USER, default=DEFAULT_API_USER): str,
-        vol.Optional(CONF_API_SECRET, default=DEFAULT_API_SECRET): str,
+        vol.Optional(CONF_API_USER, default=DEFAULT_API_USER or ""): str,
+        vol.Optional(CONF_API_SECRET, default=DEFAULT_API_SECRET or ""): str,
         vol.Optional(CONF_ENABLE_HISTORY, default=DEFAULT_CONF_ENABLE_HISTORY): bool,
         vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int,
         vol.Optional("show_advanced", default=False): bool,
@@ -99,16 +99,23 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input=None):
         """Handle the initial step."""
         if user_input is None:
+            _LOGGER.info("Starting eedomus config flow - showing initial form")
             return self.async_show_form(
                 step_id="user", 
                 data_schema=STEP_USER_DATA_SCHEMA,
                 description_placeholders={"explanation": CONNECTION_MODES_EXPLANATION}
             )
 
-        _LOGGER.debug("Config flow user input: %s", user_input)
+        _LOGGER.info("Config flow received user input: %s", user_input)
+        _LOGGER.debug("Full user input details: %s", user_input)
         
         # Store user input
         self._user_input = user_input
+        
+        # Log which modes are selected
+        api_eedomus_enabled = user_input.get(CONF_ENABLE_API_EEDOMUS, DEFAULT_CONF_ENABLE_API_EEDOMUS)
+        api_proxy_enabled = user_input.get(CONF_ENABLE_API_PROXY, DEFAULT_CONF_ENABLE_API_PROXY)
+        _LOGGER.info("Selected modes - API Eedomus: %s, API Proxy: %s", api_eedomus_enabled, api_proxy_enabled)
         
         # Check if user wants to see advanced options
         if user_input.get("show_advanced", False):
@@ -148,8 +155,11 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     
     async def validate_input(self, data: dict[str, Any]) -> dict[str, Any]:
         """Validate the user input allows us to connect."""
+        _LOGGER.info("Starting input validation for eedomus configuration")
+        
         # Basic validation - API host is always required
         if not data[CONF_API_HOST] or not data[CONF_API_HOST].strip():
+            _LOGGER.error("Validation failed: API host is empty")
             raise vol.Invalid("API host cannot be empty")
         
         # Validate scan interval (only relevant for API Eedomus mode, but validate anyway)

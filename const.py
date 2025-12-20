@@ -16,8 +16,8 @@ try:
 except ImportError:
     # Valeurs par défaut (ou lève une erreur si requis)
     DEFAULT_API_HOST = "xxx.XXX.xxx.XXX"
-    DEFAULT_API_USER = None
-    DEFAULT_API_SECRET = None
+    DEFAULT_API_USER = ""
+    DEFAULT_API_SECRET = ""
 
 # Configuration
 CONF_API_USER = "api_user"
