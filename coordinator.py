@@ -5,7 +5,7 @@ from datetime import timedelta, datetime
 from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from .entity import EedomusEntity, map_device_to_ha_entity
-from .const import DOMAIN, DEFAULT_SCAN_INTERVAL, CONF_ENABLE_HISTORY
+from .const import DOMAIN, DEFAULT_SCAN_INTERVAL, CONF_ENABLE_HISTORY, CONF_ENABLE_SET_VALUE_RETRY, DEFAULT_ENABLE_SET_VALUE_RETRY
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -387,12 +387,31 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
     async def async_set_periph_value(self, periph_id: str, value: str):
         """Set the value of a specific peripheral."""
         _LOGGER.debug("Setting value '%s' for peripheral '%s' (%s) ", value, periph_id, self.data[periph_id]["name"])
+        
+        # Check if retry is enabled in config
+        entry_data = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id, {})
+        enable_retry = entry_data.get("config_entry", {}).data.get(CONF_ENABLE_SET_VALUE_RETRY, DEFAULT_ENABLE_SET_VALUE_RETRY)
+        
+        if not enable_retry:
+            _LOGGER.info("⏭️ Set value retry disabled - attempting single set_value for %s (%s)", self.data[periph_id]["name"], periph_id)
+            _LOGGER.info("💡 If this fails, enable 'Set Value Retry' in advanced configuration options")
+        
         #try:
         ret = await self.client.set_periph_value(periph_id, value)
-        if ret.get("success") == 0 and ret.get("error_code") == "6":
+        
+        # Only retry if enabled and we get error_code 6 (value refused)
+        if enable_retry and ret.get("success") == 0 and ret.get("error_code") == "6":
             next_value = self.next_best_value(periph_id, value)
-            _LOGGER.warn("Retry once with the next best value (%s => %s) for %s (%s)", value, next_value, self.data[periph_id]["name"], periph_id)
+            _LOGGER.warn("🔄 Retry enabled - trying next best value (%s => %s) for %s (%s)", value, next_value, self.data[periph_id]["name"], periph_id)
             await self.client.set_periph_value(periph_id, next_value.get("value"))
+        elif ret.get("success") == 0:
+            _LOGGER.error("❌ Set value failed for %s (%s): %s - retry disabled or not applicable", 
+                         self.data[periph_id]["name"], periph_id, ret.get("error", "Unknown error"))
+            _LOGGER.error("💡 Check the documentation for value constraints and consider enabling 'Set Value Retry' in advanced options")
+            _LOGGER.error("📖 Documentation: https://github.com/Dan4Jer/hass-eedomus#value-constraints")
+        else:
+            _LOGGER.info("✅ Set value successful for %s (%s)", self.data[periph_id]["name"], periph_id)
+        
         #except Exception as e:
         #    _LOGGER.error(
         #        "Failed to set value for peripheral '%s': %s\ndata=%s\n\nalldata=%s",
