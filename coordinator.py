@@ -390,7 +390,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         
         # Check if retry is enabled in config
         entry_data = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id, {})
-        enable_retry = entry_data.get("config_entry", {}).data.get(CONF_ENABLE_SET_VALUE_RETRY, DEFAULT_ENABLE_SET_VALUE_RETRY)
+        # Get the config entry data - handle both old and new formats
+        config_entry_data = entry_data.get("config_entry") if isinstance(entry_data.get("config_entry"), dict) else self.config_entry.data
+        enable_retry = config_entry_data.get(CONF_ENABLE_SET_VALUE_RETRY, DEFAULT_ENABLE_SET_VALUE_RETRY) if config_entry_data else DEFAULT_ENABLE_SET_VALUE_RETRY
         
         if not enable_retry:
             _LOGGER.info("⏭️ Set value retry disabled - attempting single set_value for %s (%s)", self.data[periph_id]["name"], periph_id)
