@@ -146,6 +146,17 @@ def map_device_to_ha_entity(device_data, default_ha_entity: str = "sensor"):
         _LOGGER.info("Smoke sensor mapping for %s (%s): %s", device_data["name"], device_data["periph_id"], mapping)
         return mapping
 
+    # Vérifier si c'est un périphérique de messages (basé sur le nom)
+    device_name_lower = device_data["name"].lower()
+    if "message" in device_name_lower and "box" in device_name_lower:
+        mapping = {
+            "ha_entity": "sensor",
+            "ha_subtype": "text",
+            "justification": f"Message box detected in name: '{device_data['name']}'"
+        }
+        _LOGGER.info("📝 Text sensor mapping for %s (%s): %s", device_data["name"], device_data["periph_id"], mapping)
+        return mapping
+
     # Vérifier si c'est un indicateur CPU (basé uniquement sur usage_id)
     if device_data.get("usage_id") == "23":
         mapping = {
