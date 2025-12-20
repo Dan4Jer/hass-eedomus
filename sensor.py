@@ -140,12 +140,15 @@ class EedomusSensor(EedomusEntity, SensorEntity):
             _LOGGER.warning("Non-standard value format corrected for sensor %s (periph_id=%s): %s -> %s", 
                           self.coordinator.data[self._periph_id].get("name", "unknown"), self._periph_id, value, value)
 
-        try:
-            return float(value)  # Convert to float
-        except (ValueError, TypeError) as e:
-            _LOGGER.error("Value conversion error for sensor %s (periph_id=%s): %s", 
-                        self.coordinator.data[self._periph_id].get("name", "unknown"), self._periph_id, e)
-            return None  # In case of conversion error
+        # Check if value is numeric before conversion
+        if isinstance(value, (int, float)):
+            return float(value)
+        elif isinstance(value, str) and value.replace('.', '', 1).lstrip('-').isdigit():
+            return float(value)
+        else:
+            _LOGGER.warning("Non-numeric value for sensor %s (periph_id=%s): '%s' - returning as string", 
+                          self.coordinator.data[self._periph_id].get("name", "unknown"), self._periph_id, value)
+            return value  # Return original value if not numeric
 
     @property
     def device_class(self):
