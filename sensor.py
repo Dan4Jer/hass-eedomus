@@ -174,7 +174,7 @@ class EedomusSensor(EedomusEntity, SensorEntity):
     def state_class(self):
         """Return the state class of the sensor."""
         # Text sensors should not have a state class
-        if self._attr_device_class is None:
+        if hasattr(self, '_attr_device_class') and self._attr_device_class is None:
             return None
         # For numeric sensors, we could add measurement state class
         # But for now, we'll keep it simple
