@@ -24,7 +24,12 @@ CONF_API_USER = "api_user"
 CONF_API_SECRET = "api_secret"
 CONF_API_HOST = "api_host"
 CONF_ENABLE_HISTORY = "history"
+CONF_SCAN_INTERVAL = "scan_interval"
+CONF_ENABLE_API_EEDOMUS = "enable_api_eedomus"
+CONF_ENABLE_API_PROXY = "enable_api_proxy"
 DEFAULT_CONF_ENABLE_HISTORY = True
+DEFAULT_CONF_ENABLE_API_EEDOMUS = True
+DEFAULT_CONF_ENABLE_API_PROXY = False
 DEFAULT_SCAN_INTERVAL = 300  # 5 minutes
 
 # Platforms

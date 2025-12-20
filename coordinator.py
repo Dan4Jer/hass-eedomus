@@ -12,13 +12,13 @@ _LOGGER = logging.getLogger(__name__)
 class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
     """Eedomus data update coordinator with optimized refresh strategy."""
 
-    def __init__(self, hass: HomeAssistant, client):
+    def __init__(self, hass: HomeAssistant, client, scan_interval=DEFAULT_SCAN_INTERVAL):
         """Initialize the coordinator."""
         super().__init__(
             hass,
             _LOGGER,
             name=DOMAIN,
-            update_interval=timedelta(seconds=DEFAULT_SCAN_INTERVAL),
+            update_interval=timedelta(seconds=scan_interval),
         )
         self.client = client
         self._last_update_start_time = datetime.now()
@@ -26,6 +26,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         self._all_peripherals = {}
         self._dynamic_peripherals = {}
         self._history_progress = {}  # Format: {periph_id: {"last_timestamp": int, "completed": bool}}
+        self._scan_interval = scan_interval
 
  
     async def async_config_entry_first_refresh(self):
@@ -39,7 +40,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         start_time = datetime.now()
 
         _LOGGER.info("Update eedomus data")
-        if (start_time - self._last_update_start_time).total_seconds() > DEFAULT_SCAN_INTERVAL:
+        if (start_time - self._last_update_start_time).total_seconds() > self._scan_interval:
             self._full_refresh_needed = True
         self._last_update_start_time = start_time
         try:

@@ -24,6 +24,171 @@ L'objectif est de faire communiquer HA et eedomus de manière efficace, il y a t
   - Mapping basé sur le nom contenant 'Volet' ou 'Shutter'
   - **Important**: L'API eedomus n'accepte que les valeurs prédéfinies pour chaque périphérique. Les valeurs intermédiaires seront rejetées avec une erreur "Unknown peripheral value". Il est nécessaire d'utiliser uniquement les valeurs définies dans la liste des valeurs acceptées par le périphérique.
 
+## 🔄 Modes de Connexion Duales (Nouveau!)
+
+L'intégration eedomus supporte maintenant **deux modes de connexion indépendants** qui peuvent être utilisés séparément ou ensemble pour une flexibilité maximale.
+
+### 📋 Mode API Eedomus (Connexion Directe - Pull)
+
+```
+      +----------------+     +----------------+
+      | Home Assistant +--->+ Eedomus        |
+      |                |     | (API)          |
+      +----------------+     +----------------+
+```
+
+**Fonctionnement**: Home Assistant interroge périodiquement l'API Eedomus pour récupérer les données.
+
+**Caractéristiques**:
+- ✅ Connexion directe à l'API Eedomus
+- ✅ Nécessite des identifiants API (utilisateur/clé secrète)
+- ✅ Active toutes les fonctionnalités y compris l'historique
+- ✅ Utilise le coordinator pour la synchronisation des données
+- ✅ Recommandé pour la plupart des utilisateurs
+- ✅ Intervalle de rafraîchissement configurable (minimum 30 secondes)
+
+**Cas d'utilisation**:
+- Intégration complète avec toutes les fonctionnalités
+- Accès à l'historique des périphériques
+- Synchronisation périodique des états
+- Environnements avec accès direct à l'API Eedomus
+
+### 🔄 Mode API Proxy (Webhook - Push)
+
+```
+      +----------------+     +----------------+
+      | Home Assistant +<---+ Eedomus        |
+      |  (webhook)     |     | (HTTP)        |
+      +----------------+     +----------------+
+```
+
+**Fonctionnement**: Eedomus envoie des données à Home Assistant via des webhooks lorsque des événements se produisent.
+
+**Caractéristiques**:
+- ✅ Connexion via webhooks (push)
+- ✅ Nécessite uniquement l'hôte API pour l'enregistrement des webhooks
+- ✅ Aucun identifiant requis pour le fonctionnement de base
+- ✅ Fonctionnalités limitées (pas d'historique)
+- ✅ Mises à jour en temps réel des changements d'état
+- ✅ Utile pour les réseaux restreints ou les pare-feux stricts
+
+**Cas d'utilisation**:
+- Environnements avec restrictions réseau
+- Mises à jour en temps réel des périphériques
+- Réduction de la charge sur l'API Eedomus
+- Solutions où les identifiants API ne peuvent pas être stockés
+
+### 🔧 + 🔄 Mode Combiné (Redondance et Performance Optimale)
+
+**Avantages de la combinaison des deux modes**:
+- ✅ **Redondance**: Si un mode échoue, l'autre continue de fonctionner
+- ✅ **Performance**: Mises à jour en temps réel via webhooks + synchronisation complète via API
+- ✅ **Fiabilité**: Meilleure couverture des cas d'utilisation
+- ✅ **Flexibilité**: Adaptation automatique aux conditions réseau
+
+**Configuration recommandée pour la haute disponibilité**:
+```yaml
+# Exemple de configuration combinée
+api_eedomus: true      # Pour la synchronisation complète et l'historique
+api_proxy: true        # Pour les mises à jour en temps réel
+scan_interval: 300     # Rafraîchissement toutes les 5 minutes
+enable_history: true   # Activation de l'historique
+```
+
+## 🎛️ Configuration des Modes de Connexion
+
+### Via l'Interface Utilisateur
+
+1. **Accédez à l'intégration**: Configuration → Appareils et services → Ajouter une intégration → Eedomus
+2. **Configurez les paramètres**:
+   - **Hôte API**: Adresse de votre box Eedomus (obligatoire)
+   - **Mode API Eedomus**: Active/désactive la connexion directe
+   - **Mode API Proxy**: Active/désactive les webhooks
+   - **Utilisateur API**: Requis uniquement si le mode API Eedomus est activé
+   - **Clé secrète API**: Requis uniquement si le mode API Eedomus est activé
+   - **Activer l'historique**: Disponible uniquement avec le mode API Eedomus
+   - **Intervalle de scan**: Intervalle de rafraîchissement pour le mode API Eedomus
+
+3. **Options avancées** (facultatif):
+   - Journalisation de débogage
+   - Attributs étendus
+   - Nombre maximal de tentatives de reconnexion
+
+### Validation et Messages d'Erreur
+
+Le système valide votre configuration et fournit des messages d'erreur clairs:
+
+- **❌ "API user is required when API Eedomus mode is enabled"**: Vous avez activé le mode API Eedomus mais n'avez pas fourni d'utilisateur API
+- **❌ "API secret is required when API Eedomus mode is enabled"**: Vous avez activé le mode API Eedomus mais n'avez pas fourni de clé secrète
+- **❌ "History can only be enabled with API Eedomus mode"**: Vous avez essayé d'activer l'historique sans le mode API Eedomus
+- **❌ "At least one connection mode must be enabled"**: Vous devez activer au moins un des deux modes
+- **❌ "Scan interval must be at least 30 seconds"**: L'intervalle de scan est trop court
+
+## 🚀 Guide de Migration
+
+### Depuis les versions précédentes
+
+Si vous utilisez déjà l'intégration eedomus:
+
+1. **Vos configurations existantes continueront de fonctionner** - le mode API Eedomus est activé par défaut
+2. **Pour activer le mode proxy**:
+   - Allez dans la configuration de votre intégration existante
+   - Activez le mode "API Proxy"
+   - Enregistrez les modifications
+3. **Pour passer au mode proxy uniquement**:
+   - Désactivez le mode "API Eedomus"
+   - Les champs utilisateur/clé secrète deviendront optionnels
+   - Le mode proxy fonctionnera avec uniquement l'hôte API
+
+### Recommandations
+
+- **Testez d'abord le mode combiné** pour bénéficier des avantages des deux approches
+- **Surveillez les logs** pour vérifier que les deux modes fonctionnent correctement
+- **Ajustez l'intervalle de scan** en fonction de vos besoins (300 secondes par défaut)
+
+## 🔧 Dépannage
+
+### Problèmes courants
+
+**Problème**: Le mode API Eedomus ne se connecte pas
+- **Solution**: Vérifiez vos identifiants API et l'adresse de l'hôte
+- **Logs**: "Cannot connect to eedomus API - please check your credentials and host"
+
+**Problème**: Le mode proxy ne reçoit pas de webhooks
+- **Solution**: Vérifiez que les webhooks sont correctement configurés dans Eedomus
+- **Logs**: "API Proxy mode enabled - webhook registration will be attempted"
+
+**Problème**: Aucun des deux modes ne fonctionne
+- **Solution**: Vérifiez que l'hôte API est accessible depuis Home Assistant
+- **Logs**: "At least one connection mode must be enabled"
+
+### Journalisation
+
+Activez la journalisation de débogage dans les options avancées pour obtenir des informations détaillées:
+```
+enable_debug_logging: true
+```
+
+## 📊 Comparatif des Modes
+
+| Fonctionnalité                  | API Eedomus | API Proxy |
+|-------------------------------|-------------|-----------|
+| Connexion directe             | ✅ Oui      | ❌ Non    |
+| Webhooks (push)               | ❌ Non      | ✅ Oui    |
+| Historique                    | ✅ Oui      | ❌ Non    |
+| Synchronisation périodique    | ✅ Oui      | ❌ Non    |
+| Mises à jour en temps réel    | ❌ Non      | ✅ Oui    |
+| Nécessite des identifiants    | ✅ Oui      | ❌ Non    |
+| Fonctionne avec pare-feu strict| ❌ Non      | ✅ Oui    |
+| Charge sur l'API              | ⚠️ Moyenne  | 🟢 Faible |
+
+## 🎯 Recommandations
+
+- **Pour la plupart des utilisateurs**: Activez les deux modes pour une expérience optimale
+- **Pour les réseaux restreints**: Utilisez uniquement le mode proxy
+- **Pour un accès complet**: Utilisez uniquement le mode API Eedomus
+- **Pour la haute disponibilité**: Combinez les deux modes
+
 ## 🆕 Nouveautés dans la version 0.8.0
 
 ### Scènes (Scene Entities)

@@ -1,0 +1,217 @@
+# 🧪 Guide de Test pour les Modes de Connexion Duales
+
+Ce guide vous aidera à tester les nouvelles fonctionnalités des modes de connexion duales de l'intégration eedomus.
+
+## 📋 Prérequis
+
+- Home Assistant installé et fonctionnel
+- Intégration eedomus installée (version avec les modes duales)
+- Accès à votre box Eedomus
+- Identifiants API Eedomus (pour tester le mode API Eedomus)
+
+## 🔧 Scénarios de Test
+
+### Test 1: Mode API Eedomus uniquement
+
+**Objectif**: Vérifier que le mode API Eedomus fonctionne correctement.
+
+**Étapes**:
+1. Accédez à l'intégration eedomus via l'UI Home Assistant
+2. Configurez avec:
+   - Mode API Eedomus: ✅ Activé
+   - Mode API Proxy: ❌ Désactivé
+   - Hôte API: [votre_hôte_eedomus]
+   - Utilisateur API: [votre_utilisateur]
+   - Clé secrète API: [votre_clé]
+   - Activer l'historique: ✅ Activé
+   - Intervalle de scan: 300 (5 minutes)
+
+**Vérifications**:
+- ✅ L'intégration devrait se configurer sans erreur
+- ✅ Les entités devraient apparaître dans Home Assistant
+- ✅ Les données devraient se rafraîchir toutes les 5 minutes
+- ✅ L'historique devrait être disponible
+- ✅ Les logs devraient montrer: "API Eedomus mode initialized successfully"
+
+**Logs attendus**:
+```
+INFO: Starting eedomus integration - API Eedomus: True, API Proxy: False
+INFO: API Eedomus mode initialized successfully
+```
+
+### Test 2: Mode API Proxy uniquement
+
+**Objectif**: Vérifier que le mode API Proxy fonctionne correctement.
+
+**Étapes**:
+1. Accédez à l'intégration eedomus via l'UI Home Assistant
+2. Configurez avec:
+   - Mode API Eedomus: ❌ Désactivé
+   - Mode API Proxy: ✅ Activé
+   - Hôte API: [votre_hôte_eedomus]
+   - Utilisateur API: (laisser vide)
+   - Clé secrète API: (laisser vide)
+   - Activer l'historique: ❌ Désactivé (devrait être désactivé automatiquement)
+
+**Vérifications**:
+- ✅ L'intégration devrait se configurer sans erreur
+- ✅ Les webhooks devraient être enregistrés
+- ✅ Les mises à jour devraient arriver en temps réel via webhooks
+- ✅ Les logs devraient montrer: "API Proxy mode enabled - setting up webhook endpoints"
+
+**Logs attendus**:
+```
+INFO: Starting eedomus integration - API Eedomus: False, API Proxy: True
+INFO: API Proxy mode enabled - setting up webhook endpoints
+INFO: Proxy mode client created successfully
+```
+
+### Test 3: Mode Combiné (API Eedomus + API Proxy)
+
+**Objectif**: Vérifier que les deux modes fonctionnent ensemble.
+
+**Étapes**:
+1. Accédez à l'intégration eedomus via l'UI Home Assistant
+2. Configurez avec:
+   - Mode API Eedomus: ✅ Activé
+   - Mode API Proxy: ✅ Activé
+   - Hôte API: [votre_hôte_eedomus]
+   - Utilisateur API: [votre_utilisateur]
+   - Clé secrète API: [votre_clé]
+   - Activer l'historique: ✅ Activé
+   - Intervalle de scan: 600 (10 minutes)
+
+**Vérifications**:
+- ✅ L'intégration devrait se configurer sans erreur
+- ✅ Les deux modes devraient être actifs
+- ✅ Les données devraient se rafraîchir toutes les 10 minutes (API Eedomus)
+- ✅ Les mises à jour devraient aussi arriver en temps réel (API Proxy)
+- ✅ Les logs devraient montrer les deux modes actifs
+
+**Logs attendus**:
+```
+INFO: Starting eedomus integration - API Eedomus: True, API Proxy: True
+INFO: API Eedomus mode initialized successfully
+INFO: API Proxy mode enabled - setting up webhook endpoints
+```
+
+### Test 4: Validation des Erreurs
+
+**Objectif**: Vérifier que la validation des erreurs fonctionne correctement.
+
+**Test 4a: Aucun mode activé**
+1. Essayez de configurer avec les deux modes désactivés
+2. **Résultat attendu**: Erreur "At least one connection mode must be enabled"
+
+**Test 4b: API Eedomus sans identifiants**
+1. Activez le mode API Eedomus mais laissez les champs identifiants vides
+2. **Résultat attendu**: Erreur "API user is required when API Eedomus mode is enabled"
+
+**Test 4c: Historique sans API Eedomus**
+1. Désactivez le mode API Eedomus mais activez l'historique
+2. **Résultat attendu**: Erreur "History can only be enabled with API Eedomus mode"
+
+**Test 4d: Intervalle de scan trop court**
+1. Configurez un intervalle de scan < 30 secondes
+2. **Résultat attendu**: Erreur "Scan interval must be at least 30 seconds"
+
+## 🔍 Vérifications Techniques
+
+### Vérification des Entités
+
+```bash
+# Vérifiez que les entités sont créées correctement
+hass --state
+
+# Filtrez pour les entités eedomus
+hass --state | grep eedomus
+```
+
+### Vérification des Logs
+
+```bash
+# Affichez les logs de l'intégration eedomus
+tail -f /config/home-assistant.log | grep eedomus
+
+# Filtrez pour les erreurs
+tail -f /config/home-assistant.log | grep -i error | grep eedomus
+```
+
+### Vérification des Webhooks (Mode Proxy)
+
+```bash
+# Vérifiez que les endpoints webhook sont enregistrés
+curl -X GET "http://localhost:8123/api/webhook/eedomus_[votre_entry_id]"
+
+# Testez un webhook manuel (remplacez les données)
+curl -X POST "http://localhost:8123/api/webhook/eedomus_[votre_entry_id]" \
+  -H "Content-Type: application/json" \
+  -d '{"periph_id": "123", "value": "ON"}'
+```
+
+## 📊 Métriques de Performance
+
+### Mode API Eedomus
+
+- **Consommation CPU**: Moyenne (rafraîchissements périodiques)
+- **Bande passante**: Moyenne (requêtes API régulières)
+- **Latence**: 30 secondes à X minutes (selon l'intervalle de scan)
+- **Fiabilité**: Élevée (connexion directe)
+
+### Mode API Proxy
+
+- **Consommation CPU**: Faible (webhooks passifs)
+- **Bande passante**: Faible (uniquement les mises à jour)
+- **Latence**: Temps réel (dès que l'événement se produit)
+- **Fiabilité**: Moyenne (dépend des webhooks)
+
+### Mode Combiné
+
+- **Consommation CPU**: Moyenne à élevée
+- **Bande passante**: Moyenne
+- **Latence**: Temps réel (webhooks) + périodique (API)
+- **Fiabilité**: Très élevée (redondance)
+
+## 🎯 Checklist de Validation
+
+- [ ] Mode API Eedomus fonctionne seul
+- [ ] Mode API Proxy fonctionne seul
+- [ ] Mode combiné fonctionne
+- [ ] Validation des erreurs fonctionne correctement
+- [ ] Les entités sont créées correctement
+- [ ] Les données sont mises à jour correctement
+- [ ] Les logs sont clairs et informatifs
+- [ ] La documentation est à jour
+- [ ] La compatibilité ascendante est maintenue
+
+## 🐛 Rapport de Bugs
+
+Si vous rencontrez des problèmes, veuillez fournir:
+
+1. **Version de Home Assistant**
+2. **Version de l'intégration eedomus**
+3. **Configuration utilisée** (mode(s) activé(s))
+4. **Logs pertinents**
+5. **Étapes pour reproduire**
+6. **Comportement attendu vs. comportement réel**
+
+## 🚀 Recommandations pour les Tests
+
+1. **Commencez par tester chaque mode séparément** avant de tester le mode combiné
+2. **Surveillez les logs** pour détecter les problèmes rapidement
+3. **Testez avec différents intervalles de scan** pour voir l'impact sur les performances
+4. **Testez la résilience** en simulant des échecs de connexion
+5. **Vérifiez la compatibilité** avec vos périphériques eedomus existants
+
+## 📝 Notes de Version
+
+**Version**: 0.9.0 (Dual API Modes)
+**Date**: [Date du test]
+**Testeur**: [Votre nom]
+**Résultats**: [Succès/Échec/Partiel]
+**Commentaires**: [Notes supplémentaires]
+
+---
+
+*Ce guide de test fait partie de l'intégration eedomus pour Home Assistant.*
+*© 2023 - Communauté eedomus/Home Assistant*
