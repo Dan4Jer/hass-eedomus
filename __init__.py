@@ -82,19 +82,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return False
 
     # Create entities based on supported classes (only if API Eedomus mode is enabled)
+    # NOTE: History sensor creation is temporarily disabled due to refactoring
+    # This will be addressed in a separate branch: feature/history-refactor
     if api_eedomus_enabled and entry.data.get(CONF_ENABLE_HISTORY, False):
-        entities = []
-        for device_id, device_data in coordinator.data.items():
-            # Add history sensor if enabled
-            _LOGGER.info("Retrieve history enabled for device=%s", device_id)
-            entities.append(EedomusHistoryProgressSensor(coordinator, {
-                "periph_id": device_id,
-                "name": device_data["name"],
-            }))
-
-            # Add entities to Home Assistant
-        if entities:
-            async_add_entities(entities, True)
+        _LOGGER.warning("History sensor creation is temporarily disabled - will be implemented in feature/history-refactor branch")
+        # entities = []
+        # for device_id, device_data in coordinator.data.items():
+        #     # Add history sensor if enabled
+        #     _LOGGER.info("Retrieve history enabled for device=%s", device_id)
+        #     entities.append(EedomusHistoryProgressSensor(coordinator, {
+        #         "periph_id": device_id,
+        #         "name": device_data["name"],
+        #     }))
+        #
+        # # Add entities to Home Assistant
+        # if entities:
+        #     async_add_entities(entities, True)
 
 
     # Stockage sécurisé
