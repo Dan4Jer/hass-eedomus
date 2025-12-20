@@ -136,25 +136,22 @@ def map_device_to_ha_entity(device_data, default_ha_entity: str = "sensor"):
     product_type_id = device_data.get("PRODUCT_TYPE_ID", "")
     specific = device_data.get("SPECIFIC", "")
 
-    # Vérifier d'abord si c'est un capteur de fumée (priorité absolue)
-    device_name_lower = device_data["name"].lower()
-    if ("fumée" in device_name_lower or "smoke" in device_name_lower or 
-        device_data.get("usage_id") == "27"):
+    # Vérifier d'abord si c'est un capteur de fumée (basé uniquement sur usage_id)
+    if device_data.get("usage_id") == "27":
         mapping = {
             "ha_entity": "binary_sensor",
             "ha_subtype": "smoke",
-            "justification": f"Smoke detector: name contains 'fumée/smoke' or usage_id=27"
+            "justification": f"Smoke detector: usage_id=27"
         }
         _LOGGER.info("Smoke sensor mapping for %s (%s): %s", device_data["name"], device_data["periph_id"], mapping)
         return mapping
 
-    # Vérifier si c'est un indicateur CPU (priorité haute)
-    if ("cpu" in device_name_lower and ("box" in device_name_lower or "usage" in device_name_lower)) or 
-       device_data.get("usage_id") == "23":
+    # Vérifier si c'est un indicateur CPU (basé uniquement sur usage_id)
+    if device_data.get("usage_id") == "23":
         mapping = {
             "ha_entity": "sensor",
             "ha_subtype": "cpu_usage",
-            "justification": f"CPU usage monitor: name contains 'cpu' or usage_id=23"
+            "justification": f"CPU usage monitor: usage_id=23"
         }
         _LOGGER.info("CPU usage sensor mapping for %s (%s): %s", device_data["name"], device_data["periph_id"], mapping)
         return mapping
