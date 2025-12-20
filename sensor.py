@@ -120,6 +120,9 @@ class EedomusSensor(EedomusEntity, SensorEntity):
         elif periph_type == "time":
             self._attr_device_class = "duration"
             self._attr_native_unit_of_measurement = "h"
+        elif periph_type == "text":
+            self._attr_device_class = None  # Explicitly set to None for text sensors
+            self._attr_native_unit_of_measurement = None
         # Add more specific types as needed
 
     @property
@@ -127,6 +130,12 @@ class EedomusSensor(EedomusEntity, SensorEntity):
         """Return the state of the sensor."""
         value = self.coordinator.data[self._periph_id].get("last_value")
         _LOGGER.debug("Sensor %s (periph_id=%s) native_value: %s", self.coordinator.data[self._periph_id].get("name", "unknown"), self._periph_id, value)
+        
+        # Check if this is a text sensor - return as-is without conversion
+        if self._attr_device_class == "text" or (hasattr(self, '_attr_ha_subtype') and self._attr_ha_subtype == "text"):
+            _LOGGER.debug("📝 Text sensor %s (periph_id=%s) - returning raw value: '%s'", 
+                         self.coordinator.data[self._periph_id].get("name", "unknown"), self._periph_id, value)
+            return value
         
         # Handle empty or invalid values
         if not value or value == "":
@@ -160,6 +169,16 @@ class EedomusSensor(EedomusEntity, SensorEntity):
         periph_info = self.coordinator.data[self._periph_id]
         value_type = periph_info.get("value_type")
         unit = periph_info.get("unit")
+
+    @property
+    def state_class(self):
+        """Return the state class of the sensor."""
+        # Text sensors should not have a state class
+        if self._attr_device_class is None:
+            return None
+        # For numeric sensors, we could add measurement state class
+        # But for now, we'll keep it simple
+        return None
 
         if value_type == "float":
             if unit == "°C":
