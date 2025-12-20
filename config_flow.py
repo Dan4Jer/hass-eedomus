@@ -79,7 +79,6 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 
 STEP_ADVANCED_DATA_SCHEMA = vol.Schema(
     {
-        vol.Optional("enable_debug_logging", default=False): bool,
         vol.Optional("enable_extended_attributes", default=False): bool,
         vol.Optional("max_retries", default=3): int,
         vol.Optional(CONF_API_PROXY_DISABLE_SECURITY, default=DEFAULT_API_PROXY_DISABLE_SECURITY): bool,
@@ -117,8 +116,14 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         api_proxy_enabled = user_input.get(CONF_ENABLE_API_PROXY, DEFAULT_CONF_ENABLE_API_PROXY)
         _LOGGER.info("Selected modes - API Eedomus: %s, API Proxy: %s", api_eedomus_enabled, api_proxy_enabled)
         
+        # Log if advanced options are being shown
+        show_advanced = user_input.get("show_advanced", False)
+        if show_advanced:
+            _LOGGER.info("Advanced options are enabled in the form")
+        
         # Check if user wants to see advanced options
         if user_input.get("show_advanced", False):
+            _LOGGER.info("User requested advanced options - showing advanced form")
             return await self.async_step_advanced()
         
         # Validate the input
@@ -143,15 +148,19 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_advanced(self, user_input=None):
         """Handle the advanced options step."""
         if user_input is None:
+            _LOGGER.info("Showing advanced options form")
             return self.async_show_form(
                 step_id="advanced", data_schema=STEP_ADVANCED_DATA_SCHEMA
             )
         
+        _LOGGER.info("Advanced options submitted: %s", user_input)
+        
         _LOGGER.debug("Advanced options: %s", user_input)
         self._advanced_options = user_input
         
-        # Go back to user step to finalize
-        return await self.async_step_user(self._user_input)
+        # Go back to user step to finalize, but keep show_advanced=True to show the button as active
+        user_input_with_advanced = {**self._user_input, "show_advanced": True}
+        return await self.async_step_user(user_input_with_advanced)
     
     async def validate_input(self, data: dict[str, Any]) -> dict[str, Any]:
         """Validate the user input allows us to connect."""
