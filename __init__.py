@@ -27,7 +27,7 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up eedomus from a config entry."""
-    _LOGGER.info("🚀 Starting eedomus integration setup - Version 0.9.4")
+    _LOGGER.info("🚀 Starting eedomus integration setup - Version 0.11.0")
     _LOGGER.debug("Setting up eedomus integration with entry_id: %s", entry.entry_id)
 
     # Check which modes are enabled
