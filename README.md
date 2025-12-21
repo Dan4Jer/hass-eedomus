@@ -32,7 +32,7 @@ L'intégration eedomus supporte maintenant **deux modes de connexion indépendan
 
 ```
       +----------------+     +----------------+
-      | Home Assistant +--->+ Eedomus        |
+      | Home Assistant +---->+ Eedomus        |
       |                |     | (API)          |
       +----------------+     +----------------+
 ```
@@ -57,8 +57,8 @@ L'intégration eedomus supporte maintenant **deux modes de connexion indépendan
 
 ```
       +----------------+     +----------------+
-      | Home Assistant +<---+ Eedomus        |
-      |  (webhook)     |     | (HTTP)        |
+      | Home Assistant +<----+ Eedomus        |
+      |  (webhook)     |     | (HTTP)         |
       +----------------+     +----------------+
 ```
 
@@ -181,7 +181,7 @@ enable_debug_logging: true
 | Mises à jour en temps réel    | ❌ Non      | ✅ Oui    |
 | Nécessite des identifiants    | ✅ Oui      | ❌ Non    |
 | Fonctionne avec pare-feu strict| ❌ Non      | ✅ Oui    |
-| Charge sur l'API              | ⚠️ Moyenne  | 🟢 Faible |
+| Charge sur l'API Eedomus       | ⚠️ Faible  | 🟢 Aucune |
 
 ## 🔒 Sécurité
 
