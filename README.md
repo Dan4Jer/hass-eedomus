@@ -457,7 +457,7 @@ logger:
   default: warn
   logs:
     custom_components.eedomus: debug
-
+```
 ---
 
 ## 🤖 Méthodologie de Développement Collaboratif
@@ -476,10 +476,12 @@ Cette intégration est développée selon une **méthodologie agile et collabora
 
 ```mermaid
 graph LR
-    A[Laptop Développement] -->|SSH| B[Raspberry Pi HAOS]
+    A["Laptop (old macbook) Dev Emacs+vibe"] -->|SSH| B[Raspberry Pi HAOS]
     B -->|Logs| A
     A -->|Git Push| C[GitHub Repository]
     C -->|Git Pull| B
+    B -->|Api Eedomus| D[Eedomus Box]
+    D -->|"Actionneur HTTP / Api proxy"|B
 ```
 
 **Environnement de développement** :
