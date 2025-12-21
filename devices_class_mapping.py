@@ -41,7 +41,7 @@ USAGE_ID_MAPPING = {
        "justification": "Eedomus internal indicators - messages, free space, etc."
    },
    "14": { 
-       "ha_entity": "scene",
+       "ha_entity": "select",
        "ha_subtype": "shutter_group",
        "justification": "Périphérique Virtuel eedomus type groupement de volet/rebond alexa"
    },
@@ -121,12 +121,12 @@ USAGE_ID_MAPPING = {
        "justification": "Not Z-Wave using usage_id=38."
    },
    "42": { 
-       "ha_entity": "scene",
+       "ha_entity": "select",
        "ha_subtype": "shutter_group",
        "justification": "Centralisation des ouvertures de volets eedomus"
    },
    "43": { 
-       "ha_entity": "scene",
+       "ha_entity": "select",
        "ha_subtype": "automation",
        "justification": "Scene Eedomus (Périphérique Virtuel) - type autre"
    },
@@ -400,12 +400,12 @@ DEVICES_CLASS_MAPPING = {
         "GENERIC": [],
         "PRODUCT_TYPE_ID": {
             "999": {  # Périphériques virtuels eedomus
-                "ha_entity": "scene",
+                "ha_entity": "select",
                 "ha_subtype": "virtual",
                 "justification": "PRODUCT_TYPE_ID=999 correspond aux périphériques virtuels eedomus pour déclenchement de scènes.",
             },
         },
-        "ha_entity": "scene",
+        "ha_entity": "select",
         "ha_subtype": "virtual",
         "exceptions": [],
         "justification": "Périphériques virtuels eedomus (PRODUCT_TYPE_ID=999) pour scènes et automations.",

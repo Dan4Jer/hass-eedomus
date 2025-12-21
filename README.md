@@ -241,17 +241,19 @@ WARNING:   Only use this setting temporarily for debugging in secure environment
 
 ## 🆕 Nouveautés dans la version 0.8.0
 
-### Scènes (Scene Entities)
-- **Support complet des scènes eedomus** via la plateforme `scene`
-- Types de scènes supportés:
+### Sélecteurs (Select Entities)
+- **Support complet des sélecteurs eedomus** via la plateforme `select`
+- Types de sélecteurs supportés:
   - `usage_id=14`: Groupes de volets (ex: "Tous les Volets Entrée")
   - `usage_id=42`: Centralisation des ouvertures (ex: "Ouverture volets Passe Lumière")
   - `usage_id=43`: Scènes virtuelles et automations
   - `PRODUCT_TYPE_ID=999`: Périphériques virtuels pour déclenchement de scènes
 - Fonctionnalités:
-  - Activation des scènes via l'interface Home Assistant
+  - Sélection des options via l'interface Home Assistant
+  - Affichage de l'option courante et des options disponibles
   - Support des groupes de volets pour contrôle centralisé
   - Intégration avec les automations Home Assistant
+  - Meilleure représentation de l'état des périphériques virtuels
 
 ### Thermostats et Consignes de Température (Climate Entities)
 - **Support complet des thermostats et consignes de température** via la plateforme `climate`
@@ -286,9 +288,12 @@ WARNING:   Only use this setting temporarily for debugging in secure environment
   - Support des volets Fibaro (FGR-223) avec PRODUCT_TYPE_ID=770
   - Support des volets basés sur SPECIFIC=6
 - Interrupteurs (switch) : Interrupteurs simples et consommateurs électriques
+- Sélecteurs (select) : Groupes de volets, centralisation des ouvertures, automations virtuelles
+  - Support complet des périphériques virtuels eedomus
+  - Affichage et sélection des options disponibles
 
 ## Plateformes HA partiellement supportées (en test)
-- Scènes (scene) : Groupes de volets, centralisation des ouvertures, automations virtuelles
+- Thermostats (climate) : Consignes de température, chauffage fil pilote, têtes thermostatiques Z-Wave
   - Statut : Implémenté mais non testé en production
   - Nécessite validation avec périphériques réels
 - Thermostats (climate) : Consignes de température, chauffage fil pilote, têtes thermostatiques Z-Wave
@@ -517,7 +522,7 @@ Vous: "Parfait, ça fonctionne !"
 
 #### 🎉 Résultats Concrets
 
-- **14 entités scene** créées et fonctionnelles
+- **14 entités select** créées et fonctionnelles
 - **10 entités climate** avec contrôle de température
 - **Corrections multiples** : Volets, détecteurs de fumée, capteurs
 - **Documentation complète** : README mis à jour en temps réel

@@ -170,7 +170,7 @@ def map_device_to_ha_entity(device_data, default_ha_entity: str = "sensor"):
     # Vérifier d'abord si c'est un périphérique virtuel (PRODUCT_TYPE_ID=999)
     if product_type_id == "999":
         mapping = {
-            "ha_entity": "scene",
+            "ha_entity": "select",
             "ha_subtype": "virtual",
             "justification": f"PRODUCT_TYPE_ID=999: Périphérique virtuel eedomus pour scène"
         }
