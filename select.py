@@ -30,9 +30,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         if ha_entity != "select":
             continue
         
-        # Check if this device has a value_list (required for select entities)
-        if "value_list" not in periph or not periph["value_list"]:
-            _LOGGER.warning("Device %s (%s) mapped to select but has no value_list, skipping", 
+        # Check if this device has values (required for select entities)
+        # Note: eedomus uses "values" field, not "value_list"
+        values_data = periph.get("values", [])
+        if not values_data:
+            _LOGGER.warning("Device %s (%s) mapped to select but has no values, skipping", 
                           periph["name"], periph_id)
             continue
             
@@ -56,27 +58,72 @@ class EedomusSelect(EedomusEntity, SelectEntity):
     @property
     def current_option(self) -> str | None:
         """Return the current selected option."""
-        return self.coordinator.data[self._periph_id].get("last_value", "")
+        current_value = self.coordinator.data[self._periph_id].get("last_value", "")
+        
+        # If we have values data, try to find the description for the current value
+        values_data = self.coordinator.data[self._periph_id].get("values", [])
+        
+        if values_data and current_value:
+            # Try to find the matching value and return its description
+            for value_item in values_data:
+                if isinstance(value_item, dict):
+                    if value_item.get("value") == current_value:
+                        description = value_item.get("description", "")
+                        return description if description else current_value
+        
+        # Fallback to raw value if no description found
+        return current_value if current_value else None
 
     @property
     def options(self) -> list[str]:
         """Return a list of available options."""
-        value_list = self.coordinator.data[self._periph_id].get("value_list", [])
-        if isinstance(value_list, list):
-            return value_list
-        elif isinstance(value_list, str):
-            # Handle case where value_list might be a comma-separated string
-            return [v.strip() for v in value_list.split(",") if v.strip()]
-        else:
+        # eedomus uses "values" field which contains list of {value, description} items
+        values_data = self.coordinator.data[self._periph_id].get("values", [])
+        
+        if not values_data:
             return []
+            
+        # Extract values from the values list
+        options = []
+        for value_item in values_data:
+            if isinstance(value_item, dict):
+                # Use description if available, otherwise use value
+                value = value_item.get("value", "")
+                description = value_item.get("description", "")
+                if description:
+                    options.append(description)
+                elif value:
+                    options.append(value)
+            else:
+                # Fallback for simple list format
+                options.append(str(value_item))
+        
+        return options
 
     async def async_select_option(self, option: str) -> None:
         """Change the selected option."""
         _LOGGER.info("Selecting option '%s' for %s (%s)", option, self._attr_name, self._periph_id)
         
         try:
+            # Find the actual value to send to eedomus API
+            # The option parameter might be a description, we need to find the corresponding value
+            eedomus_value = option  # Default to option if it's already a value
+            
+            values_data = self.coordinator.data[self._periph_id].get("values", [])
+            if values_data:
+                for value_item in values_data:
+                    if isinstance(value_item, dict):
+                        description = value_item.get("description", "")
+                        value = value_item.get("value", "")
+                        if description == option:
+                            eedomus_value = value
+                            break
+            
+            _LOGGER.debug("Selecting option '%s' (eedomus value: '%s') for %s (%s)", 
+                        option, eedomus_value, self._attr_name, self._periph_id)
+            
             # Send the selected option to eedomus
-            result = await self._client.set_periph_value(self._periph_id, option)
+            result = await self._client.set_periph_value(self._periph_id, eedomus_value)
             
             if result.get("success", 0) == 1:
                 _LOGGER.debug("Successfully selected option '%s' for %s", option, self._attr_name)
