@@ -2,7 +2,11 @@
 
 ## Overview
 
+**Version 0.11.0** - Select Entity Migration
+
 This document describes the migration from Home Assistant Scene entities to Select entities for eedomus virtual devices. This change provides better UI representation and functionality for eedomus virtual devices that have multiple selectable options.
+
+**Note**: This feature is available starting from version 0.11.0
 
 ## Changes Made
 
