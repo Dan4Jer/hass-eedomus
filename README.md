@@ -56,10 +56,33 @@ L'intégration eedomus supporte maintenant **deux modes de connexion indépendan
 ### 🔄 Mode API Proxy (Webhook - Push)
 
 ```
-      +----------------+     +----------------+
-      | Home Assistant +<----+ Eedomus        |
-      |  (webhook)     |     | (HTTP)         |
-      +----------------+     +----------------+
+      ```mermaid
+flowchart LR
+    subgraph HomeAssistant[Home Assistant]
+        direction TB
+        HA[Core] --> Webhook[Webhook\nReceiver]
+        Webhook --> API[API\nProxy]
+    end
+    
+    subgraph Eedomus[Eedomus Box]
+        direction TB
+        EedomusAPI[API\nEndpoint] --> Devices[Devices\nManager]
+        Devices --> States[States\nDatabase]
+    end
+    
+    Webhook <--->|HTTP/HTTPS| EedomusAPI
+    API <--->|HTTP/HTTPS| EedomusAPI
+    
+    style HomeAssistant fill:#9f9,stroke:#333
+    style Eedomus fill:#f96,stroke:#333
+    style Webhook fill:#bbf,stroke:#333
+    style EedomusAPI fill:#bbf,stroke:#333
+```
+
+**Webhook Architecture:**
+- 🟢 **Home Assistant** : Core system with webhook receiver and API proxy
+- 🟠 **Eedomus Box** : Device management and state database
+- 🟦 **Communication** : Bidirectional HTTP/HTTPS connections
 ```
 
 **Fonctionnement**: Eedomus envoie des données à Home Assistant via des webhooks lorsque des événements se produisent.
