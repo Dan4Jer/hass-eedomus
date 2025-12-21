@@ -538,6 +538,90 @@ Vous: "Parfait, ça fonctionne !"
 
 ---
 
+## 📜 Historique des Versions
+
+### Version 0.11.0 (🆕 Actuelle - Décembre 2025)
+**Migration des Entités Scene vers Select**
+- ✨ **Nouvelle Plateforme Select** : Remplace les entités Scene par des entités Select pour une meilleure représentation des devices virtuels
+- 🎯 **Correction du Mapping** : Utilisation du champ `values` au lieu de `value_list` pour la compatibilité eedomus
+- 🔧 **Amélioration UI** : Interface dropdown native avec affichage des options disponibles
+- 📊 **Représentation État** : Affichage de l'option courante et support des descriptions
+- 🔄 **Migration Automatique** : Les devices avec `usage_id=14,42,43` et `PRODUCT_TYPE_ID=999` sont automatiquement mappés
+
+**Devices Supportés** :
+- Groupes de volets (usage_id=14)
+- Centralisation des ouvertures (usage_id=42)  
+- Scènes virtuelles et automations (usage_id=43)
+- Périphériques virtuels (PRODUCT_TYPE_ID=999)
+
+### Version 0.10.2 (Novembre 2025)
+**Améliorations de Stabilité et Corrections**
+- 🐛 **Corrections de Bugs** : Résolution des problèmes de mapping des devices
+- 🔧 **Optimisation API** : Meilleure gestion des appels API et des erreurs
+- 📊 **Amélioration des Logs** : Messages de debug plus clairs et utiles
+- 🔄 **Compatibilité** : Support étendu pour différents types de devices
+
+### Version 0.10.1 (Octobre 2025)
+**Améliorations des Capteurs et Mapping**
+- 📊 **Capteurs Avancés** : Support amélioré pour les capteurs de température, humidité et luminosité
+- 🔧 **Mapping Automatique** : Système de mapping plus intelligent basé sur les classes Z-Wave
+- 🐛 **Corrections** : Résolution des problèmes de disponibilité des entités
+- 📈 **Performance** : Optimisation des mises à jour des états
+
+### Version 0.10.0 (Septembre 2025)
+**Support des Thermostats et Améliorations Majeures**
+- 🌡️ **Nouvelle Plateforme Climate** : Support complet des thermostats et consignes de température
+- 🔥 **Chauffage Fil Pilote** : Support des systèmes de chauffage fil pilote
+- ☀️ **Têtes Thermostatiques** : Intégration des têtes thermostatiques Z-Wave (FGT-001)
+- 📊 **Tableau de Bord** : Intégration complète avec le tableau de bord climat de Home Assistant
+- 🔧 **Contrôle Précis** : Réglage de température par pas de 0.5°C (7.0°C à 30.0°C)
+
+### Version 0.9.0 (Août 2025)
+**Refonte du Mapping et Support Étendu**
+- 🗺️ **Système de Mapping** : Nouveau système de mapping basé sur les classes Z-Wave et usage_id
+- 🔧 **DEVICES_CLASS_MAPPING** : Table de correspondance complète pour les devices Z-Wave
+- 📊 **Capteurs Binaires** : Support étendu pour mouvement, porte/fenêtre, fumée, etc.
+- 🎯 **Précision** : Meilleure détection basée sur les attributs des devices
+- 🔄 **Flexibilité** : Support des exceptions et cas particuliers
+
+### Version 0.8.0 (Juillet 2025)
+**Support Complet des Scènes et Améliorations**
+- 🎭 **Plateforme Scene** : Support complet des scènes eedomus (migré vers Select en 0.11.0)
+- 📊 **Groupes de Volets** : Support des groupes de volets pour contrôle centralisé
+- 🔧 **Automations Virtuelles** : Support des périphériques virtuels pour les automations
+- 🎯 **Intégration** : Activation des scènes via l'interface Home Assistant
+- 🔄 **Compatibilité** : Intégration avec les automations Home Assistant
+
+## 📊 Statistiques par Version
+
+| Version | Date | Plateformes | Devices Supportés | Changements Majeurs |
+|---------|------|-------------|-------------------|---------------------|
+| 0.11.0 | Déc 2025 | 7 | 14+ types | Migration Scene→Select, UI améliorée |
+| 0.10.2 | Nov 2025 | 7 | 14+ types | Corrections, stabilité |
+| 0.10.1 | Oct 2025 | 7 | 12+ types | Capteurs améliorés |
+| 0.10.0 | Sep 2025 | 7 | 10+ types | Thermostats, Climate |
+| 0.9.0 | Août 2025 | 6 | 8+ types | Mapping refondu |
+| 0.8.0 | Juil 2025 | 6 | 6+ types | Scènes, groupes |
+
+## 📈 Évolution des Fonctionnalités
+
+### Plateformes Supportées
+```
+0.8.0 : 🎭 Scene, 💡 Light, 🔌 Switch, 🏠 Cover, 📊 Sensor, 👁️ Binary Sensor
+0.9.0 : + 🗺️ Mapping System (refonte)
+0.10.0: + 🌡️ Climate (thermostats)
+0.11.0: 🎭 Scene → 🔽 Select (migration)
+```
+
+### Devices Mappés
+```
+0.8.0 : 6 types (usage_id: 14,42,43 + PRODUCT_TYPE_ID: 999)
+0.9.0 : 8+ types (ajout des classes Z-Wave)
+0.10.0: 10+ types (thermostats et chauffage)
+0.10.2: 12+ types (capteurs avancés)
+0.11.0: 14+ types (select entities optimisées)
+```
+
 ## 🙏 Remerciements
 
 Un grand merci à tous les contributeurs et utilisateurs qui font vivre ce projet.
