@@ -123,6 +123,38 @@ Test with eedomus virtual devices that have:
 
 ### Select Entity vs Scene Entity
 
+```mermaid
+classDiagram
+    class SceneEntity {
+        +async_activate()
+        -Stateless
+        -Activate button
+        -No current state
+        -No options list
+    }
+    
+    class SelectEntity {
+        +current_option
+        +options
+        +async_select_option()
+        -Stateful
+        -Dropdown interface
+        -Shows current option
+        -Shows available options
+    }
+    
+    SceneEntity --|> Entity : "One-time activation"
+    SelectEntity --|> Entity : "Multi-option selection"
+    
+    class Entity {
+        <<abstract>>
+        +available
+        +device_info
+    }
+```
+
+**Comparison Table:**
+
 | Feature | Scene Entity | Select Entity |
 |---------|-------------|---------------|
 | **State Representation** | Stateless | Stateful |
@@ -133,19 +165,27 @@ Test with eedomus virtual devices that have:
 
 ### Data Flow
 
+```mermaid
+flowchart TD
+    A[Eedomus Device\nvalues: [{value, description}]] -->|Provides options| B[Select Entity]
+    B -->|options property| C[Home Assistant UI\nDropdown Interface]
+    C -->|User selects option| D[Select Entity\nasync_select_option]
+    D -->|Sends eedomus value| E[Eedomus API\nset_periph_value]
+    E -->|Updates state| A
+    
+    style A fill:#f9f,stroke:#333
+    style B fill:#bbf,stroke:#333
+    style C fill:#9f9,stroke:#333
+    style D fill:#bbf,stroke:#333
+    style E fill:#f96,stroke:#333
 ```
-Eedomus Device (value_list) 
-    ↓
-Select Entity (options property)
-    ↓
-Home Assistant UI (dropdown)
-    ↓
-User Selection
-    ↓
-Select Entity (async_select_option)
-    ↓
-Eedomus API (set_periph_value)
-```
+
+**Legend:**
+- 🟣 **Eedomus Device**: Source des valeurs disponibles
+- 🟦 **Select Entity**: Gestion des options et état courant
+- 🟢 **Home Assistant UI**: Interface utilisateur dropdown
+- 🟦 **Select Entity**: Traitement de la sélection utilisateur
+- 🟠 **Eedomus API**: Exécution de la commande
 
 ## Future Enhancements
 

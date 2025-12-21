@@ -607,6 +607,31 @@ Vous: "Parfait, ça fonctionne !"
 
 ## 📈 Évolution des Fonctionnalités
 
+### Diagramme d'Évolution
+
+```mermaid
+gantt
+    title Évolution des Fonctionnalités par Version
+    dateFormat  YYYY-MM
+    section Plateformes
+    Light           :a1, 2025-07, 6m
+    Switch          :a2, 2025-07, 6m
+    Cover           :a3, 2025-07, 6m
+    Sensor          :a4, 2025-07, 6m
+    Binary Sensor   :a5, 2025-07, 6m
+    Scene           :a6, 2025-07, 4m
+    Mapping System  :a7, 2025-08, 5m
+    Climate         :a8, 2025-09, 4m
+    Select          :a9, 2025-12, 1m
+    
+    section Devices Supportés
+    Devices 6 types  :b1, 2025-07, 1m
+    Devices 8+ types :b2, 2025-08, 1m
+    Devices 10+ types:b3, 2025-09, 1m
+    Devices 12+ types:b4, 2025-10, 1m
+    Devices 14+ types:b5, 2025-12, 1m
+```
+
 ### Plateformes Supportées
 ```
 0.8.0 : 🎭 Scene, 💡 Light, 🔌 Switch, 🏠 Cover, 📊 Sensor, 👁️ Binary Sensor
