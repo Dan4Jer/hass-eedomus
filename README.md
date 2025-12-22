@@ -329,6 +329,225 @@ WARNING:   Only use this setting temporarily for debugging in secure environment
 | Capteurs de mouvement | 1+ | Correction de bug, mapping correct |
 | Capteurs de batterie | 20+ | Nouvelle fonctionnalité, surveillance complète |
 
+## 🗺️ Architecture Visuelle des Entités
+
+### Diagramme Global de Mapping des Entités
+
+```mermaid
+flowchart TD
+    subgraph Eedomus[Eedomus Box]
+        A[Périphériques Eedomus] -->|API| B[Classes Z-Wave]
+        A -->|API| C[Usage IDs]
+        A -->|API| D[PRODUCT_TYPE_ID]
+        A -->|API| E[Valeurs & États]
+    end
+    
+    subgraph HA[Home Assistant]
+        B --> F[Mapping System]
+        C --> F
+        D --> F
+        E --> F
+        
+        F -->|ha_entity| G[Light Entities]
+        F -->|ha_entity| H[Switch Entities]
+        F -->|ha_entity| I[Cover Entities]
+        F -->|ha_entity| J[Sensor Entities]
+        F -->|ha_entity| K[Binary Sensor Entities]
+        F -->|ha_entity| L[Select Entities]
+        F -->|ha_entity| M[Climate Entities]
+        F -->|ha_entity| N[Battery Sensors]
+        
+        G --> O[RGBW Lights]
+        G --> P[Dimmable Lights]
+        G --> Q[On/Off Lights]
+        
+        L --> R[Color Presets]
+        L --> S[Shutter Groups]
+        L --> T[Automations]
+        L --> U[Virtual Devices]
+        
+        M --> V[Temperature Setpoints]
+        M --> W[Fil Pilote Heating]
+        M --> X[Thermostats]
+        
+        N --> Y[Battery Levels]
+        N --> Z[Battery Status]
+    end
+    
+    style Eedomus fill:#f9f,stroke:#333
+    style HA fill:#bbf,stroke:#333
+    style F fill:#9f9,stroke:#333
+```
+
+### Architecture Détaillée des Relations Parent-Enfant
+
+```mermaid
+classDiagram
+    class EedomusDevice {
+        +String periph_id
+        +String parent_periph_id
+        +String name
+        +String usage_id
+        +String usage_name
+        +String value_type
+        +String last_value
+        +String battery
+        +List~Value~ values
+    }
+    
+    class RGBWLight {
+        +String periph_id
+        +List~Child~ children
+        +control_rgbw()
+    }
+    
+    class RGBWChild {
+        +String periph_id
+        +String parent_periph_id
+        +String color_channel
+        +set_intensity()
+    }
+    
+    class ClimateDevice {
+        +String periph_id
+        +String usage_id
+        +List~Child~ temperature_sensors
+        +set_temperature()
+    }
+    
+    class TemperatureSensor {
+        +String periph_id
+        +String parent_periph_id
+        +String usage_id
+        +Float current_temperature
+    }
+    
+    class BatterySensor {
+        +String periph_id
+        +String device_name
+        +Int battery_level
+        +String battery_status
+    }
+    
+    EedomusDevice <|-- RGBWLight
+    EedomusDevice <|-- RGBWChild
+    EedomusDevice <|-- ClimateDevice
+    EedomusDevice <|-- TemperatureSensor
+    EedomusDevice <|-- BatterySensor
+    
+    RGBWLight "1" *-- "4" RGBWChild : contains >
+    ClimateDevice "1" *-- "1" TemperatureSensor : associated >
+    EedomusDevice "1" -- "1" BatterySensor : monitored by >
+```
+
+### Exemple Concret : Device RGBW avec Couleurs Prédéfinies
+
+```mermaid
+flowchart LR
+    subgraph RGBWDevice[RGBW Light Device - Led Meuble Salle de bain]
+        direction TB
+        Parent[Parent: 1077644
+usage_id=1
+ha_entity=light
+ha_subtype=rgbw] -->|contains| R[Rouge: 1077645
+usage_id=1] 
+        Parent -->|contains| G[Vert: 1077646
+usage_id=1] 
+        Parent -->|contains| B[Bleu: 1077647
+usage_id=1] 
+        Parent -->|contains| W[Blanc: 1077648
+usage_id=1] 
+        Parent -->|contains| C[Consommation: 1077649
+usage_id=26
+ha_entity=sensor
+ha_subtype=energy] 
+        Parent -->|contains| P[Couleur Prédéfinie: 1077650
+usage_id=82
+ha_entity=select
+ha_subtype=color_preset] 
+    end
+    
+    style Parent fill:#9f9,stroke:#333
+    style R fill:#f99,stroke:#333
+    style G fill:#9f9,stroke:#333
+    style B fill:#99f,stroke:#333
+    style W fill:#fff,stroke:#333
+    style C fill:#ff9,stroke:#333
+    style P fill:#f9f,stroke:#333
+```
+
+### Exemple Concret : Thermostat avec Capteur Associé
+
+```mermaid
+flowchart TD
+    subgraph ThermostatSystem[Thermostat System - Consigne Salon]
+        direction TB
+        Setpoint[Consigne: 1252441
+usage_id=15
+ha_entity=climate
+ha_subtype=temperature_setpoint] 
+        Setpoint -->|associated with| Sensor[Température: 1235856
+usage_id=7
+ha_entity=sensor
+ha_subtype=temperature] 
+        Setpoint -->|controls| Heating[Chauffage: 1235855
+usage_id=38
+ha_entity=climate
+ha_subtype=fil_pilote] 
+    end
+    
+    style Setpoint fill:#9f9,stroke:#333
+    style Sensor fill:#99f,stroke:#333
+    style Heating fill:#f99,stroke:#333
+```
+
+### Flux de Données Complet
+
+```mermaid
+flowchart LR
+    subgraph Eedomus[Eedomus Box]
+        API[API Endpoint] -->|JSON| Devices[Devices Database]
+        Devices -->|Update| States[Current States]
+        States -->|Webhook| HA
+    end
+    
+    subgraph HA[Home Assistant]
+        Webhook[Webhook Receiver] --> Coordinator[Data Coordinator]
+        Coordinator -->|Refresh| API
+        Coordinator -->|Update| Entities[HA Entities]
+        
+        Entities -->|Light| LightPlatform
+        Entities -->|Switch| SwitchPlatform
+        Entities -->|Climate| ClimatePlatform
+        Entities -->|Sensor| SensorPlatform
+        Entities -->|Binary Sensor| BinarySensorPlatform
+        Entities -->|Select| SelectPlatform
+        Entities -->|Cover| CoverPlatform
+        Entities -->|Battery| BatterySensors
+        
+        LightPlatform -->|Control| Eedomus
+        SwitchPlatform -->|Control| Eedomus
+        ClimatePlatform -->|Control| Eedomus
+        SelectPlatform -->|Control| Eedomus
+        CoverPlatform -->|Control| Eedomus
+    end
+    
+    style Eedomus fill:#f96,stroke:#333
+    style HA fill:#9f9,stroke:#333
+    style Coordinator fill:#bbf,stroke:#333
+```
+
+### Légende des Couleurs et Icônes
+
+```mermaid
+graph LR
+    A[🟢 Vert - Entités Principales] -->|Exemple| B[Light, Climate, Coordinator]
+    C[🔴 Rouge - Action/Contrôle] -->|Exemple| D[Set Value, Webhook, API]
+    E[🟡 Jaune - Données] -->|Exemple| F[States, Values, Battery]
+    G[🔵 Bleu - Plateformes] -->|Exemple| H[Sensor, Binary Sensor, Select]
+    I[🟣 Violet - Systèmes] -->|Exemple| J[Eedomus, Home Assistant]
+```
+
 ## 🔧 Configuration des Nouvelles Fonctionnalités
 
 ### Activation des Capteurs de Batterie
@@ -360,6 +579,80 @@ Les capteurs de batterie sont activés automatiquement. Aucune configuration sup
 | 0.10.0 | 7 | Climate entities | Support des thermostats |
 | 0.9.0 | 6 | Mapping system | Refonte du mapping |
 | 0.8.0 | 6 | Scene entities | Support des scènes |
+
+## 🔗 Relation avec d'Autres Branches
+
+### Intégration de `feature/scene-to-select-refactor`
+
+La branche actuelle `feature/improved-entity-mapping-and-battery-sensors` **intègre complètement** les fonctionnalités de la branche `feature/scene-to-select-refactor` :
+
+✅ **Fonctionnalités incluses** :
+- Migration complète des entités `scene` vers `select`
+- Correction du champ `values` au lieu de `value_list`
+- Support complet des sélecteurs eedomus
+- Documentation de migration complète
+
+✅ **Améliorations supplémentaires** :
+- Ajout des couleurs prédéfinies comme sélecteurs (`usage_id=82`)
+- Amélioration des entités climate
+- Détection automatique des capteurs de consommation
+- Correction du capteur "Oeil de Chat"
+- Ajout des capteurs de batterie
+
+📊 **Comparaison des branches** :
+
+| Fonctionnalité | scene-to-select-refactor | improved-entity-mapping |
+|---------------|------------------------|-------------------------|
+| Migration Scene→Select | ✅ | ✅ (incluse) |
+| Correction values/vs value_list | ✅ | ✅ (incluse) |
+| Couleurs prédéfinies→Select | ❌ | ✅ (nouveau) |
+| Climate amélioré | ❌ | ✅ (nouveau) |
+| Détection consommation | ❌ | ✅ (nouveau) |
+| Capteurs batterie | ❌ | ✅ (nouveau) |
+| Correction Oeil de Chat | ❌ | ✅ (nouveau) |
+
+### Diagramme d'Intégration
+
+```mermaid
+gitGraph
+    commit "Main Branch"
+    branch feature/scene-to-select-refactor
+    checkout feature/scene-to-select-refactor
+    commit "Add select entities"
+    commit "Fix values field"
+    commit "Add migration docs"
+    checkout main
+    branch feature/improved-entity-mapping-and-battery-sensors
+    checkout feature/improved-entity-mapping-and-battery-sensors
+    commit "Improve climate entities"
+    commit "Add battery sensors"
+    commit "Enhance color presets"
+    merge feature/scene-to-select-refactor
+    commit "Final integration"
+```
+
+## 🎯 Recommandations de Fusion
+
+Pour intégrer cette branche dans `main`, nous recommandons :
+
+1. **Fusion directe** : La branche est compatible et contient toutes les améliorations
+2. **Tests recommandés** :
+   - Vérifier que les sélecteurs fonctionnent correctement
+   - Tester les nouveaux capteurs de batterie
+   - Valider les thermostats améliorés
+   - Confirmer la détection des capteurs de consommation
+3. **Documentation** : La documentation est complète et à jour
+
+## 🔄 Stratégie de Migration
+
+Si vous utilisez déjà la branche `feature/scene-to-select-refactor` :
+- **Passez directement** à cette branche pour bénéficier des améliorations supplémentaires
+- **Aucune migration** nécessaire - tout est compatible
+
+Si vous utilisez la branche `main` :
+- **Testez d'abord** cette branche dans un environnement de développement
+- **Surveillez les logs** pour vérifier que toutes les entités sont correctement mappées
+- **Profitez des nouvelles fonctionnalités** une fois la migration validée
 
 ## 🆕 Nouveautés dans la version 0.8.0
 
