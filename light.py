@@ -70,12 +70,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                     "ha_subtype": "brightness",
                     "justification": "Parent is a light"
                 }
-            if periph.get("usage_id") == "82":
-                eedomus_mapping = {
-                    "ha_entity": "text",
-                    "ha_subtype": None,
-                    "justification": "Parent is a light - text- Couleur Prédéfinie"
-                }
+            # Removed usage_id=82 mapping as it's now handled by the main mapping system as "select"
             if periph.get("usage_id") == "26":
                 eedomus_mapping = {
                     "ha_entity": "sensor",

@@ -56,12 +56,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                     "ha_subtype": "energy",
                     "justification": "Parent is a sensor - energy meter"
                 }
-            if periph.get("usage_id") == "82":  # Text/color like in light.py
-                eedomus_mapping = {
-                    "ha_entity": "sensor",
-                    "ha_subtype": "text",
-                    "justification": "Parent is a sensor - text/color"
-                }
+            # Removed usage_id=82 mapping as it's now handled by the main mapping system as "select"
             if not eedomus_mapping is None:
                 coordinator.data[periph_id].update(eedomus_mapping)
 

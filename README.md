@@ -262,6 +262,105 @@ WARNING:   Only use this setting temporarily for debugging in secure environment
 - **Pour un accès complet**: Utilisez uniquement le mode API Eedomus
 - **Pour la haute disponibilité**: Combinez les deux modes
 
+## 🆕 Nouveautés dans la version 0.12.0 (🆕 Prochainement)
+
+### Améliorations Majeures des Entités et Nouveaux Capteurs
+
+#### 1. 🎨 Couleurs Prédéfinies comme Sélecteurs
+- **Nouveau mapping pour `usage_id=82`**: Les périphériques "Couleur prédéfinie" sont maintenant mappés comme entités `select` au lieu de `text`
+- **Exemples concernés**: "Couleur prédéfinie Salle de bain", "Couleur prédéfinie Chambre parent", etc.
+- **Avantages**:
+  - Interface utilisateur native avec menu déroulant
+  - Sélection directe des couleurs prédéfinies
+  - Meilleure intégration avec les automations
+  - Support complet des valeurs eedomus
+
+#### 2. 🌡️ Consignes de Température Améliorées
+- **Gestion intelligente des thermostats**: Meilleure détection et contrôle des consignes de température
+- **Types supportés**:
+  - `usage_id=15`: Consignes de température virtuelles (ex: "Consigne de Zone de chauffage Salon")
+  - `usage_id=19/20`: Chauffage fil pilote
+  - `PRODUCT_TYPE_ID=4` (classe 67): Têtes thermostatiques Z-Wave
+- **Améliorations**:
+  - Détection automatique des capteurs de température associés
+  - Envoi direct des températures pour les consignes (usage_id=15)
+  - Meilleure gestion des modes HVAC (HEAT/OFF)
+  - Plage de température dynamique basée sur les valeurs acceptables
+  - Association automatique avec les capteurs de température enfants
+
+#### 3. ⚡ Gestion Intelligente des Capteurs de Consommation
+- **Détection automatique**: Les switch qui sont en réalité des capteurs de consommation sont maintenant automatiquement détectés et mappés comme `sensor/energy`
+- **Patterns de détection**:
+  - Noms contenant "consommation" (ex: "Consommation Salon")
+  - Périphériques avec des enfants ayant `usage_id=26` (Consomètre)
+- **Avantages**:
+  - Plus besoin de configuration manuelle
+  - Meilleure représentation dans l'interface
+  - Intégration native avec les tableaux de bord énergie
+
+#### 4. 👁️ Correction du Capteur de Mouvement "Oeil de Chat"
+- **Problème résolu**: Le capteur "Mouvement Oeil de chat Salon" est maintenant correctement mappé comme `binary_sensor` au lieu de `sensor`
+- **Solution**:
+  - Ajout d'une exception spécifique pour `usage_id=37`
+  - Priorité donnée au mapping par usage_id sur le mapping par classe Z-Wave
+  - Meilleure détection des capteurs de mouvement non-ZWave
+
+#### 5. 🔋 Nouveaux Capteurs de Batterie
+- **Nouvelle plateforme**: Ajout de capteurs de batterie pour tous les périphériques avec informations de batterie
+- **Fonctionnalités**:
+  - Création automatique de capteurs pour chaque périphérique avec champ `battery`
+  - Noms clairs: "[Nom du périphérique] Battery"
+  - Device class `battery` pour intégration native
+  - Attributs supplémentaires: statut de batterie (High/Medium/Low/Critical)
+  - Compatible avec les tableaux de bord et alertes
+- **Exemples**:
+  - "Mouvement Oeil de chat Salon Battery" (100%)
+  - "Température Oeil de chat Salon Battery" (100%)
+  - "Fumée Cuisine Battery" (100%)
+  - "Humidité Salon Battery" (80%)
+
+## 📊 Statistiques des Améliorations
+
+| Amélioration | Nombre d'entités concernées | Impact |
+|--------------|----------------------------|---------|
+| Couleurs prédéfinies → Select | 5+ | Meilleure UX, intégration native |
+| Consignes de température | 3+ | Contrôle précis, association automatique |
+| Capteurs de consommation | 10+ | Détection automatique, meilleure représentation |
+| Capteurs de mouvement | 1+ | Correction de bug, mapping correct |
+| Capteurs de batterie | 20+ | Nouvelle fonctionnalité, surveillance complète |
+
+## 🔧 Configuration des Nouvelles Fonctionnalités
+
+### Activation des Capteurs de Batterie
+Les capteurs de batterie sont activés automatiquement. Aucune configuration supplémentaire n'est nécessaire.
+
+### Utilisation des Consignes de Température
+1. Les consignes de température apparaissent comme des entités `climate`
+2. Utilisez l'interface native de Home Assistant pour régler la température
+3. Les capteurs de température associés sont détectés automatiquement
+
+### Utilisation des Sélecteurs de Couleurs
+1. Les couleurs prédéfinies apparaissent comme des entités `select`
+2. Sélectionnez la couleur souhaitée dans le menu déroulant
+3. Le changement est immédiatement appliqué au périphérique RGBW parent
+
+## 🎯 Recommandations pour la Migration
+
+1. **Testez d'abord**: Vérifiez que les nouvelles entités apparaissent correctement
+2. **Surveillez les logs**: Activez le débogage pour voir les messages de mapping
+3. **Ajustez si nécessaire**: Certains périphériques peuvent nécessiter des ajustements manuels
+4. **Profitez des nouvelles fonctionnalités**: Les capteurs de batterie et les sélecteurs améliorent considérablement l'expérience utilisateur
+
+## 📋 Fonctionnalités Supportées par Version
+
+| Version | Plateformes | Entités Spéciales | Changements Majeurs |
+|---------|-------------|-------------------|---------------------|
+| 0.12.0 | 7 | Battery sensors, Color presets as select | Améliorations majeures des entités |
+| 0.11.0 | 7 | Select entities | Migration Scene→Select |
+| 0.10.0 | 7 | Climate entities | Support des thermostats |
+| 0.9.0 | 6 | Mapping system | Refonte du mapping |
+| 0.8.0 | 6 | Scene entities | Support des scènes |
+
 ## 🆕 Nouveautés dans la version 0.8.0
 
 ### Sélecteurs (Select Entities)

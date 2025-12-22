@@ -51,6 +51,32 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         if ha_entity is None or not ha_entity == "switch":
             continue
      
+        # Check if this switch should actually be a sensor (consumption monitoring)
+        # Look for patterns that indicate this is a consumption sensor, not a real switch
+        should_be_sensor = False
+        
+        # Pattern 1: Has children with usage_id=26 (energy meters)
+        if periph_id in parent_to_children:
+            for child in parent_to_children[periph_id]:
+                if child.get("usage_id") == "26":  # Consomètre
+                    should_be_sensor = True
+                    break
+        
+        # Pattern 2: Name contains "consommation" (French for consumption)
+        if "consommation" in periph.get("name", "").lower():
+            should_be_sensor = True
+        
+        if should_be_sensor:
+            _LOGGER.info("Remapping switch '%s' (%s) as sensor - detected as consumption monitor", 
+                        periph["name"], periph_id)
+            # Update the mapping to sensor
+            coordinator.data[periph_id].update({
+                "ha_entity": "sensor",
+                "ha_subtype": "energy",
+                "justification": "Detected as consumption monitor based on name pattern and children"
+            })
+            continue  # Skip creating switch entity, will be handled by sensor setup
+
         _LOGGER.debug("Go for a switch !!! %s (%s) mapping=%s", periph["name"], periph_id,  ha_entity)
 
         switches.append(EedomusSwitch(coordinator, periph_id))

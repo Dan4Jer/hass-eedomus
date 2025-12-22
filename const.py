@@ -45,6 +45,7 @@ PLATFORMS = [
     Platform.BINARY_SENSOR,
     Platform.SELECT,
     Platform.CLIMATE,
+    # Battery sensors are implemented as SENSOR platform with device_class="battery"
 ]
 
 # Attributes
