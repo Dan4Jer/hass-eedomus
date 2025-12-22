@@ -331,6 +331,114 @@ WARNING:   Only use this setting temporarily for debugging in secure environment
 
 ## 🗺️ Architecture Visuelle des Entités
 
+### 🎯 Tableau de Correspondance Eedomus → Home Assistant
+
+```mermaid
+flowchart TD
+    subgraph Legend[📚 Légende]
+        A[🟢 Vert] -->|Entité HA| B[ha_entity]
+        C[🔵 Bleu] -->|Type Eedomus| D[usage_id/PRODUCT_TYPE_ID]
+        E[🟡 Jaune] -->|Relation| F[Parent-Enfant]
+        G[🟣 Violet] -->|Action| H[Contrôle/Mapping]
+    end
+
+    subgraph MappingTable[📋 Tableau de Mapping Complet]
+        %% Lumière
+        EedomusLight[Eedomus: Lumière] -->|🟣| HALight[HA: Light]
+        EedomusLight -->|🔵 usage_id=1| Light1
+        EedomusLight -->|🔵 PRODUCT_TYPE_ID=2304| LightRGBW
+        EedomusLight -->|🔵 PRODUCT_TYPE_ID=2306| LightRGBW2
+        
+        %% Sélecteurs
+        EedomusSelect[Eedomus: Sélecteur] -->|🟣| HASelect[HA: Select]
+        EedomusSelect -->|🔵 usage_id=14| SelectGroup
+        EedomusSelect -->|🔵 usage_id=42| SelectOpening
+        EedomusSelect -->|🔵 usage_id=43| SelectAutomation
+        EedomusSelect -->|🔵 usage_id=82| SelectColor :::new
+        EedomusSelect -->|🔵 PRODUCT_TYPE_ID=999| SelectVirtual
+        
+        %% Climat
+        EedomusClimate[Eedomus: Climat] -->|🟣| HAClimate[HA: Climate]
+        EedomusClimate -->|🔵 usage_id=15| ClimateSetpoint
+        EedomusClimate -->|🔵 usage_id=19| ClimateFilPilote
+        EedomusClimate -->|🔵 usage_id=20| ClimateFilPilote
+        EedomusClimate -->|🔵 PRODUCT_TYPE_ID=4| ClimateThermostat
+        
+        %% Capteurs
+        EedomusSensor[Eedomus: Capteur] -->|🟣| HASensor[HA: Sensor]
+        EedomusSensor -->|🔵 usage_id=7| SensorTemp
+        EedomusSensor -->|🔵 usage_id=22| SensorHumidity
+        EedomusSensor -->|🔵 usage_id=24| SensorLuminosity
+        EedomusSensor -->|🔵 usage_id=26| SensorEnergy :::new
+        
+        %% Capteurs Binaires
+        EedomusBinary[Eedomus: Binary] -->|🟣| HABinary[HA: Binary Sensor]
+        EedomusBinary -->|🔵 usage_id=36| BinaryFlood
+        EedomusBinary -->|🔵 usage_id=37| BinaryMotion :::fixed
+        EedomusBinary -->|🔵 usage_id=48| BinaryMotion2
+        
+        %% Interrupteurs
+        EedomusSwitch[Eedomus: Interrupteur] -->|🟣| HASwitch[HA: Switch]
+        EedomusSwitch -->|🔵 usage_id=0| SwitchGeneric
+        EedomusSwitch -->|🔵 usage_id=1| SwitchLight
+        EedomusSwitch -->|🔵 usage_id=2| SwitchConsumption :::auto
+        
+        %% Volets
+        EedomusCover[Eedomus: Volet] -->|🟣| HACover[HA: Cover]
+        EedomusCover -->|🔵 usage_id=48| CoverShutter
+        EedomusCover -->|🔵 PRODUCT_TYPE_ID=770| CoverFibaro
+        
+        %% Batterie (Nouveau)
+        EedomusBattery[Eedomus: Battery] -->|🟣| HABattery[HA: Sensor (battery)]
+        EedomusBattery -->|🟡 battery field| BatterySensor :::new
+    end
+
+    %% Relations Parent-Enfant
+    subgraph Relationships[🔗 Relations Parent-Enfant]
+        RGBWParent[RGBW Light
+1077644] -->|🟡 parent| RGBWChild1[Rouge
+1077645]
+        RGBWParent -->|🟡 parent| RGBWChild2[Vert
+1077646]
+        RGBWParent -->|🟡 parent| RGBWChild3[Bleu
+1077647]
+        RGBWParent -->|🟡 parent| RGBWChild4[Blanc
+1077648]
+        RGBWParent -->|🟡 parent| RGBWConsumption[Consommation
+1077649]
+        RGBWParent -->|🟡 parent| RGBWColorPreset[Couleur Prédéfinie
+1077650]
+        
+        Thermostat[Consigne
+1252441] -->|🟡 associated| TempSensor[Température
+1235856]
+        
+        MotionSensor[Mouvement
+1090995] -->|🟡 has| MotionLuminosity[Luminosité
+1090997]
+        MotionSensor -->|🟡 has| MotionTemperature[Température
+1090996]
+        MotionSensor -->|🟡 has| MotionBattery[Battery
+1090995-Battery]
+    end
+
+    %% Légende des nouveautés
+    classDef new fill:#9f9,stroke:#333
+    classDef fixed fill:#ff9,stroke:#333
+    classDef auto fill:#99f,stroke:#333
+
+    SelectColor:::new
+    SensorEnergy:::new
+    BinaryMotion:::fixed
+    SwitchConsumption:::auto
+    BatterySensor:::new
+    MotionBattery:::new
+
+    style Legend fill:#f9f,stroke:#333
+    style MappingTable fill:#fff,stroke:#333
+    style Relationships fill:#fff,stroke:#333
+```
+
 ### Diagramme Global de Mapping des Entités
 
 ```mermaid
