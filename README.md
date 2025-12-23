@@ -367,98 +367,58 @@ WARNING:   Only use this setting temporarily for debugging in secure environment
 
 ## 🗺️ Architecture Visuelle des Entités
 
+## 🗺️ Architecture Visuelle des Entités
+
 ### 🎯 Tableau de Correspondance Eedomus → Home Assistant
 
 ```mermaid
 flowchart TD
-    subgraph Legend[📚 Légende]
-        A[🟢 Vert] -->|Entité HA| B[ha_entity]
-        C[🔵 Bleu] -->|Type Eedomus| D[usage_id/PRODUCT_TYPE_ID]
-        E[🟡 Jaune] -->|Relation| F[Parent-Enfant]
-        G[🟣 Violet] -->|Action| H[Contrôle/Mapping]
+    subgraph Legend[Legend]
+        A[HA Entity] -->|maps to| B[ha_entity]
+        C[Eedomus Type] -->|usage_id| D[usage_id]
     end
 
-    subgraph MappingTable[📋 Tableau de Mapping Complet]
-        %% Lumière
-        EedomusLight[Eedomus: Lumière] -->|🟣| HALight[HA: Light]
-        EedomusLight -->|🔵 usage_id=1| Light1
-        EedomusLight -->|🔵 PRODUCT_TYPE_ID=2304| LightRGBW
-        EedomusLight -->|🔵 PRODUCT_TYPE_ID=2306| LightRGBW2
+    subgraph MappingTable[Eedomus to HA Mapping]
+        %% Lights
+        EedomusLight[Eedomus Light] --> HALight[HA Light]
+        EedomusLight --> Light1[usage_id=1]
+        EedomusLight --> LightRGBW[PRODUCT_TYPE_ID=2304]
         
-        %% Sélecteurs
-        EedomusSelect[Eedomus: Sélecteur] -->|🟣| HASelect[HA: Select]
-        EedomusSelect -->|🔵 usage_id=14| SelectGroup
-        EedomusSelect -->|🔵 usage_id=42| SelectOpening
-        EedomusSelect -->|🔵 usage_id=43| SelectAutomation
-        EedomusSelect -->|🔵 usage_id=82| SelectColor :::new
-        EedomusSelect -->|🔵 PRODUCT_TYPE_ID=999| SelectVirtual
+        %% Select Entities
+        EedomusSelect[Eedomus Select] --> HASelect[HA Select]
+        EedomusSelect --> SelectGroup[usage_id=14]
+        EedomusSelect --> SelectColor[usage_id=82]
         
-        %% Climat
-        EedomusClimate[Eedomus: Climat] -->|🟣| HAClimate[HA: Climate]
-        EedomusClimate -->|🔵 usage_id=15| ClimateSetpoint
-        EedomusClimate -->|🔵 usage_id=19| ClimateFilPilote
-        EedomusClimate -->|🔵 usage_id=20| ClimateFilPilote
-        EedomusClimate -->|🔵 PRODUCT_TYPE_ID=4| ClimateThermostat
+        %% Climate
+        EedomusClimate[Eedomus Climate] --> HAClimate[HA Climate]
+        EedomusClimate --> ClimateSetpoint[usage_id=15]
         
-        %% Capteurs
-        EedomusSensor[Eedomus: Capteur] -->|🟣| HASensor[HA: Sensor]
-        EedomusSensor -->|🔵 usage_id=7| SensorTemp
-        EedomusSensor -->|🔵 usage_id=22| SensorHumidity
-        EedomusSensor -->|🔵 usage_id=24| SensorLuminosity
-        EedomusSensor -->|🔵 usage_id=26| SensorEnergy :::new
+        %% Sensors
+        EedomusSensor[Eedomus Sensor] --> HASensor[HA Sensor]
+        EedomusSensor --> SensorTemp[usage_id=7]
+        EedomusSensor --> SensorEnergy[usage_id=26]
         
-        %% Capteurs Binaires
-        EedomusBinary[Eedomus: Binary] -->|🟣| HABinary[HA: Binary Sensor]
-        EedomusBinary -->|🔵 usage_id=36| BinaryFlood
-        EedomusBinary -->|🔵 usage_id=37| BinaryMotion :::fixed
-        EedomusBinary -->|🔵 usage_id=48| BinaryMotion2
+        %% Binary Sensors
+        EedomusBinary[Eedomus Binary] --> HABinary[HA Binary Sensor]
+        EedomusBinary --> BinaryMotion[usage_id=37]
         
-        %% Interrupteurs
-        EedomusSwitch[Eedomus: Interrupteur] -->|🟣| HASwitch[HA: Switch]
-        EedomusSwitch -->|🔵 usage_id=0| SwitchGeneric
-        EedomusSwitch -->|🔵 usage_id=1| SwitchLight
-        EedomusSwitch -->|🔵 usage_id=2| SwitchConsumption :::auto
-        
-        %% Volets
-        EedomusCover[Eedomus: Volet] -->|🟣| HACover[HA: Cover]
-        EedomusCover -->|🔵 usage_id=48| CoverShutter
-        EedomusCover -->|🔵 PRODUCT_TYPE_ID=770| CoverFibaro
-        
-        %% Batterie (Nouveau)
-        EedomusBattery[Eedomus: Battery] -->|🟣| HABattery[HA: Sensor (battery)]
-        EedomusBattery -->|🟡 battery field| BatterySensor :::new
+        %% Switches
+        EedomusSwitch[Eedomus Switch] --> HASwitch[HA Switch]
+        EedomusSwitch --> SwitchConsumption[usage_id=2]
     end
 
-    %% Relations Parent-Enfant
-    subgraph Relationships[🔗 Relations Parent-Enfant]
-        RGBWParent[RGBW Light
-1077644] -->|🟡 parent| RGBWChild1[Rouge
-1077645]
-        RGBWParent -->|🟡 parent| RGBWChild2[Vert
-1077646]
-        RGBWParent -->|🟡 parent| RGBWChild3[Bleu
-1077647]
-        RGBWParent -->|🟡 parent| RGBWChild4[Blanc
-1077648]
-        RGBWParent -->|🟡 parent| RGBWConsumption[Consommation
-1077649]
-        RGBWParent -->|🟡 parent| RGBWColorPreset[Couleur Prédéfinie
-1077650]
+    %% Parent-Child Relationships
+    subgraph Relationships[Parent-Child Relationships]
+        RGBWParent[RGBW Light 1077644] --> RGBWChild1[Red 1077645]
+        RGBWParent --> RGBWChild2[Green 1077646]
+        RGBWParent --> RGBWColorPreset[Color Preset 1077650]
         
-        Thermostat[Consigne
-1252441] -->|🟡 associated| TempSensor[Température
-1235856]
+        Thermostat[Setpoint 1252441] --> TempSensor[Temperature 1235856]
         
-        MotionSensor[Mouvement
-1090995] -->|🟡 has| MotionLuminosity[Luminosité
-1090997]
-        MotionSensor -->|🟡 has| MotionTemperature[Température
-1090996]
-        MotionSensor -->|🟡 has| MotionBattery[Battery
-1090995-Battery]
+        MotionSensor[Motion 1090995] --> MotionBattery[Battery 1090995-Battery]
     end
 
-    %% Légende des nouveautés
+    %% Legend
     classDef new fill:#9f9,stroke:#333
     classDef fixed fill:#ff9,stroke:#333
     classDef auto fill:#99f,stroke:#333
@@ -467,7 +427,7 @@ flowchart TD
     SensorEnergy:::new
     BinaryMotion:::fixed
     SwitchConsumption:::auto
-    BatterySensor:::new
+    RGBWColorPreset:::new
     MotionBattery:::new
 
     style Legend fill:#f9f,stroke:#333
@@ -480,10 +440,10 @@ flowchart TD
 ```mermaid
 flowchart TD
     subgraph Eedomus[Eedomus Box]
-        A[Périphériques Eedomus] -->|API| B[Classes Z-Wave]
+        A[Eedomus Devices] -->|API| B[Z-Wave Classes]
         A -->|API| C[Usage IDs]
         A -->|API| D[PRODUCT_TYPE_ID]
-        A -->|API| E[Valeurs & États]
+        A -->|API| E[Values & States]
     end
     
     subgraph HA[Home Assistant]
@@ -500,88 +460,11 @@ flowchart TD
         F -->|ha_entity| L[Select Entities]
         F -->|ha_entity| M[Climate Entities]
         F -->|ha_entity| N[Battery Sensors]
-        
-        G --> O[RGBW Lights]
-        G --> P[Dimmable Lights]
-        G --> Q[On/Off Lights]
-        
-        L --> R[Color Presets]
-        L --> S[Shutter Groups]
-        L --> T[Automations]
-        L --> U[Virtual Devices]
-        
-        M --> V[Temperature Setpoints]
-        M --> W[Fil Pilote Heating]
-        M --> X[Thermostats]
-        
-        N --> Y[Battery Levels]
-        N --> Z[Battery Status]
     end
     
     style Eedomus fill:#f9f,stroke:#333
     style HA fill:#bbf,stroke:#333
     style F fill:#9f9,stroke:#333
-```
-
-### Architecture Détaillée des Relations Parent-Enfant
-
-```mermaid
-classDiagram
-    class EedomusDevice {
-        +String periph_id
-        +String parent_periph_id
-        +String name
-        +String usage_id
-        +String usage_name
-        +String value_type
-        +String last_value
-        +String battery
-        +List~Value~ values
-    }
-    
-    class RGBWLight {
-        +String periph_id
-        +List~Child~ children
-        +control_rgbw()
-    }
-    
-    class RGBWChild {
-        +String periph_id
-        +String parent_periph_id
-        +String color_channel
-        +set_intensity()
-    }
-    
-    class ClimateDevice {
-        +String periph_id
-        +String usage_id
-        +List~Child~ temperature_sensors
-        +set_temperature()
-    }
-    
-    class TemperatureSensor {
-        +String periph_id
-        +String parent_periph_id
-        +String usage_id
-        +Float current_temperature
-    }
-    
-    class BatterySensor {
-        +String periph_id
-        +String device_name
-        +Int battery_level
-        +String battery_status
-    }
-    
-    EedomusDevice <|-- RGBWLight
-    EedomusDevice <|-- RGBWChild
-    EedomusDevice <|-- ClimateDevice
-    EedomusDevice <|-- TemperatureSensor
-    EedomusDevice <|-- BatterySensor
-    
-    RGBWLight "1" *-- "4" RGBWChild : contains >
-    ClimateDevice "1" *-- "1" TemperatureSensor : associated >
-    EedomusDevice "1" -- "1" BatterySensor : monitored by >
 ```
 
 ### Exemple Concret : Device RGBW avec Couleurs Prédéfinies
@@ -592,23 +475,23 @@ flowchart LR
         direction TB
         Parent[Parent: 1077644
 usage_id=1
-ha_entity=light
-ha_subtype=rgbw] -->|contains| R[Rouge: 1077645
+hentity=light
+subtype=rgbw] -->|contains| R[Red: 1077645
 usage_id=1] 
-        Parent -->|contains| G[Vert: 1077646
+        Parent -->|contains| G[Green: 1077646
 usage_id=1] 
-        Parent -->|contains| B[Bleu: 1077647
+        Parent -->|contains| B[Blue: 1077647
 usage_id=1] 
-        Parent -->|contains| W[Blanc: 1077648
+        Parent -->|contains| W[White: 1077648
 usage_id=1] 
-        Parent -->|contains| C[Consommation: 1077649
+        Parent -->|contains| C[Consumption: 1077649
 usage_id=26
-ha_entity=sensor
-ha_subtype=energy] 
-        Parent -->|contains| P[Couleur Prédéfinie: 1077650
+hentity=sensor
+subtype=energy] 
+        Parent -->|contains| P[Color Preset: 1077650
 usage_id=82
-ha_entity=select
-ha_subtype=color_preset] 
+hentity=select
+subtype=color_preset] 
     end
     
     style Parent fill:#9f9,stroke:#333
@@ -626,18 +509,18 @@ ha_subtype=color_preset]
 flowchart TD
     subgraph ThermostatSystem[Thermostat System - Consigne Salon]
         direction TB
-        Setpoint[Consigne: 1252441
+        Setpoint[Setpoint: 1252441
 usage_id=15
-ha_entity=climate
-ha_subtype=temperature_setpoint] 
-        Setpoint -->|associated with| Sensor[Température: 1235856
+hentity=climate
+subtype=temperature_setpoint] 
+        Setpoint -->|associated with| Sensor[Temperature: 1235856
 usage_id=7
-ha_entity=sensor
-ha_subtype=temperature] 
-        Setpoint -->|controls| Heating[Chauffage: 1235855
+hentity=sensor
+subtype=temperature] 
+        Setpoint -->|controls| Heating[Heating: 1235855
 usage_id=38
-ha_entity=climate
-ha_subtype=fil_pilote] 
+hentity=climate
+subtype=fil_pilote] 
     end
     
     style Setpoint fill:#9f9,stroke:#333
@@ -668,12 +551,6 @@ flowchart LR
         Entities -->|Select| SelectPlatform
         Entities -->|Cover| CoverPlatform
         Entities -->|Battery| BatterySensors
-        
-        LightPlatform -->|Control| Eedomus
-        SwitchPlatform -->|Control| Eedomus
-        ClimatePlatform -->|Control| Eedomus
-        SelectPlatform -->|Control| Eedomus
-        CoverPlatform -->|Control| Eedomus
     end
     
     style Eedomus fill:#f96,stroke:#333
@@ -681,23 +558,44 @@ flowchart LR
     style Coordinator fill:#bbf,stroke:#333
 ```
 
-### Légende des Couleurs et Icônes
+### Légende des Couleurs
 
 ```mermaid
 graph LR
-    A[🟢 Vert - Entités Principales] -->|Exemple| B[Light, Climate, Coordinator]
-    C[🔴 Rouge - Action/Contrôle] -->|Exemple| D[Set Value, Webhook, API]
-    E[🟡 Jaune - Données] -->|Exemple| F[States, Values, Battery]
-    G[🔵 Bleu - Plateformes] -->|Exemple| H[Sensor, Binary Sensor, Select]
-    I[🟣 Violet - Systèmes] -->|Exemple| J[Eedomus, Home Assistant]
+    A[Green - Main Entities] -->|Example| B[Light, Climate, Coordinator]
+    C[Red - Actions] -->|Example| D[Set Value, Webhook, API]
+    E[Yellow - Data] -->|Example| F[States, Values, Battery]
+    G[Blue - Platforms] -->|Example| H[Sensor, Binary Sensor, Select]
+    I[Purple - Systems] -->|Example| J[Eedomus, Home Assistant]
 ```
 
-## 🔧 Configuration des Nouvelles Fonctionnalités
+### Diagramme d'Intégration Git
 
-### Activation des Capteurs de Batterie
-Les capteurs de batterie sont activés automatiquement. Aucune configuration supplémentaire n'est nécessaire.
+```mermaid
+gitGraph
+    commit "Main Branch"
+    branch feature/scene-to-select-refactor
+    checkout feature/scene-to-select-refactor
+    commit "Add select entities"
+    commit "Fix values field"
+    checkout main
+    branch feature/improved-entity-mapping
+    checkout feature/improved-entity-mapping
+    commit "Improve climate entities"
+    commit "Add battery sensors"
+    merge feature/scene-to-select-refactor
+    commit "Final integration"
+```
 
-### Utilisation des Consignes de Température
+## 📋 Fonctionnalités Supportées par Version
+
+| Version | Plateformes | Entités Spéciales | Changements Majeurs |
+|---------|-------------|-------------------|---------------------|
+| 0.12.0 | 7 | Battery sensors, Color presets as select | Améliorations majeures des entités |
+| 0.11.0 | 7 | Select entities | Migration Scene→Select |
+| 0.10.0 | 7 | Climate entities | Support des thermostats |
+| 0.9.0 | 6 | Mapping system | Refonte du mapping |
+| 0.8.0 | 6 | Scene entities | Support des scènes |
 1. Les consignes de température apparaissent comme des entités `climate`
 2. Utilisez l'interface native de Home Assistant pour régler la température
 3. Les capteurs de température associés sont détectés automatiquement
