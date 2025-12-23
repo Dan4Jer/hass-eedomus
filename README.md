@@ -47,7 +47,7 @@ flowchart LR
     
     style HomeAssistant fill:#00abf8,stroke:#FFFFF
     style Eedomus fill:#3b6c35,stroke:#FFFFFF
-    style EedomusAPI fill:#2c8920,stroke:#0000FF
+    style EedomusAPI fill:#2c8920,stroke:#00AA00
 ```
 
 **Fonctionnement**: Home Assistant interroge périodiquement l'API Eedomus pour récupérer les données.
@@ -55,10 +55,9 @@ flowchart LR
 **Caractéristiques**:
 - ✅ Connexion directe à l'API Eedomus
 - ✅ Nécessite des identifiants API (utilisateur/clé secrète)
-- ✅ Active toutes les fonctionnalités y compris l'historique
-- ✅ Utilise le coordinator pour la synchronisation des données
-- ✅ Recommandé pour la plupart des utilisateurs
-- ✅ Intervalle de rafraîchissement configurable (minimum 30 secondes)
+- ✅ Active toutes les fonctionnalités (l'historique est optionnelle)
+- ✅ Utilise le coordinator pour la synchronisation des données en groupant les appels API
+- ✅ Intervalle de rafraîchissement configurable (minimum 30 secondes, 300 secondes c'est bien)
 
 **Cas d'utilisation**:
 - Intégration complète avec toutes les fonctionnalités
@@ -67,31 +66,32 @@ flowchart LR
 - Environnements avec accès direct à l'API Eedomus
 
 ### 🔄 Mode API Proxy (Webhook - Push)
+
 ```mermaid
 flowchart LR
     subgraph HomeAssistant[Home Assistant]
         direction TB
-        APIProxy --> HA
+        APIProxy --> HA[Core]
     end
     
     subgraph Eedomus[Eedomus Box]
         direction TB
         EedomusAPI[API Endpoint] --> Devices[Devices Manager]
+        Devices --> Act[Actionneur HTTP]
         Devices --> States[States Database]
-        Devices --> Act[HTTP Actionneur]
     end
     
     APIProxy <---|HTTP| Act
     
     style HomeAssistant fill:#00abf8,stroke:#FFFFF
     style Eedomus fill:#3b6c35,stroke:#FFFFFF
-    style EedomusAPI fill:#2c8920,stroke:#0000FF
+    style EedomusAPI fill:#2c8920,stroke:#00AA00
 ```
 
 **Webhook Architecture:**
-- 🟢 **Home Assistant** : Core system with webhook receiver and API proxy
-- 🟠 **Eedomus Box** : Device management and state database
-- 🟦 **Communication** : Bidirectional HTTP connections
+- 🟦 **Home Assistant** : Core system with webhook receiver and API proxy
+- 🟢 **Eedomus Box** : Device management and state database
+-  **Communication** : unidirectional HTTP connections
 
 
 **Fonctionnement**: Eedomus envoie des données à Home Assistant via des webhooks lorsque des événements se produisent.
@@ -111,12 +111,13 @@ flowchart LR
 - Solutions où les identifiants API ne peuvent pas être stockés
 
 ### 🔧 + 🔄 Mode Combiné (Redondance et Performance Optimale)
+
 ```mermaid
 flowchart LR
     subgraph HomeAssistant[Home Assistant]
         direction TB
         HA[Core] --> Eedomus_client[Eedomus Client]
-        APIProxy --> HA
+        APIProxy --> HA[Core]
     end
     
     subgraph Eedomus[Eedomus Box]
@@ -131,13 +132,13 @@ flowchart LR
     
     style HomeAssistant fill:#00abf8,stroke:#FFFFF
     style Eedomus fill:#3b6c35,stroke:#FFFFFF
-    style EedomusAPI fill:#2c8920,stroke:#0000FF
+    style EedomusAPI fill:#2c8920,stroke:#00AA00
 ```
 
 **Webhook Architecture:**
-- 🟢 **Home Assistant** : Core system with webhook receiver and API proxy
-- 🟠 **Eedomus Box** : Device management and state database
-- 🟦 **Communication** : Bidirectional HTTP connections
+- 🟦 **Home Assistant** : Core system with webhook receiver and API proxy
+- 🟢 **Eedomus Box** : Device management and state database
+- **Communication** : Bidirectional HTTP connections
 
 **Avantages de la combinaison des deux modes**:
 - ✅ **Redondance**: Si un mode échoue, l'autre continue de fonctionner
@@ -146,6 +147,7 @@ flowchart LR
 - ✅ **Flexibilité**: Adaptation automatique aux conditions réseau
 
 **Configuration recommandée pour la haute disponibilité**:
+
 ```yaml
 # Exemple de configuration combinée
 api_eedomus: true      # Pour la synchronisation complète et l'historique
