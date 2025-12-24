@@ -103,12 +103,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                     ha_entity = coordinator.data[periph_id].get("ha_entity")
                     usage_id = periph.get("usage_id")
                     
-                    # Don't create battery sensor if already mapped as specific sensor type
-                    if ha_entity in ["sensor", "binary_sensor"] and ha_entity != "sensor":
-                        _LOGGER.debug("Skipping battery sensor for %s (%s) - already mapped as %s", 
-                                   periph.get("name", "unknown"), periph_id, ha_entity)
-                        continue
-                    
                     # Don't create battery sensor for children that should be mapped by usage_id
                     if usage_id in ["7", "24", "36"]:  # Temperature, Illuminance, Flood
                         _LOGGER.debug("Skipping battery sensor for %s (%s) - usage_id=%s should be specific sensor", 
