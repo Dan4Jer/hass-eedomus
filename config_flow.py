@@ -50,7 +50,7 @@ CONNECTION_MODES_EXPLANATION = """
    - API Proxy for real-time updates via webhooks
 
 ⚠️ SECURITY NOTE: API Proxy mode includes IP validation by default for security.
-   This can be disabled in advanced options for debugging, but this is NOT RECOMMENDED
+   This can be disabled in the configuration for debugging, but this is NOT RECOMMENDED
    for production environments as it exposes your webhook endpoints to potential abuse.
 
 🔒 IMPORTANT SECURITY CONSIDERATION:
