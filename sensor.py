@@ -89,6 +89,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             entities.append(EedomusSensor(coordinator, periph_id))
 
     # Create battery sensor entities for devices with battery information
+    # EXCEPT for children that should be mapped as other sensor types
     for periph_id, periph in all_peripherals.items():
         battery_level = periph.get("battery")
         
@@ -97,6 +98,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             try:
                 battery_value = int(battery_level)
                 if 0 <= battery_value <= 100:
+                    # Skip if this device should be mapped as a different sensor type
+                    # based on usage_id (children of motion sensors, etc.)
+                    ha_entity = coordinator.data[periph_id].get("ha_entity")
+                    usage_id = periph.get("usage_id")
+                    
+                    # Don't create battery sensor if already mapped as specific sensor type
+                    if ha_entity in ["sensor", "binary_sensor"] and ha_entity != "sensor":
+                        _LOGGER.debug("Skipping battery sensor for %s (%s) - already mapped as %s", 
+                                   periph.get("name", "unknown"), periph_id, ha_entity)
+                        continue
+                    
+                    # Don't create battery sensor for children that should be mapped by usage_id
+                    if usage_id in ["7", "24", "36"]:  # Temperature, Illuminance, Flood
+                        _LOGGER.debug("Skipping battery sensor for %s (%s) - usage_id=%s should be specific sensor", 
+                                   periph.get("name", "unknown"), periph_id, usage_id)
+                        continue
+                    
                     # Create battery sensor entity
                     battery_entity = EedomusBatterySensor(coordinator, periph_id)
                     entities.append(battery_entity)
