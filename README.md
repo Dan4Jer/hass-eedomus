@@ -370,14 +370,19 @@ WARNING:   Only use this setting temporarily for debugging in secure environment
   - Association automatique avec les capteurs de température enfants
 
 #### 3. ⚡ Gestion Intelligente des Capteurs de Consommation
-- **Détection automatique**: Les switch qui sont en réalité des capteurs de consommation sont maintenant automatiquement détectés et mappés comme `sensor/energy`
-- **Patterns de détection**:
-  - Noms contenant "consommation" (ex: "Consommation Salon")
-  - Périphériques avec des enfants ayant `usage_id=26` (Consomètre)
+- **Détection automatique améliorée**: Les switch qui sont en réalité des capteurs de consommation sont maintenant automatiquement détectés et mappés comme `sensor/energy`
+- **Logique de détection intelligente**:
+  - **Périphériques remappés comme sensors**: Les vrais capteurs de consommation (sans capacité de contrôle) sont détectés par:
+    - Noms contenant "consommation", "compteur", "meter" mais PAS des termes de contrôle
+    - Périphériques avec UNIQUEMENT des enfants `usage_id=26` (sans autres capacités)
+  - **Périphériques conservés comme switches**: Les appareils contrôlables avec monitoring de consommation restent des switches:
+    - Noms contenant "decoration", "appliance", "prise", "module", "sapin", "noel", etc.
+    - Exemples: "Decorations Salon", "Anti-moustique Chambre parent", "Sapin Salon"
 - **Avantages**:
   - Plus besoin de configuration manuelle
   - Meilleure représentation dans l'interface
   - Intégration native avec les tableaux de bord énergie
+  - Conservation des fonctionnalités de contrôle pour les appareils contrôlables
 
 #### 4. 👁️ Correction du Capteur de Mouvement "Oeil de Chat"
 - **Problème résolu**: Le capteur "Mouvement Oeil de chat Salon" est maintenant correctement mappé comme `binary_sensor` au lieu de `sensor`
@@ -475,6 +480,7 @@ flowchart TD
         %% Switches
         EedomusSwitch[Eedomus Switch] --> HASwitch[HA Switch]
         EedomusSwitch --> SwitchConsumption[usage_id=2]
+        EedomusSwitch --> SwitchWithConsumption[Decorations/Appliances]
     end
 
     %% Parent-Child Relationships
@@ -554,6 +560,34 @@ flowchart TD
     style Eedomus fill:#f9f,stroke:#333
     style HA fill:#bbf,stroke:#333
     style F fill:#9f9,stroke:#333
+```
+
+### Logique Améliorée de Détection des Capteurs de Consommation
+
+La nouvelle logique dans `switch.py` utilise une approche plus intelligente pour distinguer entre :
+
+1. **Vrais capteurs de consommation** (remappés comme `sensor/energy`):
+   - Périphériques avec UNIQUEMENT des enfants `usage_id=26`
+   - Noms contenant "consommation", "compteur", "meter" mais PAS des termes comme "decoration", "appliance", etc.
+   - Exemple: "Consommation Salon" (sans capacité de contrôle)
+
+2. **Appareils contrôlables avec monitoring** (conservés comme `switch`):
+   - Périphériques avec des enfants `usage_id=26` ET d'autres capacités
+   - Noms contenant "decoration", "appliance", "prise", "module", "sapin", "noel", etc.
+   - Exemples: "Decorations Salon", "Anti-moustique Chambre parent", "Sapin Salon"
+
+**Algorithme de décision**:
+```python
+# 1. Vérifier si le périphérique a des enfants de consommation
+if has_children_with_usage_id_26:
+    # 2. Vérifier si c'est un appareil contrôlable (liste blanche)
+    if name_contains_control_keywords:
+        keep_as_switch()  # Conservation comme switch
+    # 3. Vérifier si c'est un vrai capteur de consommation
+    elif name_contains_consumption_keywords_only:
+        remap_as_sensor()  # Remappage comme sensor
+    else:
+        keep_as_switch()  # Par défaut, conservation comme switch
 ```
 
 ### Exemple Concret : Device RGBW avec Couleurs Prédéfinies
