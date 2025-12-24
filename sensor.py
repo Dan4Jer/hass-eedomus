@@ -93,6 +93,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     for periph_id, periph in all_peripherals.items():
         battery_level = periph.get("battery")
         
+        # Debug: Log all devices with battery info
+        if battery_level:
+            _LOGGER.debug("🔋 Battery info found for %s (%s): %s", 
+                        periph.get("name", "unknown"), periph_id, battery_level)
+        
         # Check if device has valid battery information
         if battery_level and str(battery_level).strip():
             try:
