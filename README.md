@@ -30,6 +30,20 @@ L'intégration eedomus supporte maintenant **deux modes de connexion indépendan
 
 ### 📋 Mode API Eedomus (Connexion Directe - Pull)
 
+```
+
++---------------------+       HTTP       +---------------------+
+|                     |  -------------->  |                     |
+|   Home Assistant    |                   |   Eedomus Box       |
+|                     |  <--------------  |                     |
++---------------------+       Webhook     +---------------------+
+            Core                          API Endpoint
+              |                                |
+              v                                v
+        Eedomus Client                    Devices Manager
+        
+```
+
 ```mermaid
 flowchart LR
     subgraph HomeAssistant[Home Assistant]
@@ -66,6 +80,20 @@ flowchart LR
 - Environnements avec accès direct à l'API Eedomus
 
 ### 🔄 Mode API Proxy (Webhook - Push)
+
+```
+
++---------------------+       HTTP       +---------------------+
+|                     |  -------------->  |                     |
+|   Home Assistant    |                   |   Eedomus Box       |
+|                     |                   |                     |
++---------------------+                   +---------------------+
+            API Proxy                         API Endpoint
+              |                                |
+              v                                v
+        Webhook Receiver                  Devices Manager
+        
+```
 
 ```mermaid
 flowchart LR
@@ -111,6 +139,21 @@ flowchart LR
 - Solutions où les identifiants API ne peuvent pas être stockés
 
 ### 🔧 + 🔄 Mode Combiné (Redondance et Performance Optimale)
+
+```
+
++---------------------+       HTTP       +---------------------+
+|                     |  -------------->  |                     |
+|   Home Assistant    |                   |   Eedomus Box       |
+|                     |  <--------------  |                     |
++---------------------+       Webhook     +---------------------+
+            Core                          API Endpoint
+              |                                |
+              v                                v
+        Eedomus Client                    Devices Manager
+        API Proxy
+        
+```
 
 ```mermaid
 flowchart LR
@@ -373,6 +416,31 @@ WARNING:   Only use this setting temporarily for debugging in secure environment
 
 ### 🎯 Tableau de Correspondance Eedomus → Home Assistant
 
+```
+
++---------------------+       +---------------------+
+|   Home Assistant    |       |   Eedomus Box       |
+|                     |       |                     |
+|   +-------------+   |       |   +-------------+   |
+|   |  Light      |   |       |   |  Light      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Switch     |   |       |   |  Switch     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Cover      |   |       |   |  Cover      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Sensor     |   |       |   |  Sensor     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Binary     |   |       |   |  Binary     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Select     |   |       |   |  Select     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Climate    |   |       |   |  Climate    |   |
+|   +-------------+   |       |   +-------------+   |
++---------------------+       +---------------------+
+        Mapping System              Device Data
+        
+```
+
 ```mermaid
 flowchart TD
     subgraph Legend[Legend]
@@ -439,6 +507,25 @@ flowchart TD
 
 ### Diagramme Global de Mapping des Entités
 
+```
+
++---------------------+       +---------------------+
+|   Home Assistant    |       |   Eedomus Box       |
+|                     |       |                     |
+|   RGBW Light        |       |   RGBW Light        |
+|   +-------------+   |       |   +-------------+   |
+|   |  Red        |   |       |   |  Red        |   |
+|   |  Green      |   |       |   |  Green      |   |
+|   |  Blue       |   |       |   |  Blue       |   |
+|   |  White      |   |       |   |  White      |   |
+|   |  Consumption|   |       |   |  Consumption|   |
+|   |  Color Preset|   |       |   |  Color Preset|   |
+|   +-------------+   |       |   +-------------+   |
++---------------------+       +---------------------+
+        Parent Device              Child Devices
+        
+```
+
 ```mermaid
 flowchart TD
     subgraph Eedomus[Eedomus Box]
@@ -470,6 +557,22 @@ flowchart TD
 ```
 
 ### Exemple Concret : Device RGBW avec Couleurs Prédéfinies
+
+```
+
++---------------------+       +---------------------+
+|   Home Assistant    |       |   Eedomus Box       |
+|                     |       |                     |
+|   Thermostat        |       |   Thermostat        |
+|   +-------------+   |       |   +-------------+   |
+|   |  Setpoint   |   |       |   |  Setpoint   |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Temperature|   |       |   |  Temperature|   |
+|   +-------------+   |       |   +-------------+   |
++---------------------+       +---------------------+
+        Setpoint Device           Temperature Sensor
+        
+```
 
 ```mermaid
 flowchart LR
@@ -507,6 +610,33 @@ subtype=color_preset]
 
 ### Exemple Concret : Thermostat avec Capteur Associé
 
+```
+
++---------------------+       +---------------------+
+|   Home Assistant    |       |   Eedomus Box       |
+|                     |       |                     |
+|   +-------------+   |       |   +-------------+   |
+|   |  Light      |   |       |   |  Light      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Switch     |   |       |   |  Switch     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Cover      |   |       |   |  Cover      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Sensor     |   |       |   |  Sensor     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Binary     |   |       |   |  Binary     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Select     |   |       |   |  Select     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Climate    |   |       |   |  Climate    |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Battery    |   |       |   |  Battery    |   |
+|   +-------------+   |       |   +-------------+   |
++---------------------+       +---------------------+
+        HA Entities                Eedomus Data
+        
+```
+
 ```mermaid
 flowchart TD
     subgraph ThermostatSystem[Thermostat System - Consigne Salon]
@@ -531,6 +661,33 @@ subtype=fil_pilote]
 ```
 
 ### Flux de Données Complet
+
+```
+
++---------------------+       +---------------------+
+|   Home Assistant    |       |   Eedomus Box       |
+|                     |       |                     |
+|   +-------------+   |       |   +-------------+   |
+|   |  Light      |   |       |   |  Light      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Switch     |   |       |   |  Switch     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Cover      |   |       |   |  Cover      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Sensor     |   |       |   |  Sensor     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Binary     |   |       |   |  Binary     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Select     |   |       |   |  Select     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Climate    |   |       |   |  Climate    |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Battery    |   |       |   |  Battery    |   |
+|   +-------------+   |       |   +-------------+   |
++---------------------+       +---------------------+
+        Mapping System              Device Data
+        
+```
 
 ```mermaid
 flowchart LR
@@ -562,6 +719,33 @@ flowchart LR
 
 ### Légende des Couleurs
 
+```
+
++---------------------+       +---------------------+
+|   Home Assistant    |       |   Eedomus Box       |
+|                     |       |                     |
+|   +-------------+   |       |   +-------------+   |
+|   |  Light      |   |       |   |  Light      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Switch     |   |       |   |  Switch     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Cover      |   |       |   +-------------+   |
+|   +-------------+   |       |   |  Cover      |   |
+|   |  Sensor     |   |       |   +-------------+   |
+|   +-------------+   |       |   |  Sensor     |   |
+|   |  Binary     |   |       |   +-------------+   |
+|   +-------------+   |       |   |  Binary     |   |
+|   |  Select     |   |       |   +-------------+   |
+|   +-------------+   |       |   |  Select     |   |
+|   |  Climate    |   |       |   +-------------+   |
+|   +-------------+   |       |   |  Climate    |   |
+|   |  Battery    |   |       |   +-------------+   |
+|   +-------------+   |       |   |  Battery    |   |
++---------------------+       +---------------------+
+        Data Flow                  Data Flow
+        
+```
+
 ```mermaid
 graph LR
     A[Green - Main Entities] -->|Example| B[Light, Climate, Coordinator]
@@ -572,6 +756,33 @@ graph LR
 ```
 
 ### Diagramme d'Intégration Git
+
+```
+
++---------------------+       +---------------------+
+|   Home Assistant    |       |   Eedomus Box       |
+|                     |       |                     |
+|   +-------------+   |       |   +-------------+   |
+|   |  Light      |   |       |   |  Light      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Switch     |   |       |   |  Switch     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Cover      |   |       |   |  Cover      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Sensor     |   |       |   |  Sensor     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Binary     |   |       |   |  Binary     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Select     |   |       |   |  Select     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Climate    |   |       |   |  Climate    |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Battery    |   |       |   |  Battery    |   |
+|   +-------------+   |       |   +-------------+   |
++---------------------+       +---------------------+
+        Legend                      Legend
+        
+```
 
 ```mermaid
 gitGraph
@@ -656,6 +867,33 @@ La branche actuelle `feature/improved-entity-mapping-and-battery-sensors` **int�
 | Correction Oeil de Chat | ❌ | ✅ (nouveau) |
 
 ### Diagramme d'Intégration
+
+```
+
++---------------------+       +---------------------+
+|   Home Assistant    |       |   Eedomus Box       |
+|                     |       |                     |
+|   +-------------+   |       |   +-------------+   |
+|   |  Light      |   |       |   |  Light      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Switch     |   |       |   |  Switch     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Cover      |   |       |   |  Cover      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Sensor     |   |       |   |  Sensor     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Binary     |   |       |   |  Binary     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Select     |   |       |   |  Select     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Climate    |   |       |   |  Climate    |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Battery    |   |       |   |  Battery    |   |
+|   +-------------+   |       |   +-------------+   |
++---------------------+       +---------------------+
+        Git Graph                   Git Graph
+        
+```
 
 ```mermaid
 gitGraph
@@ -933,6 +1171,33 @@ Cette intégration est développée selon une **méthodologie agile et collabora
 
 #### 💻 Infrastructure Technique
 
+```
+
++---------------------+       +---------------------+
+|   Home Assistant    |       |   Eedomus Box       |
+|                     |       |                     |
+|   +-------------+   |       |   +-------------+   |
+|   |  Light      |   |       |   |  Light      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Switch     |   |       |   |  Switch     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Cover      |   |       |   |  Cover      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Sensor     |   |       |   |  Sensor     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Binary     |   |       |   |  Binary     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Select     |   |       |   |  Select     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Climate    |   |       |   |  Climate    |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Battery    |   |       |   |  Battery    |   |
+|   +-------------+   |       |   +-------------+   |
++---------------------+       +---------------------+
+        Evolution                     Evolution
+        
+```
+
 ```mermaid
 graph LR
     A["Laptop (old macbook) Dev Emacs+vibe"] -->|SSH| B[Raspberry Pi HAOS]
@@ -1067,6 +1332,33 @@ Vous: "Parfait, ça fonctionne !"
 ## 📈 Évolution des Fonctionnalités
 
 ### Diagramme d'Évolution
+
+```
+
++---------------------+       +---------------------+
+|   Home Assistant    |       |   Eedomus Box       |
+|                     |       |                     |
+|   +-------------+   |       |   +-------------+   |
+|   |  Light      |   |       |   |  Light      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Switch     |   |       |   |  Switch     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Cover      |   |       |   |  Cover      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Sensor     |   |       |   |  Sensor     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Binary     |   |       |   |  Binary     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Select     |   |       |   |  Select     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Climate    |   |       |   |  Climate    |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Battery    |   |       |   |  Battery    |   |
+|   +-------------+   |       |   +-------------+   |
++---------------------+       +---------------------+
+        Comparison                   Comparison
+        
+```
 
 ```mermaid
 gantt
