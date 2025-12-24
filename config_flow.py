@@ -172,7 +172,7 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         "api_host": data[CONF_API_HOST],
                         "api_user": data[CONF_API_USER],
                         "api_secret": data[CONF_API_SECRET],
-                        CONF_ENABLE_HISTORY: data.get(CONF_ENABLE_HISTORY, DEFAULT_CONF_ENABLE_HISTORY),
+                        CONF_ENABLE_HISTORY: data.get(CONF_ENABLE_HISTORY, False),
                         CONF_SCAN_INTERVAL: scan_interval,
                         CONF_ENABLE_API_EEDOMUS: api_eedomus_enabled,
                         CONF_ENABLE_API_PROXY: api_proxy_enabled,
