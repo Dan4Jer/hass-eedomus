@@ -342,8 +342,16 @@ DEVICES_CLASS_MAPPING = {
         "GENERIC": [],
         "ha_entity": "sensor",
         "ha_subtype": "energy",
-        "exceptions": [],
-        "justification": "Classe 32 = Meter (énergie). Toujours mappé à un capteur d'énergie (Wh/kWh).",
+        "exceptions": [
+            {
+                "condition": "usage_id=37 (Motion sensor)",
+                "ha_entity": "binary_sensor",
+                "ha_subtype": "motion",
+                "example_periph_id": ["1090995"],  # Mouvement Oeil de chat
+                "justification": "Classe 32 avec usage_id=37 est un capteur de mouvement, pas d'énergie"
+            }
+        ],
+        "justification": "Classe 32 = Meter (énergie). Sauf usage_id=37 (mouvement).",
     },
     "50": {
         "GENERIC": [],

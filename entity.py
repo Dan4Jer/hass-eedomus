@@ -186,6 +186,17 @@ def map_device_to_ha_entity(device_data, default_ha_entity: str = "sensor"):
         _LOGGER.debug("Fil pilote climate mapping for %s (%s): %s", device_data["name"], device_data["periph_id"], mapping)
         return mapping
 
+    # Vérifier les exceptions basées sur usage_id avant le mapping par classe
+    # Cas spécial: usage_id=37 (motion) doit être binary_sensor même avec classe 32
+    if device_data.get("usage_id") == "37":
+        mapping = {
+            "ha_entity": "binary_sensor",
+            "ha_subtype": "motion",
+            "justification": f"usage_id=37: Capteur de mouvement (prioritaire sur classe Z-Wave)"
+        }
+        _LOGGER.info("🚶 Motion sensor mapping for %s (%s): %s", device_data["name"], device_data["periph_id"], mapping)
+        return mapping
+
     zwave_class = None
     for cls in supported_classes:
         cls_num = cls.split(":")[0]  # Extraire le numéro de classe (ex: "38:3" → "38")
