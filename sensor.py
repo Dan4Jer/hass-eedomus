@@ -85,6 +85,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             # Create regular sensor entity
             entities.append(EedomusSensor(coordinator, periph_id))
 
+    # Create battery sensor entities for devices with battery information
+    for periph_id, periph in all_peripherals.items():
+        battery_level = periph.get("battery")
+        
+        # Check if device has valid battery information
+        if battery_level and str(battery_level).strip():
+            try:
+                battery_value = int(battery_level)
+                if 0 <= battery_value <= 100:
+                    # Create battery sensor entity
+                    battery_entity = EedomusBatterySensor(coordinator, periph_id)
+                    entities.append(battery_entity)
+                    _LOGGER.info("Created battery sensor for %s (%s%%)", periph.get("name", "unknown"), battery_value)
+            except ValueError:
+                _LOGGER.warning("Invalid battery level for %s: %s", periph.get("name", "unknown"), battery_level)
+
     async_add_entities(entities)
 
 
@@ -324,3 +340,78 @@ class EedomusHistoryProgressSensor(EedomusEntity, SensorEntity):
             if progress.get("last_timestamp")
             else "Not started",
         }
+
+
+class EedomusBatterySensor(EedomusEntity, SensorEntity):
+    """
+    Battery sensor entity for eedomus devices.
+    
+    This class implements battery sensors as child entities of main devices.
+    It provides battery level information and status monitoring.
+    """
+
+    def __init__(self, coordinator, periph_id):
+        """Initialize the battery sensor."""
+        super().__init__(coordinator, periph_id)
+        
+        # Configure battery sensor attributes
+        device_name = self.coordinator.data[periph_id].get("name", "Unknown Device")
+        self._attr_name = f"{device_name} Battery"
+        self._attr_unique_id = f"{periph_id}_battery"
+        self._attr_device_class = "battery"
+        self._attr_native_unit_of_measurement = "%"
+        self._attr_state_class = "measurement"
+        
+        _LOGGER.info("🔋 Initialized battery sensor for %s (periph_id=%s)", device_name, periph_id)
+
+    @property
+    def native_value(self) -> int | None:
+        """Return the battery level."""
+        battery_level = self.coordinator.data[self._periph_id].get("battery", "")
+        
+        if battery_level and str(battery_level).strip():
+            try:
+                return int(battery_level)
+            except ValueError:
+                _LOGGER.warning("Invalid battery level for %s: %s", 
+                              self._attr_name, battery_level)
+        
+        return None
+
+    @property
+    def available(self) -> bool:
+        """Return True if battery data is available."""
+        battery_level = self.coordinator.data[self._periph_id].get("battery", "")
+        return battery_level and str(battery_level).strip() and str(battery_level).isdigit()
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Return additional state attributes."""
+        periph_data = self.coordinator.data[self._periph_id]
+        battery_level = self.native_value
+        
+        # Determine battery status
+        battery_status = "Unknown"
+        if battery_level is not None:
+            if battery_level >= 75:
+                battery_status = "High"
+            elif battery_level >= 50:
+                battery_status = "Medium"
+            elif battery_level >= 25:
+                battery_status = "Low"
+            else:
+                battery_status = "Critical"
+        
+        return {
+            "device_name": periph_data.get("name", ""),
+            "device_id": self._periph_id,
+            "device_type": periph_data.get("usage_name", ""),
+            "battery_status": battery_status,
+            "parent_device": periph_data.get("name", "")
+        }
+
+    async def async_update(self) -> None:
+        """Update the battery sensor."""
+        await super().async_update()
+        battery_level = self.coordinator.data[self._periph_id].get("battery", "")
+        _LOGGER.debug("🔋 Updated battery sensor %s: %s%%", self._attr_name, battery_level)
