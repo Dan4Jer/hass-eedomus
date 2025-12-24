@@ -47,18 +47,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             ha_entity = coordinator.data[periph_id]["ha_entity"]
 
         parent_id = periph.get("parent_periph_id", None)
-        if parent_id and coordinator.data[parent_id]["ha_entity"] == "sensor":
+        if parent_id:
             # Children are managed by parent... similar to light logic
             eedomus_mapping = None
             if periph.get("usage_id") == "26":  # Energy meter like in light.py
+                # Create energy sensor for consumption monitoring
                 eedomus_mapping = {
                     "ha_entity": "sensor",
                     "ha_subtype": "energy",
-                    "justification": "Parent is a sensor - energy meter"
+                    "justification": "Energy consumption meter (usage_id=26)"
                 }
             # Removed usage_id=82 mapping as it's now handled by the main mapping system as "select"
             if not eedomus_mapping is None:
                 coordinator.data[periph_id].update(eedomus_mapping)
+                _LOGGER.info("Created energy sensor for %s (%s) - consumption monitoring", 
+                           periph["name"], periph_id)
 
     # Create sensor entities
     for periph_id, periph in all_peripherals.items():

@@ -74,11 +74,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             if periph.get("usage_id") == "26":
                 eedomus_mapping = {
                     "ha_entity": "sensor",
-                    "ha_subtype": None,
-                    "justification": "Parent is a light - sensor - Consometre"
+                    "ha_subtype": "energy",
+                    "justification": "Parent is a light - energy consumption meter"
                 }
             if not eedomus_mapping is None:
                 coordinator.data[periph_id].update(eedomus_mapping)
+                _LOGGER.info("Created energy sensor for light %s (%s) - consumption monitoring", 
+                           periph["name"], periph_id)
 
     for periph_id, periph in all_peripherals.items():
         ha_entity = None

@@ -42,7 +42,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                 eedomus_mapping = {
                     "ha_entity": "sensor",
                     "ha_subtype": "energy",
-                    "justification": "Parent is a cover - energy meter"
+                    "justification": "Parent is a cover - energy consumption meter"
                 }
             if periph.get("usage_id") == "48":  # Slats
                 eedomus_mapping = {
@@ -52,6 +52,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                 }
             if not eedomus_mapping is None:
                 coordinator.data[periph_id].update(eedomus_mapping)
+                _LOGGER.info("Created energy sensor for cover %s (%s) - consumption monitoring", 
+                           periph["name"], periph_id)
 
     for periph_id, periph in all_peripherals.items():
         ha_entity = None
