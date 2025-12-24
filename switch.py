@@ -55,16 +55,48 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         # Look for patterns that indicate this is a consumption sensor, not a real switch
         should_be_sensor = False
         
-        # Pattern 1: Has children with usage_id=26 (energy meters)
+        # Pattern 1: Has ONLY children with usage_id=26 (energy meters) and no control capability
+        # This indicates it's a pure consumption monitor, not a controllable device with consumption monitoring
         if periph_id in parent_to_children:
+            has_only_consumption_children = True
+            has_control_children = False
+            
             for child in parent_to_children[periph_id]:
                 if child.get("usage_id") == "26":  # Consomètre
-                    should_be_sensor = True
+                    # Check if this is a pure consumption device by looking at the device name and type
+                    continue
+                elif child.get("usage_id") in ["1", "2", "4", "52"]:  # Control-capable children
+                    has_control_children = True
                     break
+            
+            # Only remap as sensor if it has consumption children AND no control children
+            # AND the device name suggests it's a consumption monitor
+            if has_only_consumption_children and not has_control_children:
+                # Additional check: if the device name contains consumption-related terms
+                device_name_lower = periph.get("name", "").lower()
+                consumption_keywords = ["consommation", "conso", "compteur", "meter", "energy"]
+                if any(keyword in device_name_lower for keyword in consumption_keywords):
+                    should_be_sensor = True
         
-        # Pattern 2: Name contains "consommation" (French for consumption)
-        if "consommation" in periph.get("name", "").lower():
-            should_be_sensor = True
+        # Pattern 2: Name contains "consommation" (French for consumption) but not other device types
+        device_name_lower = periph.get("name", "").lower()
+        if "consommation" in device_name_lower:
+            # Don't remap if it's clearly a controllable device
+            device_keywords = ["decoration", "lampe", "light", "prise", "switch", "interrupteur", "appliance", "noel", "sapin"]
+            if not any(keyword in device_name_lower for keyword in device_keywords):
+                should_be_sensor = True
+        
+        # Pattern 3: Specific device types that should remain switches even with consumption children
+        # These are devices that are primarily controllable but also have energy monitoring
+        device_name_lower = periph.get("name", "").lower()
+        controllable_device_keywords = [
+            "decoration", "anti-moustique", "sapin", "noel", "guirlande", 
+            "appliance", "appareil", "prise", "module", "relay"
+        ]
+        if any(keyword in device_name_lower for keyword in controllable_device_keywords):
+            should_be_sensor = False  # Force this to remain a switch
+            _LOGGER.info("Keeping '%s' (%s) as switch - identified as controllable device with consumption monitoring", 
+                        periph["name"], periph_id)
         
         if should_be_sensor:
             _LOGGER.info("Remapping switch '%s' (%s) as sensor - detected as consumption monitor", 
