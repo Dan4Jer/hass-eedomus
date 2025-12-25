@@ -68,6 +68,60 @@ Le script `fallback.php` permet d'effectuer directement un appel à l'API eedomu
 ## Fonctionnement du script
 ## Fonctionnement du script
 
+Le script `fallback.php` est conçu pour être simple et direct. Il appelle uniquement la fonction `setValue` de l'API eedomus avec les paramètres minimaux. Voici comment il fonctionne :
+
+1. **Récupération des paramètres minimaux** :
+   - `value` : Valeur à setter sur le périphérique.
+   - `device_id` : ID du périphérique eedomus.
+
+2. **Appel de la fonction setValue** :
+   - Le script appelle la fonction `setValue` de l'API eedomus avec les paramètres minimaux.
+   - La fonction `setValue` est définie dans l'API eedomus et est documentée ici : https://doc.eedomus.com/view/Scripts
+
+3. **Gestion des erreurs** :
+   - Si l'appel réussit, le script retourne un JSON avec `success` à 1 et le résultat.
+   - Si l'appel échoue, le script retourne un JSON avec `success` à 0 et le message d'erreur.
+
+**Documentation** : Ce script suit la documentation officielle de l'API eedomus : https://doc.eedomus.com/view/Scripts
+
+## Exemple de code
+
+Voici un exemple simplifié du script PHP :
+
+```php
+## Fonctionnement du script
+
+Le script `fallback.php` est conçu pour être simple et direct. Il appelle uniquement la fonction `setValue` de l'API eedomus avec une gestion des erreurs. Voici comment il fonctionne :
+
+1. **Récupération des paramètres** :
+   - `value` : Valeur à setter sur le périphérique.
+   - `device_id` : ID du périphérique eedomus.
+   - `api_host` : Adresse IP de la box eedomus.
+   - `api_user` : Utilisateur API eedomus.
+   - `api_secret` : Clé secrète API eedomus.
+   - `log` (optionnel) : Active la journalisation si défini à `true`.
+
+2. **Appel de la fonction setValue** :
+   - Le script appelle la fonction `setValue` de l'API eedomus en utilisant `file_get_contents`.
+   - L'URL construite est de la forme :
+     ````
+     http://<api_host>/api/set?action=periph.value&periph_id=<device_id>&value=<value>&api_user=<api_user>&api_secret=<api_secret>
+     ````
+
+3. **Gestion des erreurs** :
+   - Si l'appel réussit, le script retourne la réponse de l'API.
+   - Si l'appel échoue, le script retourne le code d'erreur et le message d'erreur.
+   - Les erreurs sont également gérées et retournées avec un code HTTP 500.
+
+**Documentation** : Ce script suit la documentation officielle de l'API eedomus : https://doc.eedomus.com/view/Scripts
+
+## Exemple de code
+
+Voici un exemple simplifié du script PHP :
+
+```php
+## Fonctionnement du script
+
 Le script `fallback.php` est conçu pour être simple et direct. Il appelle uniquement la fonction `setValue` de l'API eedomus avec une gestion des erreurs. Voici comment il fonctionne :
 
 1. **Récupération des paramètres** :
