@@ -5,7 +5,9 @@ from datetime import timedelta, datetime
 from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from .entity import EedomusEntity, map_device_to_ha_entity
-from .const import DOMAIN, DEFAULT_SCAN_INTERVAL, CONF_ENABLE_HISTORY, CONF_ENABLE_SET_VALUE_RETRY, DEFAULT_ENABLE_SET_VALUE_RETRY
+from .const import DOMAIN, DEFAULT_SCAN_INTERVAL, CONF_ENABLE_HISTORY, CONF_ENABLE_SET_VALUE_RETRY, DEFAULT_ENABLE_SET_VALUE_RETRY, \
+    CONF_PHP_FALLBACK_ENABLED, CONF_PHP_FALLBACK_SCRIPT_NAME, CONF_PHP_FALLBACK_TIMEOUT, CONF_PHP_FALLBACK_LOG_ENABLED, \
+    DEFAULT_PHP_FALLBACK_ENABLED, DEFAULT_PHP_FALLBACK_SCRIPT_NAME, DEFAULT_PHP_FALLBACK_TIMEOUT, DEFAULT_PHP_FALLBACK_LOG_ENABLED
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -393,6 +395,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # Get the config entry data - handle both old and new formats
         config_entry_data = entry_data.get("config_entry") if isinstance(entry_data.get("config_entry"), dict) else self.config_entry.data
         enable_retry = config_entry_data.get(CONF_ENABLE_SET_VALUE_RETRY, DEFAULT_ENABLE_SET_VALUE_RETRY) if config_entry_data else DEFAULT_ENABLE_SET_VALUE_RETRY
+        php_fallback_enabled = config_entry_data.get(CONF_PHP_FALLBACK_ENABLED, DEFAULT_PHP_FALLBACK_ENABLED) if config_entry_data else DEFAULT_PHP_FALLBACK_ENABLED
         
         if not enable_retry:
             _LOGGER.info("⏭️ Set value retry disabled - attempting single set_value for %s (%s)", self.data[periph_id]["name"], periph_id)
@@ -403,9 +406,24 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         
         # Only retry if enabled and we get error_code 6 (value refused)
         if enable_retry and ret.get("success") == 0 and ret.get("error_code") == "6":
-            next_value = self.next_best_value(periph_id, value)
-            _LOGGER.warn("🔄 Retry enabled - trying next best value (%s => %s) for %s (%s)", value, next_value, self.data[periph_id]["name"], periph_id)
-            await self.client.set_periph_value(periph_id, next_value.get("value"))
+            # Try PHP fallback first if enabled
+            if php_fallback_enabled:
+                _LOGGER.info("🔄 Trying PHP fallback for %s (%s)", self.data[periph_id]["name"], periph_id)
+                fallback_result = await self.client.php_fallback_set_value(periph_id, value)
+                if fallback_result.get("success") == 1:
+                    _LOGGER.info("✅ PHP fallback succeeded for %s (%s)", self.data[periph_id]["name"], periph_id)
+                else:
+                    _LOGGER.warning("⚠️ PHP fallback failed for %s (%s): %s", 
+                                   self.data[periph_id]["name"], periph_id, fallback_result.get("error", "Unknown error"))
+                    # Try next best value if PHP fallback fails
+                    next_value = self.next_best_value(periph_id, value)
+                    _LOGGER.warn("🔄 Retry enabled - trying next best value (%s => %s) for %s (%s)", value, next_value, self.data[periph_id]["name"], periph_id)
+                    await self.client.set_periph_value(periph_id, next_value.get("value"))
+            else:
+                # Try next best value if PHP fallback is not enabled
+                next_value = self.next_best_value(periph_id, value)
+                _LOGGER.warn("🔄 Retry enabled - trying next best value (%s => %s) for %s (%s)", value, next_value, self.data[periph_id]["name"], periph_id)
+                await self.client.set_periph_value(periph_id, next_value.get("value"))
         elif ret.get("success") == 0:
             _LOGGER.error("❌ Set value failed for %s (%s): %s - retry disabled or not applicable", 
                          self.data[periph_id]["name"], periph_id, ret.get("error", "Unknown error"))

@@ -194,17 +194,6 @@ class EedomusClient:
             if result.get('success') == 0:
                 error = result.get('error', 'Unknown error')
                 _LOGGER.error("Failed to set peripheral value: (id=%s val=%s) %s", periph_id, value, error)
-                
-                # Essayer le PHP fallback si activé
-                if self.php_fallback_enabled:
-                    _LOGGER.info("Trying PHP fallback for peripheral %s with value %s", periph_id, value)
-                    fallback_result = await self.php_fallback_set_value(periph_id, value)
-                    if fallback_result.get('success') == 1:
-                        _LOGGER.info("PHP fallback succeeded for peripheral %s", periph_id)
-                        return fallback_result
-                    else:
-                        _LOGGER.warning("PHP fallback failed for peripheral %s: %s", periph_id, fallback_result.get('error', 'Unknown error'))
-                
                 return result
 
             # Normalisation de la réponse pour les commandes réussies
