@@ -100,32 +100,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
     async_add_entities(binary_sensors, True)
 
-async def async_setup_entry_old(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
-    """Set up eedomus binary sensor entities from config entry."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
-    all_peripherals = coordinator.get_all_peripherals()
-
-    binary_sensors = []
-    for periph_id, periph in all_peripherals.items():
-        value_type = periph.get("value_type")
-        usage_name = periph.get("usage_name", "").lower()
-
-        _LOGGER.debug("Setup binary sensor entity for periph_id=%s data=%s", periph_id, coordinator.data[periph_id])
-
-        # Filtre pour les périphériques binaires
-        if value_type == "bool" or (
-            "détecteur" in usage_name or
-            "mouvement" in usage_name or
-            "porte" in usage_name or
-            "fenêtre" in usage_name or
-            "fumée" in usage_name or
-            "inondation" in usage_name or
-            "contact" in usage_name
-        ):
-            binary_sensors.append(EedomusBinarySensor(coordinator, periph_id))
-
-    async_add_entities(binary_sensors, True)
-
 class EedomusBinarySensor(EedomusEntity, BinarySensorEntity):
     """Representation of an eedomus binary sensor."""
 
@@ -156,11 +130,11 @@ class EedomusBinarySensor(EedomusEntity, BinarySensorEntity):
         ha_subtype = periph_info.get("ha_subtype", "")
         usage_name = periph_info.get("usage_name", "").lower()
         
-        # D'abord utiliser le ha_subtype si disponible
+        # D'abord utiliser le ha_subtype si disponible ==> à simplifier
         if ha_subtype:
             return EEDOMUS_TO_HA_DEVICE_CLASS.get(ha_subtype, None)
         
-        # Ensuite utiliser le nom et l'usage_name
+        # Ensuite utiliser le nom et l'usage_name ==> à revoir
         if "mouvement" in usage_name:
             return BinarySensorDeviceClass.MOTION
         elif "porte" in usage_name or "fenêtre" in usage_name:

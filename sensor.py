@@ -108,11 +108,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                     ha_entity = coordinator.data[periph_id].get("ha_entity")
                     usage_id = periph.get("usage_id")
                     
-                    # Don't create battery sensor for children that should be mapped by usage_id
-                    if usage_id in ["7", "24", "36"]:  # Temperature, Illuminance, Flood
-                        _LOGGER.debug("Skipping battery sensor for %s (%s) - usage_id=%s should be specific sensor", 
-                                   periph.get("name", "unknown"), periph_id, usage_id)
-                        continue
                     
                     # Create battery sensor entity
                     battery_entity = EedomusBatterySensor(coordinator, periph_id)
