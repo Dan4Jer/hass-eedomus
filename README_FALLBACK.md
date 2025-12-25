@@ -11,6 +11,7 @@ Le script `fallback.php` permet d'effectuer directement un appel à l'API eedomu
 ### Prérequis
 - Une box eedomus avec un serveur web fonctionnel (Apache, Nginx, etc.).
 - Accès en écriture au répertoire web de la box eedomus (généralement `/var/www/html/`).
+- Le script doit être en encodage ASCII pour être compatible avec la box eedomus.
 
 ### Étapes de déploiement
 
@@ -31,7 +32,14 @@ Le script `fallback.php` permet d'effectuer directement un appel à l'API eedomu
    chown www-data:www-data /var/www/html/eedomus_fallback/fallback.php
    ```
 
-4. **Tester le script** :
+4. **Vérifier l'encodage** :
+   Assurez-vous que le script est en encodage ASCII :
+   ```bash
+   file -i /var/www/html/eedomus_fallback/fallback.php
+   ```
+   Le résultat doit être : `text/x-php; charset=us-ascii`
+
+5. **Tester le script** :
    Vous pouvez tester le script en accédant à l'URL suivante dans votre navigateur ou via `curl` :
    ```bash
    curl "http://<IP_BOX_EEDOMUS>/eedomus_fallback/fallback.php?value=50&device_id=123&api_host=192.168.1.100&api_user=myuser&api_secret=mysecret"
@@ -216,6 +224,43 @@ Le script peut être personnalisé pour ajouter des fonctionnalités supplément
 1. **Mapping des valeurs** : Ajoutez un mapping des valeurs avant l'appel API.
 2. **Traitement conditionnel** : Ajoutez des règles pour transformer les valeurs en fonction de conditions spécifiques.
 3. **Gestion des erreurs avancée** : Personnalisez la gestion des erreurs pour des cas spécifiques.
+
+## Étapes d'installation de la fonctionnalité PHP fallback
+
+### Résumé des étapes
+
+1. **Déployer le script PHP** :
+   - Copiez le fichier `fallback.php` dans un répertoire accessible par votre serveur web sur la box eedomus (ex: `/var/www/html/eedomus_fallback/`).
+   - Assurez-vous que le script est en encodage ASCII.
+   - Vérifiez les permissions du fichier.
+
+2. **Configurer l'intégration** :
+   - Accédez à la configuration de l'intégration hass-eedomus dans Home Assistant.
+   - Activez l'option **Activer le PHP fallback**.
+   - Entrez le nom du script PHP (ex: `eedomus_fallback`).
+   - Configurez le timeout pour la requête HTTP (défaut : 5 secondes).
+   - Activez les logs détaillés si nécessaire.
+
+3. **Tester la fonctionnalité** :
+   - Essayez de setter une valeur invalide sur un périphérique pour déclencher le PHP fallback.
+   - Vérifiez les logs pour voir si le PHP fallback est appelé et s'il réussit.
+
+### Exemple de test
+
+1. **Déclencher le PHP fallback** :
+   - Essayez de setter une valeur invalide sur un périphérique :
+   ```bash
+   curl "http://<IP_BOX_EEDOMUS>/api/set?action=periph.value&periph_id=123&value=invalid&api_user=myuser&api_secret=mysecret"
+   ```
+
+2. **Vérifier les logs** :
+   - Vérifiez les logs de Home Assistant pour voir si le PHP fallback est appelé :
+   ```bash
+   tail -f /config/home-assistant.log | grep "PHP fallback"
+   ```
+
+3. **Vérifier le résultat** :
+   - Vérifiez que la valeur a été correctement setée sur le périphérique.
 
 ## Conclusion
 

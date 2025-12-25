@@ -1,9 +1,9 @@
 <?php
 /**
- * Script PHP de fallback pour la gestion des valeurs non définies dans hass-eedomus.
+ * Script PHP de fallback pour la gestion des valeurs non definies dans hass-eedomus.
  * 
- * Ce script simplifié effectue directement un setvalue sur l'API eedomus locale
- * lorsqu'une valeur est rejetée. Il utilise les mêmes paramètres que l'API standard.
+ * Ce script simplifie effectue directement un setvalue sur l'API eedomus locale
+ * lorsqu'une valeur est rejetee. Il utilise les memes parametres que l'API standard.
  * 
  * @package hass-eedomus
  * @author Dan4Jer
@@ -11,11 +11,11 @@
  */
 
 /**
- * Récupère un argument de requête (GET ou POST) avec validation.
+ * Recupere un argument de requete (GET ou POST) avec validation.
  * 
  * @param string $name Nom de l'argument.
  * @param bool $required Indique si l'argument est obligatoire.
- * @param string|null $default Valeur par défaut si l'argument est optionnel.
+ * @param string|null $default Valeur par defaut si l'argument est optionnel.
  * @return string Valeur de l'argument.
  */
 function getArg(string $name, bool $required = false, ?string $default = null): string {
@@ -31,15 +31,15 @@ function getArg(string $name, bool $required = false, ?string $default = null): 
 }
 
 /**
- * Effectue un appel à l'API eedomus locale pour setter une valeur.
+ * Effectue un appel a l'API eedomus locale pour setter une valeur.
  * 
  * @param string $api_host Adresse IP de la box eedomus.
- * @param string $device_id ID du périphérique.
- * @param string $value Valeur à setter.
+ * @param string $device_id ID du peripherique.
+ * @param string $value Valeur a setter.
  * @param string $api_user Utilisateur API.
- * @param string $api_secret Clé secrète API.
+ * @param string $api_secret Cle secrete API.
  * @param bool $log_enabled Active la journalisation.
- * @return string Résultat de l'appel API.
+ * @return string Resultat de l'appel API.
  */
 function callEedomusAPI(string $api_host, string $device_id, string $value, 
                         string $api_user, string $api_secret, bool $log_enabled): string {
@@ -56,7 +56,7 @@ function callEedomusAPI(string $api_host, string $device_id, string $value,
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
     
-    // Exécution de la requête
+    // Execution de la requete
     $response = curl_exec($ch);
     
     if (curl_errno($ch)) {
@@ -74,7 +74,7 @@ function callEedomusAPI(string $api_host, string $device_id, string $value,
     curl_close($ch);
     
     if ($log_enabled) {
-        error_log("[hass-eedomus fallback] Réponse API: HTTP $http_code - $response");
+        error_log("[hass-eedomus fallback] Reponse API: HTTP $http_code - $response");
     }
     
     if ($http_code != 200) {
@@ -86,7 +86,7 @@ function callEedomusAPI(string $api_host, string $device_id, string $value,
     return $response;
 }
 
-// Récupération des arguments
+// Recuperation des arguments
 $value = getArg('value', true);
 $device_id = getArg('device_id', true);
 $api_host = getArg('api_host', true);
@@ -95,14 +95,14 @@ $api_secret = getArg('api_secret', true);
 $log_enabled = getArg('log', false, 'false') === 'true';
 
 if ($log_enabled) {
-    error_log("[hass-eedomus fallback] Script appelé avec value=$value, device_id=$device_id, api_host=$api_host");
+    error_log("[hass-eedomus fallback] Script appele avec value=$value, device_id=$device_id, api_host=$api_host");
 }
 
-// Appel direct à l'API eedomus pour setter la valeur
+// Appel direct a l'API eedomus pour setter la valeur
 try {
     $response = callEedomusAPI($api_host, $device_id, $value, $api_user, $api_secret, $log_enabled);
     
-    // Retourner la réponse de l'API eedomus
+    // Retourner la reponse de l'API eedomus
     echo $response;
     
 } catch (Exception $e) {
