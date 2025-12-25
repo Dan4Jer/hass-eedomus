@@ -84,6 +84,31 @@ Le script `fallback.php` est conçu pour être simple et direct. Il appelle uniq
 
 **Documentation** : Ce script suit la documentation officielle de l'API eedomus : https://doc.eedomus.com/view/Scripts
 
+**Contraintes** : Ce script respecte les contraintes de la box eedomus et n'utilise pas de fonctions non autorisées comme `json_encode`, `http_response_code`, et `getMessage`.
+
+## Exemple de code
+
+Voici un exemple simplifié du script PHP :
+
+```php
+## Fonctionnement du script
+
+Le script `fallback.php` est conçu pour être simple et direct. Il appelle uniquement la fonction `setValue` de l'API eedomus avec les paramètres minimaux. Voici comment il fonctionne :
+
+1. **Récupération des paramètres minimaux** :
+   - `value` : Valeur à setter sur le périphérique.
+   - `device_id` : ID du périphérique eedomus.
+
+2. **Appel de la fonction setValue** :
+   - Le script appelle la fonction `setValue` de l'API eedomus avec les paramètres minimaux.
+   - La fonction `setValue` est définie dans l'API eedomus et est documentée ici : https://doc.eedomus.com/view/Scripts
+
+3. **Gestion des erreurs** :
+   - Si l'appel réussit, le script retourne un JSON avec `success` à 1 et le résultat.
+   - Si l'appel échoue, le script retourne un JSON avec `success` à 0 et le message d'erreur.
+
+**Documentation** : Ce script suit la documentation officielle de l'API eedomus : https://doc.eedomus.com/view/Scripts
+
 ## Exemple de code
 
 Voici un exemple simplifié du script PHP :

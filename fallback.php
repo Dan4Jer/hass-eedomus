@@ -22,9 +22,9 @@ try {
     $result = setValue($device_id, $value);
     
     // Retourner le resultat
-    echo json_encode(array("success" => 1, "result" => $result));
+    echo '{"success": 1, "result": "' . $result . '"}';
     
 } catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(array("success" => 0, "error" => $e->getMessage()));
+    // Retourner une erreur
+    echo '{"success": 0, "error": "' . $e->getMessage() . '"}';
 }
