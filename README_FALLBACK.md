@@ -79,6 +79,40 @@ Le script `fallback.php` est conçu pour être simple et direct. Il appelle uniq
    - `log` (optionnel) : Active la journalisation si défini à `true`.
 
 2. **Appel de la fonction setValue** :
+   - Le script appelle la fonction `setValue` de l'API eedomus en utilisant `file_get_contents`.
+   - L'URL construite est de la forme :
+     ````
+     http://<api_host>/api/set?action=periph.value&periph_id=<device_id>&value=<value>&api_user=<api_user>&api_secret=<api_secret>
+     ````
+
+3. **Gestion des erreurs** :
+   - Si l'appel réussit, le script retourne la réponse de l'API.
+   - Si l'appel échoue, le script retourne le code d'erreur et le message d'erreur.
+   - Les erreurs sont également gérées et retournées avec un code HTTP 500.
+
+4. **Journalisation** :
+   - Si la journalisation est activée (`log=true`), le script journalise les appels et les réponses dans les logs du serveur web.
+
+**Inspiration** : Ce script s'inspire du script [2B_domzevents.php](https://github.com/2bprog/eedomus-domoticzevent-plugin/blob/master/php/2B_domzevents.php) du plugin eedomus-domoticzevent-plugin.
+
+## Exemple de code
+
+Voici un exemple simplifié du script PHP :
+
+```php
+## Fonctionnement du script
+
+Le script `fallback.php` est conçu pour être simple et direct. Il appelle uniquement la fonction `setValue` de l'API eedomus avec une gestion des erreurs. Voici comment il fonctionne :
+
+1. **Récupération des paramètres** :
+   - `value` : Valeur à setter sur le périphérique.
+   - `device_id` : ID du périphérique eedomus.
+   - `api_host` : Adresse IP de la box eedomus.
+   - `api_user` : Utilisateur API eedomus.
+   - `api_secret` : Clé secrète API eedomus.
+   - `log` (optionnel) : Active la journalisation si défini à `true`.
+
+2. **Appel de la fonction setValue** :
    - Le script appelle la fonction `setValue` de l'API eedomus en utilisant cURL.
    - L'URL construite est de la forme :
      ````
