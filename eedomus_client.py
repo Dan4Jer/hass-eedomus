@@ -10,7 +10,11 @@ import traceback
 from typing import Optional, Dict, Any
 from async_timeout import timeout as async_timeout
 
-_LOGGER = logging.getLogger(__name__)
+from .const import (
+    DEFAULT_PHP_FALLBACK_ENABLED, 
+    DEFAULT_PHP_FALLBACK_SCRIPT_NAME, 
+    DEFAULT_PHP_FALLBACK_TIMEOUT
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -55,9 +59,18 @@ class EedomusClient:
         self.base_url_script = f"http://{self.api_host}/script/?exec="
         
         # Configuration du PHP fallback
-        self.php_fallback_enabled = config_entry.options.get("php_fallback_enabled", False)
-        self.php_fallback_script_name = config_entry.options.get("php_fallback_script_name", "fallback.php")
-        self.php_fallback_timeout = config_entry.options.get("php_fallback_timeout", 5)
+        self.php_fallback_enabled = config_entry.options.get(
+            "php_fallback_enabled", 
+            config_entry.data.get("php_fallback_enabled", DEFAULT_PHP_FALLBACK_ENABLED)
+        )
+        self.php_fallback_script_name = config_entry.options.get(
+            "php_fallback_script_name", 
+            config_entry.data.get("php_fallback_script_name", DEFAULT_PHP_FALLBACK_SCRIPT_NAME)
+        )
+        self.php_fallback_timeout = config_entry.options.get(
+            "php_fallback_timeout", 
+            config_entry.data.get("php_fallback_timeout", DEFAULT_PHP_FALLBACK_TIMEOUT)
+        )
 
     async def fetch_data(self, endpoint: str, params: Optional[Dict] = None, use_set: bool = False, history_mode: bool = False) -> Dict:
         """Fetch data from eedomus API with proper encoding handling."""
