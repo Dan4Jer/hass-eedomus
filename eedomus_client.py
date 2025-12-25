@@ -52,10 +52,11 @@ class EedomusClient:
         self.api_host = config_entry.data["api_host"]
         self.base_url_get = f"http://{self.api_host}/api/get"
         self.base_url_set = f"http://{self.api_host}/api/set"
+        self.base_url_script = f"http://{self.api_host}/script/?exec="
         
         # Configuration du fallback PHP
         self.fallback_enabled = config_entry.options.get("fallback_enabled", False)
-        self.fallback_script_url = config_entry.options.get("fallback_script_url", "")
+        self.fallback_script_name = config_entry.options.get("fallback_script_name", "eedomus_fallback")
         self.fallback_timeout = config_entry.options.get("fallback_timeout", 5)
         self.fallback_log_enabled = config_entry.options.get("fallback_log_enabled", False)
 
@@ -226,9 +227,12 @@ class EedomusClient:
         Returns:
             Dict: Result of the operation with 'success' and 'message' fields.
         """
-        if not self.fallback_enabled or not self.fallback_script_url:
+        if not self.fallback_enabled:
             _LOGGER.warning("Fallback is not configured or disabled")
             return {"success": 0, "error": "Fallback not configured"}
+        
+        # Construct the fallback script URL
+        fallback_script_url = f"{self.base_url_script}{self.fallback_script_name}"
         
         try:
             params = {
@@ -241,10 +245,10 @@ class EedomusClient:
             }
             
             _LOGGER.debug("Calling fallback script at %s with params: %s", 
-                         self.fallback_script_url, params)
+                         fallback_script_url, params)
             
             async with async_timeout(self.fallback_timeout):
-                async with self.session.get(self.fallback_script_url, params=params) as resp:
+                async with self.session.get(fallback_script_url, params=params) as resp:
                     raw_data = await resp.read()
                     
                     if resp.status != 200:

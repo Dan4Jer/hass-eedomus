@@ -48,12 +48,14 @@ Le script `fallback.php` permet d'effectuer directement un appel à l'API eedomu
 
 2. **Activer le fallback PHP** :
    - Cochez la case **Activer le fallback PHP**.
-   - Entrez l'URL du script PHP (ex: `http://<IP_BOX_EEDOMUS>/eedomus_fallback/fallback.php`).
+   - Entrez le nom du script PHP (ex: `eedomus_fallback`).
    - Configurez le timeout pour la requête HTTP (défaut : 5 secondes).
    - Activez les logs détaillés si nécessaire.
 
 3. **Sauvegarder la configuration** :
    - Cliquez sur **Soumettre** pour enregistrer les modifications.
+
+**Note** : Le nom du script est utilisé pour construire l'URL complète du script. Par exemple, si vous entrez `eedomus_fallback` comme nom de script, l'URL complète sera `http://<IP_BOX_EEDOMUS>/script/?exec=eedomus_fallback`. Assurez-vous que le script est déployé sur la box eedomus avec le nom exact que vous avez spécifié.
 
 ## Fonctionnement du script
 

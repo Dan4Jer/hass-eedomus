@@ -1566,9 +1566,11 @@ Pour activer le fallback PHP, suivez ces étapes :
 2. **Configurer l'intégration** :
    - Accédez à la configuration de l'intégration hass-eedomus dans Home Assistant.
    - Activez l'option **Activer le fallback PHP**.
-   - Entrez l'URL du script PHP (ex: `http://<IP_BOX_EEDOMUS>/eedomus_fallback/fallback.php`).
+   - Entrez le nom du script PHP (ex: `eedomus_fallback`).
    - Configurez le timeout pour la requête HTTP (défaut : 5 secondes).
    - Activez les logs détaillés si nécessaire.
+
+**Note** : Le nom du script est utilisé pour construire l'URL complète du script. Assurez-vous que le script est déployé sur la box eedomus avec le nom exact que vous avez spécifié.
 
 ### 📝 Fonctionnement du script
 

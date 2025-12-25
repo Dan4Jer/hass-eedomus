@@ -30,7 +30,7 @@ CONF_ENABLE_API_PROXY = "enable_api_proxy"
 CONF_API_PROXY_DISABLE_SECURITY = "api_proxy_disable_security"
 CONF_ENABLE_SET_VALUE_RETRY = "enable_set_value_retry"
 CONF_FALLBACK_ENABLED = "fallback_enabled"
-CONF_FALLBACK_SCRIPT_URL = "fallback_script_url"
+CONF_FALLBACK_SCRIPT_NAME = "fallback_script_name"
 CONF_FALLBACK_TIMEOUT = "fallback_timeout"
 CONF_FALLBACK_LOG_ENABLED = "fallback_log_enabled"
 DEFAULT_CONF_ENABLE_API_EEDOMUS = True
@@ -39,6 +39,7 @@ DEFAULT_ENABLE_SET_VALUE_RETRY = True  # Set value retry enabled by default
 DEFAULT_API_PROXY_DISABLE_SECURITY = False  # Security enabled by default
 DEFAULT_SCAN_INTERVAL = 300  # 5 minutes
 DEFAULT_FALLBACK_ENABLED = False  # Fallback disabled by default
+DEFAULT_FALLBACK_SCRIPT_NAME = "eedomus_fallback"  # Default script name
 DEFAULT_FALLBACK_TIMEOUT = 5  # 5 seconds timeout for fallback script
 DEFAULT_FALLBACK_LOG_ENABLED = False  # Logging disabled by default
 

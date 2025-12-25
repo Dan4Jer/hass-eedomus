@@ -5,7 +5,7 @@ from aiohttp import ClientSession, ClientError
 from homeassistant.config_entries import ConfigEntry
 from hass-eedomus.eedomus_client import EedomusClient
 from hass-eedomus.const import (
-    CONF_FALLBACK_ENABLED, CONF_FALLBACK_SCRIPT_URL, 
+    CONF_FALLBACK_ENABLED, CONF_FALLBACK_SCRIPT_NAME, 
     CONF_FALLBACK_TIMEOUT, CONF_FALLBACK_LOG_ENABLED
 )
 
@@ -26,7 +26,7 @@ async def test_fallback_not_configured():
         },
         options={
             CONF_FALLBACK_ENABLED: False,
-            CONF_FALLBACK_SCRIPT_URL: "",
+            CONF_FALLBACK_SCRIPT_NAME: "eedomus_fallback",
             CONF_FALLBACK_TIMEOUT: 5,
             CONF_FALLBACK_LOG_ENABLED: False
         }
@@ -66,7 +66,7 @@ async def test_fallback_script_success():
         },
         options={
             CONF_FALLBACK_ENABLED: True,
-            CONF_FALLBACK_SCRIPT_URL: "http://192.168.1.100/fallback.php",
+            CONF_FALLBACK_SCRIPT_NAME: "http://192.168.1.100/fallback.php",
             CONF_FALLBACK_TIMEOUT: 5,
             CONF_FALLBACK_LOG_ENABLED: False
         }
@@ -106,7 +106,7 @@ async def test_fallback_script_error():
         },
         options={
             CONF_FALLBACK_ENABLED: True,
-            CONF_FALLBACK_SCRIPT_URL: "http://192.168.1.100/fallback.php",
+            CONF_FALLBACK_SCRIPT_NAME: "http://192.168.1.100/fallback.php",
             CONF_FALLBACK_TIMEOUT: 5,
             CONF_FALLBACK_LOG_ENABLED: False
         }
@@ -143,7 +143,7 @@ async def test_fallback_script_timeout():
         },
         options={
             CONF_FALLBACK_ENABLED: True,
-            CONF_FALLBACK_SCRIPT_URL: "http://192.168.1.100/fallback.php",
+            CONF_FALLBACK_SCRIPT_NAME: "http://192.168.1.100/fallback.php",
             CONF_FALLBACK_TIMEOUT: 1,  # Short timeout for test
             CONF_FALLBACK_LOG_ENABLED: False
         }
@@ -179,7 +179,7 @@ async def test_fallback_script_client_error():
         },
         options={
             CONF_FALLBACK_ENABLED: True,
-            CONF_FALLBACK_SCRIPT_URL: "http://192.168.1.100/fallback.php",
+            CONF_FALLBACK_SCRIPT_NAME: "http://192.168.1.100/fallback.php",
             CONF_FALLBACK_TIMEOUT: 5,
             CONF_FALLBACK_LOG_ENABLED: False
         }
@@ -220,7 +220,7 @@ async def test_fallback_script_parameters():
         },
         options={
             CONF_FALLBACK_ENABLED: True,
-            CONF_FALLBACK_SCRIPT_URL: "http://192.168.1.100/fallback.php",
+            CONF_FALLBACK_SCRIPT_NAME: "http://192.168.1.100/fallback.php",
             CONF_FALLBACK_TIMEOUT: 5,
             CONF_FALLBACK_LOG_ENABLED: True
         }
@@ -288,7 +288,7 @@ async def test_set_periph_value_with_fallback():
         },
         options={
             CONF_FALLBACK_ENABLED: True,
-            CONF_FALLBACK_SCRIPT_URL: "http://192.168.1.100/fallback.php",
+            CONF_FALLBACK_SCRIPT_NAME: "http://192.168.1.100/fallback.php",
             CONF_FALLBACK_TIMEOUT: 5,
             CONF_FALLBACK_LOG_ENABLED: False
         }
