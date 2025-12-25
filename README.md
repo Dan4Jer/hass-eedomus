@@ -14,19 +14,19 @@ Les intégrations personnalisées Home Assistant reposent sur un système de **p
 ### 🔄 Architecture de hass-eedomus
 
 ```
-+---------------------+       +---------------------+
-|   Home Assistant    |       |   Eedomus Box       |
-|                     |       |                     |
-|   +-------------+   |       |   +-------------+   |
-|   | Coordinator |<--|------>|   | API Endpoint |   |
-|   +-------------+   |       |   +-------------+   |
-|   | Light Platform|   |       |   |  Devices     |   |
-|   | Switch Platform|   |       |   |  States      |   |
-|   | Sensor Platform|   |       |   +-------------+   |
-|   | Climate Platform|  |       |                     |
-|   | Battery Sensors|   |       +---------------------+
-|   +-------------+   |                                 
-+---------------------+                                 
++--------------------------+       +----------------------+
+|   Home Assistant         |       |   Eedomus Box        |
+|                          |       |                      |
+|   +-------------------+  |       |   +--------------+   |
+|   | Coordinator       |<-|------>|   | API Endpoint |   |
+|   +-------------------+  |       |   +--------------+   |
+|   | Light Platform    |  |       |   |  Devices     |   |
+|   | Switch Platform   |  |       |   |  States      |   |
+|   | Sensor Platform   |  |       |   +--------------+   |
+|   | Climate Platform  |  |       |                      |
+|   | Battery Sensors   |  |       +----------------------+
+|   +-------------------+  |                                 
++--------------------------+                                 
 ```
 
 ```mermaid
@@ -70,17 +70,17 @@ hass-eedomus assure deux fonctions principales :
 La clé d'une intégration réussie réside dans le **curseur de granularité** entre :
 
 ```
-+---------------------+       +---------------------+
-|   Eedomus Device   |       |   HA Device         |
-|                     |       |                     |
-|   +-------------+   |       |   +-------------+   |
-|   | Device 1077644|---|------>| RGBW Light    |   |
-|   +-------------+   |       |   +-------------+   |
-|   | Red Child    |   |       |   | Battery Entity|   |
-|   | Green Child  |   |       |   +-------------+   |
-|   | Battery Sensor|---|------>| (Child Entity) |   |
-|   +-------------+   |       +---------------------+
-+---------------------+                                 
++-----------------------+       +----------------------+
+|   Eedomus Device      |       |   HA Device          |
+|                       |       |                      |
+|   +---------------+   |       |   +--------------+   |
+|   | Device 1077644|---|------>|   | RGBW Light   |   |
+|   +---------------+   |       |   +--------------+   |
+|   | Red Child     |   |       |   |Battery Entity|   |
+|   | Green Child   |   |       |   +--------------+   |
+|   | Battery Sensor|---|-------|-->|(Child Entity)|   |
+|   +---------------+   |       +----------------------+
++-----------------------+                                 
 ```
 
 ```mermaid
@@ -142,7 +142,7 @@ L'intégration eedomus supporte maintenant **deux modes de connexion indépendan
 
 ```
 
-+---------------------+       HTTP       +---------------------+
++---------------------+       HTTP        +---------------------+
 |                     |  -------------->  |                     |
 |   Home Assistant    |                   |   Eedomus Box       |
 |                     |  <--------------  |                     |
@@ -193,7 +193,7 @@ flowchart LR
 
 ```
 
-+---------------------+       HTTP       +---------------------+
++---------------------+       HTTP        +---------------------+
 |                     |  -------------->  |                     |
 |   Home Assistant    |                   |   Eedomus Box       |
 |                     |                   |                     |
@@ -252,7 +252,7 @@ flowchart LR
 
 ```
 
-+---------------------+       HTTP       +---------------------+
++---------------------+       HTTP        +---------------------+
 |                     |  -------------->  |                     |
 |   Home Assistant    |                   |   Eedomus Box       |
 |                     |  <--------------  |                     |
@@ -635,7 +635,7 @@ flowchart TD
 |   |  Blue       |   |       |   |  Blue       |   |
 |   |  White      |   |       |   |  White      |   |
 |   |  Consumption|   |       |   |  Consumption|   |
-|   |  Color Preset|   |       |   |  Color Preset|   |
+|   | Color Preset|   |       |   | Color Preset|   |
 |   +-------------+   |       |   +-------------+   |
 +---------------------+       +---------------------+
         Parent Device              Child Devices
