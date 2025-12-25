@@ -54,11 +54,11 @@ class EedomusClient:
         self.base_url_set = f"http://{self.api_host}/api/set"
         self.base_url_script = f"http://{self.api_host}/script/?exec="
         
-        # Configuration du fallback PHP
-        self.fallback_enabled = config_entry.options.get("fallback_enabled", False)
-        self.fallback_script_name = config_entry.options.get("fallback_script_name", "eedomus_fallback")
-        self.fallback_timeout = config_entry.options.get("fallback_timeout", 5)
-        self.fallback_log_enabled = config_entry.options.get("fallback_log_enabled", False)
+        # Configuration du PHP fallback
+        self.php_fallback_enabled = config_entry.options.get("php_fallback_enabled", False)
+        self.php_fallback_script_name = config_entry.options.get("php_fallback_script_name", "eedomus_fallback")
+        self.php_fallback_timeout = config_entry.options.get("php_fallback_timeout", 5)
+        self.php_fallback_log_enabled = config_entry.options.get("php_fallback_log_enabled", False)
 
     async def fetch_data(self, endpoint: str, params: Optional[Dict] = None, use_set: bool = False, history_mode: bool = False) -> Dict:
         """Fetch data from eedomus API with proper encoding handling."""
@@ -195,15 +195,15 @@ class EedomusClient:
                 error = result.get('error', 'Unknown error')
                 _LOGGER.error("Failed to set peripheral value: (id=%s val=%s) %s", periph_id, value, error)
                 
-                # Essayer le fallback PHP si activé
-                if self.fallback_enabled:
+                # Essayer le PHP fallback si activé
+                if self.php_fallback_enabled:
                     _LOGGER.info("Trying PHP fallback for peripheral %s with value %s", periph_id, value)
-                    fallback_result = await self.fallback_set_value(periph_id, value)
+                    fallback_result = await self.php_fallback_set_value(periph_id, value)
                     if fallback_result.get('success') == 1:
-                        _LOGGER.info("Fallback succeeded for peripheral %s", periph_id)
+                        _LOGGER.info("PHP fallback succeeded for peripheral %s", periph_id)
                         return fallback_result
                     else:
-                        _LOGGER.warning("Fallback failed for peripheral %s: %s", periph_id, fallback_result.get('error', 'Unknown error'))
+                        _LOGGER.warning("PHP fallback failed for peripheral %s: %s", periph_id, fallback_result.get('error', 'Unknown error'))
                 
                 return result
 
@@ -213,7 +213,7 @@ class EedomusClient:
                 result['message'] = result['body']['result']
         return result
 
-    async def fallback_set_value(self, periph_id: str, value: str) -> Dict:
+    async def php_fallback_set_value(self, periph_id: str, value: str) -> Dict:
         """
         Attempt to set a peripheral value using the PHP fallback script.
         
@@ -227,12 +227,12 @@ class EedomusClient:
         Returns:
             Dict: Result of the operation with 'success' and 'message' fields.
         """
-        if not self.fallback_enabled:
-            _LOGGER.warning("Fallback is not configured or disabled")
-            return {"success": 0, "error": "Fallback not configured"}
+        if not self.php_fallback_enabled:
+            _LOGGER.warning("PHP fallback is not configured or disabled")
+            return {"success": 0, "error": "PHP fallback not configured"}
         
-        # Construct the fallback script URL
-        fallback_script_url = f"{self.base_url_script}{self.fallback_script_name}"
+        # Construct the PHP fallback script URL
+        php_fallback_script_url = f"{self.base_url_script}{self.php_fallback_script_name}"
         
         try:
             params = {
@@ -241,57 +241,57 @@ class EedomusClient:
                 'api_host': self.api_host,
                 'api_user': self.api_user,
                 'api_secret': self.api_secret,
-                'log': 'true' if self.fallback_log_enabled else 'false'
+                'log': 'true' if self.php_fallback_log_enabled else 'false'
             }
             
-            _LOGGER.debug("Calling fallback script at %s with params: %s", 
-                         fallback_script_url, params)
+            _LOGGER.debug("Calling PHP fallback script at %s with params: %s", 
+                         php_fallback_script_url, params)
             
-            async with async_timeout(self.fallback_timeout):
-                async with self.session.get(fallback_script_url, params=params) as resp:
+            async with async_timeout(self.php_fallback_timeout):
+                async with self.session.get(php_fallback_script_url, params=params) as resp:
                     raw_data = await resp.read()
                     
                     if resp.status != 200:
                         error_text = raw_data.decode('utf-8', errors='replace')
-                        _LOGGER.error("Fallback script error: HTTP %s - %s", resp.status, error_text)
+                        _LOGGER.error("PHP fallback script error: HTTP %s - %s", resp.status, error_text)
                         return {
                             "success": 0,
-                            "error": f"Fallback script error: HTTP {resp.status}",
+                            "error": f"PHP fallback script error: HTTP {resp.status}",
                             "details": error_text
                         }
                     
                     response_text = raw_data.decode('utf-8', errors='replace')
                     
-                    # Parse the JSON response from the fallback script
+                    # Parse the JSON response from the PHP fallback script
                     try:
                         response_data = json.loads(response_text)
                         
                         if isinstance(response_data, dict) and response_data.get('success') == 1:
-                            _LOGGER.info("Fallback succeeded for peripheral %s", periph_id)
+                            _LOGGER.info("PHP fallback succeeded for peripheral %s", periph_id)
                             return response_data
                         else:
-                            _LOGGER.warning("Fallback failed for peripheral %s: %s", 
+                            _LOGGER.warning("PHP fallback failed for peripheral %s: %s", 
                                           periph_id, response_data.get('error', 'Unknown error'))
                             return response_data
                     except json.JSONDecodeError:
-                        _LOGGER.error("Invalid JSON response from fallback script: %s", response_text)
+                        _LOGGER.error("Invalid JSON response from PHP fallback script: %s", response_text)
                         return {
                             "success": 0,
-                            "error": "Invalid JSON response from fallback script",
+                            "error": "Invalid JSON response from PHP fallback script",
                             "details": response_text
                         }
                     
         except asyncio.TimeoutError:
-            _LOGGER.error("Fallback script request timed out")
-            return {"success": 0, "error": "Fallback script timeout"}
+            _LOGGER.error("PHP fallback script request timed out")
+            return {"success": 0, "error": "PHP fallback script timeout"}
             
         except aiohttp.ClientError as e:
-            _LOGGER.error("Fallback script client error: %s", str(e))
-            return {"success": 0, "error": f"Fallback script client error: {str(e)}"}
+            _LOGGER.error("PHP fallback script client error: %s", str(e))
+            return {"success": 0, "error": f"PHP fallback script client error: {str(e)}"}
             
         except Exception as e:
-            _LOGGER.error("Unexpected error in fallback: %s", str(e))
-            return {"success": 0, "error": f"Unexpected fallback error: {str(e)}"}
+            _LOGGER.error("Unexpected error in PHP fallback: %s", str(e))
+            return {"success": 0, "error": f"Unexpected PHP fallback error: {str(e)}"}
 
     async def get_periph_value(self, periph_id: str) -> Dict:
         """Get the current value of a peripheral."""

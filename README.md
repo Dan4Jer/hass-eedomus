@@ -1544,20 +1544,20 @@ gantt
 0.11.0: 14+ types (select entities optimisées)
 ```
 
-## 🔄 Fallback PHP pour la gestion des valeurs non définies
+## 🔄 PHP fallback pour la gestion des valeurs non définies
 
-Le mécanisme de fallback PHP permet de gérer les valeurs rejetées par l'API eedomus en les transformant ou en les mappant avant une nouvelle tentative d'envoi. Cela offre une solution flexible et configurable pour gérer les valeurs non autorisées ou invalides.
+Le mécanisme de PHP fallback permet de gérer les valeurs rejetées par l'API eedomus en les transformant ou en les mappant avant une nouvelle tentative d'envoi. Cela offre une solution flexible et configurable pour gérer les valeurs non autorisées ou invalides.
 
 ### 📋 Fonctionnement
 
 1. **Échec de l'API** : Lorsque l'API eedomus rejette une valeur envoyée par Home Assistant, le client Python tente une solution alternative.
-2. **Appel au script PHP** : Si le fallback PHP est activé, le client Python appelle un script PHP hébergé sur la box eedomus avec la valeur rejetée.
+2. **Appel au script PHP** : Si le PHP fallback est activé, le client Python appelle un script PHP hébergé sur la box eedomus avec la valeur rejetée.
 3. **Transformation** : Le script PHP peut transformer ou mapper la valeur (ex: "haut" → "100", "bas" → "0").
 4. **Nouvelle tentative** : Le client Python réessaie d'envoyer la valeur transformée à l'API eedomus.
 
 ### 🛠️ Configuration
 
-Pour activer le fallback PHP, suivez ces étapes :
+Pour activer le PHP fallback, suivez ces étapes :
 
 1. **Déployer le script PHP** :
    - Copiez le fichier `fallback.php` dans un répertoire accessible par votre serveur web sur la box eedomus (ex: `/var/www/html/eedomus_fallback/`).
@@ -1565,7 +1565,7 @@ Pour activer le fallback PHP, suivez ces étapes :
 
 2. **Configurer l'intégration** :
    - Accédez à la configuration de l'intégration hass-eedomus dans Home Assistant.
-   - Activez l'option **Activer le fallback PHP**.
+   - Activez l'option **Activer le PHP fallback**.
    - Entrez le nom du script PHP (ex: `eedomus_fallback`).
    - Configurez le timeout pour la requête HTTP (défaut : 5 secondes).
    - Activez les logs détaillés si nécessaire.
