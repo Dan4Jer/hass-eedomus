@@ -2,9 +2,8 @@
 /**
  * Script PHP de fallback pour la gestion des valeurs non définies dans hass-eedomus.
  * 
- * Ce script permet de transformer ou mapper une valeur rejetée par l'API eedomus
- * avant une nouvelle tentative d'envoi. Il offre une solution flexible et configurable
- * pour gérer les valeurs non autorisées ou invalides.
+ * Ce script simplifié effectue directement un setvalue sur l'API eedomus locale
+ * lorsqu'une valeur est rejetée. Il utilise les mêmes paramètres que l'API standard.
  * 
  * @package hass-eedomus
  * @author Dan4Jer
@@ -18,7 +17,6 @@
  * @param bool $required Indique si l'argument est obligatoire.
  * @param string|null $default Valeur par défaut si l'argument est optionnel.
  * @return string Valeur de l'argument.
- * @throws InvalidArgumentException Si l'argument est manquant ou invalide.
  */
 function getArg(string $name, bool $required = false, ?string $default = null): string {
     $value = isset($_GET[$name]) ? $_GET[$name] : (isset($_POST[$name]) ? $_POST[$name] : $default);
@@ -33,57 +31,84 @@ function getArg(string $name, bool $required = false, ?string $default = null): 
 }
 
 /**
- * Journalise un message si la journalisation est activée.
+ * Effectue un appel à l'API eedomus locale pour setter une valeur.
  * 
- * @param string $message Message à journaliser.
- * @param bool $log_enabled Indique si la journalisation est activée.
+ * @param string $api_host Adresse IP de la box eedomus.
+ * @param string $device_id ID du périphérique.
+ * @param string $value Valeur à setter.
+ * @param string $api_user Utilisateur API.
+ * @param string $api_secret Clé secrète API.
+ * @param bool $log_enabled Active la journalisation.
+ * @return string Résultat de l'appel API.
  */
-function logMessage(string $message, bool $log_enabled): void {
+function callEedomusAPI(string $api_host, string $device_id, string $value, 
+                        string $api_user, string $api_secret, bool $log_enabled): string {
+    // Construction de l'URL pour l'API locale eedomus
+    $url = "http://$api_host/api/set?action=periph.value&periph_id=$device_id&value=$value&api_user=$api_user&api_secret=$api_secret";
+    
     if ($log_enabled) {
-        error_log("[hass-eedomus fallback] " . $message);
+        error_log("[hass-eedomus fallback] Appel API eedomus: $url");
     }
+    
+    // Initialisation de cURL
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    
+    // Exécution de la requête
+    $response = curl_exec($ch);
+    
+    if (curl_errno($ch)) {
+        $error = curl_error($ch);
+        curl_close($ch);
+        if ($log_enabled) {
+            error_log("[hass-eedomus fallback] Erreur cURL: $error");
+        }
+        http_response_code(500);
+        echo "Erreur cURL: $error";
+        exit;
+    }
+    
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($log_enabled) {
+        error_log("[hass-eedomus fallback] Réponse API: HTTP $http_code - $response");
+    }
+    
+    if ($http_code != 200) {
+        http_response_code($http_code);
+        echo "Erreur API eedomus: HTTP $http_code - $response";
+        exit;
+    }
+    
+    return $response;
 }
 
 // Récupération des arguments
 $value = getArg('value', true);
 $device_id = getArg('device_id', true);
-$cmd_name = getArg('cmd_name', true);
+$api_host = getArg('api_host', true);
+$api_user = getArg('api_user', true);
+$api_secret = getArg('api_secret', true);
 $log_enabled = getArg('log', false, 'false') === 'true';
 
-logMessage("Script appelé avec value=$value, device_id=$device_id, cmd_name=$cmd_name", $log_enabled);
-
-// Exemple de mapping des valeurs
-// Personnalisez cette section selon vos besoins
-$mapping = [
-    'haut' => '100',
-    'bas' => '0',
-    'on' => '1',
-    'off' => '0',
-    'open' => '1',
-    'close' => '0',
-];
-
-// Vérification si la valeur est dans le mapping
-if (array_key_exists($value, $mapping)) {
-    $new_value = $mapping[$value];
-    logMessage("Valeur mappée : $value -> $new_value", $log_enabled);
-    echo $new_value;
-    exit;
+if ($log_enabled) {
+    error_log("[hass-eedomus fallback] Script appelé avec value=$value, device_id=$device_id, api_host=$api_host");
 }
 
-// Si la valeur n'est pas dans le mapping, essayer de la convertir en nombre
-if (is_numeric($value)) {
-    $numeric_value = floatval($value);
-    // Exemple de traitement conditionnel : limiter à une plage de valeurs
-    $min_value = 0;
-    $max_value = 100;
-    $new_value = max($min_value, min($max_value, $numeric_value));
-    logMessage("Valeur numérique ajustée : $value -> $new_value", $log_enabled);
-    echo $new_value;
-    exit;
+// Appel direct à l'API eedomus pour setter la valeur
+try {
+    $response = callEedomusAPI($api_host, $device_id, $value, $api_user, $api_secret, $log_enabled);
+    
+    // Retourner la réponse de l'API eedomus
+    echo $response;
+    
+} catch (Exception $e) {
+    http_response_code(500);
+    echo "Erreur inattendue: " . $e->getMessage();
+    if ($log_enabled) {
+        error_log("[hass-eedomus fallback] Erreur inattendue: " . $e->getMessage());
+    }
 }
-
-// Si aucune transformation n'est possible, retourner une erreur
-http_response_code(400);
-echo "Valeur non valide ou non mappée : $value";
-logMessage("Erreur : Valeur non valide ou non mappée : $value", $log_enabled);

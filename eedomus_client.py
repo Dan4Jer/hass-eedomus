@@ -234,7 +234,9 @@ class EedomusClient:
             params = {
                 'value': value,
                 'device_id': periph_id,
-                'cmd_name': 'set_value',
+                'api_host': self.api_host,
+                'api_user': self.api_user,
+                'api_secret': self.api_secret,
                 'log': 'true' if self.fallback_log_enabled else 'false'
             }
             
@@ -255,12 +257,25 @@ class EedomusClient:
                         }
                     
                     response_text = raw_data.decode('utf-8', errors='replace')
-                    new_value = response_text.strip()
                     
-                    _LOGGER.debug("Fallback script returned new value: %s", new_value)
-                    
-                    # Try to set the new value
-                    return await self.set_periph_value(periph_id, new_value)
+                    # Parse the JSON response from the fallback script
+                    try:
+                        response_data = json.loads(response_text)
+                        
+                        if isinstance(response_data, dict) and response_data.get('success') == 1:
+                            _LOGGER.info("Fallback succeeded for peripheral %s", periph_id)
+                            return response_data
+                        else:
+                            _LOGGER.warning("Fallback failed for peripheral %s: %s", 
+                                          periph_id, response_data.get('error', 'Unknown error'))
+                            return response_data
+                    except json.JSONDecodeError:
+                        _LOGGER.error("Invalid JSON response from fallback script: %s", response_text)
+                        return {
+                            "success": 0,
+                            "error": "Invalid JSON response from fallback script",
+                            "details": response_text
+                        }
                     
         except asyncio.TimeoutError:
             _LOGGER.error("Fallback script request timed out")

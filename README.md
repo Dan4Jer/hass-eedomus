@@ -1570,20 +1570,26 @@ Pour activer le fallback PHP, suivez ces étapes :
    - Configurez le timeout pour la requête HTTP (défaut : 5 secondes).
    - Activez les logs détaillés si nécessaire.
 
+### 📝 Fonctionnement du script
+
+Le script `fallback.php` effectue directement un appel à l'API eedomus locale pour setter une valeur lorsqu'une tentative initiale a échoué. Il utilise les paramètres suivants :
+
+- `value` : Valeur à setter sur le périphérique.
+- `device_id` : ID du périphérique eedomus.
+- `api_host` : Adresse IP de la box eedomus.
+- `api_user` : Utilisateur API eedomus.
+- `api_secret` : Clé secrète API eedomus.
+- `log` (optionnel) : Active la journalisation si défini à `true`.
+
+Le script construit une URL pour l'API locale eedomus et utilise cURL pour effectuer un appel HTTP GET. La réponse de l'API est retournée directement au client Python.
+
 ### 📝 Personnalisation du script
 
-Le script `fallback.php` inclut des exemples de mapping et de traitement conditionnel. Vous pouvez le personnaliser selon vos besoins :
+Le script peut être personnalisé pour ajouter des fonctionnalités supplémentaires :
 
-```php
-$mapping = [
-    'haut' => '100',
-    'bas' => '0',
-    'on' => '1',
-    'off' => '0',
-    'open' => '1',
-    'close' => '0',
-];
-```
+1. **Mapping des valeurs** : Ajoutez un mapping des valeurs avant l'appel API.
+2. **Traitement conditionnel** : Ajoutez des règles pour transformer les valeurs en fonction de conditions spécifiques.
+3. **Gestion des erreurs avancée** : Personnalisez la gestion des erreurs pour des cas spécifiques.
 
 ### 🔒 Sécurité
 

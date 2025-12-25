@@ -4,7 +4,7 @@ Ce document décrit comment déployer et configurer le script PHP de fallback po
 
 ## Introduction
 
-Le script `fallback.php` permet de transformer ou mapper une valeur rejetée par l'API eedomus avant une nouvelle tentative d'envoi. Cela offre une solution flexible et configurable pour gérer les valeurs non autorisées ou invalides.
+Le script `fallback.php` permet d'effectuer directement un appel à l'API eedomus locale pour setter une valeur lorsqu'une tentative initiale a échoué. Cela offre une solution simple et efficace pour gérer les valeurs rejetées.
 
 ## Déploiement du script
 
@@ -34,9 +34,9 @@ Le script `fallback.php` permet de transformer ou mapper une valeur rejetée par
 4. **Tester le script** :
    Vous pouvez tester le script en accédant à l'URL suivante dans votre navigateur ou via `curl` :
    ```bash
-   curl "http://<IP_BOX_EEDOMUS>/eedomus_fallback/fallback.php?value=haut&device_id=123&cmd_name=set_value&log=true"
+   curl "http://<IP_BOX_EEDOMUS>/eedomus_fallback/fallback.php?value=50&device_id=123&api_host=192.168.1.100&api_user=myuser&api_secret=mysecret"
    ```
-   Remplacez `<IP_BOX_EEDOMUS>` par l'adresse IP de votre box eedomus.
+   Remplacez `<IP_BOX_EEDOMUS>` par l'adresse IP de votre box eedomus et les autres paramètres par vos informations d'API.
 
 ## Configuration dans Home Assistant
 
@@ -55,77 +55,124 @@ Le script `fallback.php` permet de transformer ou mapper une valeur rejetée par
 3. **Sauvegarder la configuration** :
    - Cliquez sur **Soumettre** pour enregistrer les modifications.
 
-## Personnalisation du script
+## Fonctionnement du script
 
-### Mapping des valeurs
+Le script `fallback.php` effectue les opérations suivantes :
 
-Le script inclut un exemple de mapping des valeurs. Vous pouvez personnaliser ce mapping en modifiant la section suivante dans `fallback.php` :
+1. **Récupération des paramètres** :
+   - `value` : Valeur à setter sur le périphérique.
+   - `device_id` : ID du périphérique eedomus.
+   - `api_host` : Adresse IP de la box eedomus.
+   - `api_user` : Utilisateur API eedomus.
+   - `api_secret` : Clé secrète API eedomus.
+   - `log` (optionnel) : Active la journalisation si défini à `true`.
+
+2. **Appel à l'API eedomus** :
+   - Le script construit une URL pour l'API locale eedomus.
+   - Il utilise cURL pour effectuer un appel HTTP GET à l'API.
+   - L'URL construite est de la forme :
+     ```
+     http://<api_host>/api/set?action=periph.value&periph_id=<device_id>&value=<value>&api_user=<api_user>&api_secret=<api_secret>
+     ```
+
+3. **Gestion des réponses** :
+   - Si l'appel API réussit (code HTTP 200), le script retourne la réponse de l'API.
+   - Si l'appel API échoue, le script retourne le code d'erreur et le message d'erreur.
+
+## Exemple de code
+
+Voici un exemple simplifié du script PHP :
 
 ```php
-$mapping = [
-    'haut' => '100',
-    'bas' => '0',
-    'on' => '1',
-    'off' => '0',
-    'open' => '1',
-    'close' => '0',
-];
+<?php
+// Récupération des arguments
+$value = getArg('value', true);
+$device_id = getArg('device_id', true);
+$api_host = getArg('api_host', true);
+$api_user = getArg('api_user', true);
+$api_secret = getArg('api_secret', true);
+$log_enabled = getArg('log', false, 'false') === 'true';
+
+// Appel direct à l'API eedomus pour setter la valeur
+$url = "http://$api_host/api/set?action=periph.value&periph_id=$device_id&value=$value&api_user=$api_user&api_secret=$api_secret";
+
+$ch = curl_init();
+curl_setopt($ch, CURLOPT_URL, $url);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+$response = curl_exec($ch);
+
+if (curl_errno($ch)) {
+    http_response_code(500);
+    echo "Erreur cURL: " . curl_error($ch);
+    exit;
+}
+
+$http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+
+if ($http_code != 200) {
+    http_response_code($http_code);
+    echo "Erreur API eedomus: HTTP $http_code - $response";
+    exit;
+}
+
+echo $response;
+?>
 ```
 
-### Traitement conditionnel
+## Exemples d'utilisation
 
-Le script inclut également un exemple de traitement conditionnel pour les valeurs numériques. Vous pouvez ajuster les valeurs minimales et maximales selon vos besoins :
+### Exemple 1 : Setter une valeur numérique
 
-```php
-$min_value = 0;
-$max_value = 100;
-$new_value = max($min_value, min($max_value, $numeric_value));
+Si l'API eedomus a rejeté une valeur, le script peut la réessayer directement :
+
+```bash
+curl "http://<IP_BOX_EEDOMUS>/eedomus_fallback/fallback.php?value=75&device_id=123&api_host=192.168.1.100&api_user=myuser&api_secret=mysecret"
+```
+
+Réponse (exemple) :
+```json
+{"success":1,"body":{"result":"ok"}}
+```
+
+### Exemple 2 : Journalisation activée
+
+Pour activer la journalisation, ajoutez le paramètre `log=true` :
+
+```bash
+curl "http://<IP_BOX_EEDOMUS>/eedomus_fallback/fallback.php?value=50&device_id=123&api_host=192.168.1.100&api_user=myuser&api_secret=mysecret&log=true"
+```
+
+### Exemple 3 : Erreur d'API
+
+Si l'API eedomus retourne une erreur, le script la propagera :
+
+```bash
+curl "http://<IP_BOX_EEDOMUS>/eedomus_fallback/fallback.php?value=invalid&device_id=123&api_host=192.168.1.100&api_user=myuser&api_secret=mysecret"
+```
+
+Réponse (exemple) :
+```
+Erreur API eedomus: HTTP 400 - {"success":0,"error":"Invalid parameter value"}
 ```
 
 ## Journalisation
 
-Le script peut journaliser les appels et les transformations si le paramètre `log` est défini à `true`. Les logs sont écrits dans le journal du serveur web (généralement `/var/log/apache2/error.log` ou `/var/log/nginx/error.log`).
+Le script peut journaliser les appels et les réponses si le paramètre `log` est défini à `true`. Les logs sont écrits dans le journal du serveur web (généralement `/var/log/apache2/error.log` ou `/var/log/nginx/error.log`).
+
+Exemple de log :
+```
+[hass-eedomus fallback] Script appelé avec value=50, device_id=123, api_host=192.168.1.100
+[hass-eedomus fallback] Appel API eedomus: http://192.168.1.100/api/set?action=periph.value&periph_id=123&value=50&api_user=myuser&api_secret=*****
+[hass-eedomus fallback] Réponse API: HTTP 200 - {"success":1,"body":{"result":"ok"}}
+```
 
 ## Sécurité
 
 - **Validation des entrées** : Le script valide et sanitize toutes les entrées pour éviter les injections.
 - **Accès restreint** : Assurez-vous que le script est accessible uniquement depuis votre réseau local ou depuis l'adresse IP de votre instance Home Assistant.
-
-## Exemples d'utilisation
-
-### Exemple 1 : Mapping de valeurs textuelles
-
-Si l'API eedomus rejette la valeur "haut", le script peut la mapper à "100" :
-
-```bash
-curl "http://<IP_BOX_EEDOMUS>/eedomus_fallback/fallback.php?value=haut&device_id=123&cmd_name=set_value"
-```
-
-Réponse :
-```
-100
-```
-
-### Exemple 2 : Traitement conditionnel
-
-Si l'API eedomus rejette une valeur numérique en dehors d'une plage autorisée, le script peut ajuster la valeur :
-
-```bash
-curl "http://<IP_BOX_EEDOMUS>/eedomus_fallback/fallback.php?value=150&device_id=123&cmd_name=set_value"
-```
-
-Réponse :
-```
-100
-```
-
-### Exemple 3 : Journalisation activée
-
-Pour activer la journalisation, ajoutez le paramètre `log=true` :
-
-```bash
-curl "http://<IP_BOX_EEDOMUS>/eedomus_fallback/fallback.php?value=haut&device_id=123&cmd_name=set_value&log=true"
-```
+- **Protection des informations sensibles** : Les logs masquent les informations sensibles comme `api_secret`.
 
 ## Dépannage
 
@@ -137,12 +184,16 @@ curl "http://<IP_BOX_EEDOMUS>/eedomus_fallback/fallback.php?value=haut&device_id
    - Assurez-vous que le serveur web est en cours d'exécution.
 
 2. **Erreur 400** :
-   - Vérifiez que tous les paramètres requis (`value`, `device_id`, `cmd_name`) sont fournis.
+   - Vérifiez que tous les paramètres requis (`value`, `device_id`, `api_host`, `api_user`, `api_secret`) sont fournis.
    - Assurez-vous que les valeurs des paramètres sont valides.
 
 3. **Erreur 500** :
    - Consultez les logs du serveur web pour plus de détails.
-   - Vérifiez la syntaxe du script PHP.
+   - Vérifiez que l'extension cURL est activée sur votre serveur web.
+
+4. **Erreur API eedomus** :
+   - Vérifiez que les informations d'API (`api_host`, `api_user`, `api_secret`) sont correctes.
+   - Assurez-vous que le périphérique (`device_id`) existe et est accessible.
 
 ### Vérification des logs
 
@@ -156,8 +207,16 @@ tail -f /var/log/apache2/error.log
 tail -f /var/log/nginx/error.log
 ```
 
+## Personnalisation
+
+Le script peut être personnalisé pour ajouter des fonctionnalités supplémentaires :
+
+1. **Mapping des valeurs** : Ajoutez un mapping des valeurs avant l'appel API.
+2. **Traitement conditionnel** : Ajoutez des règles pour transformer les valeurs en fonction de conditions spécifiques.
+3. **Gestion des erreurs avancée** : Personnalisez la gestion des erreurs pour des cas spécifiques.
+
 ## Conclusion
 
-Le script PHP de fallback offre une solution flexible pour gérer les valeurs rejetées par l'API eedomus. En le personnalisant, vous pouvez adapter le comportement de votre intégration hass-eedomus à vos besoins spécifiques.
+Le script PHP de fallback offre une solution simple et efficace pour gérer les valeurs rejetées par l'API eedomus. En l'utilisant, vous pouvez améliorer la robustesse de votre intégration hass-eedomus.
 
-Pour plus d'informations, consultez la [documentation principale de hass-eedomus](README.md).
+Pour plus d'informations, consultez la [documentation principale de hass-eedomus](README.md) et la [documentation officielle de l'API eedomus](https://doc.eedomus.com/view/Scripts).

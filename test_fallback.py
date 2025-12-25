@@ -48,10 +48,10 @@ async def test_fallback_script_success():
     # Setup
     session = AsyncMock(spec=ClientSession)
     
-    # Mock response from fallback script
+    # Mock response from fallback script (JSON response from eedomus API)
     mock_response = AsyncMock()
     mock_response.status = 200
-    mock_response.read.return_value = b"100"  # Script returns "100"
+    mock_response.read.return_value = b'{"success":1,"body":{"result":"ok"}}'  # Script returns JSON
     
     session.get.return_value.__aenter__.return_value = mock_response
     
@@ -74,19 +74,12 @@ async def test_fallback_script_success():
     
     client = EedomusClient(session, config_entry)
     
-    # Mock the successful set_periph_value call
-    with patch.object(client, 'set_periph_value', new_callable=AsyncMock) as mock_set_value:
-        mock_set_value.return_value = {"success": 1, "message": "Value set successfully"}
-        
-        # Test
-        result = await client.fallback_set_value("123", "haut")
-        
-        # Assert
-        assert result["success"] == 1
-        assert "Value set successfully" in result["message"]
-        
-        # Verify set_periph_value was called with the transformed value
-        mock_set_value.assert_called_once_with("123", "100")
+    # Test
+    result = await client.fallback_set_value("123", "50")
+    
+    # Assert
+    assert result["success"] == 1
+    assert result["body"]["result"] == "ok"
 
 
 @pytest.mark.asyncio
@@ -204,6 +197,69 @@ async def test_fallback_script_client_error():
 
 
 @pytest.mark.asyncio
+async def test_fallback_script_parameters():
+    """Test that fallback script receives correct parameters."""
+    # Setup
+    session = AsyncMock(spec=ClientSession)
+    
+    # Mock response from fallback script
+    mock_response = AsyncMock()
+    mock_response.status = 200
+    mock_response.read.return_value = b'{"success":1,"body":{"result":"ok"}}'
+    
+    session.get.return_value.__aenter__.return_value = mock_response
+    
+    config_entry = ConfigEntry(
+        version=1,
+        domain="eedomus",
+        title="test",
+        data={
+            "api_host": "192.168.1.100",
+            "api_user": "test_user",
+            "api_secret": "test_secret"
+        },
+        options={
+            CONF_FALLBACK_ENABLED: True,
+            CONF_FALLBACK_SCRIPT_URL: "http://192.168.1.100/fallback.php",
+            CONF_FALLBACK_TIMEOUT: 5,
+            CONF_FALLBACK_LOG_ENABLED: True
+        }
+    )
+    
+    client = EedomusClient(session, config_entry)
+    
+    # Test
+    await client.fallback_set_value("123", "50")
+    
+    # Verify that session.get was called with correct parameters
+    session.get.assert_called_once()
+    call_args = session.get.call_args
+    
+    # Extract the URL and params from the call
+    url = call_args[0][0]
+    params = call_args[1].get('params', {})
+    
+    # Assert that the URL is correct
+    assert url == "http://192.168.1.100/fallback.php"
+    
+    # Assert that all required parameters are present
+    assert 'value' in params
+    assert 'device_id' in params
+    assert 'api_host' in params
+    assert 'api_user' in params
+    assert 'api_secret' in params
+    assert 'log' in params
+    
+    # Assert that the parameter values are correct
+    assert params['value'] == "50"
+    assert params['device_id'] == "123"
+    assert params['api_host'] == "192.168.1.100"
+    assert params['api_user'] == "test_user"
+    assert params['api_secret'] == "test_secret"
+    assert params['log'] == "true"
+
+
+@pytest.mark.asyncio
 async def test_set_periph_value_with_fallback():
     """Test set_periph_value uses fallback when API fails."""
     # Setup
@@ -216,10 +272,10 @@ async def test_set_periph_value_with_fallback():
         "error_code": "4"
     }
     
-    # Mock fallback script success
+    # Mock fallback script success (JSON response from eedomus API)
     mock_fallback_response = AsyncMock()
     mock_fallback_response.status = 200
-    mock_fallback_response.read.return_value = b"100"
+    mock_fallback_response.read.return_value = b'{"success":1,"body":{"result":"ok"}}'
     
     config_entry = ConfigEntry(
         version=1,
@@ -240,26 +296,19 @@ async def test_set_periph_value_with_fallback():
     
     client = EedomusClient(session, config_entry)
     
-    # Mock fetch_data to return failure, then mock set_periph_value for fallback
+    # Mock fetch_data to return failure
     with patch.object(client, 'fetch_data', new_callable=AsyncMock) as mock_fetch:
-        with patch.object(client, 'set_periph_value', new_callable=AsyncMock) as mock_set_value:
-            # First call fails
-            mock_fetch.return_value = mock_api_response
-            # Second call (fallback) succeeds
-            mock_set_value.return_value = {"success": 1, "message": "Value set successfully"}
-            
-            # Mock session.get for fallback script
-            session.get.return_value.__aenter__.return_value = mock_fallback_response
-            
-            # Test
-            result = await client.set_periph_value("123", "invalid_value")
-            
-            # Assert
-            assert result["success"] == 1
-            assert "Value set successfully" in result["message"]
-            
-            # Verify fallback was called
-            mock_set_value.assert_called_with("123", "100")
+        mock_fetch.return_value = mock_api_response
+        
+        # Mock session.get for fallback script
+        session.get.return_value.__aenter__.return_value = mock_fallback_response
+        
+        # Test
+        result = await client.set_periph_value("123", "invalid_value")
+        
+        # Assert
+        assert result["success"] == 1
+        assert result["body"]["result"] == "ok"
 
 
 if __name__ == "__main__":
