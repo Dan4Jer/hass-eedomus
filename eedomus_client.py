@@ -56,9 +56,8 @@ class EedomusClient:
         
         # Configuration du PHP fallback
         self.php_fallback_enabled = config_entry.options.get("php_fallback_enabled", False)
-        self.php_fallback_script_name = config_entry.options.get("php_fallback_script_name", "eedomus_fallback")
+        self.php_fallback_script_name = config_entry.options.get("php_fallback_script_name", "fallback.php")
         self.php_fallback_timeout = config_entry.options.get("php_fallback_timeout", 5)
-        self.php_fallback_log_enabled = config_entry.options.get("php_fallback_log_enabled", False)
 
     async def fetch_data(self, endpoint: str, params: Optional[Dict] = None, use_set: bool = False, history_mode: bool = False) -> Dict:
         """Fetch data from eedomus API with proper encoding handling."""

@@ -32,16 +32,14 @@ CONF_ENABLE_SET_VALUE_RETRY = "enable_set_value_retry"
 CONF_PHP_FALLBACK_ENABLED = "php_fallback_enabled"
 CONF_PHP_FALLBACK_SCRIPT_NAME = "php_fallback_script_name"
 CONF_PHP_FALLBACK_TIMEOUT = "php_fallback_timeout"
-CONF_PHP_FALLBACK_LOG_ENABLED = "php_fallback_log_enabled"
 DEFAULT_CONF_ENABLE_API_EEDOMUS = True
 DEFAULT_CONF_ENABLE_API_PROXY = False
 DEFAULT_ENABLE_SET_VALUE_RETRY = True  # Set value retry enabled by default
 DEFAULT_API_PROXY_DISABLE_SECURITY = False  # Security enabled by default
 DEFAULT_SCAN_INTERVAL = 300  # 5 minutes
 DEFAULT_PHP_FALLBACK_ENABLED = False  # PHP fallback disabled by default
-DEFAULT_PHP_FALLBACK_SCRIPT_NAME = "eedomus_fallback"  # Default script name
+DEFAULT_PHP_FALLBACK_SCRIPT_NAME = "fallback.php"  # Default script name
 DEFAULT_PHP_FALLBACK_TIMEOUT = 5  # 5 seconds timeout for PHP fallback script
-DEFAULT_PHP_FALLBACK_LOG_ENABLED = False  # Logging disabled by default
 
 # Platforms
 PLATFORMS = [

@@ -86,6 +86,55 @@ Le script `fallback.php` est conçu pour être simple et direct. Il appelle uniq
 
 **Contraintes** : Ce script respecte les contraintes de la box eedomus et n'utilise pas de fonctions non autorisées comme `json_encode`, `http_response_code`, `getMessage`, et `()`.
 
+**Configuration par défaut** : Le nom du script est maintenant `fallback.php` par défaut.
+
+## Exemple de code
+
+Voici un exemple simplifié du script PHP :
+
+```php
+<?php
+// Récupération des arguments minimaux
+$value = isset($_GET['value']) ? $_GET['value'] : (isset($_POST['value']) ? $_POST['value'] : '');
+$device_id = isset($_GET['device_id']) ? $_GET['device_id'] : (isset($_POST['device_id']) ? $_POST['device_id'] : '');
+
+// Appel de la fonction setValue de l'API eedomus
+$result = setValue($device_id, $value);
+
+// Retourner le résultat
+if ($result !== false) {
+    echo '{"success": 1, "result": "' . $result . '"}';
+} else {
+    echo '{"success": 0, "error": "Erreur lors de l\'appel à setValue"}';
+}
+?>
+```
+
+## Conclusion
+
+Le script PHP de fallback offre une solution simple et efficace pour gérer les valeurs rejetées par l'API eedomus. En l'utilisant, vous pouvez améliorer la robustesse de votre intégration hass-eedomus.
+
+Pour plus d'informations, consultez la [documentation principale de hass-eedomus](README.md) et la [documentation officielle de l'API eedomus](https://doc.eedomus.com/view/Scripts).
+## Fonctionnement du script
+
+Le script `fallback.php` est conçu pour être simple et direct. Il appelle uniquement la fonction `setValue` de l'API eedomus avec les paramètres minimaux. Voici comment il fonctionne :
+
+1. **Récupération des paramètres minimaux** :
+   - `value` : Valeur à setter sur le périphérique.
+   - `device_id` : ID du périphérique eedomus.
+
+2. **Appel de la fonction setValue** :
+   - Le script appelle la fonction `setValue` de l'API eedomus avec les paramètres minimaux.
+   - La fonction `setValue` est définie dans l'API eedomus et est documentée ici : https://doc.eedomus.com/view/Scripts
+
+3. **Gestion des erreurs** :
+   - Si l'appel réussit, le script retourne un JSON avec `success` à 1 et le résultat.
+   - Si l'appel échoue, le script retourne un JSON avec `success` à 0 et un message d'erreur générique.
+
+**Documentation** : Ce script suit la documentation officielle de l'API eedomus : https://doc.eedomus.com/view/Scripts
+
+**Contraintes** : Ce script respecte les contraintes de la box eedomus et n'utilise pas de fonctions non autorisées comme `json_encode`, `http_response_code`, `getMessage`, et `()`.
+
 ## Exemple de code
 
 Voici un exemple simplifié du script PHP :
