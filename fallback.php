@@ -13,8 +13,8 @@
  */
 
 // Recuperation des arguments minimaux
-$value = isset($_GET['value']) ? $_GET['value'] : (isset($_POST['value']) ? $_POST['value'] : '');
-$device_id = isset($_GET['device_id']) ? $_GET['device_id'] : (isset($_POST['device_id']) ? $_POST['device_id'] : '');
+$value = $_GET['value'];
+$device_id = $_GET['device_id'];
 
 // Appel de la fonction setValue de l'API eedomus
 $result = setValue($device_id, $value);
