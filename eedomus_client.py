@@ -226,11 +226,7 @@ class EedomusClient:
         try:
             params = {
                 'value': value,
-                'device_id': periph_id,
-                'api_host': self.api_host,
-                'api_user': self.api_user,
-                'api_secret': self.api_secret,
-                'log': 'true' if self.php_fallback_log_enabled else 'false'
+                'device_id': periph_id
             }
             
             _LOGGER.debug("Calling PHP fallback script at %s with params: %s", 
