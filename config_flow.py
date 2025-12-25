@@ -15,7 +15,9 @@ from .const import (
     DEFAULT_API_SECRET, DEFAULT_SCAN_INTERVAL,
     CONF_ENABLE_API_EEDOMUS, CONF_ENABLE_API_PROXY, DEFAULT_CONF_ENABLE_API_EEDOMUS,
     DEFAULT_CONF_ENABLE_API_PROXY, CONF_API_PROXY_DISABLE_SECURITY, DEFAULT_API_PROXY_DISABLE_SECURITY,
-    CONF_ENABLE_SET_VALUE_RETRY, DEFAULT_ENABLE_SET_VALUE_RETRY
+    CONF_ENABLE_SET_VALUE_RETRY, DEFAULT_ENABLE_SET_VALUE_RETRY,
+    CONF_FALLBACK_ENABLED, CONF_FALLBACK_SCRIPT_URL, CONF_FALLBACK_TIMEOUT, CONF_FALLBACK_LOG_ENABLED,
+    DEFAULT_FALLBACK_ENABLED, DEFAULT_FALLBACK_TIMEOUT, DEFAULT_FALLBACK_LOG_ENABLED
 )
 from .eedomus_client import EedomusClient
 
@@ -77,6 +79,10 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Optional(CONF_ENABLE_SET_VALUE_RETRY, default=DEFAULT_ENABLE_SET_VALUE_RETRY): bool,
         vol.Optional("max_retries", default=3): int,
         vol.Optional(CONF_API_PROXY_DISABLE_SECURITY, default=DEFAULT_API_PROXY_DISABLE_SECURITY): bool,
+        vol.Optional(CONF_FALLBACK_ENABLED, default=DEFAULT_FALLBACK_ENABLED): bool,
+        vol.Optional(CONF_FALLBACK_SCRIPT_URL, default=""): str,
+        vol.Optional(CONF_FALLBACK_TIMEOUT, default=DEFAULT_FALLBACK_TIMEOUT): int,
+        vol.Optional(CONF_FALLBACK_LOG_ENABLED, default=DEFAULT_FALLBACK_LOG_ENABLED): bool,
     }
 )
 
@@ -183,7 +189,12 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     unique_id=f"eedomus_{data[CONF_API_HOST]}",
                     discovery_keys = None,
                     minor_version = None,
-                    options= None,
+                    options={
+                        CONF_FALLBACK_ENABLED: data.get(CONF_FALLBACK_ENABLED, DEFAULT_FALLBACK_ENABLED),
+                        CONF_FALLBACK_SCRIPT_URL: data.get(CONF_FALLBACK_SCRIPT_URL, ""),
+                        CONF_FALLBACK_TIMEOUT: data.get(CONF_FALLBACK_TIMEOUT, DEFAULT_FALLBACK_TIMEOUT),
+                        CONF_FALLBACK_LOG_ENABLED: data.get(CONF_FALLBACK_LOG_ENABLED, DEFAULT_FALLBACK_LOG_ENABLED)
+                    },
                     subentries_data = None
                 ),
             )

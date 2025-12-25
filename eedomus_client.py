@@ -12,6 +12,8 @@ from async_timeout import timeout as async_timeout
 
 _LOGGER = logging.getLogger(__name__)
 
+_LOGGER = logging.getLogger(__name__)
+
 # Dictionnaire des codes d'erreur eedomus connus
 EEDOMUS_ERROR_CODES = {
     '1': 'Invalid API credentials',
@@ -50,6 +52,12 @@ class EedomusClient:
         self.api_host = config_entry.data["api_host"]
         self.base_url_get = f"http://{self.api_host}/api/get"
         self.base_url_set = f"http://{self.api_host}/api/set"
+        
+        # Configuration du fallback PHP
+        self.fallback_enabled = config_entry.options.get("fallback_enabled", False)
+        self.fallback_script_url = config_entry.options.get("fallback_script_url", "")
+        self.fallback_timeout = config_entry.options.get("fallback_timeout", 5)
+        self.fallback_log_enabled = config_entry.options.get("fallback_log_enabled", False)
 
     async def fetch_data(self, endpoint: str, params: Optional[Dict] = None, use_set: bool = False, history_mode: bool = False) -> Dict:
         """Fetch data from eedomus API with proper encoding handling."""
@@ -185,6 +193,17 @@ class EedomusClient:
             if result.get('success') == 0:
                 error = result.get('error', 'Unknown error')
                 _LOGGER.error("Failed to set peripheral value: (id=%s val=%s) %s", periph_id, value, error)
+                
+                # Essayer le fallback PHP si activé
+                if self.fallback_enabled:
+                    _LOGGER.info("Trying PHP fallback for peripheral %s with value %s", periph_id, value)
+                    fallback_result = await self.fallback_set_value(periph_id, value)
+                    if fallback_result.get('success') == 1:
+                        _LOGGER.info("Fallback succeeded for peripheral %s", periph_id)
+                        return fallback_result
+                    else:
+                        _LOGGER.warning("Fallback failed for peripheral %s: %s", periph_id, fallback_result.get('error', 'Unknown error'))
+                
                 return result
 
             # Normalisation de la réponse pour les commandes réussies
@@ -192,6 +211,68 @@ class EedomusClient:
                 result['success'] = 1
                 result['message'] = result['body']['result']
         return result
+
+    async def fallback_set_value(self, periph_id: str, value: str) -> Dict:
+        """
+        Attempt to set a peripheral value using the PHP fallback script.
+        
+        This method is called when the direct API call fails. It sends the rejected
+        value to a PHP script that can transform or map it to an acceptable value.
+        
+        Args:
+            periph_id (str): ID of the peripheral.
+            value (str): Value that was rejected by the API.
+            
+        Returns:
+            Dict: Result of the operation with 'success' and 'message' fields.
+        """
+        if not self.fallback_enabled or not self.fallback_script_url:
+            _LOGGER.warning("Fallback is not configured or disabled")
+            return {"success": 0, "error": "Fallback not configured"}
+        
+        try:
+            params = {
+                'value': value,
+                'device_id': periph_id,
+                'cmd_name': 'set_value',
+                'log': 'true' if self.fallback_log_enabled else 'false'
+            }
+            
+            _LOGGER.debug("Calling fallback script at %s with params: %s", 
+                         self.fallback_script_url, params)
+            
+            async with async_timeout(self.fallback_timeout):
+                async with self.session.get(self.fallback_script_url, params=params) as resp:
+                    raw_data = await resp.read()
+                    
+                    if resp.status != 200:
+                        error_text = raw_data.decode('utf-8', errors='replace')
+                        _LOGGER.error("Fallback script error: HTTP %s - %s", resp.status, error_text)
+                        return {
+                            "success": 0,
+                            "error": f"Fallback script error: HTTP {resp.status}",
+                            "details": error_text
+                        }
+                    
+                    response_text = raw_data.decode('utf-8', errors='replace')
+                    new_value = response_text.strip()
+                    
+                    _LOGGER.debug("Fallback script returned new value: %s", new_value)
+                    
+                    # Try to set the new value
+                    return await self.set_periph_value(periph_id, new_value)
+                    
+        except asyncio.TimeoutError:
+            _LOGGER.error("Fallback script request timed out")
+            return {"success": 0, "error": "Fallback script timeout"}
+            
+        except aiohttp.ClientError as e:
+            _LOGGER.error("Fallback script client error: %s", str(e))
+            return {"success": 0, "error": f"Fallback script client error: {str(e)}"}
+            
+        except Exception as e:
+            _LOGGER.error("Unexpected error in fallback: %s", str(e))
+            return {"success": 0, "error": f"Unexpected fallback error: {str(e)}"}
 
     async def get_periph_value(self, periph_id: str) -> Dict:
         """Get the current value of a peripheral."""
