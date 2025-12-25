@@ -60,12 +60,6 @@ class EedomusEntity(CoordinatorEntity):
                 attrs["type"] = periph_data["value_type"]
 
             attrs["eedomus_id"] = self._periph_id
-
-##Bug:cover with a false temperature sensor.
-#if  periph_data["value_type"] == 'float' and periph_data["current_value"] == "":
-#    periph_data["current_value"] = 0
-#if  periph_data["value_type"] == ' ' and periph_data["current_value"] == "":
-#    periph_data["current_value"] = 0
                 
             if not "room" in attrs and "room_name" in periph_data:
                 attrs["room"] = periph_data["room_name"]
@@ -89,8 +83,6 @@ class EedomusEntity(CoordinatorEntity):
             caract_value = self._client.get_periph_caract(self._periph_id)
             if isinstance(caract_value, dict):
                 self.coordinator.data[self._periph_id].update(caract_value)
-#                for att in ["last_value", "last_value_change", "last_value_text", "battery"]:
-#                    self.coordinator.data[self._periph_id][attr] = caract_value["body"].get(attr)
         except Exception as e:
             if self.available:  # Read current state, no need to prefix with _attr_
                 _LOGGER.warning("Update failed for %s (%s) : %s", self._attr_name, self._periph_id, e)
@@ -108,8 +100,6 @@ class EedomusEntity(CoordinatorEntity):
             caract_value = await self._client.get_periph_caract(self._periph_id)
             if isinstance(caract_value, dict):
                 self.coordinator.data[self._periph_id].update(caract_value)
-#                for att in ["last_value", "last_value_change", "last_value_text", "battery"]:
-#                    self.coordinator.data[self._periph_id][attr] = caract_value["body"].get(attr)
         except Exception as e:
             if self.available:  # Read current state, no need to prefix with _attr_
                 _LOGGER.warning("Update failed for %s (%s) : %s", self._attr_name, self._periph_id, e)
@@ -194,6 +184,17 @@ def map_device_to_ha_entity(device_data, default_ha_entity: str = "sensor"):
             "justification": f"PRODUCT_TYPE_ID=4 avec usage_id={device_data.get('usage_id')}: Chauffage fil pilote (prioritaire)"
         }
         _LOGGER.debug("Fil pilote climate mapping for %s (%s): %s", device_data["name"], device_data["periph_id"], mapping)
+        return mapping
+
+    # Vérifier les exceptions basées sur usage_id avant le mapping par classe
+    # Cas spécial: usage_id=37 (motion) doit être binary_sensor même avec classe 32
+    if device_data.get("usage_id") == "37":
+        mapping = {
+            "ha_entity": "binary_sensor",
+            "ha_subtype": "motion",
+            "justification": f"usage_id=37: Capteur de mouvement (prioritaire sur classe Z-Wave)"
+        }
+        _LOGGER.info("🚶 Motion sensor mapping for %s (%s): %s", device_data["name"], device_data["periph_id"], mapping)
         return mapping
 
     zwave_class = None

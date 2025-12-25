@@ -23,7 +23,7 @@ USAGE_ID_MAPPING = {
    "2": { #ou 1
        "ha_entity": "switch",
        "ha_subtype": "",
-       "justification": "Not Z-Wave using usage_id=2."
+       "justification": "Not Z-Wave using usage_id=2. Appareil électrique par défaut, mais peut être mappé comme sensor si c'est un consommateur."
    },
    "4": {
        "ha_entity": "switch",
@@ -110,11 +110,12 @@ USAGE_ID_MAPPING = {
        "ha_subtype": "moisture",
        "justification": "Inondation "
    },
-   "37": { #detecteur de mouvement
-       "ha_entity": "sensor",
-       "ha_subtype": "motion",
-       "justification": "Not Z-Wave using usage_id=37."
-   },
+   # Removed duplicate mapping for usage_id=37 as it's already correctly mapped in USAGE_ID_MAPPING
+   # "37": { #detecteur de mouvement
+   #     "ha_entity": "sensor",
+   #     "ha_subtype": "motion",
+   #     "justification": "Not Z-Wave using usage_id=37."
+   # },
    "38": { #fil pilote
        "ha_entity": "climate",
        "ha_subtype": "",
@@ -146,9 +147,9 @@ USAGE_ID_MAPPING = {
        "justification": "Interupteur Sonoff / Télécommande"
    },
    "82": { 
-       "ha_entity": "light ou scene",
-       "ha_subtype": "color",
-       "justification": "Couleurs prédéfinies pour les devices RGBW"
+       "ha_entity": "select",
+       "ha_subtype": "color_preset",
+       "justification": "Couleurs prédéfinies pour les devices RGBW - mappé comme select entity"
    },
    "84": { 
        "ha_entity": "calendar ou texte",
@@ -261,6 +262,13 @@ DEVICES_CLASS_MAPPING = {
         "ha_subtype": None,
         "exceptions": [
             {
+                "condition": "usage_id=37 (Motion detection)",
+                "ha_entity": "binary_sensor",
+                "ha_subtype": "motion",
+                "example_periph_id": ["1090995"],  # Oeil de chat
+                "justification": "usage_id=37 indicates motion detection sensor regardless of Z-Wave class",
+            },
+            {
                 "condition": "GENERIC=7 (SensorNotification) + SPECIFIC=1 (Mouvement)",
                 "ha_entity": "binary_sensor",
                 "ha_subtype": "motion",
@@ -334,8 +342,16 @@ DEVICES_CLASS_MAPPING = {
         "GENERIC": [],
         "ha_entity": "sensor",
         "ha_subtype": "energy",
-        "exceptions": [],
-        "justification": "Classe 32 = Meter (énergie). Toujours mappé à un capteur d'énergie (Wh/kWh).",
+        "exceptions": [
+            {
+                "condition": "usage_id=37 (Motion sensor)",
+                "ha_entity": "binary_sensor",
+                "ha_subtype": "motion",
+                "example_periph_id": ["1090995"],  # Mouvement Oeil de chat
+                "justification": "Classe 32 avec usage_id=37 est un capteur de mouvement, pas d'énergie"
+            }
+        ],
+        "justification": "Classe 32 = Meter (énergie). Sauf usage_id=37 (mouvement).",
     },
     "50": {
         "GENERIC": [],

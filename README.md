@@ -31,10 +31,37 @@ L'intégration eedomus supporte maintenant **deux modes de connexion indépendan
 ### 📋 Mode API Eedomus (Connexion Directe - Pull)
 
 ```
-      +----------------+     +----------------+
-      | Home Assistant +---->+ Eedomus        |
-      |                |     | (API)          |
-      +----------------+     +----------------+
+
++---------------------+       HTTP       +---------------------+
+|                     |  -------------->  |                     |
+|   Home Assistant    |                   |   Eedomus Box       |
+|                     |  <--------------  |                     |
++---------------------+       Webhook     +---------------------+
+            Core                          API Endpoint
+              |                                |
+              v                                v
+        Eedomus Client                    Devices Manager
+        
+```
+
+```mermaid
+flowchart LR
+    subgraph HomeAssistant[Home Assistant]
+        direction TB
+        HA[Core] --> Eedomus_client[Eedomus Client]
+    end
+    
+    subgraph Eedomus[Eedomus Box]
+        direction TB
+        EedomusAPI[API Endpoint] --> Devices[Devices Manager]
+        Devices --> States[States Database]
+    end
+    
+    Eedomus_client --> |HTTP| EedomusAPI
+    
+    style HomeAssistant fill:#00abf8,stroke:#FFFFF
+    style Eedomus fill:#3b6c35,stroke:#FFFFFF
+    style EedomusAPI fill:#2c8920,stroke:#00AA00
 ```
 
 **Fonctionnement**: Home Assistant interroge périodiquement l'API Eedomus pour récupérer les données.
@@ -42,10 +69,9 @@ L'intégration eedomus supporte maintenant **deux modes de connexion indépendan
 **Caractéristiques**:
 - ✅ Connexion directe à l'API Eedomus
 - ✅ Nécessite des identifiants API (utilisateur/clé secrète)
-- ✅ Active toutes les fonctionnalités y compris l'historique
-- ✅ Utilise le coordinator pour la synchronisation des données
-- ✅ Recommandé pour la plupart des utilisateurs
-- ✅ Intervalle de rafraîchissement configurable (minimum 30 secondes)
+- ✅ Active toutes les fonctionnalités (l'historique est optionnelle)
+- ✅ Utilise le coordinator pour la synchronisation des données en groupant les appels API
+- ✅ Intervalle de rafraîchissement configurable (minimum 30 secondes, 300 secondes c'est bien)
 
 **Cas d'utilisation**:
 - Intégration complète avec toutes les fonctionnalités
@@ -56,34 +82,45 @@ L'intégration eedomus supporte maintenant **deux modes de connexion indépendan
 ### 🔄 Mode API Proxy (Webhook - Push)
 
 ```
-      ```mermaid
+
++---------------------+       HTTP       +---------------------+
+|                     |  -------------->  |                     |
+|   Home Assistant    |                   |   Eedomus Box       |
+|                     |                   |                     |
++---------------------+                   +---------------------+
+            API Proxy                         API Endpoint
+              |                                |
+              v                                v
+        Webhook Receiver                  Devices Manager
+        
+```
+
+```mermaid
 flowchart LR
     subgraph HomeAssistant[Home Assistant]
         direction TB
-        HA[Core] --> Webhook[Webhook\nReceiver]
-        Webhook --> API[API\nProxy]
+        APIProxy --> HA[Core]
     end
     
     subgraph Eedomus[Eedomus Box]
         direction TB
-        EedomusAPI[API\nEndpoint] --> Devices[Devices\nManager]
-        Devices --> States[States\nDatabase]
+        EedomusAPI[API Endpoint] --> Devices[Devices Manager]
+        Devices --> Act[Actionneur HTTP]
+        Devices --> States[States Database]
     end
     
-    Webhook <--->|HTTP/HTTPS| EedomusAPI
-    API <--->|HTTP/HTTPS| EedomusAPI
+    APIProxy <---|HTTP| Act
     
-    style HomeAssistant fill:#9f9,stroke:#333
-    style Eedomus fill:#f96,stroke:#333
-    style Webhook fill:#bbf,stroke:#333
-    style EedomusAPI fill:#bbf,stroke:#333
+    style HomeAssistant fill:#00abf8,stroke:#FFFFF
+    style Eedomus fill:#3b6c35,stroke:#FFFFFF
+    style EedomusAPI fill:#2c8920,stroke:#00AA00
 ```
 
 **Webhook Architecture:**
-- 🟢 **Home Assistant** : Core system with webhook receiver and API proxy
-- 🟠 **Eedomus Box** : Device management and state database
-- 🟦 **Communication** : Bidirectional HTTP/HTTPS connections
-```
+- 🟦 **Home Assistant** : Core system with webhook receiver and API proxy
+- 🟢 **Eedomus Box** : Device management and state database
+-  **Communication** : unidirectional HTTP connections
+
 
 **Fonctionnement**: Eedomus envoie des données à Home Assistant via des webhooks lorsque des événements se produisent.
 
@@ -103,6 +140,49 @@ flowchart LR
 
 ### 🔧 + 🔄 Mode Combiné (Redondance et Performance Optimale)
 
+```
+
++---------------------+       HTTP       +---------------------+
+|                     |  -------------->  |                     |
+|   Home Assistant    |                   |   Eedomus Box       |
+|                     |  <--------------  |                     |
++---------------------+       Webhook     +---------------------+
+            Core                          API Endpoint
+              |                                |
+              v                                v
+        Eedomus Client                    Devices Manager
+        API Proxy
+        
+```
+
+```mermaid
+flowchart LR
+    subgraph HomeAssistant[Home Assistant]
+        direction TB
+        HA[Core] --> Eedomus_client[Eedomus Client]
+        APIProxy --> HA[Core]
+    end
+    
+    subgraph Eedomus[Eedomus Box]
+        direction TB
+        EedomusAPI[API Endpoint] --> Devices[Devices Manager]
+        Devices --> States[States Database]
+        Devices --> Act[HTTP Actionneur]
+    end
+    
+    APIProxy <---|HTTP| Act
+    Eedomus_client ---> |HTTP| EedomusAPI
+    
+    style HomeAssistant fill:#00abf8,stroke:#FFFFF
+    style Eedomus fill:#3b6c35,stroke:#FFFFFF
+    style EedomusAPI fill:#2c8920,stroke:#00AA00
+```
+
+**Webhook Architecture:**
+- 🟦 **Home Assistant** : Core system with webhook receiver and API proxy
+- 🟢 **Eedomus Box** : Device management and state database
+- **Communication** : Bidirectional HTTP connections
+
 **Avantages de la combinaison des deux modes**:
 - ✅ **Redondance**: Si un mode échoue, l'autre continue de fonctionner
 - ✅ **Performance**: Mises à jour en temps réel via webhooks + synchronisation complète via API
@@ -110,6 +190,7 @@ flowchart LR
 - ✅ **Flexibilité**: Adaptation automatique aux conditions réseau
 
 **Configuration recommandée pour la haute disponibilité**:
+
 ```yaml
 # Exemple de configuration combinée
 api_eedomus: true      # Pour la synchronisation complète et l'historique
@@ -261,6 +342,633 @@ WARNING:   Only use this setting temporarily for debugging in secure environment
 - **Pour les réseaux restreints**: Utilisez uniquement le mode proxy
 - **Pour un accès complet**: Utilisez uniquement le mode API Eedomus
 - **Pour la haute disponibilité**: Combinez les deux modes
+
+## 🆕 Nouveautés dans la version 0.12.0 (🆕 Prochainement)
+
+### Améliorations Majeures des Entités et Nouveaux Capteurs
+
+#### 1. 🎨 Couleurs Prédéfinies comme Sélecteurs
+- **Nouveau mapping pour `usage_id=82`**: Les périphériques "Couleur prédéfinie" sont maintenant mappés comme entités `select` au lieu de `text`
+- **Exemples concernés**: "Couleur prédéfinie Salle de bain", "Couleur prédéfinie Chambre parent", etc.
+- **Avantages**:
+  - Interface utilisateur native avec menu déroulant
+  - Sélection directe des couleurs prédéfinies
+  - Meilleure intégration avec les automations
+  - Support complet des valeurs eedomus
+
+#### 2. 🌡️ Consignes de Température Améliorées
+- **Gestion intelligente des thermostats**: Meilleure détection et contrôle des consignes de température
+- **Types supportés**:
+  - `usage_id=15`: Consignes de température virtuelles (ex: "Consigne de Zone de chauffage Salon")
+  - `usage_id=19/20`: Chauffage fil pilote
+  - `PRODUCT_TYPE_ID=4` (classe 67): Têtes thermostatiques Z-Wave
+- **Améliorations**:
+  - Détection automatique des capteurs de température associés
+  - Envoi direct des températures pour les consignes (usage_id=15)
+  - Meilleure gestion des modes HVAC (HEAT/OFF)
+  - Plage de température dynamique basée sur les valeurs acceptables
+  - Association automatique avec les capteurs de température enfants
+
+#### 3. ⚡ Gestion Intelligente des Capteurs de Consommation
+- **Détection automatique améliorée**: Les switch qui sont en réalité des capteurs de consommation sont maintenant automatiquement détectés et mappés comme `sensor/energy`
+- **Logique de détection intelligente**:
+  - **Périphériques remappés comme sensors**: Les vrais capteurs de consommation (sans capacité de contrôle) sont détectés par:
+    - Noms contenant "consommation", "compteur", "meter" mais PAS des termes de contrôle
+    - Périphériques avec UNIQUEMENT des enfants `usage_id=26` (sans autres capacités)
+  - **Périphériques conservés comme switches**: Les appareils contrôlables avec monitoring de consommation restent des switches:
+    - Noms contenant "decoration", "appliance", "prise", "module", "sapin", "noel", etc.
+    - Exemples: "Decorations Salon", "Anti-moustique Chambre parent", "Sapin Salon"
+- **Avantages**:
+  - Plus besoin de configuration manuelle
+  - Meilleure représentation dans l'interface
+  - Intégration native avec les tableaux de bord énergie
+  - Conservation des fonctionnalités de contrôle pour les appareils contrôlables
+
+#### 4. 👁️ Correction du Capteur de Mouvement "Oeil de Chat"
+- **Problème résolu**: Le capteur "Mouvement Oeil de chat Salon" est maintenant correctement mappé comme `binary_sensor` au lieu de `sensor`
+- **Solution**:
+  - Ajout d'une exception spécifique pour `usage_id=37`
+  - Priorité donnée au mapping par usage_id sur le mapping par classe Z-Wave
+  - Meilleure détection des capteurs de mouvement non-ZWave
+
+#### 5. 🔋 Nouveaux Capteurs de Batterie
+- **Nouvelle plateforme**: Ajout de capteurs de batterie pour tous les périphériques avec informations de batterie
+- **Fonctionnalités**:
+  - Création automatique de capteurs pour chaque périphérique avec champ `battery`
+  - Noms clairs: "[Nom du périphérique] Battery"
+  - Device class `battery` pour intégration native
+  - Attributs supplémentaires: statut de batterie (High/Medium/Low/Critical)
+  - Compatible avec les tableaux de bord et alertes
+- **Exemples**:
+  - "Mouvement Oeil de chat Salon Battery" (100%)
+  - "Température Oeil de chat Salon Battery" (100%)
+  - "Fumée Cuisine Battery" (100%)
+  - "Humidité Salon Battery" (80%)
+
+## 📊 Statistiques des Améliorations
+
+| Amélioration | Nombre d'entités concernées | Impact |
+|--------------|----------------------------|---------|
+| Couleurs prédéfinies → Select | 5+ | Meilleure UX, intégration native |
+| Consignes de température | 3+ | Contrôle précis, association automatique |
+| Capteurs de consommation | 10+ | Détection automatique, meilleure représentation |
+| Capteurs de mouvement | 1+ | Correction de bug, mapping correct |
+| Capteurs de batterie | 20+ | Nouvelle fonctionnalité, surveillance complète |
+
+## 🗺️ Architecture Visuelle des Entités
+
+## 🗺️ Architecture Visuelle des Entités
+
+### 🎯 Tableau de Correspondance Eedomus → Home Assistant
+
+```
+
++---------------------+       +---------------------+
+|   Home Assistant    |       |   Eedomus Box       |
+|                     |       |                     |
+|   +-------------+   |       |   +-------------+   |
+|   |  Light      |   |       |   |  Light      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Switch     |   |       |   |  Switch     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Cover      |   |       |   |  Cover      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Sensor     |   |       |   |  Sensor     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Binary     |   |       |   |  Binary     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Select     |   |       |   |  Select     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Climate    |   |       |   |  Climate    |   |
+|   +-------------+   |       |   +-------------+   |
++---------------------+       +---------------------+
+        Mapping System              Device Data
+        
+```
+
+```mermaid
+flowchart TD
+    subgraph Legend[Legend]
+        A[HA Entity] -->|maps to| B[ha_entity]
+        C[Eedomus Type] -->|usage_id| D[usage_id]
+    end
+
+    subgraph MappingTable[Eedomus to HA Mapping]
+        %% Lights
+        EedomusLight[Eedomus Light] --> HALight[HA Light]
+        EedomusLight --> Light1[usage_id=1]
+        EedomusLight --> LightRGBW[PRODUCT_TYPE_ID=2304]
+        
+        %% Select Entities
+        EedomusSelect[Eedomus Select] --> HASelect[HA Select]
+        EedomusSelect --> SelectGroup[usage_id=14]
+        EedomusSelect --> SelectColor[usage_id=82]
+        
+        %% Climate
+        EedomusClimate[Eedomus Climate] --> HAClimate[HA Climate]
+        EedomusClimate --> ClimateSetpoint[usage_id=15]
+        
+        %% Sensors
+        EedomusSensor[Eedomus Sensor] --> HASensor[HA Sensor]
+        EedomusSensor --> SensorTemp[usage_id=7]
+        EedomusSensor --> SensorEnergy[usage_id=26]
+        
+        %% Binary Sensors
+        EedomusBinary[Eedomus Binary] --> HABinary[HA Binary Sensor]
+        EedomusBinary --> BinaryMotion[usage_id=37]
+        
+        %% Switches
+        EedomusSwitch[Eedomus Switch] --> HASwitch[HA Switch]
+        EedomusSwitch --> SwitchConsumption[usage_id=2]
+        EedomusSwitch --> SwitchWithConsumption[Decorations/Appliances]
+    end
+
+    %% Parent-Child Relationships
+    subgraph Relationships[Parent-Child Relationships]
+        RGBWParent[RGBW Light 1077644] --> RGBWChild1[Red 1077645]
+        RGBWParent --> RGBWChild2[Green 1077646]
+        RGBWParent --> RGBWColorPreset[Color Preset 1077650]
+        
+        Thermostat[Setpoint 1252441] --> TempSensor[Temperature 1235856]
+        
+        MotionSensor[Motion 1090995] --> MotionBattery[Battery 1090995-Battery]
+    end
+
+    %% Legend
+    classDef new fill:#9f9,stroke:#333
+    classDef fixed fill:#ff9,stroke:#333
+    classDef auto fill:#99f,stroke:#333
+
+    SelectColor:::new
+    SensorEnergy:::new
+    BinaryMotion:::fixed
+    SwitchConsumption:::auto
+    RGBWColorPreset:::new
+    MotionBattery:::new
+
+    style Legend fill:#f9f,stroke:#333
+    style MappingTable fill:#fff,stroke:#333
+    style Relationships fill:#fff,stroke:#333
+```
+
+### Diagramme Global de Mapping des Entités
+
+```
+
++---------------------+       +---------------------+
+|   Home Assistant    |       |   Eedomus Box       |
+|                     |       |                     |
+|   RGBW Light        |       |   RGBW Light        |
+|   +-------------+   |       |   +-------------+   |
+|   |  Red        |   |       |   |  Red        |   |
+|   |  Green      |   |       |   |  Green      |   |
+|   |  Blue       |   |       |   |  Blue       |   |
+|   |  White      |   |       |   |  White      |   |
+|   |  Consumption|   |       |   |  Consumption|   |
+|   |  Color Preset|   |       |   |  Color Preset|   |
+|   +-------------+   |       |   +-------------+   |
++---------------------+       +---------------------+
+        Parent Device              Child Devices
+        
+```
+
+```mermaid
+flowchart TD
+    subgraph Eedomus[Eedomus Box]
+        A[Eedomus Devices] -->|API| B[Z-Wave Classes]
+        A -->|API| C[Usage IDs]
+        A -->|API| D[PRODUCT_TYPE_ID]
+        A -->|API| E[Values & States]
+    end
+    
+    subgraph HA[Home Assistant]
+        B --> F[Mapping System]
+        C --> F
+        D --> F
+        E --> F
+        
+        F -->|ha_entity| G[Light Entities]
+        F -->|ha_entity| H[Switch Entities]
+        F -->|ha_entity| I[Cover Entities]
+        F -->|ha_entity| J[Sensor Entities]
+        F -->|ha_entity| K[Binary Sensor Entities]
+        F -->|ha_entity| L[Select Entities]
+        F -->|ha_entity| M[Climate Entities]
+        F -->|ha_entity| N[Battery Sensors]
+    end
+    
+    style Eedomus fill:#f9f,stroke:#333
+    style HA fill:#bbf,stroke:#333
+    style F fill:#9f9,stroke:#333
+```
+
+### Logique Améliorée de Détection des Capteurs de Consommation
+
+La nouvelle logique dans `switch.py` utilise une approche plus intelligente pour distinguer entre :
+
+1. **Vrais capteurs de consommation** (remappés comme `sensor/energy`):
+   - Périphériques avec UNIQUEMENT des enfants `usage_id=26`
+   - Noms contenant "consommation", "compteur", "meter" mais PAS des termes comme "decoration", "appliance", etc.
+   - Exemple: "Consommation Salon" (sans capacité de contrôle)
+
+2. **Appareils contrôlables avec monitoring** (conservés comme `switch`):
+   - Périphériques avec des enfants `usage_id=26` ET d'autres capacités
+   - Noms contenant "decoration", "appliance", "prise", "module", "sapin", "noel", etc.
+   - Exemples: "Decorations Salon", "Anti-moustique Chambre parent", "Sapin Salon"
+
+**Algorithme de décision**:
+```python
+# 1. Vérifier si le périphérique a des enfants de consommation
+if has_children_with_usage_id_26:
+    # 2. Vérifier si c'est un appareil contrôlable (liste blanche)
+    if name_contains_control_keywords:
+        keep_as_switch()  # Conservation comme switch
+    # 3. Vérifier si c'est un vrai capteur de consommation
+    elif name_contains_consumption_keywords_only:
+        remap_as_sensor()  # Remappage comme sensor
+    else:
+        keep_as_switch()  # Par défaut, conservation comme switch
+```
+
+### Exemple Concret : Device RGBW avec Couleurs Prédéfinies
+
+```
+
++---------------------+       +---------------------+
+|   Home Assistant    |       |   Eedomus Box       |
+|                     |       |                     |
+|   Thermostat        |       |   Thermostat        |
+|   +-------------+   |       |   +-------------+   |
+|   |  Setpoint   |   |       |   |  Setpoint   |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Temperature|   |       |   |  Temperature|   |
+|   +-------------+   |       |   +-------------+   |
++---------------------+       +---------------------+
+        Setpoint Device           Temperature Sensor
+        
+```
+
+```mermaid
+flowchart LR
+    subgraph RGBWDevice[RGBW Light Device - Led Meuble Salle de bain]
+        direction TB
+        Parent[Parent: 1077644
+usage_id=1
+hentity=light
+subtype=rgbw] -->|contains| R[Red: 1077645
+usage_id=1] 
+        Parent -->|contains| G[Green: 1077646
+usage_id=1] 
+        Parent -->|contains| B[Blue: 1077647
+usage_id=1] 
+        Parent -->|contains| W[White: 1077648
+usage_id=1] 
+        Parent -->|contains| C[Consumption: 1077649
+usage_id=26
+hentity=sensor
+subtype=energy] 
+        Parent -->|contains| P[Color Preset: 1077650
+usage_id=82
+hentity=select
+subtype=color_preset] 
+    end
+    
+    style Parent fill:#9f9,stroke:#333
+    style R fill:#f99,stroke:#333
+    style G fill:#9f9,stroke:#333
+    style B fill:#99f,stroke:#333
+    style W fill:#fff,stroke:#333
+    style C fill:#ff9,stroke:#333
+    style P fill:#f9f,stroke:#333
+```
+
+### Exemple Concret : Thermostat avec Capteur Associé
+
+```
+
++---------------------+       +---------------------+
+|   Home Assistant    |       |   Eedomus Box       |
+|                     |       |                     |
+|   +-------------+   |       |   +-------------+   |
+|   |  Light      |   |       |   |  Light      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Switch     |   |       |   |  Switch     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Cover      |   |       |   |  Cover      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Sensor     |   |       |   |  Sensor     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Binary     |   |       |   |  Binary     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Select     |   |       |   |  Select     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Climate    |   |       |   |  Climate    |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Battery    |   |       |   |  Battery    |   |
+|   +-------------+   |       |   +-------------+   |
++---------------------+       +---------------------+
+        HA Entities                Eedomus Data
+        
+```
+
+```mermaid
+flowchart TD
+    subgraph ThermostatSystem[Thermostat System - Consigne Salon]
+        direction TB
+        Setpoint[Setpoint: 1252441
+usage_id=15
+hentity=climate
+subtype=temperature_setpoint] 
+        Setpoint -->|associated with| Sensor[Temperature: 1235856
+usage_id=7
+hentity=sensor
+subtype=temperature] 
+        Setpoint -->|controls| Heating[Heating: 1235855
+usage_id=38
+hentity=climate
+subtype=fil_pilote] 
+    end
+    
+    style Setpoint fill:#9f9,stroke:#333
+    style Sensor fill:#99f,stroke:#333
+    style Heating fill:#f99,stroke:#333
+```
+
+### Flux de Données Complet
+
+```
+
++---------------------+       +---------------------+
+|   Home Assistant    |       |   Eedomus Box       |
+|                     |       |                     |
+|   +-------------+   |       |   +-------------+   |
+|   |  Light      |   |       |   |  Light      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Switch     |   |       |   |  Switch     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Cover      |   |       |   |  Cover      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Sensor     |   |       |   |  Sensor     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Binary     |   |       |   |  Binary     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Select     |   |       |   |  Select     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Climate    |   |       |   |  Climate    |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Battery    |   |       |   |  Battery    |   |
+|   +-------------+   |       |   +-------------+   |
++---------------------+       +---------------------+
+        Mapping System              Device Data
+        
+```
+
+```mermaid
+flowchart LR
+    subgraph Eedomus[Eedomus Box]
+        API[API Endpoint] -->|JSON| Devices[Devices Database]
+        Devices -->|Update| States[Current States]
+        States -->|Webhook| HA
+    end
+    
+    subgraph HA[Home Assistant]
+        Webhook[Webhook Receiver] --> Coordinator[Data Coordinator]
+        Coordinator -->|Refresh| API
+        Coordinator -->|Update| Entities[HA Entities]
+        
+        Entities -->|Light| LightPlatform
+        Entities -->|Switch| SwitchPlatform
+        Entities -->|Climate| ClimatePlatform
+        Entities -->|Sensor| SensorPlatform
+        Entities -->|Binary Sensor| BinarySensorPlatform
+        Entities -->|Select| SelectPlatform
+        Entities -->|Cover| CoverPlatform
+        Entities -->|Battery| BatterySensors
+    end
+    
+    style Eedomus fill:#f96,stroke:#333
+    style HA fill:#9f9,stroke:#333
+    style Coordinator fill:#bbf,stroke:#333
+```
+
+### Légende des Couleurs
+
+```
+
++---------------------+       +---------------------+
+|   Home Assistant    |       |   Eedomus Box       |
+|                     |       |                     |
+|   +-------------+   |       |   +-------------+   |
+|   |  Light      |   |       |   |  Light      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Switch     |   |       |   |  Switch     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Cover      |   |       |   +-------------+   |
+|   +-------------+   |       |   |  Cover      |   |
+|   |  Sensor     |   |       |   +-------------+   |
+|   +-------------+   |       |   |  Sensor     |   |
+|   |  Binary     |   |       |   +-------------+   |
+|   +-------------+   |       |   |  Binary     |   |
+|   |  Select     |   |       |   +-------------+   |
+|   +-------------+   |       |   |  Select     |   |
+|   |  Climate    |   |       |   +-------------+   |
+|   +-------------+   |       |   |  Climate    |   |
+|   |  Battery    |   |       |   +-------------+   |
+|   +-------------+   |       |   |  Battery    |   |
++---------------------+       +---------------------+
+        Data Flow                  Data Flow
+        
+```
+
+```mermaid
+graph LR
+    A[Green - Main Entities] -->|Example| B[Light, Climate, Coordinator]
+    C[Red - Actions] -->|Example| D[Set Value, Webhook, API]
+    E[Yellow - Data] -->|Example| F[States, Values, Battery]
+    G[Blue - Platforms] -->|Example| H[Sensor, Binary Sensor, Select]
+    I[Purple - Systems] -->|Example| J[Eedomus, Home Assistant]
+```
+
+### Diagramme d'Intégration Git
+
+```
+
++---------------------+       +---------------------+
+|   Home Assistant    |       |   Eedomus Box       |
+|                     |       |                     |
+|   +-------------+   |       |   +-------------+   |
+|   |  Light      |   |       |   |  Light      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Switch     |   |       |   |  Switch     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Cover      |   |       |   |  Cover      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Sensor     |   |       |   |  Sensor     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Binary     |   |       |   |  Binary     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Select     |   |       |   |  Select     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Climate    |   |       |   |  Climate    |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Battery    |   |       |   |  Battery    |   |
+|   +-------------+   |       |   +-------------+   |
++---------------------+       +---------------------+
+        Legend                      Legend
+        
+```
+
+```mermaid
+gitGraph
+    commit "Main Branch"
+    branch feature/scene-to-select-refactor
+    checkout feature/scene-to-select-refactor
+    commit "Add select entities"
+    commit "Fix values field"
+    checkout main
+    branch feature/improved-entity-mapping
+    checkout feature/improved-entity-mapping
+    commit "Improve climate entities"
+    commit "Add battery sensors"
+    merge feature/scene-to-select-refactor
+    commit "Final integration"
+```
+
+## 📋 Fonctionnalités Supportées par Version
+
+| Version | Plateformes | Entités Spéciales | Changements Majeurs |
+|---------|-------------|-------------------|---------------------|
+| 0.12.0 | 7 | Battery sensors, Color presets as select | Améliorations majeures des entités |
+| 0.11.0 | 7 | Select entities | Migration Scene→Select |
+| 0.10.0 | 7 | Climate entities | Support des thermostats |
+| 0.9.0 | 6 | Mapping system | Refonte du mapping |
+| 0.8.0 | 6 | Scene entities | Support des scènes |
+1. Les consignes de température apparaissent comme des entités `climate`
+2. Utilisez l'interface native de Home Assistant pour régler la température
+3. Les capteurs de température associés sont détectés automatiquement
+
+### Utilisation des Sélecteurs de Couleurs
+1. Les couleurs prédéfinies apparaissent comme des entités `select`
+2. Sélectionnez la couleur souhaitée dans le menu déroulant
+3. Le changement est immédiatement appliqué au périphérique RGBW parent
+
+## 🎯 Recommandations pour la Migration
+
+1. **Testez d'abord**: Vérifiez que les nouvelles entités apparaissent correctement
+2. **Surveillez les logs**: Activez le débogage pour voir les messages de mapping
+3. **Ajustez si nécessaire**: Certains périphériques peuvent nécessiter des ajustements manuels
+4. **Profitez des nouvelles fonctionnalités**: Les capteurs de batterie et les sélecteurs améliorent considérablement l'expérience utilisateur
+
+## 📋 Fonctionnalités Supportées par Version
+
+| Version | Plateformes | Entités Spéciales | Changements Majeurs |
+|---------|-------------|-------------------|---------------------|
+| 0.12.0 | 7 | Battery sensors, Color presets as select | Améliorations majeures des entités |
+| 0.11.0 | 7 | Select entities | Migration Scene→Select |
+| 0.10.0 | 7 | Climate entities | Support des thermostats |
+| 0.9.0 | 6 | Mapping system | Refonte du mapping |
+| 0.8.0 | 6 | Scene entities | Support des scènes |
+
+## 🔗 Relation avec d'Autres Branches
+
+### Intégration de `feature/scene-to-select-refactor`
+
+La branche actuelle `feature/improved-entity-mapping-and-battery-sensors` **intègre complètement** les fonctionnalités de la branche `feature/scene-to-select-refactor` :
+
+✅ **Fonctionnalités incluses** :
+- Migration complète des entités `scene` vers `select`
+- Correction du champ `values` au lieu de `value_list`
+- Support complet des sélecteurs eedomus
+- Documentation de migration complète
+
+✅ **Améliorations supplémentaires** :
+- Ajout des couleurs prédéfinies comme sélecteurs (`usage_id=82`)
+- Amélioration des entités climate
+- Détection automatique des capteurs de consommation
+- Correction du capteur "Oeil de Chat"
+- Ajout des capteurs de batterie
+
+📊 **Comparaison des branches** :
+
+| Fonctionnalité | scene-to-select-refactor | improved-entity-mapping |
+|---------------|------------------------|-------------------------|
+| Migration Scene→Select | ✅ | ✅ (incluse) |
+| Correction values/vs value_list | ✅ | ✅ (incluse) |
+| Couleurs prédéfinies→Select | ❌ | ✅ (nouveau) |
+| Climate amélioré | ❌ | ✅ (nouveau) |
+| Détection consommation | ❌ | ✅ (nouveau) |
+| Capteurs batterie | ❌ | ✅ (nouveau) |
+| Correction Oeil de Chat | ❌ | ✅ (nouveau) |
+
+### Diagramme d'Intégration
+
+```
+
++---------------------+       +---------------------+
+|   Home Assistant    |       |   Eedomus Box       |
+|                     |       |                     |
+|   +-------------+   |       |   +-------------+   |
+|   |  Light      |   |       |   |  Light      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Switch     |   |       |   |  Switch     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Cover      |   |       |   |  Cover      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Sensor     |   |       |   |  Sensor     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Binary     |   |       |   |  Binary     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Select     |   |       |   |  Select     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Climate    |   |       |   |  Climate    |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Battery    |   |       |   |  Battery    |   |
+|   +-------------+   |       |   +-------------+   |
++---------------------+       +---------------------+
+        Git Graph                   Git Graph
+        
+```
+
+```mermaid
+gitGraph
+    commit "Main Branch"
+    branch feature/scene-to-select-refactor
+    checkout feature/scene-to-select-refactor
+    commit "Add select entities"
+    commit "Fix values field"
+    commit "Add migration docs"
+    checkout main
+    branch feature/improved-entity-mapping-and-battery-sensors
+    checkout feature/improved-entity-mapping-and-battery-sensors
+    commit "Improve climate entities"
+    commit "Add battery sensors"
+    commit "Enhance color presets"
+    merge feature/scene-to-select-refactor
+    commit "Final integration"
+```
+
+## 🎯 Recommandations de Fusion
+
+Pour intégrer cette branche dans `main`, nous recommandons :
+
+1. **Fusion directe** : La branche est compatible et contient toutes les améliorations
+2. **Tests recommandés** :
+   - Vérifier que les sélecteurs fonctionnent correctement
+   - Tester les nouveaux capteurs de batterie
+   - Valider les thermostats améliorés
+   - Confirmer la détection des capteurs de consommation
+3. **Documentation** : La documentation est complète et à jour
+
+## 🔄 Stratégie de Migration
+
+Si vous utilisez déjà la branche `feature/scene-to-select-refactor` :
+- **Passez directement** à cette branche pour bénéficier des améliorations supplémentaires
+- **Aucune migration** nécessaire - tout est compatible
+
+Si vous utilisez la branche `main` :
+- **Testez d'abord** cette branche dans un environnement de développement
+- **Surveillez les logs** pour vérifier que toutes les entités sont correctement mappées
+- **Profitez des nouvelles fonctionnalités** une fois la migration validée
 
 ## 🆕 Nouveautés dans la version 0.8.0
 
@@ -497,6 +1205,33 @@ Cette intégration est développée selon une **méthodologie agile et collabora
 
 #### 💻 Infrastructure Technique
 
+```
+
++---------------------+       +---------------------+
+|   Home Assistant    |       |   Eedomus Box       |
+|                     |       |                     |
+|   +-------------+   |       |   +-------------+   |
+|   |  Light      |   |       |   |  Light      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Switch     |   |       |   |  Switch     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Cover      |   |       |   |  Cover      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Sensor     |   |       |   |  Sensor     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Binary     |   |       |   |  Binary     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Select     |   |       |   |  Select     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Climate    |   |       |   |  Climate    |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Battery    |   |       |   |  Battery    |   |
+|   +-------------+   |       |   +-------------+   |
++---------------------+       +---------------------+
+        Evolution                     Evolution
+        
+```
+
 ```mermaid
 graph LR
     A["Laptop (old macbook) Dev Emacs+vibe"] -->|SSH| B[Raspberry Pi HAOS]
@@ -631,6 +1366,33 @@ Vous: "Parfait, ça fonctionne !"
 ## 📈 Évolution des Fonctionnalités
 
 ### Diagramme d'Évolution
+
+```
+
++---------------------+       +---------------------+
+|   Home Assistant    |       |   Eedomus Box       |
+|                     |       |                     |
+|   +-------------+   |       |   +-------------+   |
+|   |  Light      |   |       |   |  Light      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Switch     |   |       |   |  Switch     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Cover      |   |       |   |  Cover      |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Sensor     |   |       |   |  Sensor     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Binary     |   |       |   |  Binary     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Select     |   |       |   |  Select     |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Climate    |   |       |   |  Climate    |   |
+|   +-------------+   |       |   +-------------+   |
+|   |  Battery    |   |       |   |  Battery    |   |
+|   +-------------+   |       |   +-------------+   |
++---------------------+       +---------------------+
+        Comparison                   Comparison
+        
+```
 
 ```mermaid
 gantt

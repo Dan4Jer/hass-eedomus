@@ -46,6 +46,48 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             eedomus_mapping = map_device_to_ha_entity(periph)
             coordinator.data[periph_id].update(eedomus_mapping)
 
+    # Handle parent-child relationships for motion sensors
+    parent_to_children = {}
+    for periph_id, periph in all_peripherals.items():
+        parent_id = periph.get("parent_periph_id")
+        if parent_id:
+            if parent_id not in parent_to_children:
+                parent_to_children[parent_id] = []
+            parent_to_children[parent_id].append(periph)
+    
+    # Map children of motion sensors to appropriate entities
+    for parent_id, children in parent_to_children.items():
+        if parent_id in coordinator.data and coordinator.data[parent_id].get("ha_entity") == "binary_sensor":
+            for child in children:
+                child_id = child["periph_id"]
+                if child_id not in coordinator.data or "ha_entity" not in coordinator.data[child_id]:
+                    eedomus_mapping = None
+                    
+                    # Map children based on their usage_id
+                    if child.get("usage_id") == "7":  # Temperature sensor
+                        eedomus_mapping = {
+                            "ha_entity": "sensor",
+                            "ha_subtype": "temperature",
+                            "justification": "Child of motion sensor - temperature"
+                        }
+                    elif child.get("usage_id") == "24":  # Illuminance sensor
+                        eedomus_mapping = {
+                            "ha_entity": "sensor",
+                            "ha_subtype": "illuminance",
+                            "justification": "Child of motion sensor - illuminance"
+                        }
+                    elif child.get("usage_id") == "36":  # Flood sensor
+                        eedomus_mapping = {
+                            "ha_entity": "binary_sensor",
+                            "ha_subtype": "flood",
+                            "justification": "Child of motion sensor - flood"
+                        }
+                    
+                    if eedomus_mapping is not None:
+                        coordinator.data[child_id].update(eedomus_mapping)
+                        _LOGGER.info("Mapped child sensor for motion device %s (%s)", 
+                                   child["name"], child_id)
+
     # Second pass: create binary sensor entities
     for periph_id, periph in all_peripherals.items():
         ha_entity = coordinator.data[periph_id].get("ha_entity")
@@ -55,32 +97,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         
         _LOGGER.debug("Creating binary sensor entity for %s (%s)", periph["name"], periph_id)
         binary_sensors.append(EedomusBinarySensor(coordinator, periph_id))
-
-    async_add_entities(binary_sensors, True)
-
-async def async_setup_entry_old(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
-    """Set up eedomus binary sensor entities from config entry."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
-    all_peripherals = coordinator.get_all_peripherals()
-
-    binary_sensors = []
-    for periph_id, periph in all_peripherals.items():
-        value_type = periph.get("value_type")
-        usage_name = periph.get("usage_name", "").lower()
-
-        _LOGGER.debug("Setup binary sensor entity for periph_id=%s data=%s", periph_id, coordinator.data[periph_id])
-
-        # Filtre pour les périphériques binaires
-        if value_type == "bool" or (
-            "détecteur" in usage_name or
-            "mouvement" in usage_name or
-            "porte" in usage_name or
-            "fenêtre" in usage_name or
-            "fumée" in usage_name or
-            "inondation" in usage_name or
-            "contact" in usage_name
-        ):
-            binary_sensors.append(EedomusBinarySensor(coordinator, periph_id))
 
     async_add_entities(binary_sensors, True)
 
@@ -114,11 +130,11 @@ class EedomusBinarySensor(EedomusEntity, BinarySensorEntity):
         ha_subtype = periph_info.get("ha_subtype", "")
         usage_name = periph_info.get("usage_name", "").lower()
         
-        # D'abord utiliser le ha_subtype si disponible
+        # D'abord utiliser le ha_subtype si disponible ==> à simplifier
         if ha_subtype:
             return EEDOMUS_TO_HA_DEVICE_CLASS.get(ha_subtype, None)
         
-        # Ensuite utiliser le nom et l'usage_name
+        # Ensuite utiliser le nom et l'usage_name ==> à revoir
         if "mouvement" in usage_name:
             return BinarySensorDeviceClass.MOTION
         elif "porte" in usage_name or "fenêtre" in usage_name:

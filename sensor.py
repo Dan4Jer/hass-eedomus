@@ -47,23 +47,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             ha_entity = coordinator.data[periph_id]["ha_entity"]
 
         parent_id = periph.get("parent_periph_id", None)
-        if parent_id and coordinator.data[parent_id]["ha_entity"] == "sensor":
+        if parent_id:
             # Children are managed by parent... similar to light logic
             eedomus_mapping = None
             if periph.get("usage_id") == "26":  # Energy meter like in light.py
+                # Create energy sensor for consumption monitoring
                 eedomus_mapping = {
                     "ha_entity": "sensor",
                     "ha_subtype": "energy",
-                    "justification": "Parent is a sensor - energy meter"
+                    "justification": "Energy consumption meter (usage_id=26)"
                 }
-            if periph.get("usage_id") == "82":  # Text/color like in light.py
-                eedomus_mapping = {
-                    "ha_entity": "sensor",
-                    "ha_subtype": "text",
-                    "justification": "Parent is a sensor - text/color"
-                }
+            # Removed usage_id=82 mapping as it's now handled by the main mapping system as "select"
             if not eedomus_mapping is None:
                 coordinator.data[periph_id].update(eedomus_mapping)
+                _LOGGER.info("Created energy sensor for %s (%s) - consumption monitoring", 
+                           periph["name"], periph_id)
 
     # Create sensor entities
     for periph_id, periph in all_peripherals.items():
@@ -89,6 +87,34 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         else:
             # Create regular sensor entity
             entities.append(EedomusSensor(coordinator, periph_id))
+
+    # Create battery sensor entities for devices with battery information
+    # EXCEPT for children that should be mapped as other sensor types
+    for periph_id, periph in all_peripherals.items():
+        battery_level = periph.get("battery")
+        
+        # Debug: Log all devices with battery info
+        if battery_level:
+            _LOGGER.debug("🔋 Battery info found for %s (%s): %s", 
+                        periph.get("name", "unknown"), periph_id, battery_level)
+        
+        # Check if device has valid battery information
+        if battery_level and str(battery_level).strip():
+            try:
+                battery_value = int(battery_level)
+                if 0 <= battery_value <= 100:
+                    # Skip if this device should be mapped as a different sensor type
+                    # based on usage_id (children of motion sensors, etc.)
+                    ha_entity = coordinator.data[periph_id].get("ha_entity")
+                    usage_id = periph.get("usage_id")
+                    
+                    
+                    # Create battery sensor entity
+                    battery_entity = EedomusBatterySensor(coordinator, periph_id)
+                    entities.append(battery_entity)
+                    _LOGGER.info("Created battery sensor for %s (%s%%)", periph.get("name", "unknown"), battery_value)
+            except ValueError:
+                _LOGGER.warning("Invalid battery level for %s: %s", periph.get("name", "unknown"), battery_level)
 
     async_add_entities(entities)
 
@@ -329,3 +355,78 @@ class EedomusHistoryProgressSensor(EedomusEntity, SensorEntity):
             if progress.get("last_timestamp")
             else "Not started",
         }
+
+
+class EedomusBatterySensor(EedomusEntity, SensorEntity):
+    """
+    Battery sensor entity for eedomus devices.
+    
+    This class implements battery sensors as child entities of main devices.
+    It provides battery level information and status monitoring.
+    """
+
+    def __init__(self, coordinator, periph_id):
+        """Initialize the battery sensor."""
+        super().__init__(coordinator, periph_id)
+        
+        # Configure battery sensor attributes
+        device_name = self.coordinator.data[periph_id].get("name", "Unknown Device")
+        self._attr_name = f"{device_name} Battery"
+        self._attr_unique_id = f"{periph_id}_battery"
+        self._attr_device_class = "battery"
+        self._attr_native_unit_of_measurement = "%"
+        self._attr_state_class = "measurement"
+        
+        _LOGGER.info("🔋 Initialized battery sensor for %s (periph_id=%s)", device_name, periph_id)
+
+    @property
+    def native_value(self) -> int | None:
+        """Return the battery level."""
+        battery_level = self.coordinator.data[self._periph_id].get("battery", "")
+        
+        if battery_level and str(battery_level).strip():
+            try:
+                return int(battery_level)
+            except ValueError:
+                _LOGGER.warning("Invalid battery level for %s: %s", 
+                              self._attr_name, battery_level)
+        
+        return None
+
+    @property
+    def available(self) -> bool:
+        """Return True if battery data is available."""
+        battery_level = self.coordinator.data[self._periph_id].get("battery", "")
+        return battery_level and str(battery_level).strip() and str(battery_level).isdigit()
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Return additional state attributes."""
+        periph_data = self.coordinator.data[self._periph_id]
+        battery_level = self.native_value
+        
+        # Determine battery status
+        battery_status = "Unknown"
+        if battery_level is not None:
+            if battery_level >= 75:
+                battery_status = "High"
+            elif battery_level >= 50:
+                battery_status = "Medium"
+            elif battery_level >= 25:
+                battery_status = "Low"
+            else:
+                battery_status = "Critical"
+        
+        return {
+            "device_name": periph_data.get("name", ""),
+            "device_id": self._periph_id,
+            "device_type": periph_data.get("usage_name", ""),
+            "battery_status": battery_status,
+            "parent_device": periph_data.get("name", "")
+        }
+
+    async def async_update(self) -> None:
+        """Update the battery sensor."""
+        await super().async_update()
+        battery_level = self.coordinator.data[self._periph_id].get("battery", "")
+        _LOGGER.debug("🔋 Updated battery sensor %s: %s%%", self._attr_name, battery_level)

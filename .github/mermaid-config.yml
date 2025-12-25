@@ -1,0 +1,56 @@
+# Configuration Mermaid pour GitHub
+# Ce fichier permet de personnaliser le rendu des diagrammes Mermaid
+
+# Thème par défaut pour tous les diagrammes
+theme: default
+
+# Configuration spécifique pour différents types de diagrammes
+config:
+  # Diagrammes de flux (flowchart)
+  flowchart:
+    useMaxWidth: true
+    htmlLabels: true
+    curve: linear
+  
+  # Diagrammes de séquence
+  sequence:
+    diagramMarginX: 50
+    diagramMarginY: 10
+    actorMargin: 50
+    width: 150
+    height: 65
+    boxMargin: 10
+    noteMargin: 10
+    messageMargin: 35
+    mirrorActors: true
+  
+  # Diagrammes de Gantt
+  gantt:
+    titleTopMargin: 25
+    barHeight: 20
+    barGap: 4
+    topPadding: 50
+    leftPadding: 75
+    gridLineStartPadding: 35
+    fontSize: 11
+    numberSectionStyles: 4
+    axisFormat: '%Y-%m-%d'
+
+# Styles personnalisés
+style:
+  # Couleurs pour les différents éléments
+  colors:
+    - '#00abf8'  # Bleu Home Assistant
+    - '#3b6c35'  # Vert Eedomus
+    - '#2c8920'  # Vert foncé
+    - '#f96'     # Orange
+    - '#9f9'     # Vert clair
+    - '#f99'     # Rose
+    - '#99f'     # Bleu clair
+    - '#ff9'     # Jaune
+
+# Police par défaut
+fontFamily: 'Arial, sans-serif'
+
+# Taille de police par défaut
+fontSize: 14px
