@@ -66,8 +66,9 @@ Le script `fallback.php` permet d'effectuer directement un appel à l'API eedomu
 **Note** : Le nom du script est utilisé pour construire l'URL complète du script. Par exemple, si vous entrez `eedomus_fallback` comme nom de script, l'URL complète sera `http://<IP_BOX_EEDOMUS>/script/?exec=eedomus_fallback`. Assurez-vous que le script est déployé sur la box eedomus avec le nom exact que vous avez spécifié.
 
 ## Fonctionnement du script
+## Fonctionnement du script
 
-Le script `fallback.php` effectue les opérations suivantes :
+Le script `fallback.php` est conçu pour être simple et direct. Il appelle uniquement la fonction `setValue` de l'API eedomus avec une gestion des erreurs. Voici comment il fonctionne :
 
 1. **Récupération des paramètres** :
    - `value` : Valeur à setter sur le périphérique.
@@ -77,17 +78,27 @@ Le script `fallback.php` effectue les opérations suivantes :
    - `api_secret` : Clé secrète API eedomus.
    - `log` (optionnel) : Active la journalisation si défini à `true`.
 
-2. **Appel à l'API eedomus** :
-   - Le script construit une URL pour l'API locale eedomus.
-   - Il utilise cURL pour effectuer un appel HTTP GET à l'API.
+2. **Appel de la fonction setValue** :
+   - Le script appelle la fonction `setValue` de l'API eedomus en utilisant cURL.
    - L'URL construite est de la forme :
-     ```
+     ````
      http://<api_host>/api/set?action=periph.value&periph_id=<device_id>&value=<value>&api_user=<api_user>&api_secret=<api_secret>
-     ```
+     ````
 
-3. **Gestion des réponses** :
-   - Si l'appel API réussit (code HTTP 200), le script retourne la réponse de l'API.
-   - Si l'appel API échoue, le script retourne le code d'erreur et le message d'erreur.
+3. **Gestion des erreurs** :
+   - Si l'appel réussit (code HTTP 200), le script retourne la réponse de l'API.
+   - Si l'appel échoue, le script retourne le code d'erreur et le message d'erreur.
+   - Les erreurs cURL sont également gérées et retournées avec un code HTTP 500.
+
+4. **Journalisation** :
+   - Si la journalisation est activée (`log=true`), le script journalise les appels et les réponses dans les logs du serveur web.
+
+## Exemple de code
+
+Voici un exemple simplifié du script PHP :
+
+```php
+
 
 ## Exemple de code
 
