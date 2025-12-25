@@ -1,12 +1,92 @@
 # Intégration eedomus pour Home Assistant
 
-Cette intégration permet de connecter votre box domotique **eedomus** à **Home Assistant**. Bref comment étendre la fiabilité eedomus avec les gadgets.
+**hass-eedomus** est une intégration personnalisée qui permet de connecter votre box domotique **eedomus** à **Home Assistant**, en suivant l'architecture standard des [custom integrations](https://developers.home-assistant.io/docs/creating_component_index).
 
-Ce module récupère et découvre, via l'API eedomus (https://doc.eedomus.com/view/API_eedomus), les informations et pilotes les périphériques eedomus.
-L'objectif est de faire communiquer HA et eedomus de manière efficace, il y a trois étapes :
- - L'initialisation, démarrage ou setup, qui collecte toutes les informations sur les périphériques eedomus pour faire un mapping dans avec les entitées eedomus.
- - Un refresh périodique (5 minutes, c'est bien), pour raffaichir les états des périphériques dont la valeur évolue.
- - Un refresh partiel sur évènement, une action dans HA ou bien un webhook depuis eedomus (avec un actionneur http)
+## 🎯 Comprendre le Fonctionnement des Custom Integrations
+
+Les intégrations personnalisées Home Assistant reposent sur un système de **plateformes** qui permettent de créer et gérer des appareils (devices) et des entités (entities) :
+
+### 🔧 Concept des Plateformes
+- **Plateformes** : Modules spécialisés qui gèrent des types spécifiques d'entités (light, switch, sensor, climate, etc.)
+- **Devices** : Représentent les périphériques physiques (ex: une lampe, un thermostat)
+- **Entities** : Représentent les fonctionnalités spécifiques d'un device (ex: l'état allumé/éteint d'une lampe)
+
+### 🔄 Architecture de hass-eedomus
+
+```mermaid
+flowchart LR
+    subgraph HomeAssistant[Home Assistant]
+        direction TB
+        Coordinator[Coordinator] -->|Create| Light[Light Platform]
+        Coordinator -->|Create| Switch[Switch Platform]
+        Coordinator -->|Create| Sensor[Sensor Platform]
+        Coordinator -->|Create| Climate[Climate Platform]
+        Coordinator -->|Create| Battery[Battery Sensors]
+    end
+    
+    subgraph Eedomus[Eedomus Box]
+        direction TB
+        API[API Endpoint] -->|JSON Data| Devices[Devices]
+        Devices -->|States| Coordinator
+    end
+    
+    style HomeAssistant fill:#00abf8,stroke:#333
+    style Eedomus fill:#3b6c35,stroke:#333
+    style Coordinator fill:#bbf,stroke:#333
+```
+
+## 🔄 Synchronisation et Pilotage
+
+hass-eedomus assure deux fonctions principales :
+
+### 1️⃣ Synchronisation des États
+- **Récupération périodique** des états via l'API eedomus (intervalle configurable)
+- **Mise à jour en temps réel** via webhooks (mode API Proxy)
+- **Mapping intelligent** des périphériques eedomus vers les entités Home Assistant
+
+### 2️⃣ Pilotage des Périphériques
+- **Traduction des commandes** Home Assistant vers l'API eedomus
+- **Gestion des valeurs acceptées** pour chaque périphérique
+- **Feedback immédiat** sur l'état des périphériques
+
+## 📊 Granularité Optimale
+
+La clé d'une intégration réussie réside dans le **curseur de granularité** entre :
+
+```mermaid
+flowchart LR
+    subgraph EedomusDevice[Périphérique Eedomus]
+        A[Device 1077644] --> B[Red Child]
+        A --> C[Green Child]
+        A --> D[Battery Sensor]
+    end
+    
+    subgraph HADevice[Device Home Assistant]
+        E[RGBW Light] --> F[Battery Entity]
+    end
+    
+    A -->|Maps to| E
+    D -->|Maps to| F
+```
+
+**Stratégie de mapping** :
+- **1 périphérique eedomus** → **1 device HA** avec ses entités enfants
+- **Entités enfants** pour les fonctionnalités spécifiques (batterie, consommation, etc.)
+- **Regroupement logique** des fonctionnalités similaires
+
+## 🚀 Fonctionnalités Clés
+
+Ce module permet de :
+- **Découvrir automatiquement** les périphériques eedomus via l'API
+- **Créer des entités** adaptées à chaque type de périphérique
+- **Synchroniser les états** régulièrement et en temps réel
+- **Piloter les périphériques** depuis l'interface Home Assistant
+- **Gérer la granularité** pour une organisation optimale
+
+L'objectif est de faire communiquer HA et eedomus de manière efficace à travers trois étapes principales :
+- **Initialisation** : Collecte des informations sur les périphériques eedomus
+- **Refresh périodique** : Mise à jour des états (intervalle configurable)
+- **Refresh partiel** : Mise à jour en temps réel via webhooks ou actions
 
 ## 📋 Fonctionnalités
 - Mapping des entités HA et eedomus en fonction des classes zwaves, PRODUCT_TYPE_ID, usage_id et SPECIFIC
