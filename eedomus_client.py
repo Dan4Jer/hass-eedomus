@@ -263,12 +263,15 @@ class EedomusClient:
                     try:
                         response_data = json.loads(response_text)
                         
+                        # Extract duration from response if available
+                        duration = response_data.get('duration', 'N/A')
+                        
                         if isinstance(response_data, dict) and response_data.get('success') == 1:
-                            _LOGGER.info("PHP fallback succeeded for peripheral %s", periph_id)
+                            _LOGGER.info("PHP fallback succeeded for peripheral %s (duration: %ss)", periph_id, duration)
                             return response_data
                         else:
-                            _LOGGER.warning("PHP fallback failed for peripheral %s: %s", 
-                                          periph_id, response_data.get('error', 'Unknown error'))
+                            _LOGGER.warning("PHP fallback failed for peripheral %s (duration: %ss): %s", 
+                                          periph_id, duration, response_data.get('error', 'Unknown error'))
                             return response_data
                     except json.JSONDecodeError:
                         _LOGGER.error("Invalid JSON response from PHP fallback script: %s", response_text)
