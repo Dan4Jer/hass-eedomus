@@ -42,9 +42,16 @@ Le script `fallback.php` permet d'effectuer directement un appel à l'API eedomu
 5. **Tester le script** :
    Vous pouvez tester le script en accédant à l'URL suivante dans votre navigateur ou via `curl` :
    ```bash
-   curl "http://<IP_BOX_EEDOMUS>/eedomus_fallback/fallback.php?value=50&device_id=123&api_host=192.168.1.100&api_user=myuser&api_secret=mysecret"
+   curl "http://<IP_BOX_EEDOMUS>/eedomus_fallback/fallback.php?value=50&device_id=123"
    ```
-   Remplacez `<IP_BOX_EEDOMUS>` par l'adresse IP de votre box eedomus et les autres paramètres par vos informations d'API.
+   
+   **Paramètres requis (2 seulement)** :
+   - `value` : Valeur à setter sur le périphérique
+   - `device_id` : ID du périphérique eedomus
+   
+   Remplacez `<IP_BOX_EEDOMUS>` par l'adresse IP de votre box eedomus.
+   
+   **Note importante** : Le script utilise les fonctions natives de l'API eedomus (`setValue()`) qui accèdent directement aux informations d'API de la box, donc aucun paramètre supplémentaire n'est nécessaire.
 
 ## Configuration dans Home Assistant
 
@@ -66,49 +73,156 @@ Le script `fallback.php` permet d'effectuer directement un appel à l'API eedomu
 **Note** : Le nom du script est utilisé pour construire l'URL complète du script. Par exemple, si vous entrez `eedomus_fallback` comme nom de script, l'URL complète sera `http://<IP_BOX_EEDOMUS>/script/?exec=eedomus_fallback`. Assurez-vous que le script est déployé sur la box eedomus avec le nom exact que vous avez spécifié.
 
 ## Fonctionnement du script
-## Fonctionnement du script
 
-Le script `fallback.php` est conçu pour être simple et direct. Il appelle uniquement la fonction `setValue` de l'API eedomus avec les paramètres minimaux. Voici comment il fonctionne :
+Le script `fallback.php` est conçu pour être **ultra-simple et direct**. Il utilise uniquement la fonction native `setValue()` de l'API eedomus avec **2 paramètres seulement** :
 
-1. **Récupération des paramètres minimaux** :
-   - `value` : Valeur à setter sur le périphérique.
-   - `device_id` : ID du périphérique eedomus.
+### Architecture simplifiée
 
-2. **Appel de la fonction setValue** :
-   - Le script appelle la fonction `setValue` de l'API eedomus avec les paramètres minimaux.
-   - La fonction `setValue` est définie dans l'API eedomus et est documentée ici : https://doc.eedomus.com/view/Scripts
+```
+Home Assistant → PHP Fallback Script → eedomus API (setValue)
+```
 
-3. **Gestion des erreurs** :
-   - Si l'appel réussit, le script retourne un JSON avec `success` à 1 et le résultat.
-   - Si l'appel échoue, le script retourne un JSON avec `success` à 0 et un message d'erreur générique.
+### Détails techniques
 
-**Documentation** : Ce script suit la documentation officielle de l'API eedomus : https://doc.eedomus.com/view/Scripts
+1. **Paramètres d'entrée (2 seulement)** :
+   - `value` : Valeur à setter sur le périphérique
+   - `device_id` : ID du périphérique eedomus
 
-**Contraintes** : Ce script respecte les contraintes de la box eedomus et n'utilise pas de fonctions non autorisées comme `json_encode`, `http_response_code`, `getMessage`, et `()`.
+2. **Appel API natif** :
+   - Le script appelle `setValue($device_id, $value)` - une fonction native de l'API eedomus
+   - Aucune authentification supplémentaire nécessaire (utilise le contexte de la box)
+   - Aucune construction d'URL complexe
+
+3. **Réponse directe** :
+   - Si succès : retourne le JSON natif de `setValue()` (ex: `{"success":1,"body":{"result":"ok"}}`)
+   - Si échec : retourne un JSON d'erreur simple
+
+### Avantages de cette approche
+
+✅ **Simplicité maximale** : Seulement 27 lignes de code
+✅ **Performance optimale** : Appel direct sans surcharge
+✅ **Compatibilité totale** : Utilise les fonctions natives eedomus
+✅ **Maintenance facile** : Pas de dépendances externes
+✅ **Sécurité intégrée** : Utilise le contexte d'exécution de la box
+
+**Documentation** : Basé sur la documentation officielle : https://doc.eedomus.com/view/Scripts
+
+**Contraintes respectées** : Pas de fonctions interdites (`json_encode`, `http_response_code`, etc.)
 
 **Configuration par défaut** : Le nom du script est maintenant `fallback.php` par défaut.
 
 ## Exemple de code
 
-Voici un exemple simplifié du script PHP :
+Voici le code complet du script PHP (27 lignes seulement) :
 
 ```php
 <?php
+/**
+ * Script PHP de fallback pour la gestion des valeurs non definies dans hass-eedomus.
+ * 
+ * Ce script appelle uniquement la fonction setValue de l'API eedomus.
+ * Il est conçu pour être simple et direct, sans logique supplémentaire.
+ * 
+ * Documentation : https://doc.eedomus.com/view/Scripts
+ * 
+ * @package hass-eedomus
+ * @author Dan4Jer
+ * @license MIT
+ */
+
 // Récupération des arguments minimaux
-$value = isset($_GET['value']) ? $_GET['value'] : (isset($_POST['value']) ? $_POST['value'] : '');
-$device_id = isset($_GET['device_id']) ? $_GET['device_id'] : (isset($_POST['device_id']) ? $_POST['device_id'] : '');
+$value = $_GET['value'];
+$device_id = $_GET['device_id'];
 
 // Appel de la fonction setValue de l'API eedomus
 $result = setValue($device_id, $value);
 
-// Retourner le résultat
+// Retourner le resultat directement (setValue retourne déjà un JSON valide)
 if ($result !== false) {
-    echo '{"success": 1, "result": "' . $result . '"}';
+    echo $result;
 } else {
-    echo '{"success": 0, "error": "Erreur lors de l\'appel à setValue"}';
+    echo '{"success": 0, "error": "Erreur lors de l\'appel a setValue"}';
 }
-?>
 ```
+
+**Points clés** :
+- Seulement 2 paramètres requis (`value` et `device_id`)
+- Appel direct à `setValue()` - fonction native eedomus
+- Retourne le JSON natif de l'API sans transformation
+- Gestion d'erreur minimale et efficace
+
+## Dépannage
+
+### Problèmes courants
+
+#### 1. "PHP fallback is not configured or disabled"
+
+**Symptômes** :
+- Les logs montrent `🔄 Trying PHP fallback` mais échouent avec `PHP fallback is not configured or disabled`
+
+**Solutions** :
+1. **Vérifiez la configuration** : Dans Home Assistant, allez dans Paramètres > Périphériques et services > hass-eedomus > Configurer et assurez-vous que "Activer le PHP fallback" est coché.
+2. **Redémarrez Home Assistant** : Après avoir activé la fonctionnalité, un redémarrage est nécessaire pour que les modifications prennent effet.
+3. **Vérifiez les options** : Si vous avez modifié les options, assurez-vous qu'elles sont bien enregistrées.
+
+#### 2. "Invalid JSON response from PHP fallback script"
+
+**Symptômes** :
+- Les logs montrent `Invalid JSON response from PHP fallback script: {"success": 1, "result": "{\"success\":1, ...}"}`
+
+**Cause** : Le script PHP enveloppait le résultat JSON de `setValue()` dans un autre JSON, créant un JSON imbriqué invalide.
+
+**Solution** : Ce problème a été corrigé dans la version 0.11.4. Assurez-vous d'utiliser la dernière version du script `fallback.php`.
+
+#### 3. "Erreur API eedomus: HTTP 400/500"
+
+**Symptômes** :
+- Le script PHP retourne des erreurs HTTP
+
+**Solutions** :
+1. **Vérifiez les paramètres** : Assurez-vous que `api_host`, `api_user` et `api_secret` sont corrects.
+2. **Vérifiez le périphérique** : Assurez-vous que `device_id` est valide.
+3. **Vérifiez les logs du serveur web** : Consultez `/var/log/apache2/error.log` ou `/var/log/nginx/error.log` pour plus de détails.
+
+### Vérification des logs
+
+Pour vérifier les logs du serveur web :
+
+```bash
+# Pour Apache
+tail -f /var/log/apache2/error.log
+
+# Pour Nginx
+tail -f /var/log/nginx/error.log
+```
+
+### Test du script PHP
+
+Pour tester manuellement le script PHP :
+
+```bash
+curl -v "http://<IP_BOX_EEDOMUS>/eedomus_fallback/fallback.php?value=50&device_id=123&api_host=192.168.1.100&api_user=myuser&api_secret=mysecret"
+```
+
+Une réponse réussie devrait ressembler à :
+```json
+{"success":1,"body":{"result":"ok"}}
+```
+
+## Historique des versions
+
+### Version 0.11.4 (2025-12-26)
+- **Correction** : Fix JSON response parsing by returning `setValue()` result directly
+- **Correction** : Fix PHP fallback configuration reading from config_entry
+- **Correction** : Remove unused `CONF_PHP_FALLBACK_LOG_ENABLED` constants
+- **Amélioration** : Simplified fallback.php script with direct API calls
+- **Documentation** : Added troubleshooting section
+
+### Version 0.11.3 (2025-12-25)
+- **Nouvelle fonctionnalité** : PHP fallback support for handling rejected values
+- **Nouveau fichier** : `fallback.php` script for direct API calls
+- **Nouveau fichier** : `README_FALLBACK.md` documentation
+- **Nouveau fichier** : `test_fallback.py` test suite
 
 ## Conclusion
 
