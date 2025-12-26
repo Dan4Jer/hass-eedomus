@@ -19,9 +19,9 @@ $device_id = $_GET['device_id'];
 // Appel de la fonction setValue de l'API eedomus
 $result = setValue($device_id, $value);
 
-// Retourner le resultat
+// Retourner le resultat directement (setValue retourne déjà un JSON valide)
 if ($result !== false) {
-    echo '{"success": 1, "result": "' . $result . '"}';
+    echo $result;
 } else {
     echo '{"success": 0, "error": "Erreur lors de l\'appel a setValue"}';
 }
