@@ -2,6 +2,7 @@
 """Simple test script to verify basic functionality without complex imports."""
 import sys
 import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 
 def test_file_structure():
