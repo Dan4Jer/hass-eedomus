@@ -35,6 +35,17 @@ python test_all_entities.py
 
 Consultez [TESTS_README.md](custom_components/eedomus/TESTS_README.md) pour plus de détails.
 
+## 📚 Documentation supplémentaire
+
+La documentation complète est disponible dans le dossier [docs/](docs/) :
+
+- **[RELEASE_NOTES.md](docs/RELEASE_NOTES.md)** - Détails complets de la version 0.12.0
+- **[BATTERY_CHILD_ENTITY_IMPLEMENTATION.md](docs/BATTERY_CHILD_ENTITY_IMPLEMENTATION.md)** - Implémentation des entités batteries
+- **[BATTERY_SENSOR_EXAMPLE.md](docs/BATTERY_SENSOR_EXAMPLE.md)** - Exemples de capteurs de batterie
+- **[SCENE_TO_SELECT_MIGRATION.md](docs/SCENE_TO_SELECT_MIGRATION.md)** - Migration des scènes vers select
+- **[TESTING_GUIDE.md](docs/TESTING_GUIDE.md)** - Guide complet de test
+- **[MERMAID_CONVERSION_SUMMARY.md](docs/MERMAID_CONVERSION_SUMMARY.md)** - Résumé des diagrammes
+
 ## 🎯 Comprendre le Fonctionnement des Custom Integrations
 
 Les intégrations personnalisées Home Assistant reposent sur un système de **plateformes** qui permettent de créer et gérer des appareils (devices) et des entités (entities) :
