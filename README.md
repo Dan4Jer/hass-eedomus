@@ -527,11 +527,11 @@ WARNING:   Only use this setting temporarily for debugging in secure environment
 - **Détection automatique améliorée**: Les switch qui sont en réalité des capteurs de consommation sont maintenant automatiquement détectés et mappés comme `sensor/energy`
 - **Logique de détection intelligente**:
   - **Périphériques remappés comme sensors**: Les vrais capteurs de consommation (sans capacité de contrôle) sont détectés par:
-    - Noms contenant "consommation", "compteur", "meter" mais PAS des termes de contrôle
+    ~~- Noms contenant "consommation", "compteur", "meter" mais PAS des termes de contrôle~~
     - Périphériques avec UNIQUEMENT des enfants `usage_id=26` (sans autres capacités)
   - **Périphériques conservés comme switches**: Les appareils contrôlables avec monitoring de consommation restent des switches:
-    - Noms contenant "decoration", "appliance", "prise", "module", "sapin", "noel", etc.
-    - Exemples: "Decorations Salon", "Anti-moustique Chambre parent", "Sapin Salon"
+    ~~- Noms contenant "decoration", "appliance", "prise", "module", "sapin", "noel", etc.~~
+    ~~- Exemples: "Decorations Salon", "Anti-moustique Chambre parent", "Sapin Salon"~~
 - **Avantages**:
   - Plus besoin de configuration manuelle
   - Meilleure représentation dans l'interface
@@ -574,29 +574,22 @@ WARNING:   Only use this setting temporarily for debugging in secure environment
 ## 🗺️ Architecture Visuelle des Entités
 
 ### 🎯 Tableau de Correspondance Eedomus → Home Assistant
-
 ```
 
 +---------------------+       +---------------------+
 |   Home Assistant    |       |   Eedomus Box       |
 |                     |       |                     |
+|   RGBW Light        |       |   RGBW Light        |
 |   +-------------+   |       |   +-------------+   |
-|   |  Light      |   |       |   |  Light      |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Switch     |   |       |   |  Switch     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Cover      |   |       |   |  Cover      |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Sensor     |   |       |   |  Sensor     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Binary     |   |       |   |  Binary     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Select     |   |       |   |  Select     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Climate    |   |       |   |  Climate    |   |
+|   |  Red        |   |       |   |  Red        |   |
+|   |  Green      |   |       |   |  Green      |   |
+|   |  Blue       |   |       |   |  Blue       |   |
+|   |  White      |   |       |   |  White      |   |
+|   |  Consumption|   |       |   |  Consumption|   |
+|   | Color Preset|   |       |   | Color Preset|   |
 |   +-------------+   |       |   +-------------+   |
 +---------------------+       +---------------------+
-        Mapping System              Device Data
+        Parent Device              Child Devices
         
 ```
 
@@ -667,24 +660,6 @@ flowchart TD
 
 ### Diagramme Global de Mapping des Entités
 
-```
-
-+---------------------+       +---------------------+
-|   Home Assistant    |       |   Eedomus Box       |
-|                     |       |                     |
-|   RGBW Light        |       |   RGBW Light        |
-|   +-------------+   |       |   +-------------+   |
-|   |  Red        |   |       |   |  Red        |   |
-|   |  Green      |   |       |   |  Green      |   |
-|   |  Blue       |   |       |   |  Blue       |   |
-|   |  White      |   |       |   |  White      |   |
-|   |  Consumption|   |       |   |  Consumption|   |
-|   | Color Preset|   |       |   | Color Preset|   |
-|   +-------------+   |       |   +-------------+   |
-+---------------------+       +---------------------+
-        Parent Device              Child Devices
-        
-```
 
 ```mermaid
 flowchart TD
@@ -746,22 +721,6 @@ if has_children_with_usage_id_26:
 
 ### Exemple Concret : Device RGBW avec Couleurs Prédéfinies
 
-```
-
-+---------------------+       +---------------------+
-|   Home Assistant    |       |   Eedomus Box       |
-|                     |       |                     |
-|   Thermostat        |       |   Thermostat        |
-|   +-------------+   |       |   +-------------+   |
-|   |  Setpoint   |   |       |   |  Setpoint   |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Temperature|   |       |   |  Temperature|   |
-|   +-------------+   |       |   +-------------+   |
-+---------------------+       +---------------------+
-        Setpoint Device           Temperature Sensor
-        
-```
-
 ```mermaid
 flowchart LR
     subgraph RGBWDevice[RGBW Light Device - Led Meuble Salle de bain]
@@ -803,25 +762,14 @@ subtype=color_preset]
 +---------------------+       +---------------------+
 |   Home Assistant    |       |   Eedomus Box       |
 |                     |       |                     |
+|   Thermostat        |       |   Thermostat        |
 |   +-------------+   |       |   +-------------+   |
-|   |  Light      |   |       |   |  Light      |   |
+|   |  Setpoint   |   |       |   |  Setpoint   |   |
 |   +-------------+   |       |   +-------------+   |
-|   |  Switch     |   |       |   |  Switch     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Cover      |   |       |   |  Cover      |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Sensor     |   |       |   |  Sensor     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Binary     |   |       |   |  Binary     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Select     |   |       |   |  Select     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Climate    |   |       |   |  Climate    |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Battery    |   |       |   |  Battery    |   |
+|   |  Temperature|   |       |   |  Temperature|   |
 |   +-------------+   |       |   +-------------+   |
 +---------------------+       +---------------------+
-        HA Entities                Eedomus Data
+        Setpoint Device           Temperature Sensor
         
 ```
 
@@ -849,33 +797,6 @@ subtype=fil_pilote]
 ```
 
 ### Flux de Données Complet
-
-```
-
-+---------------------+       +---------------------+
-|   Home Assistant    |       |   Eedomus Box       |
-|                     |       |                     |
-|   +-------------+   |       |   +-------------+   |
-|   |  Light      |   |       |   |  Light      |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Switch     |   |       |   |  Switch     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Cover      |   |       |   |  Cover      |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Sensor     |   |       |   |  Sensor     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Binary     |   |       |   |  Binary     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Select     |   |       |   |  Select     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Climate    |   |       |   |  Climate    |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Battery    |   |       |   |  Battery    |   |
-|   +-------------+   |       |   +-------------+   |
-+---------------------+       +---------------------+
-        Mapping System              Device Data
-        
-```
 
 ```mermaid
 flowchart LR
@@ -905,35 +826,6 @@ flowchart LR
     style Coordinator fill:#bbf,stroke:#333
 ```
 
-### Légende des Couleurs
-
-```
-
-+---------------------+       +---------------------+
-|   Home Assistant    |       |   Eedomus Box       |
-|                     |       |                     |
-|   +-------------+   |       |   +-------------+   |
-|   |  Light      |   |       |   |  Light      |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Switch     |   |       |   |  Switch     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Cover      |   |       |   +-------------+   |
-|   +-------------+   |       |   |  Cover      |   |
-|   |  Sensor     |   |       |   +-------------+   |
-|   +-------------+   |       |   |  Sensor     |   |
-|   |  Binary     |   |       |   +-------------+   |
-|   +-------------+   |       |   |  Binary     |   |
-|   |  Select     |   |       |   +-------------+   |
-|   +-------------+   |       |   |  Select     |   |
-|   |  Climate    |   |       |   +-------------+   |
-|   +-------------+   |       |   |  Climate    |   |
-|   |  Battery    |   |       |   +-------------+   |
-|   +-------------+   |       |   |  Battery    |   |
-+---------------------+       +---------------------+
-        Data Flow                  Data Flow
-        
-```
-
 ```mermaid
 graph LR
     A[Green - Main Entities] -->|Example| B[Light, Climate, Coordinator]
@@ -943,91 +835,13 @@ graph LR
     I[Purple - Systems] -->|Example| J[Eedomus, Home Assistant]
 ```
 
-### Diagramme d'Intégration Git
-
-```
-
-+---------------------+       +---------------------+
-|   Home Assistant    |       |   Eedomus Box       |
-|                     |       |                     |
-|   +-------------+   |       |   +-------------+   |
-|   |  Light      |   |       |   |  Light      |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Switch     |   |       |   |  Switch     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Cover      |   |       |   |  Cover      |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Sensor     |   |       |   |  Sensor     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Binary     |   |       |   |  Binary     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Select     |   |       |   |  Select     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Climate    |   |       |   |  Climate    |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Battery    |   |       |   |  Battery    |   |
-|   +-------------+   |       |   +-------------+   |
-+---------------------+       +---------------------+
-        Legend                      Legend
-        
-```
-
-```mermaid
-gitGraph
-    commit "Main Branch"
-    branch feature/scene-to-select-refactor
-    checkout feature/scene-to-select-refactor
-    commit "Add select entities"
-    commit "Fix values field"
-    checkout main
-    branch feature/improved-entity-mapping
-    checkout feature/improved-entity-mapping
-    commit "Improve climate entities"
-    commit "Add battery sensors"
-    merge feature/scene-to-select-refactor
-    commit "Final integration"
-```
-
-## 📋 Fonctionnalités Supportées par Version
-
-| Version | Plateformes | Entités Spéciales | Changements Majeurs |
-|---------|-------------|-------------------|---------------------|
-| 0.12.0 | 7 | Battery sensors, Color presets as select | Améliorations majeures des entités |
-| 0.11.0 | 7 | Select entities | Migration Scene→Select |
-| 0.10.0 | 7 | Climate entities | Support des thermostats |
-| 0.9.0 | 6 | Mapping system | Refonte du mapping |
-| 0.8.0 | 6 | Scene entities | Support des scènes |
-1. Les consignes de température apparaissent comme des entités `climate`
-2. Utilisez l'interface native de Home Assistant pour régler la température
-3. Les capteurs de température associés sont détectés automatiquement
 
 ### Utilisation des Sélecteurs de Couleurs
 1. Les couleurs prédéfinies apparaissent comme des entités `select`
 2. Sélectionnez la couleur souhaitée dans le menu déroulant
 3. Le changement est immédiatement appliqué au périphérique RGBW parent
 
-## 🎯 Recommandations pour la Migration
 
-1. **Testez d'abord**: Vérifiez que les nouvelles entités apparaissent correctement
-2. **Surveillez les logs**: Activez le débogage pour voir les messages de mapping
-3. **Ajustez si nécessaire**: Certains périphériques peuvent nécessiter des ajustements manuels
-4. **Profitez des nouvelles fonctionnalités**: Les capteurs de batterie et les sélecteurs améliorent considérablement l'expérience utilisateur
-
-## 📋 Fonctionnalités Supportées par Version
-
-| Version | Plateformes | Entités Spéciales | Changements Majeurs |
-|---------|-------------|-------------------|---------------------|
-| 0.12.0 | 7 | Battery sensors, Color presets as select | Améliorations majeures des entités |
-| 0.11.0 | 7 | Select entities | Migration Scene→Select |
-| 0.10.0 | 7 | Climate entities | Support des thermostats |
-| 0.9.0 | 6 | Mapping system | Refonte du mapping |
-| 0.8.0 | 6 | Scene entities | Support des scènes |
-
-## 🔗 Relation avec d'Autres Branches
-
-### Intégration de `feature/scene-to-select-refactor`
-
-La branche actuelle `feature/improved-entity-mapping-and-battery-sensors` **intègre complètement** les fonctionnalités de la branche `feature/scene-to-select-refactor` :
 
 ✅ **Fonctionnalités incluses** :
 - Migration complète des entités `scene` vers `select`
@@ -1042,89 +856,6 @@ La branche actuelle `feature/improved-entity-mapping-and-battery-sensors` **int�
 - Correction du capteur "Oeil de Chat"
 - Ajout des capteurs de batterie
 
-📊 **Comparaison des branches** :
-
-| Fonctionnalité | scene-to-select-refactor | improved-entity-mapping |
-|---------------|------------------------|-------------------------|
-| Migration Scene→Select | ✅ | ✅ (incluse) |
-| Correction values/vs value_list | ✅ | ✅ (incluse) |
-| Couleurs prédéfinies→Select | ❌ | ✅ (nouveau) |
-| Climate amélioré | ❌ | ✅ (nouveau) |
-| Détection consommation | ❌ | ✅ (nouveau) |
-| Capteurs batterie | ❌ | ✅ (nouveau) |
-| Correction Oeil de Chat | ❌ | ✅ (nouveau) |
-
-### Diagramme d'Intégration
-
-```
-
-+---------------------+       +---------------------+
-|   Home Assistant    |       |   Eedomus Box       |
-|                     |       |                     |
-|   +-------------+   |       |   +-------------+   |
-|   |  Light      |   |       |   |  Light      |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Switch     |   |       |   |  Switch     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Cover      |   |       |   |  Cover      |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Sensor     |   |       |   |  Sensor     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Binary     |   |       |   |  Binary     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Select     |   |       |   |  Select     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Climate    |   |       |   |  Climate    |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Battery    |   |       |   |  Battery    |   |
-|   +-------------+   |       |   +-------------+   |
-+---------------------+       +---------------------+
-        Git Graph                   Git Graph
-        
-```
-
-```mermaid
-gitGraph
-    commit "Main Branch"
-    branch feature/scene-to-select-refactor
-    checkout feature/scene-to-select-refactor
-    commit "Add select entities"
-    commit "Fix values field"
-    commit "Add migration docs"
-    checkout main
-    branch feature/improved-entity-mapping-and-battery-sensors
-    checkout feature/improved-entity-mapping-and-battery-sensors
-    commit "Improve climate entities"
-    commit "Add battery sensors"
-    commit "Enhance color presets"
-    merge feature/scene-to-select-refactor
-    commit "Final integration"
-```
-
-## 🎯 Recommandations de Fusion
-
-Pour intégrer cette branche dans `main`, nous recommandons :
-
-1. **Fusion directe** : La branche est compatible et contient toutes les améliorations
-2. **Tests recommandés** :
-   - Vérifier que les sélecteurs fonctionnent correctement
-   - Tester les nouveaux capteurs de batterie
-   - Valider les thermostats améliorés
-   - Confirmer la détection des capteurs de consommation
-3. **Documentation** : La documentation est complète et à jour
-
-## 🔄 Stratégie de Migration
-
-Si vous utilisez déjà la branche `feature/scene-to-select-refactor` :
-- **Passez directement** à cette branche pour bénéficier des améliorations supplémentaires
-- **Aucune migration** nécessaire - tout est compatible
-
-Si vous utilisez la branche `main` :
-- **Testez d'abord** cette branche dans un environnement de développement
-- **Surveillez les logs** pour vérifier que toutes les entités sont correctement mappées
-- **Profitez des nouvelles fonctionnalités** une fois la migration validée
-
-## 🆕 Nouveautés dans la version 0.8.0
 
 ### Sélecteurs (Select Entities)
 - **Support complet des sélecteurs eedomus** via la plateforme `select`
@@ -1359,33 +1090,6 @@ Cette intégration est développée selon une **méthodologie agile et collabora
 
 #### 💻 Infrastructure Technique
 
-```
-
-+---------------------+       +---------------------+
-|   Home Assistant    |       |   Eedomus Box       |
-|                     |       |                     |
-|   +-------------+   |       |   +-------------+   |
-|   |  Light      |   |       |   |  Light      |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Switch     |   |       |   |  Switch     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Cover      |   |       |   |  Cover      |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Sensor     |   |       |   |  Sensor     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Binary     |   |       |   |  Binary     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Select     |   |       |   |  Select     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Climate    |   |       |   |  Climate    |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Battery    |   |       |   |  Battery    |   |
-|   +-------------+   |       |   +-------------+   |
-+---------------------+       +---------------------+
-        Evolution                     Evolution
-        
-```
-
 ```mermaid
 graph LR
     A["Laptop (old macbook) Dev Emacs+vibe"] -->|SSH| B[Raspberry Pi HAOS]
@@ -1468,21 +1172,21 @@ Vous: "Parfait, ça fonctionne !"
 - Scènes virtuelles et automations (usage_id=43)
 - Périphériques virtuels (PRODUCT_TYPE_ID=999)
 
-### Version 0.10.2 (Novembre 2025)
+### Version 0.10.2 (Décembre 2025)
 **Améliorations de Stabilité et Corrections**
 - 🐛 **Corrections de Bugs** : Résolution des problèmes de mapping des devices
 - 🔧 **Optimisation API** : Meilleure gestion des appels API et des erreurs
 - 📊 **Amélioration des Logs** : Messages de debug plus clairs et utiles
 - 🔄 **Compatibilité** : Support étendu pour différents types de devices
 
-### Version 0.10.1 (Octobre 2025)
+### Version 0.10.1 (Décembre 2025)
 **Améliorations des Capteurs et Mapping**
 - 📊 **Capteurs Avancés** : Support amélioré pour les capteurs de température, humidité et luminosité
 - 🔧 **Mapping Automatique** : Système de mapping plus intelligent basé sur les classes Z-Wave
 - 🐛 **Corrections** : Résolution des problèmes de disponibilité des entités
 - 📈 **Performance** : Optimisation des mises à jour des états
 
-### Version 0.10.0 (Septembre 2025)
+### Version 0.10.0 (Décembre 2025)
 **Support des Thermostats et Améliorations Majeures**
 - 🌡️ **Nouvelle Plateforme Climate** : Support complet des thermostats et consignes de température
 - 🔥 **Chauffage Fil Pilote** : Support des systèmes de chauffage fil pilote
@@ -1490,7 +1194,7 @@ Vous: "Parfait, ça fonctionne !"
 - 📊 **Tableau de Bord** : Intégration complète avec le tableau de bord climat de Home Assistant
 - 🔧 **Contrôle Précis** : Réglage de température par pas de 0.5°C (7.0°C à 30.0°C)
 
-### Version 0.9.0 (Août 2025)
+### Version 0.9.0 (Décembre 2025)
 **Refonte du Mapping et Support Étendu**
 - 🗺️ **Système de Mapping** : Nouveau système de mapping basé sur les classes Z-Wave et usage_id
 - 🔧 **DEVICES_CLASS_MAPPING** : Table de correspondance complète pour les devices Z-Wave
@@ -1498,7 +1202,7 @@ Vous: "Parfait, ça fonctionne !"
 - 🎯 **Précision** : Meilleure détection basée sur les attributs des devices
 - 🔄 **Flexibilité** : Support des exceptions et cas particuliers
 
-### Version 0.8.0 (Juillet 2025)
+### Version 0.8.0 (Décembre 2025)
 **Support Complet des Scènes et Améliorations**
 - 🎭 **Plateforme Scene** : Support complet des scènes eedomus (migré vers Select en 0.11.0)
 - 📊 **Groupes de Volets** : Support des groupes de volets pour contrôle centralisé
@@ -1506,47 +1210,11 @@ Vous: "Parfait, ça fonctionne !"
 - 🎯 **Intégration** : Activation des scènes via l'interface Home Assistant
 - 🔄 **Compatibilité** : Intégration avec les automations Home Assistant
 
-## 📊 Statistiques par Version
 
-| Version | Date | Plateformes | Devices Supportés | Changements Majeurs |
-|---------|------|-------------|-------------------|---------------------|
-| 0.11.0 | Déc 2025 | 7 | 14+ types | Migration Scene→Select, UI améliorée |
-| 0.10.2 | Nov 2025 | 7 | 14+ types | Corrections, stabilité |
-| 0.10.1 | Oct 2025 | 7 | 12+ types | Capteurs améliorés |
-| 0.10.0 | Sep 2025 | 7 | 10+ types | Thermostats, Climate |
-| 0.9.0 | Août 2025 | 6 | 8+ types | Mapping refondu |
-| 0.8.0 | Juil 2025 | 6 | 6+ types | Scènes, groupes |
 
 ## 📈 Évolution des Fonctionnalités
 
 ### Diagramme d'Évolution
-
-```
-
-+---------------------+       +---------------------+
-|   Home Assistant    |       |   Eedomus Box       |
-|                     |       |                     |
-|   +-------------+   |       |   +-------------+   |
-|   |  Light      |   |       |   |  Light      |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Switch     |   |       |   |  Switch     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Cover      |   |       |   |  Cover      |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Sensor     |   |       |   |  Sensor     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Binary     |   |       |   |  Binary     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Select     |   |       |   |  Select     |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Climate    |   |       |   |  Climate    |   |
-|   +-------------+   |       |   +-------------+   |
-|   |  Battery    |   |       |   |  Battery    |   |
-|   +-------------+   |       |   +-------------+   |
-+---------------------+       +---------------------+
-        Comparison                   Comparison
-        
-```
 
 ```mermaid
 gantt
