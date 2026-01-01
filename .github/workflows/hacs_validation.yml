@@ -1,0 +1,58 @@
+name: HACS Validation
+
+on:
+  push:
+    branches: [ main, HACS_compilant ]
+  pull_request:
+    branches: [ main, HACS_compilant ]
+
+jobs:
+  validate:
+    name: Validate HACS Compliance
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-asyncio
+    
+    - name: Run HACS compliance tests
+      run: |
+        cd custom_components/eedomus
+        python3 simple_test.py
+    
+    - name: Check manifest.json
+      run: |
+        cd custom_components/eedomus
+        python3 -c "import json; manifest = json.load(open('manifest.json')); 
+        required = ['domain', 'name', 'version', 'documentation', 'issue_tracker', 'category', 'requirements'];
+        missing = [f for f in required if f not in manifest];
+        assert not missing, f'Missing fields: {missing}';
+        print('✅ Manifest.json is valid')"
+    
+    - name: Check Python syntax
+      run: |
+        find custom_components/eedomus -name "*.py" -exec python3 -m py_compile {} + && echo "✅ All Python files have valid syntax"
+    
+    - name: Check file structure
+      run: |
+        test -d custom_components/eedomus && echo "✅ Directory structure correct"
+        test -f custom_components/eedomus/__init__.py && echo "✅ __init__.py present"
+        test -f custom_components/eedomus/manifest.json && echo "✅ manifest.json present"
+        test -f custom_components/__init__.py && echo "✅ Parent __init__.py present"
+    
+    - name: List test files
+      run: |
+        echo "Test files present:"
+        ls -la custom_components/eedomus/test*.py
+        ls -la custom_components/eedomus/*test*.py

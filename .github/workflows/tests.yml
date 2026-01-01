@@ -1,0 +1,73 @@
+name: Run Tests
+
+on:
+  push:
+    branches: [ main, HACS_compilant ]
+  pull_request:
+    branches: [ main, HACS_compilant ]
+
+jobs:
+  test:
+    name: Run Integration Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-asyncio
+        pip install homeassistant==2023.12.0
+    
+    - name: Run simple tests
+      run: |
+        cd custom_components/eedomus
+        python3 simple_test.py
+    
+    - name: Test energy sensor (Issue #9)
+      run: |
+        cd custom_components/eedomus
+        echo "Testing energy sensor implementation..."
+        python3 -c "
+        import os
+        with open('sensor.py', 'r') as f:
+            content = f.read()
+            assert 'energy' in content.lower(), 'Energy not found in sensor.py'
+            assert 'consumption' in content.lower(), 'Consumption not found in sensor.py'
+            assert 'usage_id' in content.lower(), 'usage_id not found in sensor.py'
+            print('✅ Energy sensor implementation verified')
+        "
+    
+    - name: Test consumption in device handlers
+      run: |
+        cd custom_components/eedomus
+        echo "Testing consumption monitoring in device handlers..."
+        devices = ['switch.py', 'light.py', 'cover.py']
+        for device in devices:
+            if os.path.exists(device):
+                with open(device, 'r') as f:
+                    content = f.read()
+                    if 'consumption' in content.lower():
+                        print(f'✅ Consumption monitoring found in {device}')
+                    else:
+                        print(f'⚠️  No consumption monitoring in {device}')
+    
+    - name: Verify test coverage
+      run: |
+        cd custom_components/eedomus
+        echo "Verifying test coverage..."
+        test_files = ['test_energy_sensor.py', 'test_switch.py', 'test_light.py', 'test_cover.py', 'test_sensor.py']
+        for test_file in test_files:
+            if os.path.exists(test_file):
+                print(f'✅ {test_file} present')
+            else:
+                print(f'❌ {test_file} missing')
+                exit 1

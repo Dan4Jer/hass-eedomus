@@ -1,0 +1,62 @@
+# Test configuration for Eedomus integration
+# This file contains example configurations for testing different scenarios
+
+# Basic configuration
+eedomus:
+  api_host: "192.168.1.100"
+  api_user: "test_user"
+  api_secret: "test_secret"
+  scan_interval: 300
+  enable_history: true
+  enable_api_eedomus: true
+  enable_api_proxy: false
+
+# Configuration with PHP fallback (Issue #9 related)
+eedomus_with_fallback:
+  api_host: "192.168.1.100"
+  api_user: "test_user"
+  api_secret: "test_secret"
+  php_fallback_enabled: true
+  php_fallback_script_name: "eedomus_fallback.php"
+  php_fallback_timeout: 10
+
+# Configuration for energy monitoring tests
+eedomus_energy_monitoring:
+  api_host: "192.168.1.100"
+  api_user: "test_user"
+  api_secret: "test_secret"
+  # This configuration will create energy sensors for devices with usage_id=26
+  # and properly handle consumption monitoring
+
+# Test devices structure (simulated from eedomus API)
+test_devices:
+  - periph_id: "light_123"
+    name: "Test Light"
+    usage_id: "1"
+    value: "on"
+    brightness: 255
+    color_mode: "rgbw"
+    children:
+      - periph_id: "light_123_consumption"
+        name: "Consommation"
+        usage_id: "26"
+        value: "25.5"
+        unit: "kWh"
+
+  - periph_id: "switch_456"
+    name: "Test Switch"
+    usage_id: "37"
+    value: "off"
+    value_list: ["on", "off"]
+
+  - periph_id: "cover_789"
+    name: "Test Cover"
+    usage_id: "48"
+    value: "closed"
+    position: 0
+
+  - periph_id: "temp_sensor_101"
+    name: "Temperature Sensor"
+    usage_id: "7"
+    value: 22.5
+    unit: "°C"

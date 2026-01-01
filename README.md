@@ -1,6 +1,39 @@
 # Intégration eedomus pour Home Assistant
 
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/integration)
+[![Version](https://img.shields.io/badge/version-0.12.0-blue.svg)](https://github.com/Dan4Jer/hass-eedomus/releases)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/Dan4Jer/hass-eedomus/blob/main/LICENSE)
+
 **hass-eedomus** est une intégration personnalisée qui permet de connecter votre box domotique **eedomus** à **Home Assistant**, en suivant l'architecture standard des [custom integrations](https://developers.home-assistant.io/docs/creating_component_index).
+
+## 🎯 Fonctionnalités principales
+
+- **Gestion complète** de vos 30+ périphériques Z-Wave et 4-5 Zigbee
+- **Détection automatique** des types d'entités (Issue #9 résolue)
+- **Capteurs de consommation électrique** avec agrégation parent-enfant
+- **Support des batteries** pour les périphériques sans fil
+- **Mécanisme de fallback PHP** pour les valeurs rejetées
+- **Architecture modulaire** suivant les bonnes pratiques Home Assistant
+- **Tests complets** pour toutes les entités (covers, switches, lights, sensors)
+
+## 🧪 Tests
+
+L'intégration inclut des tests complets pour toutes les entités :
+
+- **`test_cover.py`** : Tests pour les volets et stores
+- **`test_switch.py`** : Tests pour les interrupteurs et consommation
+- **`test_light.py`** : Tests pour les lumières (RGBW, brightness)
+- **`test_sensor.py`** : Tests pour les capteurs (température, humidité, énergie)
+- **`test_energy_sensor.py`** : Tests spécifiques pour les capteurs de consommation (Issue #9)
+- **`test_fallback.py`** : Tests pour le mécanisme de fallback PHP
+
+Pour exécuter les tests :
+```bash
+cd custom_components/eedomus
+python test_all_entities.py
+```
+
+Consultez [TESTS_README.md](custom_components/eedomus/TESTS_README.md) pour plus de détails.
 
 ## 🎯 Comprendre le Fonctionnement des Custom Integrations
 

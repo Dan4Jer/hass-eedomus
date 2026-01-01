@@ -1,0 +1,19 @@
+{
+    "domain": "eedomus",
+    "name": "Eedomus Integration",
+    "version": "0.12.0",
+    "documentation": "https://github.com/Dan4Jer/hass-eedomus/blob/main/README.md",
+    "issue_tracker": "https://github.com/Dan4Jer/hass-eedomus/issues",
+    "category": "Hub",
+    "requirements": [
+        "aiohttp>=3.8",
+        "yarl>=1.8"
+    ],
+    "codeowners": ["@Dan4Jer"],
+    "iot_class": "local_polling",
+    "config_flow": true,
+    "icon": "https://raw.githubusercontent.com/Dan4Jer/hass-eedomus/main/icons/eedomus.png",
+    "logo": "https://raw.githubusercontent.com/Dan4Jer/hass-eedomus/main/icons/eedomus.png",
+    "render_icon": true,
+    "dependencies": []
+}
