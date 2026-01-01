@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- Fond de la maison -->
+  <path d="M12 3L2 12h3v8h6v-6h4v6h6V12h3L12 3z" fill="#44739e" opacity="0.85"/>
+
+  <!-- Circuit à l'intérieur de la maison -->
+  <path d="M10 10h4v4h-4z" fill="#fff" stroke="#fff" stroke-width="0.5"/>
+  <circle cx="12" cy="12" r="1" fill="#fff"/>
+  <path d="M10 14h4" stroke="#fff" stroke-width="0.5"/>
+  <path d="M12 10v4" stroke="#fff" stroke-width="0.5"/>
+
+  <!-- Flèche gauche (intégration) -->
+  <path d="M6 16l-3-3 3-3" fill="none" stroke="#4CAF50" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Flèche droite (diffusion) -->
+  <path d="M18 16l3-3-3-3" fill="none" stroke="#FFC107" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Texte (optionnel, à ajuster selon l'usage) -->
+  <text x="12" y="22" font-family="Arial" font-size="4" fill="#555" text-anchor="middle">hass-eedomus</text>
+</svg>
