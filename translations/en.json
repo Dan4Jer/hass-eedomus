@@ -1,4 +1,5 @@
 {
+  "title": "Eedomus",
   "config": {
     "step": {
       "user": {
@@ -8,13 +9,27 @@
             "host": "Box IP address",
             "api_key": "API Key",
             "secret": "Secret API",
-	    "history": "Enable history retrieval mode from cloud"
+            "history": "Enable history retrieval mode from cloud",
+            "php_fallback": "Enable PHP fallback for rejected values",
+            "scan_interval": "Data refresh interval (seconds)",
+            "enable_api_proxy": "Enable API proxy mode"
         }
       }
     },
     "error": {
       "cannot_connect": "Unable to connect to eedomus",
-      "invalid_auth": "Invalid API keys"
+      "invalid_auth": "Invalid API keys",
+      "connection_timeout": "Connection to eedomus timed out",
+      "api_error": "Eedomus API returned an error",
+      "invalid_response": "Received invalid response from eedomus"
+    },
+    "options": {
+      "php_fallback_enabled": "PHP Fallback",
+      "php_fallback_script": "PHP script name",
+      "php_fallback_timeout": "PHP fallback timeout (seconds)",
+      "scan_interval": "Refresh interval",
+      "enable_history": "History retrieval",
+      "enable_api_proxy": "API Proxy mode"
     }
   }
 }

@@ -1,4 +1,5 @@
 {
+  "title": "Eedomus",
   "config": {
     "step": {
       "user": {
@@ -6,15 +7,29 @@
         "description": "Configurez l'accès à votre box eedomus",
         "data": {
             "host": "Adresse IP de la box",
-            "api_key": "API Key",
+            "api_key": "Clé API",
             "secret": "Secret API",
-	    "history": "Activation de la récupéation de l'historique dans le cloud"
+            "history": "Activation de la récupération de l'historique dans le cloud",
+            "php_fallback": "Activer le fallback PHP pour les valeurs rejetées",
+            "scan_interval": "Intervalle de rafraîchissement des données (secondes)",
+            "enable_api_proxy": "Activer le mode proxy API"
         }
       }
     },
     "error": {
       "cannot_connect": "Impossible de se connecter à eedomus",
-      "invalid_auth": "Clés API invalides"
+      "invalid_auth": "Clés API invalides",
+      "connection_timeout": "Délai de connexion à eedomus dépassé",
+      "api_error": "L'API eedomus a retourné une erreur",
+      "invalid_response": "Réponse invalide reçue de eedomus"
+    },
+    "options": {
+      "php_fallback_enabled": "Fallback PHP",
+      "php_fallback_script": "Nom du script PHP",
+      "php_fallback_timeout": "Timeout du fallback PHP (secondes)",
+      "scan_interval": "Intervalle de rafraîchissement",
+      "enable_history": "Récupération de l'historique",
+      "enable_api_proxy": "Mode Proxy API"
     }
   }
 }
