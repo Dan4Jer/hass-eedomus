@@ -1,0 +1,39 @@
+# Eedomus Integration Services
+# This file defines the services provided by the eedomus integration
+
+refresh:
+  name: Refresh eedomus data
+  description: Force a full refresh of all eedomus peripherals
+  fields:
+    # No fields required for refresh
+
+set_value:
+  name: Set peripheral value
+  description: Send a command to set a peripheral value on eedomus box
+  fields:
+    device_id:
+      name: Device ID
+      description: The ID of the peripheral to control
+      required: true
+      example: "123456"
+    value:
+      name: Value
+      description: The value to set for the peripheral
+      required: true
+      example: "on"
+
+# Additional services can be added here for future expansion
+# Example:
+# get_history:
+#   name: Get device history
+#   description: Retrieve historical data for a specific device
+#   fields:
+#     device_id:
+#       name: Device ID
+#       description: The ID of the device
+#       required: true
+#     days:
+#       name: Number of days
+#       description: How many days of history to retrieve
+#       required: false
+#       default: 7
