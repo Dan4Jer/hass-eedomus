@@ -1,0 +1,6 @@
+# Production requirements for hass-eedomus
+# These are also specified in manifest.json but provided here for reference
+
+# Core dependencies
+aiohttp>=3.8
+yarl>=1.8
