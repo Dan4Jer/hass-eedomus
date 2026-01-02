@@ -208,4 +208,7 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-private_const.py
+private_const.py-e 
+# Generated documentation
+docs/ENTITY_DOCUMENTATION.md
+docs/MANIFEST_INFO.md
