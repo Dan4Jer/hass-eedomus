@@ -21,6 +21,7 @@ async def main():
             "test_light.py",
             "test_sensor.py",
             "test_energy_sensor.py",
+            "test_integration.py",
             "-v",
             "--tb=short",
         ]
