@@ -1,0 +1,50 @@
+name: Lint
+
+on:
+  push:
+    branches: [ main, HACS_compilant ]
+  pull_request:
+    branches: [ main, HACS_compilant ]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        cache: 'pip'
+    
+    - name: Install linting tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install black==23.12.1 flake8==6.1.0 isort==5.13.2
+    
+    - name: Run Black
+      run: |
+        black --check custom_components/eedomus/
+    
+    - name: Run isort
+      run: |
+        isort --check custom_components/eedomus/
+    
+    - name: Run flake8
+      run: |
+        flake8 custom_components/eedomus/ --max-line-length=88 --extend-ignore=E203
+    
+    - name: Auto-fix formatting
+      if: failure()
+      run: |
+        black custom_components/eedomus/
+        isort custom_components/eedomus/
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+        git add .
+        git commit -m "Auto-fix: Format code with black and isort"
+        git push
