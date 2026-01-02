@@ -49,24 +49,25 @@ jobs:
       run: |
         cd custom_components/eedomus
         echo "Testing consumption monitoring in device handlers..."
-        devices = ['switch.py', 'light.py', 'cover.py']
-        for device in devices:
-            if os.path.exists(device):
-                with open(device, 'r') as f:
-                    content = f.read()
-                    if 'consumption' in content.lower():
-                        print(f'✅ Consumption monitoring found in {device}')
-                    else:
-                        print(f'⚠️  No consumption monitoring in {device}')
+        for device in switch.py light.py cover.py; do
+            if [ -f "$device" ]; then
+                if grep -qi "consumption" "$device"; then
+                    echo "✅ Consumption monitoring found in $device"
+                else
+                    echo "⚠️  No consumption monitoring in $device"
+                fi
+            fi
+        done
     
     - name: Verify test coverage
       run: |
         cd custom_components/eedomus
         echo "Verifying test coverage..."
-        test_files = ['tests/test_energy_sensor.py', 'tests/test_switch.py', 'tests/test_light.py', 'tests/test_cover.py', 'tests/test_sensor.py']
-        for test_file in test_files:
-            if os.path.exists(test_file):
-                print(f'✅ {test_file} present')
-            else:
-                print(f'❌ {test_file} missing')
+        for test_file in tests/test_energy_sensor.py tests/test_switch.py tests/test_light.py tests/test_cover.py tests/test_sensor.py tests/test_integration.py; do
+            if [ -f "$test_file" ]; then
+                echo "✅ $test_file present"
+            else
+                echo "❌ $test_file missing"
                 exit 1
+            fi
+        done
