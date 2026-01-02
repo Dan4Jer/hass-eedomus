@@ -1,20 +1,26 @@
 """Cover entity for eedomus integration."""
+
 from __future__ import annotations
 
 import logging
+
 from homeassistant.components.cover import CoverEntity, CoverEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from .entity import EedomusEntity
+
 from .const import DOMAIN
+from .entity import EedomusEntity
 
 _LOGGER = logging.getLogger(__name__)
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
+
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities
+):
     """Set up eedomus cover entities from config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
     entities = []
-    
+
     # Get all peripherals and build parent-to-children mapping
     all_peripherals = coordinator.get_all_peripherals()
     parent_to_children = {}
@@ -28,7 +34,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         if not "ha_entity" in coordinator.data[periph_id]:
             eedomus_mapping = map_device_to_ha_entity(periph)
             coordinator.data[periph_id].update(eedomus_mapping)
-            
+
     for periph_id, periph in all_peripherals.items():
         ha_entity = None
         if "ha_entity" in coordinator.data[periph_id]:
@@ -42,18 +48,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                 eedomus_mapping = {
                     "ha_entity": "sensor",
                     "ha_subtype": "energy",
-                    "justification": "Parent is a cover - energy consumption meter"
+                    "justification": "Parent is a cover - energy consumption meter",
                 }
             if periph.get("usage_id") == "48":  # Slats
                 eedomus_mapping = {
                     "ha_entity": "cover",
                     "ha_subtype": "shutter",
-                    "justification": "Parent is a cover - slats"
+                    "justification": "Parent is a cover - slats",
                 }
             if not eedomus_mapping is None:
                 coordinator.data[periph_id].update(eedomus_mapping)
-                _LOGGER.info("Created energy sensor for cover %s (%s) - consumption monitoring", 
-                           periph["name"], periph_id)
+                _LOGGER.info(
+                    "Created energy sensor for cover %s (%s) - consumption monitoring",
+                    periph["name"],
+                    periph_id,
+                )
 
     for periph_id, periph in all_peripherals.items():
         ha_entity = None
@@ -63,8 +72,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         if ha_entity is None or not ha_entity == "cover":
             continue
 
-        _LOGGER.debug("Creating cover entity for %s (periph_id=%s)", periph["name"], periph_id)
-        
+        _LOGGER.debug(
+            "Creating cover entity for %s (periph_id=%s)", periph["name"], periph_id
+        )
+
         # Check if this cover has children that should be aggregated
         if periph_id in parent_to_children and len(parent_to_children[periph_id]) > 0:
             # Create aggregated cover entity (similar to RGBW light)
@@ -81,17 +92,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
     async_add_entities(entities)
 
+
 class EedomusCover(EedomusEntity, CoverEntity):
     """Representation of an eedomus cover entity (shutter/blind)."""
 
     def __init__(self, coordinator, periph_id):
         """Initialize the cover."""
         super().__init__(coordinator, periph_id)
-        _LOGGER.debug("Initializing cover entity for %s (periph_id=%s)", self.coordinator.data[periph_id].get("name", "unknown"), periph_id)
+        _LOGGER.debug(
+            "Initializing cover entity for %s (periph_id=%s)",
+            self.coordinator.data[periph_id].get("name", "unknown"),
+            periph_id,
+        )
 
         # Set cover-specific attributes
         self._attr_device_class = "shutter"  # Use "shutter" for shutters
-        self._attr_supported_features = CoverEntityFeature.SET_POSITION  # Only position setting is supported
+        self._attr_supported_features = (
+            CoverEntityFeature.SET_POSITION
+        )  # Only position setting is supported
 
     @property
     def is_closed(self):
@@ -120,19 +138,32 @@ class EedomusCover(EedomusEntity, CoverEntity):
         """Move the cover to a specific position (0-100)."""
         position = kwargs.get("position")
         if position is None:
-            _LOGGER.error("Position is None for cover %s (periph_id=%s)", self.coordinator.data[self._periph_id].get("name", "unknown"), self._periph_id)
+            _LOGGER.error(
+                "Position is None for cover %s (periph_id=%s)",
+                self.coordinator.data[self._periph_id].get("name", "unknown"),
+                self._periph_id,
+            )
             return
 
         # Ensure position is within valid range
         position = max(0, min(100, position))
-        _LOGGER.debug("Setting cover position to %s for %s (periph_id=%s)", position, self.coordinator.data[self._periph_id].get("name", "unknown"), self._periph_id)
+        _LOGGER.debug(
+            "Setting cover position to %s for %s (periph_id=%s)",
+            position,
+            self.coordinator.data[self._periph_id].get("name", "unknown"),
+            self._periph_id,
+        )
 
         # Use coordinator method to set position
         await self.coordinator.async_set_periph_value(self._periph_id, str(position))
 
     async def async_stop_cover(self, **kwargs):
         """Stop the cover (not supported by eedomus shutters)."""
-        _LOGGER.warning("Stopping cover is not supported by eedomus shutters for %s (periph_id=%s)", self.coordinator.data[self._periph_id].get("name", "unknown"), self._periph_id)
+        _LOGGER.warning(
+            "Stopping cover is not supported by eedomus shutters for %s (periph_id=%s)",
+            self.coordinator.data[self._periph_id].get("name", "unknown"),
+            self._periph_id,
+        )
 
 
 class EedomusAggregatedCover(EedomusCover):
@@ -149,7 +180,10 @@ class EedomusAggregatedCover(EedomusCover):
             "Initializing aggregated cover %s (periph_id=%s) with children: %s",
             self._parent_device["name"],
             self._parent_id,
-            ", ".join(f"{child['name']} (periph_id={child['periph_id']})" for child in child_devices)
+            ", ".join(
+                f"{child['name']} (periph_id={child['periph_id']})"
+                for child in child_devices
+            ),
         )
 
     @property
@@ -178,7 +212,7 @@ class EedomusAggregatedCover(EedomusCover):
                 "name": child_data.get("name"),
                 "value": child_data.get("last_value"),
                 "unit": child_data.get("unit"),
-                "type": child_data.get("ha_subtype")
+                "type": child_data.get("ha_subtype"),
             }
 
         result_attrs["child_devices"] = child_attrs

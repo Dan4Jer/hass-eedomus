@@ -1,16 +1,22 @@
 """Switch entity for eedomus integration."""
+
 from __future__ import annotations
 
 import logging
+
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+
+from .const import CLASS_MAPPING, DOMAIN
 from .entity import EedomusEntity, map_device_to_ha_entity
-from .const import DOMAIN, CLASS_MAPPING
 
 _LOGGER = logging.getLogger(__name__)
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
+
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities
+):
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
     switches = []
 
@@ -32,13 +38,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
         parent_id = periph.get("parent_periph_id", None)
         if parent_id and coordinator.data[parent_id]["ha_entity"] == "light":
-            #les enfants sont gérés par le parent... est-ce une bonne idée ?
+            # les enfants sont gérés par le parent... est-ce une bonne idée ?
             eedomus_mapping = None
             if periph.get("usage_id") == "26":
                 eedomus_mapping = {
                     "ha_entity": "sensor",
                     "ha_subtype": None,
-                    "justification": "Parent is a switch - sensor - Consometre"
+                    "justification": "Parent is a switch - sensor - Consometre",
                 }
             if not eedomus_mapping is None:
                 coordinator.data[periph_id].update(eedomus_mapping)
@@ -50,66 +56,112 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
         if ha_entity is None or not ha_entity == "switch":
             continue
-     
+
         # Check if this switch should actually be a sensor (consumption monitoring)
         # Look for patterns that indicate this is a consumption sensor, not a real switch
         should_be_sensor = False
-        
+
         # Pattern 1: Has ONLY children with usage_id=26 (energy meters) and no control capability
         # This indicates it's a pure consumption monitor, not a controllable device with consumption monitoring
         if periph_id in parent_to_children:
             has_only_consumption_children = True
             has_control_children = False
-            
+
             for child in parent_to_children[periph_id]:
                 if child.get("usage_id") == "26":  # Consomètre
                     # Check if this is a pure consumption device by looking at the device name and type
                     continue
-                elif child.get("usage_id") in ["1", "2", "4", "52"]:  # Control-capable children
+                elif child.get("usage_id") in [
+                    "1",
+                    "2",
+                    "4",
+                    "52",
+                ]:  # Control-capable children
                     has_control_children = True
                     break
-            
+
             # Only remap as sensor if it has consumption children AND no control children
             # AND the device name suggests it's a consumption monitor
             if has_only_consumption_children and not has_control_children:
                 # Additional check: if the device name contains consumption-related terms
                 device_name_lower = periph.get("name", "").lower()
-                consumption_keywords = ["consommation", "conso", "compteur", "meter", "energy"]
-                if any(keyword in device_name_lower for keyword in consumption_keywords):
+                consumption_keywords = [
+                    "consommation",
+                    "conso",
+                    "compteur",
+                    "meter",
+                    "energy",
+                ]
+                if any(
+                    keyword in device_name_lower for keyword in consumption_keywords
+                ):
                     should_be_sensor = True
-        
+
         # Pattern 2: Name contains "consommation" (French for consumption) but not other device types
         device_name_lower = periph.get("name", "").lower()
         if "consommation" in device_name_lower:
             # Don't remap if it's clearly a controllable device
-            device_keywords = ["decoration", "lampe", "light", "prise", "switch", "interrupteur", "appliance", "noel", "sapin"]
+            device_keywords = [
+                "decoration",
+                "lampe",
+                "light",
+                "prise",
+                "switch",
+                "interrupteur",
+                "appliance",
+                "noel",
+                "sapin",
+            ]
             if not any(keyword in device_name_lower for keyword in device_keywords):
                 should_be_sensor = True
-        
+
         # Pattern 3: Specific device types that should remain switches even with consumption children
         # These are devices that are primarily controllable but also have energy monitoring
         device_name_lower = periph.get("name", "").lower()
         controllable_device_keywords = [
-            "decoration", "anti-moustique", "sapin", "noel", "guirlande", 
-            "appliance", "appareil", "prise", "module", "relay"
+            "decoration",
+            "anti-moustique",
+            "sapin",
+            "noel",
+            "guirlande",
+            "appliance",
+            "appareil",
+            "prise",
+            "module",
+            "relay",
         ]
-        if any(keyword in device_name_lower for keyword in controllable_device_keywords):
+        if any(
+            keyword in device_name_lower for keyword in controllable_device_keywords
+        ):
             should_be_sensor = False  # Force this to remain a switch
-            _LOGGER.info("Keeping '%s' (%s) as switch - identified as controllable device with consumption monitoring", 
-                        periph["name"], periph_id)
-        
+            _LOGGER.info(
+                "Keeping '%s' (%s) as switch - identified as controllable device with consumption monitoring",
+                periph["name"],
+                periph_id,
+            )
+
         if should_be_sensor:
-            _LOGGER.info("Remapping switch '%s' (%s) as sensor - detected as consumption monitor", 
-                        periph["name"], periph_id)
+            _LOGGER.info(
+                "Remapping switch '%s' (%s) as sensor - detected as consumption monitor",
+                periph["name"],
+                periph_id,
+            )
             # Update the mapping to sensor
-            coordinator.data[periph_id].update({
-                "ha_entity": "sensor",
-                "ha_subtype": "energy",
-                "justification": "Detected as consumption monitor based on name pattern and children"
-            })
+            coordinator.data[periph_id].update(
+                {
+                    "ha_entity": "sensor",
+                    "ha_subtype": "energy",
+                    "justification": "Detected as consumption monitor based on name pattern and children",
+                }
+            )
             continue  # Skip creating switch entity, will be handled by sensor setup
 
-        _LOGGER.debug("Go for a switch !!! %s (%s) mapping=%s", periph["name"], periph_id,  ha_entity)
+        _LOGGER.debug(
+            "Go for a switch !!! %s (%s) mapping=%s",
+            periph["name"],
+            periph_id,
+            ha_entity,
+        )
 
         switches.append(EedomusSwitch(coordinator, periph_id))
 
@@ -128,17 +180,30 @@ class EedomusSwitch(EedomusEntity, SwitchEntity):
     def is_on(self):
         """Return true if the switch is on."""
         value = self.coordinator.data[self._periph_id].get("last_value")
-        _LOGGER.debug("Switch %s is_on: %s name=%s", self._periph_id, self.coordinator.data[self._periph_id].get("last_value"), self.coordinator.data[self._periph_id].get("name"))
+        _LOGGER.debug(
+            "Switch %s is_on: %s name=%s",
+            self._periph_id,
+            self.coordinator.data[self._periph_id].get("last_value"),
+            self.coordinator.data[self._periph_id].get("name"),
+        )
         return value == "100"
 
     async def async_turn_on(self, **kwargs):
         """Turn the switch on."""
         _LOGGER.debug("Turning on switch %s", self._periph_id)
         try:
-            response = await self.coordinator.client.set_periph_value(self._periph_id, "100")
+            response = await self.coordinator.client.set_periph_value(
+                self._periph_id, "100"
+            )
             if isinstance(response, dict) and response.get("success") != 1:
-                _LOGGER.error("Failed to turn on switch %s: %s", self._periph_id, response.get("error", "Unknown error"))
-                raise Exception(f"Failed to turn on switch: {response.get('error', 'Unknown error')}")
+                _LOGGER.error(
+                    "Failed to turn on switch %s: %s",
+                    self._periph_id,
+                    response.get("error", "Unknown error"),
+                )
+                raise Exception(
+                    f"Failed to turn on switch: {response.get('error', 'Unknown error')}"
+                )
             await self.coordinator.async_request_refresh()
         except Exception as e:
             _LOGGER.error("Failed to turn on switch %s: %s", self._periph_id, e)
@@ -148,10 +213,18 @@ class EedomusSwitch(EedomusEntity, SwitchEntity):
         """Turn the switch off."""
         _LOGGER.debug("Turning off switch %s", self._periph_id)
         try:
-            response = await self.coordinator.client.set_periph_value(self._periph_id, "0")
+            response = await self.coordinator.client.set_periph_value(
+                self._periph_id, "0"
+            )
             if isinstance(response, dict) and response.get("success") != 1:
-                _LOGGER.error("Failed to turn off switch %s: %s", self._periph_id, response.get("error", "Unknown error"))
-                raise Exception(f"Failed to turn off switch: {response.get('error', 'Unknown error')}")
+                _LOGGER.error(
+                    "Failed to turn off switch %s: %s",
+                    self._periph_id,
+                    response.get("error", "Unknown error"),
+                )
+                raise Exception(
+                    f"Failed to turn off switch: {response.get('error', 'Unknown error')}"
+                )
 
             await self.coordinator.async_request_refresh()
 

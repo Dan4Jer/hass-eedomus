@@ -1,17 +1,19 @@
 """Constants for the eedomus integration."""
-from typing import Dict, Any
-from homeassistant.const import Platform
-#Ensure required imports are available
+
+from typing import Any, Dict
+
+# Ensure required imports are available
 from homeassistant.components.light import (
     ColorMode,
     LightEntityFeature,
 )
+from homeassistant.const import Platform
 
 try:
     from .private_const import (
         DEFAULT_API_HOST,
-        DEFAULT_API_USER,
         DEFAULT_API_SECRET,
+        DEFAULT_API_USER,
     )
 except ImportError:
     # Valeurs par défaut (ou lève une erreur si requis)
@@ -102,4 +104,3 @@ CLASS_MAPPING: Dict[str, Dict[str, Any]] = {
     "142:2": {"ha_entity": "cover", "attributes": {}},
     # ... (ajoute les autres classes ici)
 }
-

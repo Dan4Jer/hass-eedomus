@@ -1,18 +1,19 @@
 """Binary sensor entity for eedomus integration."""
+
 from __future__ import annotations
 
 import logging
 from typing import Any
 
 from homeassistant.components.binary_sensor import (
-    BinarySensorEntity,
     BinarySensorDeviceClass,
+    BinarySensorEntity,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
+from .const import CLASS_MAPPING, DOMAIN
 from .entity import EedomusEntity
-from .const import DOMAIN, CLASS_MAPPING
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,15 +32,18 @@ EEDOMUS_TO_HA_DEVICE_CLASS = {
     "presence": BinarySensorDeviceClass.PRESENCE,
 }
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
+
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities
+):
     """Set up eedomus binary sensor entities."""
     from .entity import map_device_to_ha_entity
-    
+
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
     binary_sensors = []
 
     all_peripherals = coordinator.get_all_peripherals()
-    
+
     # First pass: ensure all peripherals have proper mapping
     for periph_id, periph in all_peripherals.items():
         if "ha_entity" not in coordinator.data[periph_id]:
@@ -54,51 +58,63 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             if parent_id not in parent_to_children:
                 parent_to_children[parent_id] = []
             parent_to_children[parent_id].append(periph)
-    
+
     # Map children of motion sensors to appropriate entities
     for parent_id, children in parent_to_children.items():
-        if parent_id in coordinator.data and coordinator.data[parent_id].get("ha_entity") == "binary_sensor":
+        if (
+            parent_id in coordinator.data
+            and coordinator.data[parent_id].get("ha_entity") == "binary_sensor"
+        ):
             for child in children:
                 child_id = child["periph_id"]
-                if child_id not in coordinator.data or "ha_entity" not in coordinator.data[child_id]:
+                if (
+                    child_id not in coordinator.data
+                    or "ha_entity" not in coordinator.data[child_id]
+                ):
                     eedomus_mapping = None
-                    
+
                     # Map children based on their usage_id
                     if child.get("usage_id") == "7":  # Temperature sensor
                         eedomus_mapping = {
                             "ha_entity": "sensor",
                             "ha_subtype": "temperature",
-                            "justification": "Child of motion sensor - temperature"
+                            "justification": "Child of motion sensor - temperature",
                         }
                     elif child.get("usage_id") == "24":  # Illuminance sensor
                         eedomus_mapping = {
                             "ha_entity": "sensor",
                             "ha_subtype": "illuminance",
-                            "justification": "Child of motion sensor - illuminance"
+                            "justification": "Child of motion sensor - illuminance",
                         }
                     elif child.get("usage_id") == "36":  # Flood sensor
                         eedomus_mapping = {
                             "ha_entity": "binary_sensor",
                             "ha_subtype": "flood",
-                            "justification": "Child of motion sensor - flood"
+                            "justification": "Child of motion sensor - flood",
                         }
-                    
+
                     if eedomus_mapping is not None:
                         coordinator.data[child_id].update(eedomus_mapping)
-                        _LOGGER.info("Mapped child sensor for motion device %s (%s)", 
-                                   child["name"], child_id)
+                        _LOGGER.info(
+                            "Mapped child sensor for motion device %s (%s)",
+                            child["name"],
+                            child_id,
+                        )
 
     # Second pass: create binary sensor entities
     for periph_id, periph in all_peripherals.items():
         ha_entity = coordinator.data[periph_id].get("ha_entity")
-        
+
         if ha_entity != "binary_sensor":
             continue
-        
-        _LOGGER.debug("Creating binary sensor entity for %s (%s)", periph["name"], periph_id)
+
+        _LOGGER.debug(
+            "Creating binary sensor entity for %s (%s)", periph["name"], periph_id
+        )
         binary_sensors.append(EedomusBinarySensor(coordinator, periph_id))
 
     async_add_entities(binary_sensors, True)
+
 
 class EedomusBinarySensor(EedomusEntity, BinarySensorEntity):
     """Representation of an eedomus binary sensor."""
@@ -129,11 +145,11 @@ class EedomusBinarySensor(EedomusEntity, BinarySensorEntity):
         periph_info = self.coordinator.data[self._periph_id]
         ha_subtype = periph_info.get("ha_subtype", "")
         usage_name = periph_info.get("usage_name", "").lower()
-        
+
         # D'abord utiliser le ha_subtype si disponible ==> à simplifier
         if ha_subtype:
             return EEDOMUS_TO_HA_DEVICE_CLASS.get(ha_subtype, None)
-        
+
         # Ensuite utiliser le nom et l'usage_name ==> à revoir
         if "mouvement" in usage_name:
             return BinarySensorDeviceClass.MOTION
@@ -151,7 +167,7 @@ class EedomusBinarySensor(EedomusEntity, BinarySensorEntity):
             return BinarySensorDeviceClass.VIBRATION
         elif "mouvement" in usage_name or "motion" in usage_name:
             return BinarySensorDeviceClass.MOTION
-        
+
         # Utiliser le mapping par type si disponible
         periph_type = periph_info.get("type", "").lower()
         return EEDOMUS_TO_HA_DEVICE_CLASS.get(periph_type, None)

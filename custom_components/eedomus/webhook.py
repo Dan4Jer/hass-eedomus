@@ -1,9 +1,16 @@
-import logging
 import json
-from aiohttp import web
+import logging
 
-from .const import DOMAIN, PLATFORMS, COORDINATOR, CONF_API_HOST, CONF_API_PROXY_DISABLE_SECURITY
+from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
+
+from .const import (
+    CONF_API_HOST,
+    CONF_API_PROXY_DISABLE_SECURITY,
+    COORDINATOR,
+    DOMAIN,
+    PLATFORMS,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -14,12 +21,13 @@ class EedomusWebhookView(HomeAssistantView):
     url = "/api/eedomus/webhook"
     name = "api:eedomus:webhook"
 
-
-    def __init__(self, entry_id: str, allowed_ips: list = None, disable_security: bool = False):
+    def __init__(
+        self, entry_id: str, allowed_ips: list = None, disable_security: bool = False
+    ):
         self.entry_id = entry_id
         self.allowed_ips = allowed_ips
         self.disable_security = disable_security
-        
+
     async def post(self, request):
         client_ip = request.remote
         _LOGGER.debug(f"Request from {client_ip}")
@@ -28,16 +36,21 @@ class EedomusWebhookView(HomeAssistantView):
         if not self.disable_security and client_ip not in self.allowed_ips:
             _LOGGER.warning(f"Unauthorized IP: {client_ip}")
             return web.Response(text="Unauthorized", status=403)
-        
+
         # Log warning if security is disabled
         if self.disable_security:
-            _LOGGER.warning(f"SECURITY WARNING: IP validation disabled for debugging. Request from {client_ip}")
-        
+            _LOGGER.warning(
+                f"SECURITY WARNING: IP validation disabled for debugging. Request from {client_ip}"
+            )
+
         hass = request.app["hass"]
         try:
             # 1. Parse JSON first (fail fast if invalid)
             data = await request.json()
-            if data.get("action") != "refresh" and data.get("action") != "partial_refresh":
+            if (
+                data.get("action") != "refresh"
+                and data.get("action") != "partial_refresh"
+            ):
                 return web.Response(text="Unrecognized action", status=400)
 
             # 2. Get coordinator safely
@@ -54,7 +67,7 @@ class EedomusWebhookView(HomeAssistantView):
             if data.get("action") == "refresh":
                 await coordinator._async_full_refresh()
             if data.get("action") == "partial_refresh":
-                await coordinator._async_partial_refresh()    
+                await coordinator._async_partial_refresh()
             return web.Response(text="OK")
 
         except json.JSONDecodeError:

@@ -1,12 +1,13 @@
 """Tests for Eedomus energy sensors."""
+
+import os
+import sys
 from unittest.mock import AsyncMock, patch
+
 import pytest
-import sys
-import os
-import sys
-import os
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.const import UnitOfEnergy
@@ -21,24 +22,20 @@ async def test_energy_sensor_initialization():
         "device_123": {
             "consumption": 42.5,
             "current_power": 150,
-            "last_reset": "2023-01-01"
+            "last_reset": "2023-01-01",
         }
     }
-    
-    device_info = {
-        "id": "device_123",
-        "name": "Test Energy Sensor",
-        "usage_id": "26"
-    }
-    
+
+    device_info = {"id": "device_123", "name": "Test Energy Sensor", "usage_id": "26"}
+
     sensor = EedomusEnergySensor(mock_coordinator, device_info)
-    
+
     assert sensor.name == "Test Energy Sensor"
     assert sensor.unique_id == "eedomus_energy_device_123"
     assert sensor.device_class == SensorDeviceClass.ENERGY
     assert sensor.native_unit_of_measurement == UnitOfEnergy.KILO_WATT_HOUR
     assert sensor.native_value == 42.5
-    
+
     # Test extra attributes
     attrs = sensor.extra_state_attributes
     assert attrs["current_power"] == 150
@@ -50,14 +47,11 @@ async def test_energy_sensor_with_missing_data():
     """Test energy sensor with missing consumption data."""
     mock_coordinator = AsyncMock()
     mock_coordinator.data = {"device_123": {}}
-    
-    device_info = {
-        "id": "device_123",
-        "name": "Test Energy Sensor"
-    }
-    
+
+    device_info = {"id": "device_123", "name": "Test Energy Sensor"}
+
     sensor = EedomusEnergySensor(mock_coordinator, device_info)
-    
+
     assert sensor.native_value is None
     assert sensor.extra_state_attributes == {}
 
@@ -66,20 +60,13 @@ async def test_energy_sensor_with_missing_data():
 async def test_energy_sensor_update():
     """Test energy sensor update mechanism."""
     mock_coordinator = AsyncMock()
-    mock_coordinator.data = {
-        "device_123": {
-            "consumption": 42.5
-        }
-    }
-    
-    device_info = {
-        "id": "device_123",
-        "name": "Test Energy Sensor"
-    }
-    
+    mock_coordinator.data = {"device_123": {"consumption": 42.5}}
+
+    device_info = {"id": "device_123", "name": "Test Energy Sensor"}
+
     sensor = EedomusEnergySensor(mock_coordinator, device_info)
-    
+
     # Simulate data update
     mock_coordinator.data["device_123"]["consumption"] = 45.0
-    
+
     assert sensor.native_value == 45.0
