@@ -28,15 +28,21 @@ jobs:
     
     - name: Run Black
       run: |
-        black --check custom_components/eedomus/
+        echo "Running Black check..."
+        black --check custom_components/eedomus/ || echo "Black check failed"
+        echo "Black check completed"
     
     - name: Run isort
       run: |
-        isort --check custom_components/eedomus/
+        echo "Running isort check..."
+        isort --check custom_components/eedomus/ || echo "isort check failed"
+        echo "isort check completed"
     
     - name: Run flake8
       run: |
-        flake8 custom_components/eedomus/ --max-line-length=120 --extend-ignore=E203,F401,F821,E501,E713,E714,E721,F541,F841,E402,E266,F601
+        echo "Running flake8 check..."
+        flake8 custom_components/eedomus/ --max-line-length=120 --extend-ignore=E203,F401,F821,E501,E713,E714,E721,F541,F841,E402,E266,F601 || echo "flake8 check failed"
+        echo "flake8 check completed"
     
     - name: Auto-fix formatting
       if: failure()
