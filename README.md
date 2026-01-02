@@ -1272,7 +1272,7 @@ Le mécanisme de PHP fallback permet de gérer les valeurs rejetées par l'API e
 Pour activer le PHP fallback, suivez ces étapes :
 
 1. **Déployer le script PHP** :
-   - Copiez le fichier `fallback.php` dans un répertoire accessible par votre serveur web sur la box eedomus (ex: `/var/www/html/eedomus_fallback/`).
+   - Copiez le fichier `custom_components/php/fallback.php` dans un répertoire accessible par votre serveur web sur la box eedomus (ex: `/var/www/html/eedomus_fallback/`).
    - Assurez-vous que le script est accessible depuis Home Assistant.
 
 2. **Configurer l'intégration** :
