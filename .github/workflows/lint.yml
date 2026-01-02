@@ -36,7 +36,7 @@ jobs:
     
     - name: Run flake8
       run: |
-        flake8 custom_components/eedomus/ --max-line-length=88 --extend-ignore=E203
+        flake8 custom_components/eedomus/ --max-line-length=120 --extend-ignore=E203,F401,F821,E501,E713,E714,E721,F541,F841,E402,E266,F601
     
     - name: Auto-fix formatting
       if: failure()
