@@ -54,4 +54,4 @@ jobs:
     - name: List test files
       run: |
         echo "Test files present:"
-        ls -la custom_components/eedomus/tests/*.py
+        ls -la scripts/tests/*.py

@@ -8,7 +8,7 @@ import pytest
 from homeassistant.components.light import ATTR_BRIGHTNESS, ATTR_RGBW, ColorMode
 from homeassistant.const import STATE_OFF, STATE_ON
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "custom_components/eedomus")))
 from light import EedomusLight
 
 

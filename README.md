@@ -29,11 +29,11 @@ L'intégration inclut des tests complets pour toutes les entités :
 
 Pour exécuter les tests :
 ```bash
-cd custom_components/eedomus
+cd scripts
 python test_all_entities.py
 ```
 
-Consultez [TESTS_README.md](custom_components/eedomus/TESTS_README.md) pour plus de détails.
+Consultez [TESTS_README.md](scripts/TESTS_README.md) pour plus de détails.
 
 ## 📚 Documentation supplémentaire
 

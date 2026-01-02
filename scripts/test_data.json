@@ -1,0 +1,85 @@
+[
+    {
+        "periph_id": "virtual_1",
+        "name": "Scène Salon",
+        "PRODUCT_TYPE_ID": "999",
+        "usage_id": "1",
+        "SUPPORTED_CLASSES": "",
+        "GENERIC": "",
+        "SPECIFIC": ""
+    },
+    {
+        "periph_id": "shutter_1",
+        "name": "Volet Salon",
+        "PRODUCT_TYPE_ID": "770",
+        "usage_id": "48",
+        "SUPPORTED_CLASSES": "",
+        "GENERIC": "",
+        "SPECIFIC": ""
+    },
+    {
+        "periph_id": "heating_1",
+        "name": "Chauffage Salon",
+        "PRODUCT_TYPE_ID": "4",
+        "usage_id": "38",
+        "SUPPORTED_CLASSES": "",
+        "GENERIC": "",
+        "SPECIFIC": ""
+    },
+    {
+        "periph_id": "motion_1",
+        "name": "Détecteur Mouvement Salon",
+        "usage_id": "37",
+        "SUPPORTED_CLASSES": "32:1",
+        "GENERIC": "SWITCH_MULTILEVEL",
+        "SPECIFIC": ""
+    },
+    {
+        "periph_id": "smoke_1",
+        "name": "Détecteur Fumée Cuisine",
+        "usage_id": "27",
+        "SUPPORTED_CLASSES": "",
+        "GENERIC": "",
+        "SPECIFIC": ""
+    },
+    {
+        "periph_id": "cpu_1",
+        "name": "Monitoring CPU",
+        "usage_id": "23",
+        "SUPPORTED_CLASSES": "",
+        "GENERIC": "",
+        "SPECIFIC": ""
+    },
+    {
+        "periph_id": "msg_1",
+        "name": "Message Box Entrée",
+        "usage_id": "1",
+        "SUPPORTED_CLASSES": "",
+        "GENERIC": "",
+        "SPECIFIC": ""
+    },
+    {
+        "periph_id": "unknown_1",
+        "name": "Périphérique Inconnu",
+        "usage_id": "999",
+        "SUPPORTED_CLASSES": "",
+        "GENERIC": "",
+        "SPECIFIC": ""
+    },
+    {
+        "periph_id": "energy_1",
+        "name": "Consommation Salon",
+        "usage_id": "26",
+        "SUPPORTED_CLASSES": "",
+        "GENERIC": "",
+        "SPECIFIC": ""
+    },
+    {
+        "periph_id": "light_1",
+        "name": "Lumière RGBW Salon",
+        "usage_id": "1",
+        "SUPPORTED_CLASSES": "96:3",
+        "GENERIC": "SWITCH_MULTILEVEL",
+        "SPECIFIC": ""
+    }
+]

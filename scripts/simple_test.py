@@ -199,11 +199,11 @@ def test_hacs_compliance():
     
     # Check 4: Test files
     test_files = [
-        "tests/test_energy_sensor.py",
-        "tests/test_switch.py",
-        "tests/test_light.py",
-        "tests/test_cover.py",
-        "tests/test_sensor.py"
+        "scripts/tests/test_energy_sensor.py",
+        "scripts/tests/test_switch.py",
+        "scripts/tests/test_light.py",
+        "scripts/tests/test_cover.py",
+        "scripts/tests/test_sensor.py"
     ]
     
     present_tests = []

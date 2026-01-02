@@ -68,12 +68,12 @@ def check_tests():
     print("\n🧪 Checking tests...")
     
     test_files = [
-        "custom_components/eedomus/tests/__init__.py",
-        "custom_components/eedomus/tests/test_sensor.py",
-        "custom_components/eedomus/tests/test_switch.py",
-        "custom_components/eedomus/tests/test_light.py",
-        "custom_components/eedomus/tests/test_cover.py",
-        "custom_components/eedomus/tests/test_energy_sensor.py",
+        "scripts/tests/__init__.py",
+        "scripts/tests/test_sensor.py",
+        "scripts/tests/test_switch.py",
+        "scripts/tests/test_light.py",
+        "scripts/tests/test_cover.py",
+        "scripts/tests/test_energy_sensor.py",
     ]
     
     all_ok = True

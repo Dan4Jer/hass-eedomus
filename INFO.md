@@ -45,6 +45,6 @@ eedomus:
 - Ensure API credentials are correct
 
 ## Development
-- Tests: `pytest tests/`
+- Tests: `pytest scripts/tests/`
 - Linting: `black` and `flake8`
 - Documentation: Update README.md and INFO.md

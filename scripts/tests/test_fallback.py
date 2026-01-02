@@ -8,7 +8,7 @@ import pytest
 from aiohttp import ClientError, ClientSession
 from homeassistant.config_entries import ConfigEntry
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "custom_components/eedomus")))
 from eedomus.const import (
     CONF_PHP_FALLBACK_ENABLED,
     CONF_PHP_FALLBACK_SCRIPT_NAME,

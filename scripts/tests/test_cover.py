@@ -8,7 +8,7 @@ import pytest
 from homeassistant.components.cover import CoverDeviceClass, CoverEntityFeature
 from homeassistant.const import STATE_CLOSED, STATE_CLOSING, STATE_OPEN, STATE_OPENING
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "custom_components/eedomus")))
 from cover import EedomusCover
 
 
