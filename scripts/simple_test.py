@@ -2,12 +2,25 @@
 """Simple test script to verify basic functionality without complex imports."""
 import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+
+def get_eedomus_path():
+    """Get the path to the eedomus component."""
+    # Check if we're running from scripts/ directory
+    scripts_dir = os.path.dirname(__file__)
+    if os.path.basename(scripts_dir) == "scripts":
+        # We're in scripts/ directory, go up to root and then to custom_components/eedomus/
+        return os.path.abspath(os.path.join(scripts_dir, "..", "custom_components", "eedomus"))
+    else:
+        # Assume we're already in custom_components/eedomus/
+        return os.path.dirname(__file__)
 
 
 def test_file_structure():
     """Test that all required files exist."""
     print("📁 Testing file structure...")
+    
+    eedomus_path = get_eedomus_path()
     
     required_files = [
         "__init__.py",
@@ -27,7 +40,7 @@ def test_file_structure():
     
     missing_files = []
     for filename in required_files:
-        filepath = os.path.join(os.path.dirname(__file__), filename)
+        filepath = os.path.join(eedomus_path, filename)
         if not os.path.exists(filepath):
             missing_files.append(filename)
     
@@ -46,7 +59,8 @@ def test_manifest_json():
     import json
     
     try:
-        with open(os.path.join(os.path.dirname(__file__), "manifest.json"), "r") as f:
+        eedomus_path = get_eedomus_path()
+        with open(os.path.join(eedomus_path, "manifest.json"), "r") as f:
             manifest = json.load(f)
         
         required_fields = [
@@ -80,8 +94,9 @@ def test_issue_9_implementation():
     print("🎯 Testing Issue #9 implementation...")
     
     try:
+        eedomus_path = get_eedomus_path()
         # Check sensor.py for energy sensor implementation
-        sensor_path = os.path.join(os.path.dirname(__file__), "sensor.py")
+        sensor_path = os.path.join(eedomus_path, "sensor.py")
         with open(sensor_path, "r") as f:
             sensor_content = f.read()
         
@@ -111,7 +126,7 @@ def test_issue_9_implementation():
         consumption_found = False
         
         for filename in files_to_check:
-            filepath = os.path.join(os.path.dirname(__file__), filename)
+            filepath = os.path.join(eedomus_path, filename)
             if os.path.exists(filepath):
                 with open(filepath, "r") as f:
                     content = f.read()
@@ -136,9 +151,10 @@ def test_hacs_compliance():
     print("🔍 Testing HACS compliance...")
     
     compliance_checks = []
+    eedomus_path = get_eedomus_path()
     
     # Check 1: Proper directory structure
-    parent_dir = os.path.dirname(os.path.dirname(__file__))
+    parent_dir = os.path.dirname(eedomus_path)
     if os.path.basename(parent_dir) == "custom_components":
         compliance_checks.append(("Directory structure", True, "custom_components/eedomus/ found"))
     else:
@@ -146,7 +162,7 @@ def test_hacs_compliance():
     
     # Check 2: __init__.py files
     init_files = [
-        os.path.join(os.path.dirname(__file__), "__init__.py"),
+        os.path.join(eedomus_path, "__init__.py"),
         os.path.join(parent_dir, "__init__.py")
     ]
     
@@ -165,9 +181,16 @@ def test_hacs_compliance():
     
     present_docs = []
     for doc in doc_files:
-        doc_path = os.path.join(os.path.dirname(__file__), doc)
-        if os.path.exists(doc_path):
+        # Check in eedomus directory first
+        doc_path = os.path.join(eedomus_path, doc)
+        if os.path.isfile(doc_path):
             present_docs.append(doc)
+        else:
+            # Check in project root directory for README.md and INFO.md
+            project_root = os.path.dirname(os.path.dirname(eedomus_path))
+            root_doc_path = os.path.join(project_root, doc)
+            if os.path.isfile(root_doc_path):
+                present_docs.append(doc)
     
     if present_docs:
         compliance_checks.append(("Documentation", True, f"Found: {', '.join(present_docs)}"))
@@ -176,16 +199,16 @@ def test_hacs_compliance():
     
     # Check 4: Test files
     test_files = [
-        "test_energy_sensor.py",
-        "test_switch.py",
-        "test_light.py",
-        "test_cover.py",
-        "test_sensor.py"
+        "tests/test_energy_sensor.py",
+        "tests/test_switch.py",
+        "tests/test_light.py",
+        "tests/test_cover.py",
+        "tests/test_sensor.py"
     ]
     
     present_tests = []
     for test_file in test_files:
-        test_path = os.path.join(os.path.dirname(__file__), test_file)
+        test_path = os.path.join(eedomus_path, test_file)
         if os.path.exists(test_path):
             present_tests.append(test_file)
     

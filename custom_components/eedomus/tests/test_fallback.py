@@ -6,8 +6,8 @@ from homeassistant.config_entries import ConfigEntry
 import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from hass-eedomus.eedomus_client import EedomusClient
-from hass-eedomus.const import (
+from eedomus_client import EedomusClient
+from eedomus.const import (
     CONF_PHP_FALLBACK_ENABLED, CONF_PHP_FALLBACK_SCRIPT_NAME, 
     CONF_PHP_FALLBACK_TIMEOUT, 
 )
@@ -30,8 +30,7 @@ async def test_fallback_not_configured():
         options={
             CONF_PHP_FALLBACK_ENABLED: False,
             CONF_PHP_FALLBACK_SCRIPT_NAME: "eedomus_fallback",
-            CONF_PHP_FALLBACK_TIMEOUT: 5,
-            : False
+            CONF_PHP_FALLBACK_TIMEOUT: 5
         }
     )
     
@@ -70,8 +69,7 @@ async def test_fallback_script_success():
         options={
             CONF_PHP_FALLBACK_ENABLED: True,
             CONF_PHP_FALLBACK_SCRIPT_NAME: "http://192.168.1.100/fallback.php",
-            CONF_PHP_FALLBACK_TIMEOUT: 5,
-            : False
+            CONF_PHP_FALLBACK_TIMEOUT: 5
         }
     )
     
@@ -110,8 +108,7 @@ async def test_fallback_script_error():
         options={
             CONF_PHP_FALLBACK_ENABLED: True,
             CONF_PHP_FALLBACK_SCRIPT_NAME: "http://192.168.1.100/fallback.php",
-            CONF_PHP_FALLBACK_TIMEOUT: 5,
-            : False
+            CONF_PHP_FALLBACK_TIMEOUT: 5
         }
     )
     
@@ -147,8 +144,7 @@ async def test_fallback_script_timeout():
         options={
             CONF_PHP_FALLBACK_ENABLED: True,
             CONF_PHP_FALLBACK_SCRIPT_NAME: "http://192.168.1.100/fallback.php",
-            CONF_PHP_FALLBACK_TIMEOUT: 1,  # Short timeout for test
-            : False
+            CONF_PHP_FALLBACK_TIMEOUT: 1  # Short timeout for test
         }
     )
     
@@ -183,8 +179,7 @@ async def test_fallback_script_client_error():
         options={
             CONF_PHP_FALLBACK_ENABLED: True,
             CONF_PHP_FALLBACK_SCRIPT_NAME: "http://192.168.1.100/fallback.php",
-            CONF_PHP_FALLBACK_TIMEOUT: 5,
-            : False
+            CONF_PHP_FALLBACK_TIMEOUT: 5
         }
     )
     
@@ -224,8 +219,7 @@ async def test_fallback_script_parameters():
         options={
             CONF_PHP_FALLBACK_ENABLED: True,
             CONF_PHP_FALLBACK_SCRIPT_NAME: "http://192.168.1.100/fallback.php",
-            CONF_PHP_FALLBACK_TIMEOUT: 5,
-            : True
+            CONF_PHP_FALLBACK_TIMEOUT: 5
         }
     )
     
@@ -292,8 +286,7 @@ async def test_set_periph_value_with_fallback():
         options={
             CONF_PHP_FALLBACK_ENABLED: True,
             CONF_PHP_FALLBACK_SCRIPT_NAME: "http://192.168.1.100/fallback.php",
-            CONF_PHP_FALLBACK_TIMEOUT: 5,
-            : False
+            CONF_PHP_FALLBACK_TIMEOUT: 5
         }
     )
     

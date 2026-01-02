@@ -29,7 +29,7 @@ jobs:
     - name: Run HACS compliance tests
       run: |
         cd custom_components/eedomus
-        python3 simple_test.py
+        python3 ../scripts/simple_test.py
     
     - name: Check manifest.json
       run: |
