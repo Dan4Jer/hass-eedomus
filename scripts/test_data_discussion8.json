@@ -1,0 +1,187 @@
+[
+    {
+        "periph_id": "problem_device_1",
+        "name": "Périphérique Problématique 1",
+        "PRODUCT_TYPE_ID": "999",
+        "usage_id": "1",
+        "SUPPORTED_CLASSES": "",
+        "GENERIC": "",
+        "SPECIFIC": "",
+        "description": "Périphérique virtuel qui devrait être mappé comme 'select' mais pourrait poser problème"
+    },
+    {
+        "periph_id": "problem_device_2",
+        "name": "Périphérique Problématique 2",
+        "PRODUCT_TYPE_ID": "770",
+        "usage_id": "48",
+        "SUPPORTED_CLASSES": "",
+        "GENERIC": "",
+        "SPECIFIC": "",
+        "description": "Volet Fibaro - devrait être cover/shutter mais vérification nécessaire"
+    },
+    {
+        "periph_id": "problem_device_3",
+        "name": "Périphérique Problématique 3",
+        "PRODUCT_TYPE_ID": "4",
+        "usage_id": "38",
+        "SUPPORTED_CLASSES": "",
+        "GENERIC": "",
+        "SPECIFIC": "",
+        "description": "Chauffage fil pilote - devrait être climate/fil_pilote"
+    },
+    {
+        "periph_id": "problem_device_4",
+        "name": "Capteur Mouvement Problématique",
+        "usage_id": "37",
+        "SUPPORTED_CLASSES": "32:1",
+        "GENERIC": "SWITCH_MULTILEVEL",
+        "SPECIFIC": "",
+        "description": "Capteur de mouvement - devrait être binary_sensor/motion malgré la classe 32"
+    },
+    {
+        "periph_id": "problem_device_5",
+        "name": "Détecteur Fumée Problématique",
+        "usage_id": "27",
+        "SUPPORTED_CLASSES": "",
+        "GENERIC": "",
+        "SPECIFIC": "",
+        "description": "Détecteur de fumée - devrait être binary_sensor/smoke"
+    },
+    {
+        "periph_id": "problem_device_6",
+        "name": "Message Box Problématique",
+        "usage_id": "1",
+        "SUPPORTED_CLASSES": "",
+        "GENERIC": "",
+        "SPECIFIC": "",
+        "description": "Message box détecté par nom - devrait être sensor/text"
+    },
+    {
+        "periph_id": "problem_device_7",
+        "name": "CPU Monitoring Problématique",
+        "usage_id": "23",
+        "SUPPORTED_CLASSES": "",
+        "GENERIC": "",
+        "SPECIFIC": "",
+        "description": "Monitoring CPU - devrait être sensor/cpu_usage"
+    },
+    {
+        "periph_id": "problem_device_8",
+        "name": "Périphérique Inconnu Problématique",
+        "usage_id": "999",
+        "SUPPORTED_CLASSES": "",
+        "GENERIC": "",
+        "SPECIFIC": "",
+        "description": "Périphérique inconnu - devrait utiliser le mapping par défaut (sensor/unknown)"
+    },
+    {
+        "periph_id": "problem_device_9",
+        "name": "Consommation Problématique",
+        "usage_id": "26",
+        "SUPPORTED_CLASSES": "",
+        "GENERIC": "",
+        "SPECIFIC": "",
+        "description": "Capteur de consommation - devrait être sensor avec justification spécifique"
+    },
+    {
+        "periph_id": "problem_device_10",
+        "name": "Lumière RGBW Problématique",
+        "usage_id": "1",
+        "SUPPORTED_CLASSES": "96:3",
+        "GENERIC": "SWITCH_MULTILEVEL",
+        "SPECIFIC": "",
+        "description": "Lumière RGBW - devrait être mappé comme switch (à vérifier si c'est correct)"
+    },
+    {
+        "periph_id": "problem_device_11",
+        "name": "Périphérique Sans PRODUCT_TYPE_ID",
+        "usage_id": "1",
+        "SUPPORTED_CLASSES": "38:3",
+        "GENERIC": "SENSOR_MULTILEVEL",
+        "SPECIFIC": "",
+        "description": "Périphérique avec classe Z-Wave mais sans PRODUCT_TYPE_ID"
+    },
+    {
+        "periph_id": "problem_device_12",
+        "name": "Périphérique Avec SPECIFIC=6",
+        "usage_id": "1",
+        "SUPPORTED_CLASSES": "37:1",
+        "GENERIC": "SWITCH_BINARY",
+        "SPECIFIC": "6",
+        "description": "Périphérique avec SPECIFIC=6 qui devrait déclencher une exception"
+    },
+    {
+        "periph_id": "problem_device_13",
+        "name": "Périphérique Mixte",
+        "PRODUCT_TYPE_ID": "4",
+        "usage_id": "19",
+        "SUPPORTED_CLASSES": "50:2,38:3",
+        "GENERIC": "SENSOR_MULTILEVEL",
+        "SPECIFIC": "",
+        "description": "Périphérique avec plusieurs classes et PRODUCT_TYPE_ID"
+    },
+    {
+        "periph_id": "problem_device_14",
+        "name": "Périphérique Sans Classes",
+        "usage_id": "1",
+        "SUPPORTED_CLASSES": "",
+        "GENERIC": "",
+        "SPECIFIC": "",
+        "description": "Périphérique sans classes Z-Wave - devrait utiliser usage_id mapping"
+    },
+    {
+        "periph_id": "problem_device_15",
+        "name": "Périphérique Avec Classe Inconnue",
+        "usage_id": "1",
+        "SUPPORTED_CLASSES": "99:1",
+        "GENERIC": "UNKNOWN",
+        "SPECIFIC": "",
+        "description": "Périphérique avec classe Z-Wave inconnue"
+    },
+    {
+        "periph_id": "problem_device_16",
+        "name": "Périphérique Complexe",
+        "PRODUCT_TYPE_ID": "770",
+        "usage_id": "48",
+        "SUPPORTED_CLASSES": "112:1,113:1",
+        "GENERIC": "SWITCH_MULTILEVEL",
+        "SPECIFIC": "5",
+        "description": "Périphérique complexe avec PRODUCT_TYPE_ID prioritaire"
+    },
+    {
+        "periph_id": "problem_device_17",
+        "name": "Périphérique Test Exception",
+        "usage_id": "1",
+        "SUPPORTED_CLASSES": "32:1",
+        "GENERIC": "SWITCH_MULTILEVEL",
+        "SPECIFIC": "6",
+        "description": "Périphérique conçu pour tester les exceptions de mapping"
+    },
+    {
+        "periph_id": "problem_device_18",
+        "name": "Périphérique Sans Nom",
+        "usage_id": "1",
+        "SUPPORTED_CLASSES": "",
+        "GENERIC": "",
+        "SPECIFIC": "",
+        "description": "Périphérique sans nom - test de robustesse"
+    },
+    {
+        "periph_id": "problem_device_19",
+        "name": "Périphérique Avec Nom Spécial",
+        "usage_id": "1",
+        "SUPPORTED_CLASSES": "",
+        "GENERIC": "",
+        "SPECIFIC": "",
+        "description": "Périphérique avec caractères spéciaux: Éèçàûü"
+    },
+    {
+        "periph_id": "problem_device_20",
+        "name": "Périphérique Très Long Nom",
+        "usage_id": "1",
+        "SUPPORTED_CLASSES": "",
+        "GENERIC": "",
+        "SPECIFIC": "",
+        "description": "Périphérique avec un nom très long pour tester la gestion des noms: Ce périphérique a un nom extrêmement long qui pourrait poser problème dans certains systèmes ou interfaces utilisateur"
+    }
+]

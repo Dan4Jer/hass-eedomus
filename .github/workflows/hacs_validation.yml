@@ -28,8 +28,7 @@ jobs:
     
     - name: Run HACS compliance tests
       run: |
-        cd custom_components/eedomus
-        python3 ../../scripts/simple_test.py
+        python3 scripts/simple_test.py
     
     - name: Check manifest.json
       run: |
@@ -43,6 +42,7 @@ jobs:
     - name: Check Python syntax
       run: |
         find custom_components/eedomus -name "*.py" -exec python3 -m py_compile {} + && echo "✅ All Python files have valid syntax"
+        find scripts -name "*.py" -exec python3 -m py_compile {} + && echo "✅ All script files have valid syntax"
     
     - name: Check file structure
       run: |
@@ -50,8 +50,23 @@ jobs:
         test -f custom_components/eedomus/__init__.py && echo "✅ __init__.py present"
         test -f custom_components/eedomus/manifest.json && echo "✅ manifest.json present"
         test -f custom_components/__init__.py && echo "✅ Parent __init__.py present"
+        test -d scripts/tests && echo "✅ Tests directory present"
+        test -f scripts/debug_mapping_simple.py && echo "✅ Debug mapping tool present"
+        test -f scripts/test_data.json && echo "✅ Test data file present"
     
     - name: List test files
       run: |
         echo "Test files present:"
         ls -la scripts/tests/*.py
+        echo "Debug tools present:"
+        ls -la scripts/debug*.py
+        echo "Test data files present:"
+        ls -la scripts/test_data*.json
+
+    - name: Test debug tools syntax
+      run: |
+        echo "Testing debug tools syntax..."
+        python3 -m py_compile scripts/debug_mapping_simple.py && echo "✅ debug_mapping_simple.py syntax OK"
+        python3 -m py_compile scripts/debug_discussion8.py && echo "✅ debug_discussion8.py syntax OK"
+        python3 -c "import json; json.load(open('scripts/test_data.json'))" && echo "✅ test_data.json JSON valid"
+        python3 -c "import json; json.load(open('scripts/test_data_discussion8.json'))" && echo "✅ test_data_discussion8.json JSON valid"

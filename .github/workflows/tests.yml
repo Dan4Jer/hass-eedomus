@@ -28,16 +28,14 @@ jobs:
     
     - name: Run simple tests
       run: |
-        cd custom_components/eedomus
-        python3 ../../scripts/simple_test.py
+        python3 scripts/simple_test.py
     
     - name: Test energy sensor (Issue #9)
       run: |
-        cd custom_components/eedomus
         echo "Testing energy sensor implementation..."
         python3 -c "
         import os
-        with open('sensor.py', 'r') as f:
+        with open('custom_components/eedomus/sensor.py', 'r') as f:
             content = f.read()
             assert 'energy' in content.lower(), 'Energy not found in sensor.py'
             assert 'consumption' in content.lower(), 'Consumption not found in sensor.py'
@@ -47,8 +45,8 @@ jobs:
     
     - name: Test consumption in device handlers
       run: |
-        cd custom_components/eedomus
         echo "Testing consumption monitoring in device handlers..."
+        cd custom_components/eedomus
         for device in switch.py light.py cover.py; do
             if [ -f "$device" ]; then
                 if grep -qi "consumption" "$device"; then
