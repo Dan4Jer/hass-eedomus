@@ -198,17 +198,24 @@ def test_hacs_compliance():
         compliance_checks.append(("Documentation", False, "No documentation files found"))
     
     # Check 4: Test files
+    # Get the project root path (two levels up from eedomus_path)
+    # eedomus_path is: .../hass-eedomus/custom_components/eedomus
+    # We need to go up to: .../hass-eedomus/
+    project_root = os.path.dirname(os.path.dirname(eedomus_path))
+    
     test_files = [
         "scripts/tests/test_energy_sensor.py",
         "scripts/tests/test_switch.py",
         "scripts/tests/test_light.py",
         "scripts/tests/test_cover.py",
-        "scripts/tests/test_sensor.py"
+        "scripts/tests/test_sensor.py",
+        "scripts/tests/test_integration.py",
+        "scripts/tests/test_fallback.py"
     ]
     
     present_tests = []
     for test_file in test_files:
-        test_path = os.path.join(eedomus_path, test_file)
+        test_path = os.path.join(project_root, test_file)
         if os.path.exists(test_path):
             present_tests.append(test_file)
     
