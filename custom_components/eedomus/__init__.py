@@ -208,6 +208,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Set up options flow handler
     entry.async_on_unload(entry.add_update_listener(update_listener))
+    
+    # Explicitly register options flow handler
+    # This ensures Home Assistant can find and use the options flow
+    try:
+        from homeassistant import config_entries
+        if hasattr(config_entries, 'register_options_flow'):
+            config_entries.register_options_flow(
+                DOMAIN,
+                EedomusOptionsFlowHandler.async_get_options_flow
+            )
+            _LOGGER.debug("Options flow handler registered successfully")
+        else:
+            _LOGGER.debug("Options flow handler will be auto-discovered by Home Assistant")
+    except Exception as e:
+        _LOGGER.warning("Failed to register options flow handler: %s", e)
 
     _LOGGER.debug("eedomus integration setup completed")
     return True
