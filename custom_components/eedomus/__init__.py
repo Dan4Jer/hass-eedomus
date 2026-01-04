@@ -33,6 +33,9 @@ from .eedomus_client import EedomusClient
 from .sensor import EedomusHistoryProgressSensor, EedomusSensor
 from .webhook import EedomusWebhookView
 
+# Initialize logger first
+_LOGGER = logging.getLogger(__name__)
+
 # Import options flow to ensure it's registered
 try:
     from .options_flow import EedomusOptionsFlowHandler
@@ -48,8 +51,7 @@ try:
         VERSION = manifest_data.get("version", "unknown")
 except Exception as e:
     VERSION = "unknown"
-
-_LOGGER = logging.getLogger(__name__)
+    _LOGGER.warning("Failed to read version from manifest.json: %s", e)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
