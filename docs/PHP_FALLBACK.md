@@ -2,7 +2,7 @@
 
 ## 📁 Script Location
 
-The `fallback.php` script is located in `custom_components/php/fallback.php`.
+The `fallback.php` script is located in `docs/php/fallback.php`.
 
 ## 🔄 Purpose
 
@@ -19,10 +19,10 @@ The PHP fallback mechanism allows handling of rejected values by the eedomus API
 
 ### Step 1: Copy the script
 
-Copy `custom_components/php/fallback.php` to your eedomus box:
+Copy `docs/php/fallback.php` to your eedomus box:
 
 ```bash
-scp custom_components/php/fallback.php user@eedomus-box:/var/www/html/eedomus_fallback/
+scp docs/php/fallback.php user@eedomus-box:/var/www/html/eedomus_fallback/
 ```
 
 ### Step 2: Configure the script
