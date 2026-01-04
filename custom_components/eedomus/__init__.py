@@ -33,6 +33,13 @@ from .eedomus_client import EedomusClient
 from .sensor import EedomusHistoryProgressSensor, EedomusSensor
 from .webhook import EedomusWebhookView
 
+# Import options flow to ensure it's registered
+try:
+    from .options_flow import EedomusOptionsFlowHandler
+    _LOGGER.debug("Options flow handler loaded successfully")
+except ImportError as e:
+    _LOGGER.warning("Failed to load options flow handler: %s", e)
+
 # Get version from manifest.json
 try:
     manifest_path = os.path.join(os.path.dirname(__file__), "manifest.json")
