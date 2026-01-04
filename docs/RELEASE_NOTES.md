@@ -65,7 +65,7 @@ None in this release. All existing configurations will continue to work.
 - `custom_components/eedomus/test_sensor.py` - Sensor tests
 - `custom_components/eedomus/TESTS_README.md` - Test documentation
 - `custom_components/eedomus/simple_test.py` - Simple test runner
-- `custom_components/eedomus/run_tests.py` - Alternative test runner
+- `scripts/run_tests.py` - Alternative test runner
 - `custom_components/eedomus/test_config.yaml` - Test configurations
 - `INFO.md` - HACS integration information
 - `.github/workflows/hacs_validation.yml` - HACS validation workflow

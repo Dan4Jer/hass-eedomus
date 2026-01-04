@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import logging
+import os
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
@@ -31,12 +33,21 @@ from .eedomus_client import EedomusClient
 from .sensor import EedomusHistoryProgressSensor, EedomusSensor
 from .webhook import EedomusWebhookView
 
+# Get version from manifest.json
+try:
+    manifest_path = os.path.join(os.path.dirname(__file__), "manifest.json")
+    with open(manifest_path, "r") as f:
+        manifest_data = json.load(f)
+        VERSION = manifest_data.get("version", "unknown")
+except Exception as e:
+    VERSION = "unknown"
+
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up eedomus from a config entry."""
-    _LOGGER.info("🚀 Starting eedomus integration setup - Version 0.11.0")
+    _LOGGER.info("🚀 Starting eedomus integration setup - Version %s", VERSION)
     _LOGGER.debug("Setting up eedomus integration with entry_id: %s", entry.entry_id)
 
     # Check which modes are enabled
