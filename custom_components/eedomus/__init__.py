@@ -227,17 +227,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         
         # CRUCIAL: Register the options flow handler with Home Assistant
         # This tells Home Assistant where to find the options flow handler
+        # We only reference the class, don't create an instance
         entry.async_get_options_flow = EedomusOptionsFlowHandler
-        
-        # Create a new instance of the options flow handler
-        options_flow_handler = EedomusOptionsFlowHandler(entry)
-        
-        # Register the options flow handler
-        entry.async_on_unload(
-            entry.add_update_listener(
-                options_flow_handler
-            )
-        )
         
         _LOGGER.info("✅ Options flow handler registered successfully")
         _LOGGER.info("✅ Options flow is now available in the configuration panel")
