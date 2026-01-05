@@ -39,9 +39,19 @@ _LOGGER = logging.getLogger(__name__)
 # Import options flow to ensure it's registered
 try:
     from .options_flow import EedomusOptionsFlowHandler
-    _LOGGER.debug("Options flow handler loaded successfully")
+    _LOGGER.info("✅ Options flow handler loaded successfully")
+    
+    # Verify that the handler is properly configured
+    from homeassistant import config_entries
+    if not issubclass(EedomusOptionsFlowHandler, config_entries.OptionsFlow):
+        _LOGGER.error("Options flow handler does not inherit from OptionsFlow")
+    else:
+        _LOGGER.info("✅ Options flow handler is properly configured")
 except ImportError as e:
-    _LOGGER.warning("Failed to load options flow handler: %s", e)
+    _LOGGER.error("❌ Failed to load options flow handler: %s", e)
+    _LOGGER.error("Options flow will not be available")
+except Exception as e:
+    _LOGGER.error("❌ Unexpected error loading options flow handler: %s", e)
 
 # Get version from manifest.json
 try:
