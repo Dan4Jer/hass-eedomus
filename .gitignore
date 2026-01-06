@@ -212,3 +212,4 @@ private_const.py-e
 # Generated documentation
 docs/ENTITY_DOCUMENTATION.md
 docs/MANIFEST_INFO.md
+custom_components/eedomus/private_const.py
