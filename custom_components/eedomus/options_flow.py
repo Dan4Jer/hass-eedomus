@@ -26,6 +26,11 @@ _LOGGER = logging.getLogger(__name__)
 class EedomusOptionsFlowHandler(config_entries.OptionsFlow):
     """Handle eedomus options."""
 
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+        """Initialize options flow."""
+        # OptionsFlow handles config_entry automatically, no need to set it
+        pass
+    
     @staticmethod
     @callback
     def async_get_options_flow(config_entry: config_entries.ConfigEntry):
