@@ -39,19 +39,11 @@ _LOGGER = logging.getLogger(__name__)
 # Import options flow to ensure it's registered
 try:
     from .options_flow import EedomusOptionsFlowHandler
-    _LOGGER.info("✅ Options flow handler loaded successfully")
-    
-    # Verify that the handler is properly configured
-    from homeassistant import config_entries
-    if not issubclass(EedomusOptionsFlowHandler, config_entries.OptionsFlow):
-        _LOGGER.error("Options flow handler does not inherit from OptionsFlow")
-    else:
-        _LOGGER.info("✅ Options flow handler is properly configured")
+    _LOGGER.debug("Options flow handler loaded successfully")
 except ImportError as e:
-    _LOGGER.error("❌ Failed to load options flow handler: %s", e)
-    _LOGGER.error("Options flow will not be available")
+    _LOGGER.warning("Failed to load options flow handler: %s", e)
 except Exception as e:
-    _LOGGER.error("❌ Unexpected error loading options flow handler: %s", e)
+    _LOGGER.warning("Unexpected error loading options flow handler: %s", e)
 
 # Get version from manifest.json
 try:
@@ -82,6 +74,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         api_eedomus_enabled,
         api_proxy_enabled,
     )
+
+    _LOGGER.debug("Setting up eedomus integration before entry.update_listener: %s", entry.update_listeners)
+    # Set up options flow handler
+    entry.async_on_unload(entry.add_update_listener(async_update_listener))
+
+    _LOGGER.debug("Setting up eedomus integration after entry.update_listener: %s", entry.update_listeners)
 
     # Create session and client
     session = aiohttp_client.async_get_clientsession(hass)
@@ -181,6 +179,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "   Only use this setting temporarily for debugging in secure environments."
         )
 
+    #need to clean up... webhook or api proxy
+    #webhook
     hass.http.register_view(
         EedomusWebhookView(
             entry.entry_id,
@@ -188,6 +188,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             disable_security=disable_security,
         )
     )
+    #apiproxy
     hass.http.register_view(
         EedomusApiProxyView(
             entry.entry_id,
@@ -210,34 +211,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Forward setup to platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Define update listener first
-    async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
-        """Handle options update."""
-        _LOGGER.info("🔧 Eedomus configuration options updated - reloading integration")
-        await hass.config_entries.async_reload(entry.entry_id)
-
-    # Set up options flow handler
-    entry.async_on_unload(entry.add_update_listener(update_listener))
-    
-    # Explicitly register options flow handler
-    # This is necessary for Home Assistant to detect the options flow
-    try:
-        # Import the options flow class
-        from .options_flow import EedomusOptionsFlowHandler
-        
-        # CRUCIAL: Register the options flow handler with Home Assistant
-        # This tells Home Assistant where to find the options flow handler
-        # We only reference the class, don't create an instance
-        entry.async_get_options_flow = EedomusOptionsFlowHandler
-        
-        _LOGGER.info("✅ Options flow handler registered successfully")
-        _LOGGER.info("✅ Options flow is now available in the configuration panel")
-    except Exception as e:
-        _LOGGER.error("❌ Failed to register options flow handler: %s", e)
-        _LOGGER.error("❌ Options flow will not be available")
-
     _LOGGER.debug("eedomus integration setup completed")
     return True
+
+# Define update listener first
+async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Handle options update."""
+    _LOGGER.info("🔧 Eedomus configuration options updated - reloading integration")
+    await hass.config_entries.async_reload(entry.entry_id)
+
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

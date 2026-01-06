@@ -235,12 +235,12 @@ class EedomusSensor(EedomusEntity, SensorEntity):
             return float(value)
         else:
             _LOGGER.warning(
-                "Non-numeric value for sensor %s (periph_id=%s): '%s' - returning as string",
+                "Non-numeric value for sensor %s (periph_id=%s): '%s' - returning as None",
                 self.coordinator.data[self._periph_id].get("name", "unknown"),
                 self._periph_id,
                 value,
             )
-            return value  # Return original value if not numeric
+            return None  # Return None if not numeric
 
     @property
     def device_class(self):

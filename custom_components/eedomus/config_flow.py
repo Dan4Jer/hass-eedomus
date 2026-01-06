@@ -7,7 +7,7 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -139,8 +139,10 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 description_placeholders={"explanation": CONNECTION_MODES_EXPLANATION},
             )
 
-        _LOGGER.info("Config flow received user input: %s", user_input)
-        _LOGGER.debug("Full user input details: %s", user_input)
+        user_show = user_input.copy()
+        user_show['api_secret'] = "********"
+        _LOGGER.info("Config flow received user input: %s", user_show)
+        _LOGGER.debug("Full user input details: %s", user_show)
 
         # Log which modes are selected
         api_eedomus_enabled = user_input.get(
@@ -300,3 +302,9 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             modes.append("Proxy")
 
         return {"title": f"Eedomus ({data[CONF_API_HOST]}) - {' + '.join(modes)} Mode"}
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: config_entries.ConfigEntry):
+        """Get the options flow for this handler."""
+        return EedomusOptionsFlowHandler(config_entry)
