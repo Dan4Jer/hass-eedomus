@@ -1,6 +1,7 @@
 """The eedomus integration."""
 
 from __future__ import annotations
+from datetime import timedelta
 
 import json
 import logging
@@ -96,7 +97,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             return False
 
         # Initialize coordinator with custom scan interval
-        scan_interval = entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        # Check options first, then data, then default
+        scan_interval = entry.options.get(
+            CONF_SCAN_INTERVAL,
+            entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        )
         coordinator = EedomusDataUpdateCoordinator(hass, client, scan_interval)
 
         # Perform initial full refresh only for API Eedomus mode
@@ -218,6 +223,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Handle options update."""
     _LOGGER.info("🔧 Eedomus configuration options updated - reloading integration")
+    
+    # Update coordinator scan interval if it exists and scan_interval option changed
+    if entry.entry_id in hass.data.get(DOMAIN, {}) and COORDINATOR in hass.data[DOMAIN][entry.entry_id]:
+        coordinator = hass.data[DOMAIN][entry.entry_id][COORDINATOR]
+        new_scan_interval = entry.options.get(CONF_SCAN_INTERVAL)
+        if new_scan_interval and hasattr(coordinator, 'update_interval'):
+            coordinator.update_interval = timedelta(seconds=new_scan_interval)
+            _LOGGER.info(f"🔄 Updated scan interval to {new_scan_interval} seconds")
+    
     await hass.config_entries.async_reload(entry.entry_id)
 
 

@@ -14,9 +14,11 @@ from .const import (
     CONF_API_PROXY_DISABLE_SECURITY,
     CONF_ENABLE_EXTENDED_ATTRIBUTES,
     CONF_ENABLE_SET_VALUE_RETRY,
+    CONF_SCAN_INTERVAL,
     DEFAULT_API_PROXY_DISABLE_SECURITY,
     DEFAULT_ENABLE_EXTENDED_ATTRIBUTES,
     DEFAULT_ENABLE_SET_VALUE_RETRY,
+    DEFAULT_SCAN_INTERVAL,
     DOMAIN,
 )
 
@@ -78,12 +80,23 @@ class EedomusOptionsFlowHandler(config_entries.OptionsFlow):
                             ),
                         ),
                     ): bool,
+                    vol.Optional(
+                        CONF_SCAN_INTERVAL,
+                        default=self.config_entry.options.get(
+                            CONF_SCAN_INTERVAL,
+                            self.config_entry.data.get(
+                                CONF_SCAN_INTERVAL,
+                                DEFAULT_SCAN_INTERVAL,
+                            ),
+                        ),
+                    ): int,
                 }
             ),
             description_placeholders={
                 "explanation": "📋 Configure advanced options for your eedomus integration. "
                 "These options allow you to customize the behavior of the integration. "
-                "Changes take effect immediately after saving."
+                "Changes take effect immediately after saving.",
+                "scan_interval_note": "Scan interval in seconds (minimum 30 seconds recommended)"
             },
         )
 
