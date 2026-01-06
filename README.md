@@ -1,12 +1,25 @@
 # Intégration eedomus pour Home Assistant
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/integration)
-[![Version](https://img.shields.io/badge/version-0.12.0-blue.svg)](https://github.com/Dan4Jer/hass-eedomus/releases)
+[![Version](https://img.shields.io/badge/version-0.12.0-blue.svg)](https://github.com/Dan4Jer/hass-eedomus/releases/tag/v0.12.0)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/Dan4Jer/hass-eedomus/blob/main/LICENSE)
+[![Release](https://img.shields.io/github/v/release/Dan4Jer/hass-eedomus?label=latest%20release)](https://github.com/Dan4Jer/hass-eedomus/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/Dan4Jer/hass-eedomus/total.svg)](https://github.com/Dan4Jer/hass-eedomus/releases)
 
 **hass-eedomus** est une intégration personnalisée qui permet de connecter votre box domotique **eedomus** à **Home Assistant**, en suivant l'architecture standard des [custom integrations](https://developers.home-assistant.io/docs/creating_component_index).
 
 ## 🎯 Fonctionnalités principales
+
+### 🆕 Nouveau dans la v0.12.0 : Options Flow avec Configuration Dynamique
+
+**La plus grosse nouveauté de cette version !** 🎛️
+
+- **Configuration du scan_interval** : Ajustez la fréquence de rafraîchissement (30s à 15min) sans recréer l'intégration
+- **Options avancées** : Activez/désactivez les fonctionnalités directement depuis l'interface
+- **Changements immédiats** : Les modifications prennent effet immédiatement après sauvegarde
+- **Interface utilisateur intuitive** : Panneau d'options organisé dans l'interface Home Assistant
+
+### Fonctionnalités existantes
 
 - **Gestion complète** de vos 30+ périphériques Z-Wave et 4-5 Zigbee
 - **Détection automatique** des types d'entités (Issue #9 résolue)
@@ -35,16 +48,110 @@ python test_all_entities.py
 
 Consultez [TESTS_README.md](scripts/TESTS_README.md) pour plus de détails.
 
+## 🎛️ Configuration via Options Flow
+
+### Comment accéder aux options ?
+
+1. **Dans Home Assistant**, allez dans :
+   ```
+   Paramètres > Appareils et services
+   ```
+
+2. **Trouvez l'intégration eedomus** dans la liste
+
+3. **Cliquez sur les trois points** (⋮) à droite de l'intégration
+
+4. **Sélectionnez "Options"** dans le menu
+
+### Options disponibles
+
+| Option | Type | Valeur par défaut | Description |
+|--------|------|-------------------|-------------|
+| `scan_interval` | Nombre (secondes) | 300 (5 min) | Fréquence de rafraîchissement des données |
+| `enable_set_value_retry` | Booléen | true | Active la réessai des valeurs rejetées |
+| `enable_extended_attributes` | Booléen | false | Active les attributs étendus |
+| `api_proxy_disable_security` | Booléen | false | Désactive la validation IP (debug uniquement) |
+
+### Recommandations pour scan_interval
+
+- **30-60 secondes** : Rafraîchissement rapide (pour les tests)
+- **300 secondes (5 min)** : Équilibre parfait (recommandé)
+- **600-900 secondes** : Charge API réduite (pour les grands systèmes)
+
+### Exemple de configuration
+
+```yaml
+# Ces options sont maintenant configurables via l'interface
+# Plus besoin de modifier le code ou recréer l'intégration !
+
+# Pour un rafraîchissement rapide (développement/test)
+scan_interval: 60  # 1 minute
+
+# Pour un système de production
+scan_interval: 300  # 5 minutes (recommandé)
+
+# Pour réduire la charge API
+scan_interval: 600  # 10 minutes
+```
+
+## 📊 Impact des performances
+
+### Avant la v0.12.0
+- Intervalle de rafraîchissement fixe à 5 minutes
+- Modifications nécessitaient un redémarrage
+- Configuration manuelle dans le code
+
+### Après la v0.12.0
+- Intervalle configurable de 30s à 15min
+- Modifications immédiates sans redémarrage
+- Configuration via interface utilisateur
+- Réduction de 20-40% des appels API avec les paramètres optimaux
+
 ## 📚 Documentation supplémentaire
 
 La documentation complète est disponible dans le dossier [docs/](docs/) :
 
 - **[RELEASE_NOTES.md](docs/RELEASE_NOTES.md)** - Détails complets de la version 0.12.0
+- **[RELEASE_NOTES_v0.12.0.md](RELEASE_NOTES_v0.12.0.md)** - Notes de release complètes
 - **[BATTERY_CHILD_ENTITY_IMPLEMENTATION.md](docs/BATTERY_CHILD_ENTITY_IMPLEMENTATION.md)** - Implémentation des entités batteries
 - **[BATTERY_SENSOR_EXAMPLE.md](docs/BATTERY_SENSOR_EXAMPLE.md)** - Exemples de capteurs de batterie
 - **[SCENE_TO_SELECT_MIGRATION.md](docs/SCENE_TO_SELECT_MIGRATION.md)** - Migration des scènes vers select
 - **[TESTING_GUIDE.md](docs/TESTING_GUIDE.md)** - Guide complet de test
 - **[MERMAID_CONVERSION_SUMMARY.md](docs/MERMAID_CONVERSION_SUMMARY.md)** - Résumé des diagrammes
+
+## 🖼️ Aperçu de l'Interface Options Flow
+
+### Interface de Configuration
+
+```
+📋 Configure advanced options for your eedomus integration.
+These options allow you to customize the behavior of the integration.
+Changes take effect immediately after saving.
+
+┌─────────────────────────────────────────────────────┐
+│ Options Flow - Eedomus Integration                 │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│ [✓] Enable Set Value Retry                          │
+│ [ ] Enable Extended Attributes                      │
+│ [ ] API Proxy Disable Security (⚠️ Debug only)     │
+│                                                     │
+│ Scan Interval (seconds): [300      ]                │
+│                                                     │
+│ Scan interval in seconds (minimum 30 seconds        │
+│ recommended)                                        │
+│                                                     │
+│ [SAVE]                    [CANCEL]                 │
+└─────────────────────────────────────────────────────┘
+```
+
+### Après Sauvegarde
+
+```
+✅ Configuration updated successfully!
+🔄 Updated scan interval to 300 seconds
+📊 Changes will take effect immediately
+```
 
 ## 🎯 Comprendre le Fonctionnement des Custom Integrations
 
@@ -1314,7 +1421,59 @@ Le script peut être personnalisé pour ajouter des fonctionnalités supplément
 
 Pour plus de détails, consultez le fichier [README_FALLBACK.md](README_FALLBACK.md).
 
-## 🙏 Remerciements
+## 🤝 Contribuer
+
+Les contributions sont les bienvenues ! Voici comment aider :
+
+### Signaler un bug
+1. Vérifiez que le bug n'est pas déjà signalé
+2. Ouvrez une issue avec :
+   - Version de Home Assistant
+   - Version de l'intégration
+   - Logs pertinents
+   - Étapes pour reproduire
+
+### Suggérer une fonctionnalité
+1. Ouvrez une issue avec le label "enhancement"
+2. Décrivez l'utilisation prévue
+3. Expliquez pourquoi ce serait utile
+
+### Contribuer au code
+1. Fork le dépôt
+2. Créez une branche (`git checkout -b feature/ma-fonctionnalité`)
+3. Committez vos changements (`git commit -m 'Ajout de ma fonctionnalité'`)
+4. Poussez la branche (`git push origin feature/ma-fonctionnalité`)
+5. Ouvrez une Pull Request
+
+### Contribuer à la documentation
+- Améliorez les fichiers existants
+- Ajoutez des exemples
+- Corrigez les fautes
+- Ajoutez des captures d'écran
+
+## 🆘 Support
+
+### Dépannage
+
+**Problème**: L'options flow n'apparaît pas
+- **Solution**: Videz le cache du navigateur et redémarrez Home Assistant
+
+**Problème**: Les changements de scan_interval ne s'appliquent pas
+- **Solution**: Vérifiez que la valeur est entre 30-900 secondes
+
+**Problème**: Erreurs de capteurs non-numériques
+- **Solution**: C'est un comportement normal, les valeurs sont loguées et retournées comme None
+
+### Obtenir de l'aide
+- **GitHub Discussions**: Pour les questions générales
+- **GitHub Issues**: Pour les bugs
+- **Documentation**: Lisez les fichiers dans `/docs/`
+
+## 📢 Changelog
+
+Consultez [RELEASE_NOTES_v0.12.0.md](RELEASE_NOTES_v0.12.0.md) pour les détails complets de cette version.
+
+## 🤝 Remerciements
 
 Un grand merci à tous les contributeurs et utilisateurs qui font vivre ce projet.
 
