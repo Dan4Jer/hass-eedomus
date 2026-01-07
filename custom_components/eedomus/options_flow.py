@@ -12,12 +12,12 @@ from homeassistant.data_entry_flow import FlowResult
 
 from .const import (
     CONF_API_PROXY_DISABLE_SECURITY,
-    CONF_ENABLE_EXTENDED_ATTRIBUTES,
     CONF_ENABLE_SET_VALUE_RETRY,
+    CONF_ENABLE_WEBHOOK,
     CONF_SCAN_INTERVAL,
     DEFAULT_API_PROXY_DISABLE_SECURITY,
-    DEFAULT_ENABLE_EXTENDED_ATTRIBUTES,
     DEFAULT_ENABLE_SET_VALUE_RETRY,
+    DEFAULT_ENABLE_WEBHOOK,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
 )
@@ -60,16 +60,18 @@ class EedomusOptionsFlowHandler(config_entries.OptionsFlow):
                             ),
                         ),
                     ): bool,
+
                     vol.Optional(
-                        CONF_ENABLE_EXTENDED_ATTRIBUTES,
+                        CONF_ENABLE_WEBHOOK,
                         default=self.config_entry.options.get(
-                            CONF_ENABLE_EXTENDED_ATTRIBUTES,
+                            CONF_ENABLE_WEBHOOK,
                             self.config_entry.data.get(
-                                CONF_ENABLE_EXTENDED_ATTRIBUTES,
-                                DEFAULT_ENABLE_EXTENDED_ATTRIBUTES,
+                                CONF_ENABLE_WEBHOOK,
+                                DEFAULT_ENABLE_WEBHOOK,
                             ),
                         ),
                     ): bool,
+
                     vol.Optional(
                         CONF_API_PROXY_DISABLE_SECURITY,
                         default=self.config_entry.options.get(

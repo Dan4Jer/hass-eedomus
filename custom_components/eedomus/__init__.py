@@ -13,6 +13,7 @@ from homeassistant.core import HomeAssistant, ServiceResponse, callback
 from homeassistant.helpers import aiohttp_client
 
 from .api_proxy import EedomusApiProxyView
+from .webhook import EedomusWebhookView
 from .const import (
     CLASS_MAPPING,
     CONF_API_HOST,
@@ -20,11 +21,13 @@ from .const import (
     CONF_ENABLE_API_EEDOMUS,
     CONF_ENABLE_API_PROXY,
     CONF_ENABLE_HISTORY,
+    CONF_ENABLE_WEBHOOK,
     CONF_SCAN_INTERVAL,
     COORDINATOR,
     DEFAULT_API_PROXY_DISABLE_SECURITY,
     DEFAULT_CONF_ENABLE_API_EEDOMUS,
     DEFAULT_CONF_ENABLE_API_PROXY,
+    DEFAULT_ENABLE_WEBHOOK,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     PLATFORMS,
@@ -159,6 +162,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry_data = {}
     if coordinator:
         entry_data[COORDINATOR] = coordinator
+
+    # Check if webhook is enabled
+    webhook_enabled = entry.options.get(
+        CONF_ENABLE_WEBHOOK,
+        entry.data.get(CONF_ENABLE_WEBHOOK, DEFAULT_ENABLE_WEBHOOK)
+    )
+
+    # Setup webhook if enabled
+    if webhook_enabled:
+        _LOGGER.info("Webhook mode enabled - setting up webhook endpoints")
+        # Register webhook handler
+        hass.http.register_view(EedomusWebhookView(entry.entry_id, allowed_ips))
+    else:
+        _LOGGER.info("Webhook mode disabled")
+
+    # Store entry data
+=======
+        entry_data[COORDINATOR] = coordinator
         _LOGGER.debug(
             "Coordinator stored successfully for entry_id: %s", entry.entry_id
         )
@@ -186,13 +207,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     #need to clean up... webhook or api proxy
     #webhook
-    hass.http.register_view(
-        EedomusWebhookView(
-            entry.entry_id,
-            allowed_ips=[entry.data.get(CONF_API_HOST)],
-            disable_security=disable_security,
+    # Check if webhook is enabled before registering
+    if webhook_enabled:
+        hass.http.register_view(
+            EedomusWebhookView(
+                entry.entry_id,
+                allowed_ips=[entry.data.get(CONF_API_HOST)],
+                disable_security=disable_security,
+            )
         )
-    )
+    else:
+        _LOGGER.info("Webhook mode is disabled, skipping webhook registration")
     #apiproxy
     hass.http.register_view(
         EedomusApiProxyView(
