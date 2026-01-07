@@ -69,7 +69,6 @@ Consultez [TESTS_README.md](scripts/TESTS_README.md) pour plus de détails.
 |--------|------|-------------------|-------------|
 | `scan_interval` | Nombre (secondes) | 300 (5 min) | Fréquence de rafraîchissement des données |
 | `enable_set_value_retry` | Booléen | true | Active la réessai des valeurs rejetées |
-| `enable_extended_attributes` | Booléen | false | Active les attributs étendus |
 | `api_proxy_disable_security` | Booléen | false | Désactive la validation IP (debug uniquement) |
 
 ### Recommandations pour scan_interval
@@ -77,22 +76,6 @@ Consultez [TESTS_README.md](scripts/TESTS_README.md) pour plus de détails.
 - **30-60 secondes** : Rafraîchissement rapide (pour les tests)
 - **300 secondes (5 min)** : Équilibre parfait (recommandé)
 - **600-900 secondes** : Charge API réduite (pour les grands systèmes)
-
-### Exemple de configuration
-
-```yaml
-# Ces options sont maintenant configurables via l'interface
-# Plus besoin de modifier le code ou recréer l'intégration !
-
-# Pour un rafraîchissement rapide (développement/test)
-scan_interval: 60  # 1 minute
-
-# Pour un système de production
-scan_interval: 300  # 5 minutes (recommandé)
-
-# Pour réduire la charge API
-scan_interval: 600  # 10 minutes
-```
 
 ## 📊 Impact des performances
 
@@ -490,27 +473,80 @@ Le système valide votre configuration et fournit des messages d'erreur clairs:
 - **❌ "At least one connection mode must be enabled"**: Vous devez activer au moins un des deux modes
 - **❌ "Scan interval must be at least 30 seconds"**: L'intervalle de scan est trop court
 
-## 🚀 Guide de Migration
+## 🔄 Mécanismes de Rafraîchissement des États
 
-### Depuis les versions précédentes
+### Objectif
+Les états ne seront jamais 100% en temps réel, mais on peut s’en approcher en optimisant le mapping et en utilisant les bons mécanismes de synchronisation. Il existe trois types de rafraîchissements des états :
 
-Si vous utilisez déjà l'intégration eedomus:
+### 1. Rafraîchissement à Intervalle Régulier
+- **Description** : Rafraîchissement complet de tous les périphériques à un intervalle régulier.
+- **Implémentation** : Géré par le `DataUpdateCoordinator` dans `coordinator.py`.
+- **Fonction** : `_async_full_refresh()` et `_async_partial_refresh()`.
+- **Utilisation** : Utilisé pour synchroniser tous les périphériques périodiquement.
 
-1. **Vos configurations existantes continueront de fonctionner** - le mode API Eedomus est activé par défaut
-2. **Pour activer le mode proxy**:
-   - Allez dans la configuration de votre intégration existante
-   - Activez le mode "API Proxy"
-   - Enregistrez les modifications
-3. **Pour passer au mode proxy uniquement**:
-   - Désactivez le mode "API Eedomus"
-   - Les champs utilisateur/clé secrète deviendront optionnels
-   - Le mode proxy fonctionnera avec uniquement l'hôte API
+### 2. Rafraîchissement à la Demande de Home Assistant
+- **Description** : Rafraîchissement partiel des périphériques dynamiques (switch, cover) lorsque Home Assistant en fait la demande.
+- **Implémentation** : Géré par les services et les entités dans `services.py`, `switch.py`, `light.py`, etc.
+- **Fonction** : `async_request_refresh()`.
+- **Utilisation** : Utilisé pour mettre à jour l'état d'un périphérique spécifique après une action.
 
-### Recommandations
+### 3. Rafraîchissement à la Demande d'eedomus (via Webhook/API Proxy)
+- **Description** : Rafraîchissement déclenché par eedomus via des webhooks ou l'API proxy.
+- **Implémentation** : Géré par `webhook.py` et `api_proxy.py`.
+- **Fonction** : `handle_refresh()` et `handle_set_value()`.
+- **Utilisation** : Utilisé pour mettre à jour les états en temps réel lorsque eedomus envoie une notification.
 
-- **Testez d'abord le mode combiné** pour bénéficier des avantages des deux approches
-- **Surveillez les logs** pour vérifier que les deux modes fonctionnent correctement
-- **Ajustez l'intervalle de scan** en fonction de vos besoins (300 secondes par défaut)
+---
+
+## 📋 Configuration des Webhooks et de l'API Proxy dans eedomus
+
+### Webhook
+- **Description** : Un webhook est un mécanisme où eedomus envoie des données à Home Assistant lorsque des événements se produisent.
+- **Implémentation** : Géré par `webhook.py`.
+- **Fonction** : Reçoit des notifications d'eedomus et déclenche des rafraîchissements.
+
+### API Proxy
+- **Description** : L'API proxy est un mécanisme où Home Assistant expose un endpoint pour permettre à eedomus d'appeler des services Home Assistant sans authentification.
+- **Implémentation** : Géré par `api_proxy.py`.
+- **Fonction** : Permet à eedomus d'appeler des services Home Assistant via des requêtes HTTP.
+
+### Configuration dans l'Interface eedomus
+
+#### Webhook
+Pour configurer un webhook dans eedomus, suivez ces étapes :
+
+1. **Accédez à l'interface eedomus** : Allez dans **Automatismes > Actionneurs HTTP**.
+2. **Créez un nouvel actionneur HTTP** :
+   - **Nom** : `Rafraîchir Home Assistant` (ou un nom de votre choix).
+   - **URL** : `http://<IP_HOME_ASSISTANT>:8123/api/eedomus/webhook`.
+   - **Méthode** : `POST`.
+   - **Headers** : `Content-Type: application/json`.
+   - **Corps (Body)** : `{"action": "refresh"}` (pour un rafraîchissement complet) ou `{"action": "partial_refresh"}` (pour un rafraîchissement partiel).
+
+> ⚠️ **Important** : Ne pas ajouter de `/` à la fin de l'URL (`/api/eedomus/webhook/` ne fonctionnera pas).
+
+##### Webhook Configuration dans eedomus
+<img width="920" height="261" alt="image" src="https://github.com/user-attachments/assets/4e2779b4-6d8b-4ae3-a80f-f9ede99abc4b" />
+
+#### API Proxy
+Pour configurer un actionneur HTTP dans eedomus pour utiliser l'API proxy, suivez ces étapes :
+
+1. **Accédez à l'interface eedomus** : Allez dans **Automatismes > Actionneurs HTTP**.
+2. **Créez un nouvel actionneur HTTP** :
+   - **Nom** : `Appeler Service Home Assistant` (ou un nom de votre choix).
+   - **URL** : `http://<IP_HOME_ASSISTANT>:8123/api/eedomus/apiproxy/services/<domain>/<service>`.
+   - **Méthode** : `POST`.
+   - **Corps (Body)** : JSON valide correspondant aux données attendues par le service Home Assistant.
+
+**Exemple** :
+```json
+{
+  "entity_id": "light.lampe_led_chambre_parent"
+}
+```
+##### API Proxy Configuration dans eedomus
+<img width="644" height="462" alt="image" src="https://github.com/user-attachments/assets/f9f7a2a8-81c2-4f9f-9e42-91ad212d1583" />
+<img width="845" height="255" alt="image" src="https://github.com/user-attachments/assets/ae6c3899-d517-4860-924a-a82815e9df82" />
 
 ## 🔧 Dépannage
 
@@ -1023,88 +1059,8 @@ graph LR
   - Statut : Implémenté mais non testé en production
   - Nécessite validation avec périphériques réels
 
----
 
-## 🔄 Mécanismes de Rafraîchissement des États
 
-### Objectif
-Les états ne seront jamais 100% en temps réel, mais on peut s’en approcher en optimisant le mapping et en utilisant les bons mécanismes de synchronisation. Il existe trois types de rafraîchissements des états :
-
-### 1. Rafraîchissement à Intervalle Régulier
-- **Description** : Rafraîchissement complet de tous les périphériques à un intervalle régulier.
-- **Implémentation** : Géré par le `DataUpdateCoordinator` dans `coordinator.py`.
-- **Fonction** : `_async_full_refresh()` et `_async_partial_refresh()`.
-- **Utilisation** : Utilisé pour synchroniser tous les périphériques périodiquement.
-
-### 2. Rafraîchissement à la Demande de Home Assistant
-- **Description** : Rafraîchissement partiel des périphériques dynamiques (switch, cover) lorsque Home Assistant en fait la demande.
-- **Implémentation** : Géré par les services et les entités dans `services.py`, `switch.py`, `light.py`, etc.
-- **Fonction** : `async_request_refresh()`.
-- **Utilisation** : Utilisé pour mettre à jour l'état d'un périphérique spécifique après une action.
-
-### 3. Rafraîchissement à la Demande d'eedomus (via Webhook/API Proxy)
-- **Description** : Rafraîchissement déclenché par eedomus via des webhooks ou l'API proxy.
-- **Implémentation** : Géré par `webhook.py` et `api_proxy.py`.
-- **Fonction** : `handle_refresh()` et `handle_set_value()`.
-- **Utilisation** : Utilisé pour mettre à jour les états en temps réel lorsque eedomus envoie une notification.
-
----
-
-## 📋 Configuration des Webhooks et de l'API Proxy
-
-### Webhook
-- **Description** : Un webhook est un mécanisme où eedomus envoie des données à Home Assistant lorsque des événements se produisent.
-- **Implémentation** : Géré par `webhook.py`.
-- **Fonction** : Reçoit des notifications d'eedomus et déclenche des rafraîchissements.
-
-### API Proxy
-- **Description** : L'API proxy est un mécanisme où Home Assistant expose un endpoint pour permettre à eedomus d'appeler des services Home Assistant sans authentification.
-- **Implémentation** : Géré par `api_proxy.py`.
-- **Fonction** : Permet à eedomus d'appeler des services Home Assistant via des requêtes HTTP.
-
-### Configuration dans l'Interface eedomus
-
-#### Webhook
-Pour configurer un webhook dans eedomus, suivez ces étapes :
-
-1. **Accédez à l'interface eedomus** : Allez dans **Automatismes > Actionneurs HTTP**.
-2. **Créez un nouvel actionneur HTTP** :
-   - **Nom** : `Rafraîchir Home Assistant` (ou un nom de votre choix).
-   - **URL** : `http://<IP_HOME_ASSISTANT>:8123/api/eedomus/webhook`.
-   - **Méthode** : `POST`.
-   - **Headers** : `Content-Type: application/json`.
-   - **Corps (Body)** : `{"action": "refresh"}` (pour un rafraîchissement complet) ou `{"action": "partial_refresh"}` (pour un rafraîchissement partiel).
-
-> ⚠️ **Important** : Ne pas ajouter de `/` à la fin de l'URL (`/api/eedomus/webhook/` ne fonctionnera pas).
-
-#### API Proxy
-Pour configurer un actionneur HTTP dans eedomus pour utiliser l'API proxy, suivez ces étapes :
-
-1. **Accédez à l'interface eedomus** : Allez dans **Automatismes > Actionneurs HTTP**.
-2. **Créez un nouvel actionneur HTTP** :
-   - **Nom** : `Appeler Service Home Assistant` (ou un nom de votre choix).
-   - **URL** : `http://<IP_HOME_ASSISTANT>:8123/api/eedomus/apiproxy/services/<domain>/<service>`.
-   - **Méthode** : `POST`.
-   - **Corps (Body)** : JSON valide correspondant aux données attendues par le service Home Assistant.
-
-**Exemple** :
-```json
-{
-  "entity_id": "light.lampe_led_chambre_parent"
-}
-```
-
-### Tag pour les Copies d'Écran
-
-#### Webhook Configuration
-```
-[WEBHOOK_CONFIGURATION_SCREENSHOT]
-```
-
-#### API Proxy Configuration
-```
-[API_PROXY_CONFIGURATION_SCREENSHOT]
-```
 
 ---
 
