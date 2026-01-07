@@ -53,7 +53,105 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         """Effectue le premier rafraîchissement des données et charge la progression de l'historique."""
 
         await self._load_history_progress()
-        await super().async_config_entry_first_refresh()
+        
+        # Perform initial full data retrieval including peripherals list and value list
+        peripherals, peripherals_value_list, peripherals_caract = (
+            await self._async_full_data_retreive()
+        )
+        
+        # Conversion des listes en dictionnaires
+        peripherals_dict = {str(periph["periph_id"]): periph for periph in peripherals}
+        peripherals_value_dict = {
+            str(item["periph_id"]): item for item in peripherals_value_list
+        }
+        peripherals_caract_dict = {
+            str(it["periph_id"]): it for it in peripherals_caract
+        }
+
+        # Initialisation du dictionnaire agrégé
+        aggregated_data = {}
+
+        # Agrégation des données pour chaque périphérique
+        all_periph_ids = (
+            set(peripherals_dict.keys())
+            | set(peripherals_value_dict.keys())
+            | set(peripherals_caract_dict.keys())
+        )
+
+        for periph_id in all_periph_ids:
+            aggregated_data[periph_id] = {}
+
+            # Ajout des données de peripherals_dict (si existantes)
+            if periph_id in peripherals_dict:
+                aggregated_data[periph_id].update(peripherals_dict[periph_id])
+
+            # Ajout des données de peripherals_value_dict (si existantes)
+            if periph_id in peripherals_value_dict:
+                aggregated_data[periph_id].update(peripherals_value_dict[periph_id])
+
+            # Ajout des données de peripherals_caract_dict (si existantes)
+            if periph_id in peripherals_caract_dict:
+                aggregated_data[periph_id].update(peripherals_caract_dict[periph_id])
+
+            # Mapping des périphériques vers une entité HA : la bonne ? quid des enfants vis à vis de parent ?
+            if not "ha_entity" in aggregated_data[periph_id]:
+                eedomus_mapping = map_device_to_ha_entity(aggregated_data[periph_id])
+                aggregated_data[periph_id].update(eedomus_mapping)
+
+        # Logs des tailles
+        _LOGGER.info(
+            "Initial data load summary - peripherals: %d, value_list: %d, caract: %d, total: %d",
+            len(peripherals_dict),
+            len(peripherals_value_dict),
+            len(peripherals_caract_dict),
+            len(aggregated_data),
+        )
+
+        # Initialisation des attributs
+        self._all_peripherals = aggregated_data
+        self._dynamic_peripherals = {}
+        self._full_refresh_needed = False
+
+        # Traitement des périphériques
+        skipped = 0
+        dynamic = 0
+        for periph_id, periph_data in aggregated_data.items():
+            if not isinstance(periph_data, dict) or "periph_id" not in periph_data:
+                _LOGGER.warning(
+                    "Skipping invalid peripheral (ID: %s, type: %s, data: %s)",
+                    periph_id,
+                    type(periph_data),
+                    periph_data,
+                )
+                skipped += 1
+                continue
+
+            # _LOGGER.debug("Processing peripheral (ID: %s, data: %s)", periph_id, periph_data)
+
+            if self._is_dynamic_peripheral(periph_data):
+                self._dynamic_peripherals[periph_id] = periph_data
+                dynamic += 1
+
+        _LOGGER.warning("Skipped %d invalid peripherals", skipped)
+        _LOGGER.warning("Found %d dynamic peripherals", dynamic)
+
+        _LOGGER.debug(
+            "Initial Mapping Table %s",
+            "\n".join(
+                "Map: "
+                f"{aggregated_data[id].get('ha_entity', '?')}/"
+                f"{aggregated_data[id].get('ha_subtype', '?')} "
+                f"usage_id={aggregated_data[id].get('usage_id', '?')} "
+                f"PRODUCT_TYPE_ID={aggregated_data[id].get('PRODUCT_TYPE_ID', '?')} "
+                f"{aggregated_data[id].get('name', '?')}/{aggregated_data[id].get('usage_name', '?')}({id})"
+                for id in aggregated_data.keys()
+            ),
+        )
+        
+        # Set the data for the coordinator
+        self.data = aggregated_data
+        
+        # No need to call super().async_config_entry_first_refresh() as we've already loaded the data
 
     async def _async_update_data(self):
         """Fetch data from eedomus API with improved error handling."""
@@ -106,6 +204,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         return peripherals_caract
 
     async def _async_full_data_retreive(self):
+        """Retrieve full data including peripherals list, value list, and characteristics."""
         peripherals_response = await self.client.get_periph_list()
         peripherals_value_list_response = await self.client.get_periph_value_list("all")
         peripherals_caract_response = await self.client.get_periph_caract("all", True)
@@ -148,20 +247,30 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         )
         return (peripherals, peripherals_value_list, peripherals_caract)
 
+    async def _async_full_refresh_data_retreive(self):
+        """Retrieve only characteristics data for full refresh."""
+        peripherals_caract_response = await self.client.get_periph_caract("all", True)
+        if not isinstance(peripherals_caract_response, dict):
+            _LOGGER.error("Invalid API response format: %s", peripherals_caract_response)
+            raise UpdateFailed("Invalid API response format")
+        if peripherals_caract_response.get("success", 0) != 1:
+            error = peripherals_caract_response.get("error", "Unknown API error")
+            _LOGGER.error("API request failed: %s", error)
+            _LOGGER.debug("API peripherals_response %s", peripherals_caract_response)
+            raise UpdateFailed(f"API request failed: {error}")
+        peripherals_caract = peripherals_caract_response.get("body", [])
+        if not isinstance(peripherals_caract, list):
+            _LOGGER.error("Invalid peripherals list: %s", peripherals_caract)
+            peripherals_caract = []
+        _LOGGER.info("Found %d peripherals characteristics in total", len(peripherals_caract))
+        return peripherals_caract
+
     async def _async_full_refresh(self):
         """Perform a complete refresh of all peripherals."""
         _LOGGER.info("Performing full data refresh from eedomus API")
 
         # Récupération des données
-        peripherals, peripherals_value_list, peripherals_caract = (
-            await self._async_full_data_retreive()
-        )
-
-        # Conversion des listes en dictionnaires
-        peripherals_dict = {str(periph["periph_id"]): periph for periph in peripherals}
-        peripherals_value_dict = {
-            str(item["periph_id"]): item for item in peripherals_value_list
-        }
+        peripherals_caract = await self._async_full_refresh_data_retreive()
         peripherals_caract_dict = {
             str(it["periph_id"]): it for it in peripherals_caract
         }
@@ -170,22 +279,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         aggregated_data = {}
 
         # Agrégation des données pour chaque périphérique
-        all_periph_ids = (
-            set(peripherals_dict.keys())
-            | set(peripherals_value_dict.keys())
-            | set(peripherals_caract_dict.keys())
-        )
+        all_periph_ids = set(peripherals_caract_dict.keys())
 
         for periph_id in all_periph_ids:
             aggregated_data[periph_id] = {}
-
-            # Ajout des données de peripherals_dict (si existantes)
-            if periph_id in peripherals_dict:
-                aggregated_data[periph_id].update(peripherals_dict[periph_id])
-
-            # Ajout des données de peripherals_value_dict (si existantes)
-            if periph_id in peripherals_value_dict:
-                aggregated_data[periph_id].update(peripherals_value_dict[periph_id])
 
             # Ajout des données de peripherals_caract_dict (si existantes)
             if periph_id in peripherals_caract_dict:
@@ -198,9 +295,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
         # Logs des tailles
         _LOGGER.info(
-            "Data refresh summary - peripherals: %d, value_list: %d, caract: %d, total: %d",
-            len(peripherals_dict),
-            len(peripherals_value_dict),
+            "Data refresh summary - caract: %d, total: %d",
             len(peripherals_caract_dict),
             len(aggregated_data),
         )
