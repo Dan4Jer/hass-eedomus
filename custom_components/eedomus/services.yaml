@@ -22,6 +22,12 @@ set_value:
       required: true
       example: "on"
 
+reload:
+  name: Reload eedomus integration
+  description: Reload the eedomus integration configuration
+  fields:
+    # No fields required for reload
+
 # Additional services can be added here for future expansion
 # Example:
 # get_history:

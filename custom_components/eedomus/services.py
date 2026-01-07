@@ -65,8 +65,31 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
                     )
             raise err
 
+    async def handle_reload(call: ServiceCall) -> None:
+        """Handle reload service call."""
+        _LOGGER.info("🔄 Reload requested via service call")
+        try:
+            # Get the config entry
+            config_entry = None
+            for entry in hass.config_entries.async_entries(DOMAIN):
+                if entry.entry_id == coordinator.config_entry.entry_id:
+                    config_entry = entry
+                    break
+            
+            if config_entry:
+                # Reload the config entry
+                await hass.config_entries.async_reload(config_entry.entry_id)
+                _LOGGER.info("✅ Eedomus integration reloaded successfully")
+            else:
+                _LOGGER.error("❌ Config entry not found")
+                raise ValueError("Config entry not found")
+        except Exception as err:
+            _LOGGER.error("❌ Failed to reload eedomus integration: %s", err)
+            raise err
+
     # Register services
     hass.services.async_register("eedomus", "refresh", handle_refresh)
     hass.services.async_register("eedomus", "set_value", handle_set_value)
+    hass.services.async_register("eedomus", "reload", handle_reload)
 
-    _LOGGER.info("🛠️  Eedomus services registered: refresh, set_value")
+    _LOGGER.info("🛠️  Eedomus services registered: refresh, set_value, reload")

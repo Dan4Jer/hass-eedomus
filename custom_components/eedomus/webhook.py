@@ -50,6 +50,7 @@ class EedomusWebhookView(HomeAssistantView):
             if (
                 data.get("action") != "refresh"
                 and data.get("action") != "partial_refresh"
+                and data.get("action") != "reload"
             ):
                 return web.Response(text="Unrecognized action", status=400)
 
@@ -62,12 +63,28 @@ class EedomusWebhookView(HomeAssistantView):
                 _LOGGER.error("Coordinator not found for entry_id: %s", self.entry_id)
                 return web.Response(text="Coordinator not available", status=500)
 
-            # 3. Execute refresh
+            # 3. Execute refresh or reload
             _LOGGER.info("Triggering eedomus %s", data.get("action"))
             if data.get("action") == "refresh":
                 await coordinator._async_full_refresh()
             if data.get("action") == "partial_refresh":
                 await coordinator._async_partial_refresh()
+            if data.get("action") == "reload":
+                _LOGGER.info("Reloading eedomus integration")
+                # Get the config entry
+                config_entry = None
+                for entry in hass.config_entries.async_entries(DOMAIN):
+                    if entry.entry_id == self.entry_id:
+                        config_entry = entry
+                        break
+                
+                if config_entry:
+                    # Reload the config entry
+                    await hass.config_entries.async_reload(config_entry.entry_id)
+                    _LOGGER.info("Eedomus integration reloaded successfully")
+                else:
+                    _LOGGER.error("Config entry not found for entry_id: %s", self.entry_id)
+                    return web.Response(text="Config entry not found", status=500)
             return web.Response(text="OK")
 
         except json.JSONDecodeError:
