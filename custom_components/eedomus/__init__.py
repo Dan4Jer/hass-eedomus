@@ -22,12 +22,14 @@ from .const import (
     CONF_ENABLE_API_PROXY,
     CONF_ENABLE_HISTORY,
     CONF_ENABLE_WEBHOOK,
+    CONF_REMOVE_ENTITIES,
     CONF_SCAN_INTERVAL,
     COORDINATOR,
     DEFAULT_API_PROXY_DISABLE_SECURITY,
     DEFAULT_CONF_ENABLE_API_EEDOMUS,
     DEFAULT_CONF_ENABLE_API_PROXY,
     DEFAULT_ENABLE_WEBHOOK,
+    DEFAULT_REMOVE_ENTITIES,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     PLATFORMS,
@@ -270,3 +272,33 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         else:
             _LOGGER.warning("eedomus integration entry not found during unload")
     return unload_ok
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Remove a config entry."""
+    # Check if the remove_entities option is set
+    remove_entities = entry.options.get(CONF_REMOVE_ENTITIES, DEFAULT_REMOVE_ENTITIES)
+
+    if remove_entities:
+        _LOGGER.info("Removing all entities associated with eedomus integration")
+        
+        # Get all entities from the entity registry
+        entity_registry = await hass.helpers.entity_registry.async_get_registry()
+
+        # Find all entities that belong to this integration
+        entities_to_remove = []
+        for entity_entry in entity_registry.entities.values():
+            if entity_entry.platform == DOMAIN:
+                entities_to_remove.append(entity_entry.entity_id)
+
+        # Remove the entities
+        for entity_id in entities_to_remove:
+            _LOGGER.info(f"Removing entity: {entity_id}")
+            entity_registry.async_remove(entity_id)
+
+        _LOGGER.info(f"Removed {len(entities_to_remove)} entities")
+    else:
+        _LOGGER.info("Remove entities option is disabled, skipping entity removal")
+
+    # Remove the config entry
+    _LOGGER.info("Removing eedomus integration config entry")

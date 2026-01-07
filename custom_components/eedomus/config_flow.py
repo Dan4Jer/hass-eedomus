@@ -28,6 +28,7 @@ from .const import (
     CONF_PHP_FALLBACK_ENABLED,
     CONF_PHP_FALLBACK_SCRIPT_NAME,
     CONF_PHP_FALLBACK_TIMEOUT,
+    CONF_REMOVE_ENTITIES,
     DEFAULT_API_HOST,
     DEFAULT_API_PROXY_DISABLE_SECURITY,
     DEFAULT_API_SECRET,
@@ -39,6 +40,7 @@ from .const import (
     DEFAULT_PHP_FALLBACK_ENABLED,
     DEFAULT_PHP_FALLBACK_SCRIPT_NAME,
     DEFAULT_PHP_FALLBACK_TIMEOUT,
+    DEFAULT_REMOVE_ENTITIES,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
 )
@@ -310,6 +312,71 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             modes.append("Proxy")
 
         return {"title": f"Eedomus ({data[CONF_API_HOST]}) - {' + '.join(modes)} Mode"}
+
+    async def async_step_uninstall(self, user_input=None):
+        """Handle the uninstall step."""
+        if user_input is None:
+            return self.async_show_form(
+                step_id="uninstall",
+                data_schema=vol.Schema(
+                    {
+                        vol.Optional(
+                            CONF_REMOVE_ENTITIES,
+                            default=DEFAULT_REMOVE_ENTITIES
+                        ): bool,
+                    }
+                ),
+                description_placeholders={
+                    "explanation": "⚠️ WARNING: This will remove the eedomus integration and optionally delete all associated entities. "
+                    "This action cannot be undone. Make sure you have a backup of your configuration."
+                },
+            )
+
+        # If user confirms uninstallation
+        remove_entities = user_input.get(CONF_REMOVE_ENTITIES, DEFAULT_REMOVE_ENTITIES)
+        
+        # Store the uninstallation options in the config entry
+        self.hass.config_entries.async_update_entry(
+            self.config_entry,
+            options={**self.config_entry.options, CONF_REMOVE_ENTITIES: remove_entities}
+        )
+
+        # Proceed with uninstallation
+        return await self.async_step_remove()
+
+    async def async_step_remove(self, user_input=None):
+        """Handle the removal of the config entry."""
+        # Get the remove_entities option from the config entry
+        remove_entities = self.config_entry.options.get(
+            CONF_REMOVE_ENTITIES, DEFAULT_REMOVE_ENTITIES
+        )
+
+        if remove_entities:
+            # Remove all entities associated with this integration
+            await self._async_remove_entities()
+
+        # Remove the config entry
+        return await super().async_step_remove(user_input)
+
+    async def _async_remove_entities(self):
+        """Remove all entities associated with this integration."""
+        _LOGGER.info("Removing all entities associated with eedomus integration")
+
+        # Get all entities from the entity registry
+        entity_registry = await self.hass.helpers.entity_registry.async_get_registry()
+
+        # Find all entities that belong to this integration
+        entities_to_remove = []
+        for entity_entry in entity_registry.entities.values():
+            if entity_entry.platform == DOMAIN:
+                entities_to_remove.append(entity_entry.entity_id)
+
+        # Remove the entities
+        for entity_id in entities_to_remove:
+            _LOGGER.info(f"Removing entity: {entity_id}")
+            entity_registry.async_remove(entity_id)
+
+        _LOGGER.info(f"Removed {len(entities_to_remove)} entities")
 
     @staticmethod
     @callback

@@ -92,13 +92,25 @@ class EedomusOptionsFlowHandler(config_entries.OptionsFlow):
                             ),
                         ),
                     ): int,
+                    vol.Optional(
+                        CONF_REMOVE_ENTITIES,
+                        default=self.config_entry.options.get(
+                            CONF_REMOVE_ENTITIES,
+                            self.config_entry.data.get(
+                                CONF_REMOVE_ENTITIES,
+                                DEFAULT_REMOVE_ENTITIES,
+                            ),
+                        ),
+                    ): bool,
                 }
             ),
             description_placeholders={
                 "explanation": "📋 Configure advanced options for your eedomus integration. "
                 "These options allow you to customize the behavior of the integration. "
                 "Changes take effect immediately after saving.",
-                "scan_interval_note": "Scan interval in seconds (minimum 30 seconds recommended)"
+                "scan_interval_note": "Scan interval in seconds (minimum 30 seconds recommended)",
+                "remove_entities_note": "⚠️ WARNING: This option will remove all entities associated with this integration when the integration is removed. "
+                "This action cannot be undone. Make sure you have a backup of your configuration."
             },
         )
 
