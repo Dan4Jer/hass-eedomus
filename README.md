@@ -1033,6 +1033,75 @@ graph LR
 
 ---
 
+## 🚀 Stratégie de Release Unstable
+
+### Objectif
+Permettre le test et le déploiement de versions instables via HACS avant leur stabilisation et leur publication en version stable.
+
+### Schéma de Versionnement
+- **Versions stables** : Utilisent des numéros de version **pairs** (ex: `0.12.0`, `0.14.0`).
+- **Versions instables** : Utilisent des numéros de version **impairs** (ex: `0.13.0`, `0.15.0`).
+
+### Branches Git
+- **`main`** : Contient uniquement les versions stables (paires).
+- **`unstable`** : Contient les versions instables (impaires) pour les tests.
+
+### Workflow de Développement
+
+#### 1. Développement
+- Travaillez sur des branches de fonctionnalités (ex: `feature/xxx`).
+- Fusionnez les fonctionnalités dans `unstable` pour les tests.
+
+#### 2. Release Unstable
+- Créez une version impaire (ex: `0.13.0`) depuis `unstable`.
+- Déployez cette version via HACS pour les tests.
+
+#### 3. Stabilisation
+- Une fois la version testée et validée, fusionnez `unstable` dans `main`.
+- Créez une version paire (ex: `0.14.0`) depuis `main` pour la release stable.
+
+### Configuration HACS
+- **Manifest HACS** (`manifest.json`) :
+  - Utilisez un champ `version` dynamique pour distinguer les versions stables et instables.
+  - Exemple :
+    ```json
+    {
+      "version": "0.13.0-unstable",
+      "release": "https://github.com/Dan4Jer/hass-eedomus/releases/tag/0.13.0-unstable"
+    }
+    ```
+
+### Scripts d'Automatisation
+- **Script de Release** :
+  - Automatisez la création des tags et des releases GitHub pour les versions stables et instables.
+  - Exemple de script (`release.sh`) :
+    ```bash
+    #!/bin/bash
+    VERSION=$1
+    BRANCH=$2
+
+    git checkout $BRANCH
+    git tag -a $VERSION -m "Release $VERSION"
+    git push origin $VERSION
+    gh release create $VERSION --generate-notes
+    ```
+
+### Tests et Validation
+- **Tests Automatiques** :
+  - Exécutez des tests automatiques sur les versions instables avant de les fusionner dans `main`.
+  - Exemple :
+    ```bash
+    python -m pytest tests/ --cov=custom_components/eedomus
+    ```
+
+### Exemple de Workflow
+1. Développez une nouvelle fonctionnalité dans `feature/xxx`.
+2. Fusionnez dans `unstable` et créez une release `0.13.0-unstable`.
+3. Déployez via HACS pour les tests.
+4. Une fois validée, fusionnez `unstable` dans `main` et créez une release `0.14.0`.
+
+---
+
 ## Configuration
 
 ### Prérequis
