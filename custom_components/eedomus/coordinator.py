@@ -276,22 +276,20 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         }
 
         # Initialisation du dictionnaire agrégé
-        aggregated_data = {}
+        aggregated_data = self.data
 
         # Agrégation des données pour chaque périphérique
         all_periph_ids = set(peripherals_caract_dict.keys())
 
         for periph_id in all_periph_ids:
-            aggregated_data[periph_id] = {}
+            if not periph_id in aggregated_data:
+                _LOGGER.warn("This periph_id is unknown %d, please do a reload", periph_id)
+                aggregated_data[periph_id] = {}
 
             # Ajout des données de peripherals_caract_dict (si existantes)
             if periph_id in peripherals_caract_dict:
                 aggregated_data[periph_id].update(peripherals_caract_dict[periph_id])
 
-            # Mapping des périphériques vers une entité HA : la bonne ? quid des enfants vis à vis de parent ?
-            if not "ha_entity" in aggregated_data[periph_id]:
-                eedomus_mapping = map_device_to_ha_entity(aggregated_data[periph_id])
-                aggregated_data[periph_id].update(eedomus_mapping)
 
         # Logs des tailles
         _LOGGER.info(
@@ -340,7 +338,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 for id in aggregated_data.keys()
             ),
         )
-
+        self.data = aggregated_data
         return aggregated_data
 
     async def _async_partial_refresh(self):

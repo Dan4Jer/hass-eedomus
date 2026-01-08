@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Cercles concentriques (couleurs eedomus) -->
+  <circle cx="128" cy="128" r="120" fill="#f5f5f5" stroke="#4a6b8a" stroke-width="8"/>
+  <circle cx="128" cy="128" r="100" fill="#fff" stroke="#4CAF50" stroke-width="6"/>
+  <circle cx="128" cy="128" r="80" fill="#fff" stroke="#ff9800" stroke-width="6"/>
+  <circle cx="128" cy="128" r="60" fill="#fff" stroke="#2196F3" stroke-width="6"/>
+
+  <!-- Maison (style MDI) -->
+  <path d="M128 50l-60 60h20v60h40v-60h20z" fill="#4a6b8a"/>
+  <path d="M128 160l-80-80h20v60h40v-60h20l-80 80z" fill="#4a6b8a"/>
+  <rect x="108" y="140" width="40" height="40" fill="#fff"/>
+</svg>

@@ -56,7 +56,7 @@ class EedomusEntity(CoordinatorEntity):
             for eedomus_key, ha_key in EEDOMUS_TO_HA_ATTR_MAPPING.items():
                 if eedomus_key != "usage_id" and eedomus_key in periph_data:
                     attrs[ha_key] = periph_data[eedomus_key]
-
+            attrs["last_updated"] = datetime.now().isoformat()
             
         return attrs
 

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Home Assistant-style house (blue) -->
+  <path d="M118 100v-40h20v40h-20z" fill="#18bcf2" />
+  <path d="M128 100L90 140h76L128 100z" fill="#18bcf2" />
+
+  <!-- Circuit branches (blue) -->
+  <path d="M128 90L90 60h76L128 90z" fill="none" stroke="#18bcf2" stroke-width="10" stroke-linecap="round" />
+  <path d="M128 90L170 80" fill="none" stroke="#18bcf2" stroke-width="10" stroke-linecap="round" />
+  <path d="M128 90L86 80" fill="none" stroke="#18bcf2" stroke-width="10" stroke-linecap="round" />
+  <path d="M128 140L170 170" fill="none" stroke="#18bcf2" stroke-width="10" stroke-linecap="round" />
+  <path d="M128 140L86 170" fill="none" stroke="#18bcf2" stroke-width="10" stroke-linecap="round" />
+</svg>
