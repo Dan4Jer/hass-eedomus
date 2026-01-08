@@ -82,8 +82,9 @@ EEDOMUS_TO_HA_ATTR_MAPPING = {
     "last_value_text" : "last_value_text",
     "last_value_change" : "last_value_change",
     "creation_date" : "creation_date",
-    "last_value_change" : "last_updated",
-    "values" : "values",
+    "last_value_change" : "last_changed",
+    "last_value_change" : "last_report",
+#    "values" : "values", #all values from value_list
 }
 
 # Domain
