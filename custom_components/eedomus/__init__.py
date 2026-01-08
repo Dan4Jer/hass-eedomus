@@ -165,22 +165,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if coordinator:
         entry_data[COORDINATOR] = coordinator
 
-    # Check if webhook is enabled
-    webhook_enabled = entry.options.get(
-        CONF_ENABLE_WEBHOOK,
-        entry.data.get(CONF_ENABLE_WEBHOOK, DEFAULT_ENABLE_WEBHOOK)
-    )
-
-    # Define allowed_ips for webhook
-    allowed_ips = [entry.data.get(CONF_API_HOST)]
-
-    # Setup webhook if enabled
-    if webhook_enabled:
-        _LOGGER.info("Webhook mode enabled - setting up webhook endpoints")
-        # Register webhook handler
-        hass.http.register_view(EedomusWebhookView(entry.entry_id, allowed_ips))
-    else:
-        _LOGGER.info("Webhook mode disabled")
 
     # Store entry data
     if coordinator:
@@ -210,19 +194,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "   Only use this setting temporarily for debugging in secure environments."
         )
 
-    #need to clean up... webhook or api proxy
-    #webhook
-    # Check if webhook is enabled before registering
+
+    # Check if webhook is enabled
+    webhook_enabled = entry.options.get(
+        CONF_ENABLE_WEBHOOK,
+        entry.data.get(CONF_ENABLE_WEBHOOK, DEFAULT_ENABLE_WEBHOOK)
+    )
+
+    # Define allowed_ips for webhook
+    allowed_ips = [entry.data.get(CONF_API_HOST)]
+
+    # Setup webhook if enabled
     if webhook_enabled:
-        hass.http.register_view(
-            EedomusWebhookView(
-                entry.entry_id,
-                allowed_ips=[entry.data.get(CONF_API_HOST)],
-                disable_security=disable_security,
-            )
-        )
+        _LOGGER.info("Webhook mode enabled - setting up webhook endpoints")
+        # Register webhook handler
+        hass.http.register_view(EedomusWebhookView(entry.entry_id, allowed_ips))
     else:
-        _LOGGER.info("Webhook mode is disabled, skipping webhook registration")
+        _LOGGER.info("Webhook mode disabled")
+
+    apiproxy_enabled = entry.options.get(
+        CONF_ENABLE_API_PROXY,
+        entry.data.get(CONF_ENABLE_API_PROXY, DEFAULT_CONF_ENABLE_API_PROXY)
+    )
+
     #apiproxy
     hass.http.register_view(
         EedomusApiProxyView(
