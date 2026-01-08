@@ -120,16 +120,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER.error("Timeout while fetching data from eedomus")
             return False
 
-    if api_proxy_enabled:
-        _LOGGER.info("API Proxy mode enabled - setting up webhook endpoints")
-        # For proxy mode, we need a client for webhook registration even if API Eedomus is disabled
-        if not client:
-            try:
-                client = EedomusClient(session=session, config_entry=entry)
-                _LOGGER.info("Proxy mode client created successfully")
-            except Exception as err:
-                _LOGGER.warning("Failed to create client for proxy mode: %s", err)
-                # Proxy mode can work without a full client, but we need basic connectivity
 
     # If neither mode is enabled, this shouldn't happen due to validation, but handle it anyway
     if not api_eedomus_enabled and not api_proxy_enabled:
@@ -208,34 +198,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if webhook_enabled:
         _LOGGER.info("Webhook mode enabled - setting up webhook endpoints")
         # Register webhook handler
-        hass.http.register_view(EedomusWebhookView(entry.entry_id, allowed_ips))
+        hass.http.register_view(
+            EedomusWebhookView(
+                entry.entry_id,
+                allowed_ips=[entry.data.get(CONF_API_HOST)],
+                disable_security=disable_security,
+            )
+        )
     else:
         _LOGGER.info("Webhook mode disabled")
 
-    apiproxy_enabled = entry.options.get(
-        CONF_ENABLE_API_PROXY,
-        entry.data.get(CONF_ENABLE_API_PROXY, DEFAULT_CONF_ENABLE_API_PROXY)
-    )
-
-    #apiproxy
-    hass.http.register_view(
-        EedomusApiProxyView(
-            entry.entry_id,
-            allowed_ips=[entry.data.get(CONF_API_HOST)],
-            disable_security=disable_security,
+    if api_proxy_enabled:
+        _LOGGER.info("API Proxy mode enabled - setting up webhook endpoints")
+        hass.http.register_view(
+            EedomusApiProxyView(
+                entry.entry_id,
+                allowed_ips=[entry.data.get(CONF_API_HOST)],
+                disable_security=disable_security,
+            )
         )
-    )
+    else:
+        _LOGGER.info("Api Proxy mode disabled")
 
-    #    async def refresh_service(_):
-    #        if entry.entry_id in hass.data[DOMAIN] and COORDINATOR in hass.data[DOMAIN][entry.entry_id]:
-    #            await hass.data[DOMAIN][entry.entry_id][COORDINATOR].request_full_refresh()
-    #        else:
-    #            _LOGGER.error("Coordinator not available for refresh")
-    #
-    #    hass.services.async_register(DOMAIN, "refresh", refresh_service)
-    #
-
-    # hass.data.setdefault("eedomus_entry_id", entry.entry_id)
 
     # Forward setup to platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
