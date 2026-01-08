@@ -1,6 +1,7 @@
 """Base entity for eedomus integration."""
 
 from __future__ import annotations
+from datetime import datetime
 
 import logging
 
