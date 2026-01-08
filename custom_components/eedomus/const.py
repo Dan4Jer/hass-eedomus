@@ -67,6 +67,23 @@ ATTR_HISTORY = "history"
 ATTR_PERIPH_ID = "periph_id"
 ATTR_LAST_UPDATED = "last_updated"
 
+# Mapping of eedomus peripheral data keys to Home Assistant attributes.
+# Key: eedomus data key.
+# Value: Home Assistant attribute key.
+# Note: If multiple eedomus keys map to the same HA key, the last one takes precedence.
+EEDOMUS_TO_HA_ATTR_MAPPING = {
+    ATTR_VALUE_LIST: ATTR_VALUE_LIST,
+    "name" : "name",
+    "room_name": "room",       
+    "value_type": "type",      
+    "usage_id": "usage_id",
+    "usage_name": "usage_name",
+    "last_value" : "last_value"
+    "last_value_text" : "last_value_text",
+    "last_value_change" : "last_value_change",
+    "creation_date" : "creation_date",
+}
+
 # Domain
 DOMAIN = "eedomus"
 COORDINATOR = "coordinator"
@@ -110,3 +127,4 @@ CLASS_MAPPING: Dict[str, Dict[str, Any]] = {
     "142:2": {"ha_entity": "cover", "attributes": {}},
     # ... (ajoute les autres classes ici)
 }
+

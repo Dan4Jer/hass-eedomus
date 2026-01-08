@@ -7,7 +7,7 @@ import logging
 from homeassistant.helpers.entity import DeviceInfo, Entity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import ATTR_PERIPH_ID, DOMAIN
+from .const import ATTR_PERIPH_ID, DOMAIN, EEDOMUS_TO_HA_ATTR_MAPPING
 from .devices_class_mapping import DEVICES_CLASS_MAPPING, USAGE_ID_MAPPING
 
 _LOGGER = logging.getLogger(__name__)
@@ -53,23 +53,11 @@ class EedomusEntity(CoordinatorEntity):
             periph_data = self.coordinator.data[self._periph_id]
             attrs[ATTR_PERIPH_ID] = self._periph_id
 
-            if "history" in periph_data:
-                attrs["history"] = periph_data["history"]
+            for eedomus_key, ha_key in EEDOMUS_TO_HA_ATTR_MAPPING.items():
+                if eedomus_key != "usage_id" and eedomus_key in periph_data:
+                    attrs[ha_key] = periph_data[eedomus_key]
 
-            if "value_list" in periph_data:
-                attrs["value_list"] = periph_data["value_list"]
-
-            if "room_name" in periph_data:
-                attrs["room"] = periph_data["room_name"]
-
-            if "value_type" in periph_data:
-                attrs["type"] = periph_data["value_type"]
-
-            attrs["eedomus_id"] = self._periph_id
-
-            if not "room" in attrs and "room_name" in periph_data:
-                attrs["room"] = periph_data["room_name"]
-
+            
         return attrs
 
     @property
