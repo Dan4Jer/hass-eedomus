@@ -179,7 +179,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     else:
         _LOGGER.info("Webhook mode disabled")
 
+        entry_data[COORDINATOR] = coordinator
+=======
     # Store entry data
+        entry_data[COORDINATOR] = coordinator
 =======
         entry_data[COORDINATOR] = coordinator
         _LOGGER.debug(
