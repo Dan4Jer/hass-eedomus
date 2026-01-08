@@ -55,9 +55,12 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         await self._load_history_progress()
         
         # Perform initial full data retrieval including peripherals list and value list
+        start_time = datetime.now()
         peripherals, peripherals_value_list, peripherals_caract = (
             await self._async_full_data_retreive()
         )
+        elapsed_time = (datetime.now() - start_time).total_seconds()
+        _LOGGER.info("Initial data retrieval completed in %.3f seconds", elapsed_time)
         
         # Conversion des listes en dictionnaires
         peripherals_dict = {str(periph["periph_id"]): periph for periph in peripherals}
@@ -262,6 +265,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         if not isinstance(peripherals_caract, list):
             _LOGGER.error("Invalid peripherals list: %s", peripherals_caract)
             peripherals_caract = []
+        if not peripherals_caract:
+            _LOGGER.warning("No peripherals characteristics found in API response")
         _LOGGER.info("Found %d peripherals characteristics in total", len(peripherals_caract))
         return peripherals_caract
 
