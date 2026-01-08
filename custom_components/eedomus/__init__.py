@@ -171,6 +171,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.data.get(CONF_ENABLE_WEBHOOK, DEFAULT_ENABLE_WEBHOOK)
     )
 
+    # Define allowed_ips for webhook
+    allowed_ips = [entry.data.get(CONF_API_HOST)]
+
     # Setup webhook if enabled
     if webhook_enabled:
         _LOGGER.info("Webhook mode enabled - setting up webhook endpoints")
