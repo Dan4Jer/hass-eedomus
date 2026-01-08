@@ -534,6 +534,42 @@ async def async_set_cover_position(self, **kwargs):
     await self.coordinator.async_request_refresh()
 ```
 
+### Simplification du Mapping des Attributs des Entités
+
+**Problème** : Le code pour mapper les attributs des entités était complexe et difficile à maintenir.
+
+**Cause** : Chaque attribut était vérifié et mappé manuellement, ce qui rendait le code difficile à étendre et à maintenir.
+
+**Solution** : Utiliser un mapping dynamique des attributs pour simplifier le code et le rendre plus maintenable.
+
+**Implémentation** : Dans le fichier `entity.py`, la méthode `extra_state_attributes` a été simplifiée pour utiliser un mapping dynamique des attributs. Une nouvelle constante `EEDOMUS_TO_HA_ATTR_MAPPING` a été ajoutée dans `const.py` pour mapper les clés des données des périphériques eedomus aux attributs Home Assistant.
+
+```python
+# Mapping of eedomus peripheral data keys to Home Assistant attributes.
+# Key: eedomus data key.
+# Value: Home Assistant attribute key.
+# Note: If multiple eedomus keys map to the same HA key, the last one takes precedence.
+EEDOMUS_TO_HA_ATTR_MAPPING = {
+    ATTR_VALUE_LIST: ATTR_VALUE_LIST,
+    "name" : "name",
+    "room_name": "room",
+    "value_type": "type",
+    "usage_id": "usage_id",
+    "usage_name": "usage_name",
+    "last_value" : "last_value"
+    "last_value_text" : "last_value_text",
+    "last_value_change" : "last_value_change",
+    "creation_date" : "creation_date",
+    "last_value_change" : "last_updated",
+    "values" : "values",
+}
+```
+
+**Avantages** :
+- **Code Plus Maintenable** : Le code est maintenant plus facile à maintenir et à étendre.
+- **Consistance** : Le mapping des attributs est maintenant centralisé dans une constante, ce qui assure une consistance dans tout le code.
+- **Flexibilité** : Le mapping dynamique permet d'ajouter facilement de nouveaux attributs sans modifier la logique de la méthode `extra_state_attributes`.
+
 ---
 
 ## 📋 Configuration des Webhooks et de l'API Proxy dans eedomus
