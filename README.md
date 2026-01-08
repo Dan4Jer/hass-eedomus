@@ -496,6 +496,44 @@ Les états ne seront jamais 100% en temps réel, mais on peut s’en approcher e
 - **Fonction** : `handle_refresh()` et `handle_set_value()`.
 - **Utilisation** : Utilisé pour mettre à jour les états en temps réel lorsque eedomus envoie une notification.
 
+### Solution au Problème de Mise à Jour des Attributs des Volets/Cover
+
+**Problème** : Lorsque vous changez la valeur d'un volet/cover via l'interface, fermez le pop-up, et ré-ouvrez aussitôt, la valeur n'est pas correcte.
+
+**Cause** : Les attributs ne sont pas mis à jour immédiatement après une modification.
+
+**Solution** : Après avoir défini une nouvelle position pour le volet/cover, un rafraîchissement des données est forcé pour mettre à jour les attributs immédiatement.
+
+**Implémentation** : Dans le fichier `cover.py`, la méthode `async_set_cover_position` a été modifiée pour inclure un appel à `async_request_refresh()` après avoir défini la nouvelle position.
+
+```python
+async def async_set_cover_position(self, **kwargs):
+    """Move the cover to a specific position (0-100)."""
+    position = kwargs.get("position")
+    if position is None:
+        _LOGGER.error(
+            "Position is None for cover %s (periph_id=%s)",
+            self.coordinator.data[self._periph_id].get("name", "unknown"),
+            self._periph_id,
+        )
+        return
+
+    # Ensure position is within valid range
+    position = max(0, min(100, position))
+    _LOGGER.debug(
+        "Setting cover position to %s for %s (periph_id=%s)",
+        position,
+        self.coordinator.data[self._periph_id].get("name", "unknown"),
+        self._periph_id,
+    )
+
+    # Use coordinator method to set position
+    await self.coordinator.async_set_periph_value(self._periph_id, str(position))
+    
+    # Force refresh to update attributes immediately
+    await self.coordinator.async_request_refresh()
+```
+
 ---
 
 ## 📋 Configuration des Webhooks et de l'API Proxy dans eedomus
@@ -521,11 +559,27 @@ Pour configurer un webhook dans eedomus, suivez ces étapes :
    - **URL** : `http://<IP_HOME_ASSISTANT>:8123/api/eedomus/webhook`.
    - **Méthode** : `POST`.
    - **Headers** : `Content-Type: application/json`.
-   - **Corps (Body)** : `{"action": "refresh"}` (pour un rafraîchissement complet) ou `{"action": "partial_refresh"}` (pour un rafraîchissement partiel).
+   - **Corps (Body)** : `{"action": "refresh"}` (pour un rafraîchissement complet), `{"action": "partial_refresh"}` (pour un rafraîchissement partiel), ou `{"action": "reload"}` (pour recharger l'intégration).
 
 > ⚠️ **Important** : Ne pas ajouter de `/` à la fin de l'URL (`/api/eedomus/webhook/` ne fonctionnera pas).
 
 ##### Webhook Configuration dans eedomus
+<img width="920" height="261" alt="image" src="https://github.com/user-attachments/assets/4e2779b4-6d8b-4ae3-a80f-f9ede99abc4b" />
+
+#### Reload
+Pour configurer un actionneur HTTP dans eedomus pour recharger l'intégration, suivez ces étapes :
+
+1. **Accédez à l'interface eedomus** : Allez dans **Automatismes > Actionneurs HTTP**.
+2. **Créez un nouvel actionneur HTTP** :
+   - **Nom** : `Recharger Home Assistant` (ou un nom de votre choix).
+   - **URL** : `http://<IP_HOME_ASSISTANT>:8123/api/eedomus/webhook`.
+   - **Méthode** : `POST`.
+   - **Headers** : `Content-Type: application/json`.
+   - **Corps (Body)** : `{"action": "reload"}`.
+
+> ⚠️ **Important** : Ne pas ajouter de `/` à la fin de l'URL (`/api/eedomus/webhook/` ne fonctionnera pas).
+
+##### Reload Configuration dans eedomus
 <img width="920" height="261" alt="image" src="https://github.com/user-attachments/assets/4e2779b4-6d8b-4ae3-a80f-f9ede99abc4b" />
 
 #### API Proxy
@@ -547,6 +601,26 @@ Pour configurer un actionneur HTTP dans eedomus pour utiliser l'API proxy, suive
 ##### API Proxy Configuration dans eedomus
 <img width="644" height="462" alt="image" src="https://github.com/user-attachments/assets/f9f7a2a8-81c2-4f9f-9e42-91ad212d1583" />
 <img width="845" height="255" alt="image" src="https://github.com/user-attachments/assets/ae6c3899-d517-4860-924a-a82815e9df82" />
+
+## 🛠️ Services Disponibles
+
+### Rafraîchissement des Données
+- **Service** : `eedomus.refresh`
+- **Description** : Force un rafraîchissement complet de tous les périphériques eedomus.
+- **Utilisation** : Appeler le service `eedomus.refresh` depuis l'interface de développement de Home Assistant.
+
+### Définir une Valeur de Périphérique
+- **Service** : `eedomus.set_value`
+- **Description** : Envoyer une commande pour définir une valeur de périphérique sur la box eedomus.
+- **Paramètres** :
+  - `device_id` : L'ID du périphérique à contrôler.
+  - `value` : La valeur à définir pour le périphérique.
+- **Utilisation** : Appeler le service `eedomus.set_value` avec les paramètres `device_id` et `value`.
+
+### Recharger l'Intégration
+- **Service** : `eedomus.reload`
+- **Description** : Recharge la configuration de l'intégration eedomus.
+- **Utilisation** : Appeler le service `eedomus.reload` depuis l'interface de développement de Home Assistant.
 
 ## 🔧 Dépannage
 
