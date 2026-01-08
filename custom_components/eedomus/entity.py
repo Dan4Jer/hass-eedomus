@@ -73,7 +73,7 @@ class EedomusEntity(CoordinatorEntity):
 
     def update(self) -> None:
         """Update entity state."""
-        _LOGGER.debug(
+        _LOGGER.warn(
             "Update for %s (%s) type=%s client=%s",
             self._attr_name,
             self._periph_id,
@@ -83,7 +83,15 @@ class EedomusEntity(CoordinatorEntity):
         try:
             caract_value = self._client.get_periph_caract(self._periph_id)
             if isinstance(caract_value, dict):
-                self.coordinator.data[self._periph_id].update(caract_value)
+                body = caract_value.get("body")
+                if body is not None:
+                    self.coordinator.data[self._periph_id].update(body)
+                else:
+                    _LOGGER.warning(
+                        "No body found in API response for %s (%s)",
+                        self._attr_name,
+                        self._periph_id,
+                    )
         except Exception as e:
             if self.available:  # Read current state, no need to prefix with _attr_
                 _LOGGER.warning(
@@ -97,11 +105,19 @@ class EedomusEntity(CoordinatorEntity):
 
         self._attr_available = True
         # We don't need to check if device available here
-        self._attr_native_value = self.coordinator.data[self._periph_id]["last_value"]
+        if "last_value" in self.coordinator.data[self._periph_id]:
+            self._attr_native_value = self.coordinator.data[self._periph_id]["last_value"]
+        else:
+            _LOGGER.warning(
+                "No last_value found in data for %s (%s)",
+                self._attr_name,
+                self._periph_id,
+            )
+            self._attr_available = False
 
     async def async_update(self) -> None:
         """Update entity state."""
-        _LOGGER.debug(
+        _LOGGER.warn(
             "Async Update for %s (%s) type=%s client=%s",
             self._attr_name,
             self._periph_id,
@@ -111,7 +127,15 @@ class EedomusEntity(CoordinatorEntity):
         try:
             caract_value = await self._client.get_periph_caract(self._periph_id)
             if isinstance(caract_value, dict):
-                self.coordinator.data[self._periph_id].update(caract_value)
+                body = caract_value.get("body")
+                if body is not None:
+                    self.coordinator.data[self._periph_id].update(body)
+                else:
+                    _LOGGER.warning(
+                        "No body found in API response for %s (%s)",
+                        self._attr_name,
+                        self._periph_id,
+                    )
         except Exception as e:
             if self.available:  # Read current state, no need to prefix with _attr_
                 _LOGGER.warning(
