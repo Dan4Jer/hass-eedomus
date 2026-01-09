@@ -261,12 +261,15 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.error("API request failed: %s", error)
             _LOGGER.debug("API peripherals_response %s", peripherals_caract_response)
             raise UpdateFailed(f"API request failed: {error}")
+        if peripherals_caract_response.get("success", 0) != 1:
+            error = peripherals_caract_response.get("error", "Unknown API error")
+            _LOGGER.error("API request failed: %s", error)
+            _LOGGER.debug("API peripherals_response %s", peripherals_caract_response)
+            raise UpdateFailed(f"API request failed: {error}")
         peripherals_caract = peripherals_caract_response.get("body", [])
         if not isinstance(peripherals_caract, list):
             _LOGGER.error("Invalid peripherals list: %s", peripherals_caract)
             peripherals_caract = []
-        if not peripherals_caract:
-            _LOGGER.warning("No peripherals characteristics found in API response")
         _LOGGER.info("Found %d peripherals characteristics in total", len(peripherals_caract))
         return peripherals_caract
 
