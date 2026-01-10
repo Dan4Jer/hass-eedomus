@@ -14,6 +14,89 @@ from .devices_class_mapping import DEVICES_CLASS_MAPPING, USAGE_ID_MAPPING
 _LOGGER = logging.getLogger(__name__)
 
 
+# Timestamp formatting utilities
+
+def _format_timestamp_value(timestamp_value: str) -> str:
+    """Format various timestamp values from eedomus into ISO 8601 format.
+    
+    Handles multiple timestamp formats:
+    - Unix timestamp (seconds since epoch)
+    - Datetime string (e.g., "2026-01-10 16:21:14")
+    - Invalid datetime (e.g., "0000-00-00 00:00:00")
+    
+    Args:
+        timestamp_value: The raw timestamp value from eedomus
+        
+    Returns:
+        str: ISO 8601 formatted timestamp or None if invalid
+    """
+    if not timestamp_value or timestamp_value == "None":
+        return None
+        
+    try:
+        # Handle Unix timestamp format (seconds since epoch)
+        if isinstance(timestamp_value, (int, float)) or (isinstance(timestamp_value, str) and timestamp_value.isdigit()):
+            timestamp = int(timestamp_value)
+            dt = datetime.fromtimestamp(timestamp)
+            return dt.isoformat()
+            
+        # Handle datetime string format (e.g., "2026-01-10 16:21:14")
+        if isinstance(timestamp_value, str):
+            timestamp_str = timestamp_value.strip()
+            
+            # Skip invalid datetime strings
+            if timestamp_str == "0000-00-00 00:00:00":
+                return None
+                
+            # Try common datetime formats
+            for fmt in ["%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"]:
+                try:
+                    dt = datetime.strptime(timestamp_str, fmt)
+                    return dt.isoformat()
+                except ValueError:
+                    continue
+                    
+    except (ValueError, TypeError, OverflowError) as e:
+        _LOGGER.debug(
+            "Failed to parse timestamp value '%s': %s",
+            timestamp_value,
+            e
+        )
+        return None
+    
+    return None
+
+
+def _format_eedomus_timestamps(periph_data: dict) -> dict:
+    """Format all eedomus timestamp fields into standardized ISO 8601 format.
+    
+    Processes common eedomus timestamp fields and creates standardized
+    Home Assistant timestamp attributes.
+    
+    Args:
+        periph_data: The peripheral data from eedomus
+        
+    Returns:
+        dict: Dictionary with formatted timestamp attributes
+    """
+    timestamps = {}
+    
+    # Map eedomus timestamp fields to HA attribute names
+    timestamp_mapping = {
+        "last_value_change": ["last_changed", "last_reported"],  # Both attributes get same value
+        "creation_date": ["created"],                           # Single attribute
+    }
+    
+    for eedomus_field, ha_attributes in timestamp_mapping.items():
+        if eedomus_field in periph_data:
+            formatted_timestamp = _format_timestamp_value(periph_data[eedomus_field])
+            if formatted_timestamp:
+                for ha_attr in ha_attributes:
+                    timestamps[ha_attr] = formatted_timestamp
+    
+    return timestamps
+
+
 class EedomusEntity(CoordinatorEntity):
     """Base class for eedomus entities."""
 
@@ -54,38 +137,14 @@ class EedomusEntity(CoordinatorEntity):
             periph_data = self.coordinator.data[self._periph_id]
             attrs[ATTR_PERIPH_ID] = self._periph_id
 
+            # Map standard eedomus attributes
             for eedomus_key, ha_key in EEDOMUS_TO_HA_ATTR_MAPPING.items():
                 if eedomus_key != "usage_id" and eedomus_key in periph_data:
                     attrs[ha_key] = periph_data[eedomus_key]
             
-            # Handle last_value_change to create last_changed and last_reported attributes
-            if "last_value_change" in periph_data and periph_data["last_value_change"]:
-                try:
-                    last_value_change = periph_data["last_value_change"]
-                    last_change_dt = None
-                    
-                    # Handle different timestamp formats from eedomus
-                    if isinstance(last_value_change, (int, float)) or last_value_change.isdigit():
-                        # Unix timestamp format (seconds since epoch)
-                        last_change_timestamp = int(last_value_change)
-                        last_change_dt = datetime.fromtimestamp(last_change_timestamp)
-                    elif isinstance(last_value_change, str) and last_value_change.strip():
-                        # Datetime string format (e.g., "2026-01-10 16:21:14")
-                        if last_value_change != "0000-00-00 00:00:00":  # Skip invalid datetime
-                            last_change_dt = datetime.strptime(last_value_change.strip(), "%Y-%m-%d %H:%M:%S")
-                    
-                    if last_change_dt:
-                        # Add both last_changed and last_reported attributes
-                        attrs["last_changed"] = last_change_dt.isoformat()
-                        attrs["last_reported"] = last_change_dt.isoformat()
-                except (ValueError, TypeError) as e:
-                    _LOGGER.warning(
-                        "Failed to parse last_value_change for %s (%s): %s. Value: %s",
-                        self._attr_name,
-                        self._periph_id,
-                        e,
-                        periph_data["last_value_change"]
-                    )
+            # Format all timestamp fields using the centralized utility
+            timestamp_attrs = _format_eedomus_timestamps(periph_data)
+            attrs.update(timestamp_attrs)
             
             # Add current timestamp for last_updated (when HA last updated this entity)
             attrs["last_updated"] = datetime.now().isoformat()
