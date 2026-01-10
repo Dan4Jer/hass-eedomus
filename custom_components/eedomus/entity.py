@@ -57,6 +57,27 @@ class EedomusEntity(CoordinatorEntity):
             for eedomus_key, ha_key in EEDOMUS_TO_HA_ATTR_MAPPING.items():
                 if eedomus_key != "usage_id" and eedomus_key in periph_data:
                     attrs[ha_key] = periph_data[eedomus_key]
+            
+            # Handle last_value_change to create last_changed and last_reported attributes
+            if "last_value_change" in periph_data and periph_data["last_value_change"]:
+                try:
+                    # Convert eedomus timestamp to datetime object
+                    last_change_timestamp = int(periph_data["last_value_change"])
+                    last_change_dt = datetime.fromtimestamp(last_change_timestamp)
+                    
+                    # Add both last_changed and last_reported attributes
+                    attrs["last_changed"] = last_change_dt.isoformat()
+                    attrs["last_reported"] = last_change_dt.isoformat()
+                except (ValueError, TypeError) as e:
+                    _LOGGER.warning(
+                        "Failed to parse last_value_change for %s (%s): %s. Value: %s",
+                        self._attr_name,
+                        self._periph_id,
+                        e,
+                        periph_data["last_value_change"]
+                    )
+            
+            # Add current timestamp for last_updated (when HA last updated this entity)
             attrs["last_updated"] = datetime.now().isoformat()
             
         return attrs
