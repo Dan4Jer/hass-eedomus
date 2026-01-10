@@ -656,6 +656,145 @@ L'intégration inclut une gestion robuste des erreurs pour les timestamps invali
 3. **Synchronisation** : Utilisez les timestamps pour synchroniser les états entre plusieurs systèmes
 4. **Analyse historique** : Stockez les attributs de timestamp pour une analyse historique des patterns d'utilisation
 
+### 🔧 Architecture de Définition des Valeurs
+
+L'intégration utilise une architecture centralisée pour la définition des valeurs des périphériques, garantissant une gestion cohérente des erreurs, des fallbacks et des mises à jour d'état.
+
+#### Méthode Centralisée `async_set_value()`
+
+Toutes les entités (lumières, interrupteurs, volets) utilisent maintenant une méthode centralisée pour définir les valeurs :
+
+```python
+async def async_set_value(self, value: str):
+    """Set device value with full eedomus logic including fallback and retry.
+    
+    Centralizes all value-setting logic including:
+    - PHP fallback for rejected values
+    - Next best value selection
+    - Immediate state updates
+    - Coordinator refresh
+    - Consistent error handling
+    """
+```
+
+#### Avantages de l'Architecture Centralisée
+
+1. **Consistance** : Toutes les entités utilisent le même mécanisme
+2. **Maintenabilité** : Un seul endroit pour mettre à jour la logique
+3. **Fiabilité** : Gestion d'erreur et fallback garantis
+4. **Extensibilité** : Facile d'ajouter de nouvelles fonctionnalités
+
+#### Flux de Définition des Valeurs
+
+```mermaid
+flowchart TD
+    A[Entity.async_set_value] --> B[Coordinator.async_set_periph_value]
+    B --> C{Success?}
+    C -->|Oui| D[Force State Update]
+    C -->|Non| E{Error Code 6?}
+    E -->|Oui| F[PHP Fallback]
+    E -->|Non| G[Log Error]
+    D --> H[Coordinator Refresh]
+    F --> D
+```
+
+#### Gestion des Erreurs et Fallbacks
+
+L'architecture inclut plusieurs niveaux de gestion d'erreur :
+
+1. **Réessai automatique** : Pour les valeurs rejetées (error_code=6)
+2. **Fallback PHP** : Si configuré et activé
+3. **Next Best Value** : Sélection de la valeur acceptable la plus proche
+4. **Logging détaillé** : Pour le débogage et l'audit
+
+#### Exemple d'Utilisation dans les Entités
+
+**Avant la refactorisation** (code dupliqué) :
+```python
+# Dans chaque entité (cover, light, switch)
+await self.coordinator.client.set_periph_value(self._periph_id, "100")
+if isinstance(response, dict) and response.get("success") != 1:
+    _LOGGER.error("Failed to set value")
+    raise Exception("Failed to set value")
+await self.async_force_state_update("100")
+await self.coordinator.async_request_refresh()
+```
+
+**Après la refactorisation** (code centralisé) :
+```python
+# Dans toutes les entités
+await self.async_set_value("100")
+```
+
+#### Diagramme de Séquence
+
+```mermaid
+sequenceDiagram
+    participant Entity
+    participant Coordinator
+    participant EedomusAPI
+    
+    Entity->>Coordinator: async_set_value("100")
+    Coordinator->>EedomusAPI: set_periph_value("100")
+    alt Success
+        EedomusAPI-->>Coordinator: {success: 1}
+        Coordinator->>Entity: Update local state
+        Entity->>Entity: async_force_state_update()
+        Entity->>Coordinator: async_request_refresh()
+    else Value Refused (error_code=6)
+        EedomusAPI-->>Coordinator: {success: 0, error_code: 6}
+        Coordinator->>EedomusAPI: PHP fallback attempt
+        alt PHP Success
+            EedomusAPI-->>Coordinator: {success: 1}
+            Coordinator->>Entity: Update local state
+            Entity->>Entity: async_force_state_update()
+        else Try Next Best Value
+            Coordinator->>EedomusAPI: set_periph_value(best_value)
+            EedomusAPI-->>Coordinator: {success: 1}
+            Coordinator->>Entity: Update local state
+        end
+    else Other Error
+        EedomusAPI-->>Coordinator: {success: 0, error: "..."}
+        Coordinator-->>Entity: Raise exception
+    end
+```
+
+#### Configuration des Options de Fallback
+
+Les options de fallback peuvent être configurées dans l'interface de l'intégration :
+
+| Option | Description | Valeur par défaut |
+|--------|-------------|-------------------|
+| `enable_set_value_retry` | Active la réessai des valeurs rejetées | `true` |
+| `php_fallback_enabled` | Active le fallback PHP pour les valeurs rejetées | `true` |
+
+**Recommandations** :
+- Gardez les deux options activées pour une meilleure compatibilité
+- Le fallback PHP est particulièrement utile pour les périphériques avec des contraintes de valeur strictes
+- Le réessai automatique améliore la fiabilité sans intervention manuelle
+
+#### Journalisation et Débogage
+
+Tous les événements de définition de valeur sont journalisés :
+
+```log
+DEBUG: Setting value '100' for Lampe Salon (1234567)
+INFO: ✅ Set value successful for Lampe Salon (1234567)
+DEBUG: Forcing state update for Lampe Salon (1234567) to value: 100
+
+# En cas d'erreur
+WARNING: Value '50' refused for Lampe Salon (1234567), checking fallback/next best value
+INFO: 🔄 Retry enabled - trying next best value (50 => 45) for Lampe Salon (1234567)
+INFO: ✅ Set value successful for Lampe Salon (1234567)
+```
+
+#### Bonnes Pratiques
+
+1. **Toujours utiliser `async_set_value()`** pour la définition des valeurs
+2. **Ne pas appeler directement** `coordinator.client.set_periph_value()`
+3. **Laisser le coordinateur gérer** les fallbacks et réessais
+4. **Utiliser les exceptions** pour gérer les erreurs irrécoverables
+
 ---
 
 ## 📋 Configuration des Webhooks et de l'API Proxy dans eedomus
