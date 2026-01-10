@@ -570,6 +570,92 @@ EEDOMUS_TO_HA_ATTR_MAPPING = {
 - **Consistance** : Le mapping des attributs est maintenant centralisé dans une constante, ce qui assure une consistance dans tout le code.
 - **Flexibilité** : Le mapping dynamique permet d'ajouter facilement de nouveaux attributs sans modifier la logique de la méthode `extra_state_attributes`.
 
+### 🕒 Gestion des Attributs de Timestamp
+
+L'intégration inclut maintenant une gestion avancée des attributs de timestamp pour une meilleure traçabilité des changements d'état :
+
+#### Attributs de Timestamp Disponibles
+
+| Attribut | Source | Format | Description |
+|----------|--------|--------|-------------|
+| `last_value_change` | Eedomus | Timestamp Unix | Timestamp brut du dernier changement côté eedomus (ex: `1710451200`) |
+| `last_changed` | Calculé | ISO 8601 | Date/heure du dernier changement de valeur (ex: `2024-03-15T12:00:00+00:00`) |
+| `last_reported` | Calculé | ISO 8601 | Date/heure du dernier rapport de valeur (identique à `last_changed`) |
+| `last_updated` | Home Assistant | ISO 8601 | Date/heure de la dernière mise à jour par Home Assistant |
+
+#### Exemple d'Attributs de Timestamp
+
+```yaml
+# Exemple d'attributs pour une entité lumière
+attributes:
+  last_value_change: "1710451200"          # Valeur brute de eedomus
+  last_changed: "2024-03-15T12:00:00+00:00"  # Format ISO pour HA
+  last_reported: "2024-03-15T12:00:00+00:00" # Format ISO pour HA
+  last_updated: "2024-03-15T12:05:30+00:00"   # Quand HA a mis à jour
+  name: "Lampe Salon"
+  room: "Salon"
+  usage_id: "1"
+  usage_name: "Lumière"
+```
+
+#### Différences entre les Attributs
+
+- **`last_value_change`** : Timestamp brut provenant directement de la box eedomus (en secondes depuis epoch)
+- **`last_changed`** et **`last_reported`** : Timestamps convertis au format ISO 8601 pour une meilleure compatibilité avec Home Assistant
+- **`last_updated`** : Indique quand Home Assistant a traité la mise à jour (peut être légèrement différent de `last_changed`)
+
+#### Utilisation dans les Automations
+
+```yaml
+# Exemple d'automatisation utilisant last_changed
+automation:
+  - alias: "Alerte si lumière allumée tard le soir"
+    trigger:
+      - platform: state
+        entity_id: light.lampe_salon
+    condition:
+      - condition: template
+        value_template: >-
+          {{ (as_timestamp(states.light.lampe_salon.attributes.last_changed) | int) > 
+             (now().timestamp() - 3600) }}
+    action:
+      - service: notify.mobile_app
+        data:
+          message: >-
+            La lumière du salon a été allumée à 
+            {{ states.light.lampe_salon.attributes.last_changed }}
+```
+
+#### Utilisation dans les Tableaux de Bord
+
+```yaml
+# Exemple de carte d'entité avec attributs de timestamp
+type: entities
+entities:
+  - entity: light.lampe_salon
+    name: "Lampe Salon"
+    secondary_info: last-changed
+  - entity: sensor.temperature_salon
+    name: "Température Salon"
+    secondary_info: last-reported
+```
+
+#### Gestion des Erreurs
+
+L'intégration inclut une gestion robuste des erreurs pour les timestamps invalides :
+
+- **Validation** : Vérifie que `last_value_change` existe et n'est pas vide
+- **Conversion sécurisée** : Utilise `try/except` pour gérer les formats invalides
+- **Logging** : Journalise les erreurs de conversion pour le débogage
+- **Compatibilité** : Maintient l'attribut brut même en cas d'erreur de conversion
+
+#### Cas d'Utilisation Avancés
+
+1. **Audit des changements** : Utilisez `last_changed` pour savoir exactement quand un périphérique a changé d'état
+2. **Détection d'inactivité** : Comparez `last_reported` avec l'heure actuelle pour détecter les périphériques inactifs
+3. **Synchronisation** : Utilisez les timestamps pour synchroniser les états entre plusieurs systèmes
+4. **Analyse historique** : Stockez les attributs de timestamp pour une analyse historique des patterns d'utilisation
+
 ---
 
 ## 📋 Configuration des Webhooks et de l'API Proxy dans eedomus
