@@ -154,14 +154,8 @@ class EedomusCover(EedomusEntity, CoverEntity):
             self._periph_id,
         )
 
-        # Use coordinator method to set position
-        await self.coordinator.async_set_periph_value(self._periph_id, str(position))
-        
-        # Force immediate state update
-        await self.async_force_state_update(position)
-        
-        # Force refresh to update attributes immediately
-        await self.coordinator.async_request_refresh()
+        # Use entity method to set position (includes fallback, retry, and state update)
+        await self.async_set_value(str(position))
 
     async def async_stop_cover(self, **kwargs):
         """Stop the cover (not supported by eedomus shutters)."""

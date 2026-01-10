@@ -242,6 +242,77 @@ class EedomusEntity(CoordinatorEntity):
         self._attr_native_value = self.coordinator.data[self._periph_id]["last_value"]
         self.coordinator.data[self._periph_id]["last_updated"] = datetime.now().isoformat()
 
+    async def async_set_value(self, value: str):
+        """Set device value with full eedomus logic including fallback and retry.
+        
+        This method centralizes all value-setting logic including:
+        - PHP fallback for rejected values
+        - Next best value selection
+        - Immediate state updates
+        - Coordinator refresh
+        
+        Args:
+            value: The value to set (e.g., "100", "0", "50")
+            
+        Returns:
+            dict: API response from eedomus
+            
+        Raises:
+            Exception: If the value cannot be set after all retry attempts
+        """
+        _LOGGER.debug(
+            "Setting value '%s' for %s (%s)",
+            value,
+            self._attr_name,
+            self._periph_id
+        )
+        
+        try:
+            # Call coordinator method to set the value
+            response = await self.coordinator.async_set_periph_value(
+                self._periph_id, str(value)
+            )
+            
+            # Check if we need to handle retry/fallback
+            if isinstance(response, dict):
+                if response.get("success") == 1:
+                    # Success! Force immediate state update
+                    await self.async_force_state_update(value)
+                    await self.coordinator.async_request_refresh()
+                    return response
+                elif response.get("error_code") == "6":  # Value refused
+                    _LOGGER.warning(
+                        "Value '%s' refused for %s (%s), checking fallback/next best value",
+                        value,
+                        self._attr_name,
+                        self._periph_id
+                    )
+                    # The coordinator already handled retry/fallback, just update state
+                    await self.async_force_state_update(value)
+                    await self.coordinator.async_request_refresh()
+                    return response
+            
+            # If we get here, something went wrong
+            _LOGGER.error(
+                "Failed to set value '%s' for %s (%s): %s",
+                value,
+                self._attr_name,
+                self._periph_id,
+                response.get("error", "Unknown error") if isinstance(response, dict) else str(response)
+            )
+            raise Exception(
+                f"Failed to set value: {response.get('error', 'Unknown error') if isinstance(response, dict) else str(response)}"
+            )
+            
+        except Exception as e:
+            _LOGGER.error(
+                "Failed to set value for %s (%s): %s",
+                self._attr_name,
+                self._periph_id,
+                e
+            )
+            raise
+
     async def async_force_state_update(self, new_value):
         """Force an immediate state update with the given value.
         

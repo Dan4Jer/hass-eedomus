@@ -172,24 +172,8 @@ class EedomusLight(EedomusEntity, LightEntity):
             value = f"color_temp:{color_temp_kelvin}"
 
         try:
-            response = await self.coordinator.client.set_periph_value(
-                self._periph_id, "100"
-            )
-
-            # Correction: le bloc if doit être correctement indenté
-            if isinstance(response, dict) and response.get("success") != 1:
-                _LOGGER.error(
-                    "Failed to set light value: %s",
-                    response.get("error", "Unknown error"),
-                )
-                raise Exception(
-                    f"Failed to set light value: {response.get('error', 'Unknown error')}"
-                )
-
-            # Force immediate state update
-            await self.async_force_state_update("100")
-            
-            await self.coordinator.async_request_refresh()
+            # Use entity method to turn on light (includes fallback, retry, and state update)
+            response = await self.async_set_value("100")
             _LOGGER.debug(
                 "Light %s (%s) turned on with value: %s",
                 self._attr_name,
@@ -210,24 +194,8 @@ class EedomusLight(EedomusEntity, LightEntity):
         """Turn the light off."""
         _LOGGER.debug("Turning off light %s", self._periph_id)
         try:
-            response = await self.coordinator.client.set_periph_value(
-                self._periph_id, 0
-            )
-            if isinstance(response, dict) and response.get("success") != 1:
-                _LOGGER.error(
-                    "Failed to turn off light %s (%s): %s",
-                    self._attr_name,
-                    self._periph_id,
-                    response.get("error", "Unknown error"),
-                )
-                raise Exception(
-                    f"Failed to turn off light: {response.get('error', 'Unknown error')}"
-                )
-
-            # Force immediate state update
-            await self.async_force_state_update("0")
-            
-            await self.coordinator.async_request_refresh()
+            # Use entity method to turn off light (includes fallback, retry, and state update)
+            response = await self.async_set_value("0")
 
         except Exception as e:
             _LOGGER.error(

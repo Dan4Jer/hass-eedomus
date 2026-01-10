@@ -192,22 +192,8 @@ class EedomusSwitch(EedomusEntity, SwitchEntity):
         """Turn the switch on."""
         _LOGGER.debug("Turning on switch %s", self._periph_id)
         try:
-            response = await self.coordinator.client.set_periph_value(
-                self._periph_id, "100"
-            )
-            if isinstance(response, dict) and response.get("success") != 1:
-                _LOGGER.error(
-                    "Failed to turn on switch %s: %s",
-                    self._periph_id,
-                    response.get("error", "Unknown error"),
-                )
-                raise Exception(
-                    f"Failed to turn on switch: {response.get('error', 'Unknown error')}"
-                )
-            # Force immediate state update
-            await self.async_force_state_update("100")
-            
-            await self.coordinator.async_request_refresh()
+            # Use entity method to turn on switch (includes fallback, retry, and state update)
+            response = await self.async_set_value("100")
         except Exception as e:
             _LOGGER.error("Failed to turn on switch %s: %s", self._periph_id, e)
             raise
@@ -216,23 +202,8 @@ class EedomusSwitch(EedomusEntity, SwitchEntity):
         """Turn the switch off."""
         _LOGGER.debug("Turning off switch %s", self._periph_id)
         try:
-            response = await self.coordinator.client.set_periph_value(
-                self._periph_id, "0"
-            )
-            if isinstance(response, dict) and response.get("success") != 1:
-                _LOGGER.error(
-                    "Failed to turn off switch %s: %s",
-                    self._periph_id,
-                    response.get("error", "Unknown error"),
-                )
-                raise Exception(
-                    f"Failed to turn off switch: {response.get('error', 'Unknown error')}"
-                )
-
-            # Force immediate state update
-            await self.async_force_state_update("0")
-            
-            await self.coordinator.async_request_refresh()
+            # Use entity method to turn off switch (includes fallback, retry, and state update)
+            response = await self.async_set_value("0")
 
         except Exception as e:
             _LOGGER.error("Failed to turn off switch %s: %s", self._periph_id, e)
