@@ -240,7 +240,7 @@ class EedomusEntity(CoordinatorEntity):
         self._attr_available = True
         # We don't need to check if device available here
         self._attr_native_value = self.coordinator.data[self._periph_id]["last_value"]
-
+        self.coordinator.data[self._periph_id]["last_updated"] = datetime.now().isoformat()
 
     async def async_force_state_update(self, new_value):
         """Force an immediate state update with the given value.

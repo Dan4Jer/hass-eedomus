@@ -707,7 +707,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             # Immediately update local state to reflect the change
             # This ensures UI updates instantly without waiting for coordinator refresh
             self.data[periph_id]["last_value"] = value
-
+            self.data[periph_id]["last_updated"] = datetime.now().isoformat()
         # except Exception as e:
         #    _LOGGER.error(
         #        "Failed to set value for peripheral '%s': %s\ndata=%s\n\nalldata=%s",
