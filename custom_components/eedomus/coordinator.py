@@ -695,6 +695,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 self.data[periph_id]["name"],
                 periph_id,
             )
+            
+            # Immediately update local state to reflect the change
+            # This ensures UI updates instantly without waiting for coordinator refresh
+            self.data[periph_id]["last_value"] = value
 
         # except Exception as e:
         #    _LOGGER.error(

@@ -128,6 +128,29 @@ class EedomusEntity(CoordinatorEntity):
         self._attr_native_value = self.coordinator.data[self._periph_id]["last_value"]
 
 
+    def async_force_state_update(self, new_value):
+        """Force an immediate state update with the given value.
+        
+        This method should be called after successfully setting a device value
+        to ensure the UI updates immediately without waiting for coordinator refresh.
+        """
+        _LOGGER.debug(
+            "Forcing state update for %s (%s) to value: %s",
+            self._attr_name,
+            self._periph_id,
+            new_value
+        )
+        
+        # Update the coordinator's data
+        self.coordinator.data[self._periph_id]["last_value"] = str(new_value)
+        
+        # Force immediate state update in Home Assistant
+        self.async_write_ha_state()
+        
+        # Schedule a regular update to ensure consistency
+        self.async_schedule_update_ha_state()
+
+
 def map_device_to_ha_entity(device_data, default_ha_entity: str = "sensor"):
     """Mappe un périphérique eedomus vers une entité Home Assistant.
     Args:
