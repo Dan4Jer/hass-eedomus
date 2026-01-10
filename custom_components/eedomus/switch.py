@@ -204,6 +204,11 @@ class EedomusSwitch(EedomusEntity, SwitchEntity):
                 raise Exception(
                     f"Failed to turn on switch: {response.get('error', 'Unknown error')}"
                 )
+            
+            # Immediately update local state to reflect the change
+            self.coordinator.data[self._periph_id]["last_value"] = "100"
+            self.async_write_ha_state()
+            
             await self.coordinator.async_request_refresh()
         except Exception as e:
             _LOGGER.error("Failed to turn on switch %s: %s", self._periph_id, e)
@@ -225,6 +230,10 @@ class EedomusSwitch(EedomusEntity, SwitchEntity):
                 raise Exception(
                     f"Failed to turn off switch: {response.get('error', 'Unknown error')}"
                 )
+
+            # Immediately update local state to reflect the change
+            self.coordinator.data[self._periph_id]["last_value"] = "0"
+            self.async_write_ha_state()
 
             await self.coordinator.async_request_refresh()
 

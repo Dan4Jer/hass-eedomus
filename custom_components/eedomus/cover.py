@@ -157,6 +157,10 @@ class EedomusCover(EedomusEntity, CoverEntity):
         # Use coordinator method to set position
         await self.coordinator.async_set_periph_value(self._periph_id, str(position))
         
+        # Immediately update local state to reflect the change
+        self.coordinator.data[self._periph_id]["last_value"] = str(position)
+        self.async_write_ha_state()
+        
         # Force refresh to update attributes immediately
         await self.coordinator.async_request_refresh()
 
