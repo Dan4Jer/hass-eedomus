@@ -61,13 +61,23 @@ class EedomusEntity(CoordinatorEntity):
             # Handle last_value_change to create last_changed and last_reported attributes
             if "last_value_change" in periph_data and periph_data["last_value_change"]:
                 try:
-                    # Convert eedomus timestamp to datetime object
-                    last_change_timestamp = int(periph_data["last_value_change"])
-                    last_change_dt = datetime.fromtimestamp(last_change_timestamp)
+                    last_value_change = periph_data["last_value_change"]
+                    last_change_dt = None
                     
-                    # Add both last_changed and last_reported attributes
-                    attrs["last_changed"] = last_change_dt.isoformat()
-                    attrs["last_reported"] = last_change_dt.isoformat()
+                    # Handle different timestamp formats from eedomus
+                    if isinstance(last_value_change, (int, float)) or last_value_change.isdigit():
+                        # Unix timestamp format (seconds since epoch)
+                        last_change_timestamp = int(last_value_change)
+                        last_change_dt = datetime.fromtimestamp(last_change_timestamp)
+                    elif isinstance(last_value_change, str) and last_value_change.strip():
+                        # Datetime string format (e.g., "2026-01-10 16:21:14")
+                        if last_value_change != "0000-00-00 00:00:00":  # Skip invalid datetime
+                            last_change_dt = datetime.strptime(last_value_change.strip(), "%Y-%m-%d %H:%M:%S")
+                    
+                    if last_change_dt:
+                        # Add both last_changed and last_reported attributes
+                        attrs["last_changed"] = last_change_dt.isoformat()
+                        attrs["last_reported"] = last_change_dt.isoformat()
                 except (ValueError, TypeError) as e:
                     _LOGGER.warning(
                         "Failed to parse last_value_change for %s (%s): %s. Value: %s",
@@ -173,7 +183,7 @@ class EedomusEntity(CoordinatorEntity):
         self._attr_native_value = self.coordinator.data[self._periph_id]["last_value"]
 
 
-    def async_force_state_update(self, new_value):
+    async def async_force_state_update(self, new_value):
         """Force an immediate state update with the given value.
         
         This method should be called after successfully setting a device value
