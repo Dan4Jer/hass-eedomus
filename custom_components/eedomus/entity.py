@@ -341,6 +341,18 @@ class EedomusEntity(CoordinatorEntity):
         # Update the coordinator's data
         self.coordinator.data[self._periph_id]["last_value"] = str(new_value)
         
+        # Update last_value_change timestamp to current time
+        # This is crucial for covers and other entities that track when values were last changed
+        from datetime import datetime
+        current_timestamp = datetime.now().isoformat()
+        self.coordinator.data[self._periph_id]["last_value_change"] = current_timestamp
+        _LOGGER.debug(
+            "Updated last_value_change for %s (%s) to: %s",
+            self._attr_name,
+            self._periph_id,
+            current_timestamp
+        )
+        
         # Force immediate state update in Home Assistant
         self.async_write_ha_state()
         
