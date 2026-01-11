@@ -163,7 +163,7 @@ class EedomusEntity(CoordinatorEntity):
 
     def update(self) -> None:
         """Update entity state."""
-        _LOGGER.warn(
+        _LOGGER.warning(
             "Update for %s (%s) type=%s client=%s",
             self._attr_name,
             self._periph_id,

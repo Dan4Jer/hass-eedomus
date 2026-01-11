@@ -57,7 +57,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # Perform initial full data retrieval including peripherals list and value list
         start_time = datetime.now()
         peripherals, peripherals_value_list, peripherals_caract = (
-            await self._async_full_data_retreive()
+            await self._async_full_data_retrieve()
         )
         elapsed_time = (datetime.now() - start_time).total_seconds()
         _LOGGER.info("Initial data retrieval completed in %.3f seconds", elapsed_time)
@@ -206,7 +206,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             peripherals_caract = []
         return peripherals_caract
 
-    async def _async_full_data_retreive(self):
+    async def _async_full_data_retrieve(self):
         """Retrieve full data including peripherals list, value list, and characteristics."""
         peripherals_response = await self.client.get_periph_list()
         peripherals_value_list_response = await self.client.get_periph_value_list("all")
@@ -291,7 +291,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
         for periph_id in all_periph_ids:
             if not periph_id in aggregated_data:
-                _LOGGER.warn("This periph_id is unknown %d, please do a reload", periph_id)
+                _LOGGER.warning("This periph_id is unknown %d, please do a reload", periph_id)
                 aggregated_data[periph_id] = {}
 
             # Ajout des données de peripherals_caract_dict (si existantes)
@@ -663,7 +663,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     )
                     # Try next best value if PHP fallback fails
                     next_value = self.next_best_value(periph_id, value)
-                    _LOGGER.warn(
+                    _LOGGER.warning(
                         "🔄 Retry enabled - trying next best value (%s => %s) for %s (%s)",
                         value,
                         next_value,
