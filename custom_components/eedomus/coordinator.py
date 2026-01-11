@@ -9,11 +9,13 @@ from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
+    CONF_DISABLED_ENTITIES,
     CONF_ENABLE_HISTORY,
     CONF_ENABLE_SET_VALUE_RETRY,
     CONF_PHP_FALLBACK_ENABLED,
     CONF_PHP_FALLBACK_SCRIPT_NAME,
     CONF_PHP_FALLBACK_TIMEOUT,
+    DEFAULT_DISABLED_ENTITIES,
     DEFAULT_ENABLE_SET_VALUE_RETRY,
     DEFAULT_PHP_FALLBACK_ENABLED,
     DEFAULT_PHP_FALLBACK_SCRIPT_NAME,
@@ -30,7 +32,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
     """Eedomus data update coordinator with optimized refresh strategy."""
 
     def __init__(
-        self, hass: HomeAssistant, client, scan_interval=DEFAULT_SCAN_INTERVAL
+        self, hass: HomeAssistant, client, scan_interval=DEFAULT_SCAN_INTERVAL, disabled_entities=None
     ):
         """Initialize the coordinator."""
         super().__init__(
@@ -48,6 +50,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             {}
         )  # Format: {periph_id: {"last_timestamp": int, "completed": bool}}
         self._scan_interval = scan_interval
+        self._disabled_entities = set(disabled_entities or DEFAULT_DISABLED_ENTITIES)
+        _LOGGER.info("Initialized coordinator with disabled entities: %s", self._disabled_entities)
 
     async def async_config_entry_first_refresh(self):
         """Effectue le premier rafraîchissement des données et charge la progression de l'historique."""
@@ -118,6 +122,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # Traitement des périphériques
         skipped = 0
         dynamic = 0
+        disabled = 0
         for periph_id, periph_data in aggregated_data.items():
             if not isinstance(periph_data, dict) or "periph_id" not in periph_data:
                 _LOGGER.warning(
@@ -129,6 +134,16 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 skipped += 1
                 continue
 
+            # Check if entity is disabled
+            if self.is_entity_disabled(periph_id):
+                _LOGGER.info(
+                    "Skipping disabled peripheral (ID: %s, name: %s)",
+                    periph_id,
+                    periph_data.get("name", "Unknown")
+                )
+                disabled += 1
+                continue
+
             # _LOGGER.debug("Processing peripheral (ID: %s, data: %s)", periph_id, periph_data)
 
             if self._is_dynamic_peripheral(periph_data):
@@ -137,6 +152,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
         _LOGGER.warning("Skipped %d invalid peripherals", skipped)
         _LOGGER.warning("Found %d dynamic peripherals", dynamic)
+        _LOGGER.warning("Skipped %d disabled peripherals", disabled)
 
         _LOGGER.debug(
             "Initial Mapping Table %s",
@@ -314,6 +330,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # Traitement des périphériques
         skipped = 0
         dynamic = 0
+        disabled = 0
         for periph_id, periph_data in aggregated_data.items():
             if not isinstance(periph_data, dict) or "periph_id" not in periph_data:
                 _LOGGER.warning(
@@ -325,6 +342,16 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 skipped += 1
                 continue
 
+            # Check if entity is disabled
+            if self.is_entity_disabled(periph_id):
+                _LOGGER.info(
+                    "Skipping disabled peripheral (ID: %s, name: %s)",
+                    periph_id,
+                    periph_data.get("name", "Unknown")
+                )
+                disabled += 1
+                continue
+
             # _LOGGER.debug("Processing peripheral (ID: %s, data: %s)", periph_id, periph_data)
 
             if self._is_dynamic_peripheral(periph_data):
@@ -333,6 +360,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
         _LOGGER.warning("Skipped %d invalid peripherals", skipped)
         _LOGGER.warning("Found %d dynamic peripherals", dynamic)
+        _LOGGER.warning("Skipped %d disabled peripherals", disabled)
 
         _LOGGER.debug(
             "Mapping Table %s",
@@ -414,6 +442,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             periph.get("periph_id"),
         )
         return False
+
+    def is_entity_disabled(self, periph_id: str) -> bool:
+        """Check if a peripheral entity is disabled."""
+        return str(periph_id) in self._disabled_entities
 
     def get_all_peripherals(self):
         """Return all peripherals (for entity setup)."""

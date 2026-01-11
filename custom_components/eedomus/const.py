@@ -33,6 +33,7 @@ CONF_API_PROXY_DISABLE_SECURITY = "api_proxy_disable_security"
 CONF_ENABLE_SET_VALUE_RETRY = "enable_set_value_retry"
 CONF_ENABLE_WEBHOOK = "enable_webhook"
 CONF_REMOVE_ENTITIES = "remove_entities"
+CONF_DISABLED_ENTITIES = "disabled_entities"
 
 CONF_PHP_FALLBACK_ENABLED = "php_fallback_enabled"
 CONF_PHP_FALLBACK_SCRIPT_NAME = "php_fallback_script_name"
@@ -42,6 +43,7 @@ DEFAULT_CONF_ENABLE_API_PROXY = False
 DEFAULT_ENABLE_SET_VALUE_RETRY = True  # Set value retry enabled by default
 DEFAULT_ENABLE_WEBHOOK = True  # Webhook enabled by default
 DEFAULT_REMOVE_ENTITIES = False  # Remove entities disabled by default
+DEFAULT_DISABLED_ENTITIES = []  # No entities disabled by default
 
 DEFAULT_API_PROXY_DISABLE_SECURITY = False  # Security enabled by default
 DEFAULT_SCAN_INTERVAL = 300  # 5 minutes

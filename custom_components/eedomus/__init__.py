@@ -18,6 +18,7 @@ from .const import (
     CLASS_MAPPING,
     CONF_API_HOST,
     CONF_API_PROXY_DISABLE_SECURITY,
+    CONF_DISABLED_ENTITIES,
     CONF_ENABLE_API_EEDOMUS,
     CONF_ENABLE_API_PROXY,
     CONF_ENABLE_HISTORY,
@@ -107,7 +108,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             CONF_SCAN_INTERVAL,
             entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
         )
-        coordinator = EedomusDataUpdateCoordinator(hass, client, scan_interval)
+        
+        # Get disabled entities from options
+        disabled_entities = entry.options.get(
+            CONF_DISABLED_ENTITIES,
+            entry.data.get(CONF_DISABLED_ENTITIES, [])
+        )
+        
+        # Parse disabled entities string to list
+        if isinstance(disabled_entities, str) and disabled_entities.strip():
+            disabled_entities = [item.strip() for item in disabled_entities.split(",")]
+        elif not disabled_entities:
+            disabled_entities = []
+            
+        _LOGGER.info("Loading configuration with disabled entities: %s", disabled_entities)
+        
+        coordinator = EedomusDataUpdateCoordinator(hass, client, scan_interval, disabled_entities)
 
         # Perform initial full refresh only for API Eedomus mode
         try:

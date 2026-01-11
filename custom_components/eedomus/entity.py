@@ -267,6 +267,18 @@ class EedomusEntity(CoordinatorEntity):
             self._periph_id
         )
         
+        # Check if entity is disabled
+        if self.coordinator.is_entity_disabled(self._periph_id):
+            _LOGGER.warning(
+                "Attempt to set value '%s' on disabled entity %s (%s) - operation blocked",
+                value,
+                self._attr_name,
+                self._periph_id
+            )
+            raise Exception(
+                f"Cannot set value on disabled entity {self._attr_name} ({self._periph_id})"
+            )
+        
         try:
             # Call coordinator method to set the value
             response = await self.coordinator.async_set_periph_value(
