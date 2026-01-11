@@ -654,6 +654,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                         self.data[periph_id]["name"],
                         periph_id,
                     )
+                    # Return success response when PHP fallback succeeds
+                    return {"success": 1, "fallback_used": True}
                 else:
                     _LOGGER.warning(
                         "⚠️ PHP fallback failed for %s (%s): %s",
@@ -673,10 +675,12 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     await self.client.set_periph_value(
                         periph_id, next_value.get("value")
                     )
+                    # Return success response when next best value is used
+                    return {"success": 1, "fallback_used": True, "value_used": next_value.get("value")}
             else:
                 # Try next best value if PHP fallback is not enabled
                 next_value = self.next_best_value(periph_id, value)
-                _LOGGER.warn(
+                _LOGGER.warning(
                     "🔄 Retry enabled - trying next best value (%s => %s) for %s (%s)",
                     value,
                     next_value,
@@ -684,6 +688,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     periph_id,
                 )
                 await self.client.set_periph_value(periph_id, next_value.get("value"))
+                # Return success response when next best value is used
+                return {"success": 1, "fallback_used": True, "value_used": next_value.get("value")}
         elif ret.get("success") == 0:
             _LOGGER.error(
                 "❌ Set value failed for %s (%s): %s - retry disabled or not applicable",
@@ -708,6 +714,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             # This ensures UI updates instantly without waiting for coordinator refresh
             self.data[periph_id]["last_value"] = value
             self.data[periph_id]["last_updated"] = datetime.now().isoformat()
+            # Return success response for normal successful case
+            return ret
         # except Exception as e:
         #    _LOGGER.error(
         #        "Failed to set value for peripheral '%s': %s\ndata=%s\n\nalldata=%s",
