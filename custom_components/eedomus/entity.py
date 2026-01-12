@@ -353,8 +353,57 @@ class EedomusEntity(CoordinatorEntity):
             current_timestamp
         )
         
-        # Force immediate state update in Home Assistant
-        self.async_write_ha_state()
+        # Force immediate state update in Home Assistant using explicit state machine
+        # This ensures we control the timestamp precisely
+        try:
+            # Get the timestamp from last_value_change
+            last_value_change = self.coordinator.data[self._periph_id].get("last_value_change")
+            if last_value_change:
+                # Convert ISO format timestamp to datetime object
+                desired_dt = datetime.fromisoformat(last_value_change)
+                desired_ts = desired_dt.timestamp()
+                
+                _LOGGER.debug(
+                    "Setting explicit state for %s (%s) with timestamp %s",
+                    self._attr_name,
+                    self._periph_id,
+                    desired_ts
+                )
+                
+                # Use state machine to set state with precise timestamp
+                if hasattr(self, 'hass') and hasattr(self, 'entity_id'):
+                    self.hass.states.async_set(
+                        self.entity_id,
+                        str(self._attr_native_value) if hasattr(self, '_attr_native_value') else str(new_value),
+                        self.extra_state_attributes,
+                        force_update=True,
+                        timestamp=desired_ts,
+                    )
+                else:
+                    _LOGGER.warning(
+                        "Cannot set explicit state - missing hass or entity_id for %s (%s)",
+                        self._attr_name,
+                        self._periph_id
+                    )
+                    # Fallback to standard method
+                    self.async_write_ha_state()
+            else:
+                _LOGGER.warning(
+                    "No last_value_change timestamp available for %s (%s)",
+                    self._attr_name,
+                    self._periph_id
+                )
+                # Fallback to standard method
+                self.async_write_ha_state()
+        except Exception as e:
+            _LOGGER.error(
+                "Failed to set explicit state for %s (%s): %s",
+                self._attr_name,
+                self._periph_id,
+                e
+            )
+            # Fallback to standard method
+            self.async_write_ha_state()
         
         # Schedule a regular update to ensure consistency
         self.async_schedule_update_ha_state()
