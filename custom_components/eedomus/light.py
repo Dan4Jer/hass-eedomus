@@ -136,11 +136,11 @@ class EedomusLight(EedomusEntity, LightEntity):
 
         # Set supported features based on color modes
         if ColorMode.BRIGHTNESS in self._attr_supported_color_modes:
-            self._attr_supported_features = LightEntityFeature.BRIGHTNESS
+            self._attr_supported_features = 1  # BRIGHTNESS
         elif ColorMode.RGBW in self._attr_supported_color_modes:
-            self._attr_supported_features = LightEntityFeature.RGBW
+            self._attr_supported_features = 1 | 16  # BRIGHTNESS | RGBW
         elif ColorMode.COLOR_TEMP in self._attr_supported_color_modes:
-            self._attr_supported_features = LightEntityFeature.COLOR_TEMP
+            self._attr_supported_features = 2  # COLOR_TEMP
         else:
             self._attr_supported_features = 0
 
