@@ -127,19 +127,30 @@ class EedomusLight(EedomusEntity, LightEntity):
         periph_info = self.coordinator.data[periph_id]
         periph_type = periph_info.get("ha_subtype")
         periph_name = periph_info.get("name")
-        if periph_type == "brightness":
+        if periph_type == "brightness" or periph_type == "dimmable":
             self._attr_supported_color_modes = {ColorMode.BRIGHTNESS}
         if periph_type == "rgb" or periph_type == "rgbw":
             self._attr_supported_color_modes.add(ColorMode.RGBW)
         elif periph_type == "color_temp":
             self._attr_supported_color_modes.add(ColorMode.COLOR_TEMP)
 
+        # Set supported features based on color modes
+        if ColorMode.BRIGHTNESS in self._attr_supported_color_modes:
+            self._attr_supported_features = LightEntityFeature.BRIGHTNESS
+        elif ColorMode.RGBW in self._attr_supported_color_modes:
+            self._attr_supported_features = LightEntityFeature.RGBW
+        elif ColorMode.COLOR_TEMP in self._attr_supported_color_modes:
+            self._attr_supported_features = LightEntityFeature.COLOR_TEMP
+        else:
+            self._attr_supported_features = 0
+
         _LOGGER.debug(
-            "Initializing light entity for %s (%s) type=%s, supported_color_modes=%s",
+            "Initializing light entity for %s (%s) type=%s, supported_color_modes=%s, supported_features=%s",
             periph_name,
             periph_id,
             periph_type,
             self._attr_supported_color_modes,
+            self._attr_supported_features,
         )
 
     @property
