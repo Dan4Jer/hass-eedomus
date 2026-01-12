@@ -199,6 +199,11 @@ DEVICES_CLASS_MAPPING = {
                 "ha_subtype": "dimmable",
                 "justification": "Classe 94 (Notification) with GENERIC=11 and PRODUCT_TYPE_ID=258 maps to light for Spots Cuisine (periph_id=1145719)",
             },
+            "3": {
+                "ha_entity": "cover",
+                "ha_subtype": "shutter",
+                "justification": "Classe 94 (Notification) with GENERIC=11 and PRODUCT_TYPE_ID=3 maps to cover for Volet parent (periph_id=3445481)",
+            },
         },
         "ha_entity": "light",
         "ha_subtype": "dimmable",
