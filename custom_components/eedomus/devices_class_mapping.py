@@ -190,6 +190,20 @@ DEVICES_CLASS_MAPPING = {
     #     ],
     #     "justification": "Explication de la règle",
     # },
+    # --- Notification (94) ---
+    "94": {
+        "GENERIC": ["11"],
+        "PRODUCT_TYPE_ID": {
+            "258": {
+                "ha_entity": "light",
+                "ha_subtype": "dimmable",
+                "justification": "Classe 94 (Notification) with GENERIC=11 and PRODUCT_TYPE_ID=258 maps to light for Spots Cuisine (periph_id=1145719)",
+            },
+        },
+        "ha_entity": "light",
+        "ha_subtype": "dimmable",
+        "justification": "Classe 94 (Notification) with GENERIC=11 defaults to light/dimmable",
+    },
     # --- SwitchMultilevel (38) ---
     "38": {
         "GENERIC": ["11"],
