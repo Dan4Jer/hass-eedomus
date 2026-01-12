@@ -174,22 +174,26 @@ class EedomusLight(EedomusEntity, LightEntity):
         rgbw_color = kwargs.get(ATTR_RGBW_COLOR)
         color_temp_kelvin = kwargs.get(ATTR_COLOR_TEMP_KELVIN)
 
-        value = "on"
+        # Convert brightness from octal (0-255) to percentage (0-100) for eedomus API
         if brightness is not None:
-            value = f"on:{brightness}"
-        if rgbw_color is not None:
+            brightness_percent = self.octal_to_percent(brightness)
+            value = str(brightness_percent)
+        elif rgbw_color is not None:
             value = f"rgbw:{rgb_color[0]},{rgb_color[1]},{rgb_color[2]},{rgb_color[3]}"
-        if color_temp_kelvin is not None:
+        elif color_temp_kelvin is not None:
             value = f"color_temp:{color_temp_kelvin}"
+        else:
+            value = "100"  # Default to 100% if no brightness specified
 
         try:
             # Use entity method to turn on light (includes fallback, retry, and state update)
             response = await self.async_set_value(value)
             _LOGGER.debug(
-                "Light %s (%s) turned on with value: %s",
+                "Light %s (%s) turned on with value: %s (brightness: %s%%)",
                 self._attr_name,
                 self._periph_id,
                 value,
+                brightness_percent if brightness is not None else "default",
             )
 
         except Exception as e:
