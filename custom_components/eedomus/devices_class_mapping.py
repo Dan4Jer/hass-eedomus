@@ -202,6 +202,14 @@ DEVICES_CLASS_MAPPING = {
         },
         "ha_entity": "light",
         "ha_subtype": "dimmable",
+        "exceptions": [
+            {
+                "condition": "periph_id == '3445481'",
+                "ha_entity": "cover",
+                "ha_subtype": "shutter",
+                "justification": "Volet parent Chambre parent - forcer mapping à cover malgré class 94",
+            },
+        ],
         "justification": "Classe 94 (Notification) with GENERIC=11 defaults to light/dimmable",
     },
     # --- SwitchMultilevel (38) ---
