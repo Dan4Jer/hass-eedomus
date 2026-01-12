@@ -40,9 +40,9 @@ USAGE_ID_MAPPING = {
         "justification": "Eedomus internal indicators - messages, free space, etc.",
     },
     "14": {
-        "ha_entity": "cover",
-        "ha_subtype": "shutter",
-        "justification": "Périphérique Virtuel eedomus type groupement de volet - devrait être cover, pas select",
+        "ha_entity": "select",
+        "ha_subtype": "shutter_group",
+        "justification": "Périphérique Virtuel eedomus type groupement de volet/rebond alexa",
     },
     "15": {
         "ha_entity": "climate",
