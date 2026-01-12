@@ -40,9 +40,9 @@ USAGE_ID_MAPPING = {
         "justification": "Eedomus internal indicators - messages, free space, etc.",
     },
     "14": {
-        "ha_entity": "select",
-        "ha_subtype": "shutter_group",
-        "justification": "Périphérique Virtuel eedomus type groupement de volet/rebond alexa",
+        "ha_entity": "cover",
+        "ha_subtype": "shutter",
+        "justification": "Périphérique Virtuel eedomus type groupement de volet - devrait être cover, pas select",
     },
     "15": {
         "ha_entity": "climate",
@@ -212,6 +212,15 @@ DEVICES_CLASS_MAPPING = {
             "258": {  # Interrupteurs muraux Fibaro (ex: FGS-224)
                 "ha_entity": "switch",
                 "ha_subtype": None,
+                "exceptions": [
+                    {
+                        "condition": "usage_id == '1' or usage_id == '26'",
+                        "ha_entity": "light",
+                        "ha_subtype": "dimmable",
+                        "justification": "PRODUCT_TYPE_ID=258 with usage_id=1 or 26 should be light (spots/lamps), not switch",
+                        "example_periph_id": ["1145719", "1145721"],
+                    },
+                ],
                 "justification": "PRODUCT_TYPE_ID=258 correspond aux interrupteurs muraux Fibaro (ex: FGS-224).",
             },
         },
