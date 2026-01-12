@@ -158,7 +158,7 @@ class EedomusLight(EedomusEntity, LightEntity):
         """Return true if the light is on."""
         value = self.coordinator.data[self._periph_id].get("last_value")
         if type(value) == "NoneType" or value == "None":
-            return false
+            return False
 
         return value == "on"
 
@@ -184,7 +184,7 @@ class EedomusLight(EedomusEntity, LightEntity):
 
         try:
             # Use entity method to turn on light (includes fallback, retry, and state update)
-            response = await self.async_set_value("100")
+            response = await self.async_set_value(value)
             _LOGGER.debug(
                 "Light %s (%s) turned on with value: %s",
                 self._attr_name,
