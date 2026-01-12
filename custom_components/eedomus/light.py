@@ -160,7 +160,46 @@ class EedomusLight(EedomusEntity, LightEntity):
         if type(value) == "NoneType" or value == "None":
             return False
 
-        return value == "on"
+        # Light is on if value is not "0" (eedomus uses percentage values 0-100)
+        return value != "0" and value is not None
+
+    @property
+    def brightness(self):
+        """Return the brightness of the light (0-255)."""
+        if not self.is_on:
+            return 0
+            
+        # Get the current brightness value from eedomus (0-100 percentage)
+        brightness_percent = self.coordinator.data[self._periph_id].get("last_value", "0")
+        
+        try:
+            # Convert percentage (0-100) to octal (0-255) for Home Assistant
+            if brightness_percent == "on":
+                return 255  # Full brightness
+            brightness_octal = self.percent_to_octal(int(brightness_percent))
+            _LOGGER.debug(
+                "Brightness for %s (%s): percent=%s, octal=%s",
+                self._attr_name,
+                self._periph_id,
+                brightness_percent,
+                brightness_octal
+            )
+            return brightness_octal
+        except (ValueError, TypeError):
+            _LOGGER.warning(
+                "Invalid brightness value '%s' for %s (%s)",
+                brightness_percent,
+                self._attr_name,
+                self._periph_id
+            )
+            return 255  # Default to full brightness if value is invalid
+
+    @property
+    def color_mode(self):
+        """Return the color mode of the light."""
+        if ColorMode.BRIGHTNESS in self._attr_supported_color_modes:
+            return ColorMode.BRIGHTNESS
+        return ColorMode.ONOFF
 
     async def async_turn_on(self, **kwargs):
         """Turn the light on."""
