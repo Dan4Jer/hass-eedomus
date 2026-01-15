@@ -11,6 +11,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceResponse, callback
 from homeassistant.helpers import aiohttp_client
+import aiohttp
 
 from .api_proxy import EedomusApiProxyView
 from .webhook import EedomusWebhookView
