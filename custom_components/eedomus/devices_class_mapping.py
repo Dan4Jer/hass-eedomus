@@ -1,170 +1,227 @@
+"""
+Usage ID Mapping for eedomus devices.
+
+This mapping is used when Z-Wave class mapping fails or is not available.
+Each usage_id represents a specific device type or function in the eedomus ecosystem.
+
+Priority order for device mapping:
+1. Advanced rules (RGBW detection, parent-child relationships)
+2. Usage ID mapping (USAGE_ID_MAPPING)
+3. Z-Wave class mapping (DEVICES_CLASS_MAPPING)
+4. Name pattern matching
+5. Default to sensor:unknown
+
+Note: This mapping should be kept in sync with the device table generated
+from the eedomus API to ensure consistency.
+"""
+
+# Advanced mapping rules for complex device detection
+ADVANCED_MAPPING_RULES = {
+    "rgbw_lamp_with_children": {
+        "condition": lambda device_data, all_devices: (
+            device_data.get("usage_id") == "1" and
+            any(
+                child.get("usage_id") == "1" 
+                for child_id, child in all_devices.items()
+                if child.get("parent_periph_id") == device_data.get("periph_id")
+            )
+        ),
+        "ha_entity": "light",
+        "ha_subtype": "rgbw",
+        "justification": "Lampe RGBW avec enfants (Rouge, Vert, Bleu, Blanc)",
+        "child_mapping": {
+            "1": {"ha_entity": "light", "ha_subtype": "dimmable"}
+        }
+    },
+    "shutter_with_tilt": {
+        "condition": lambda device_data, all_devices: (
+            device_data.get("usage_id") == "48" and
+            any(
+                child.get("usage_id") == "48" 
+                for child_id, child in all_devices.items()
+                if child.get("parent_periph_id") == device_data.get("periph_id")
+            )
+        ),
+        "ha_entity": "cover",
+        "ha_subtype": "shutter",
+        "justification": "Volet avec contrôle d'inclinaison des lamelles",
+        "child_mapping": {
+            "48": {"ha_entity": "cover", "ha_subtype": "shutter"}
+        }
+    }
+}
+
 USAGE_ID_MAPPING = {
     # Format :
     # "usage_id": { #Si on a rien trouvé dans les class Zwave... on bricole avec le usage_id pour trouver le bon mapping
     #     "ha_entity": "type_d_entité_HA",
     #     "ha_subtype": "sous-type_HA" (optionnel),
+    #     "justification": "explication claire du mapping"
     # },
-    "0": {  # ??? à vérifier type télécommande à pile + détecteur d'innondation
+    "0": {
         "ha_entity": "switch",
         "ha_subtype": "",
-        "justification": "Not Z-Wave using usage_id=0",
+        "justification": "Unknown device type - default to switch",
     },
-    "1": {  # ??? à vérifier un sensor ?
-        "ha_entity": "switch",
-        "ha_subtype": "",
-        "justification": "Not Z-Wave using usage_id=1",
-    },
-    "1?": {  # ou lampe 1+1+1+1+1+1
+    "1": {
         "ha_entity": "light",
-        "ha_subtype": "rgbw",
-        "justification": "Not Z-Wave using usage_id=1",
+        "ha_subtype": "dimmable",
+        "justification": "Light device - usage_id=1 typically represents lamps and lighting",
+        "advanced_rules": ["rgbw_lamp_with_children"]
     },
-    "2": {  # ou 1
+    "2": {
         "ha_entity": "switch",
         "ha_subtype": "",
-        "justification": "Not Z-Wave using usage_id=2. Appareil électrique par défaut, mais peut être mappé comme sensor si c'est un consommateur.",
+        "justification": "Generic switch - usage_id=2 for basic on/off devices",
     },
     "4": {
         "ha_entity": "switch",
         "ha_subtype": "",
-        "justification": "Not Z-Wave using usage_id=4.",
+        "justification": "Generic switch - usage_id=4 for electrical appliances",
     },
     "7": {
         "ha_entity": "sensor",
         "ha_subtype": "temperature",
-        "justification": "Not Z-Wave using usage_id=7. Standard temperature sensor.",
-    },
-    "23": {  # Internal indicators (messages, free space, etc.)
-        "ha_entity": "sensor",
-        "ha_subtype": "internal_indicator",
-        "justification": "Eedomus internal indicators - messages, free space, etc.",
+        "justification": "Temperature sensor - usage_id=7 for temperature monitoring",
     },
     "14": {
         "ha_entity": "select",
         "ha_subtype": "shutter_group",
-        "justification": "Périphérique Virtuel eedomus type groupement de volet/rebond alexa",
+        "justification": "Virtual device for shutter grouping and Alexa integration",
     },
     "15": {
         "ha_entity": "climate",
         "ha_subtype": "temperature_setpoint",
-        "justification": "Périphérique Virtuel Consigne de chauffage - thermostat virtuel",
+        "justification": "Virtual thermostat for heating setpoint control",
     },
     "18": {
-        "ha_entity": "texte",
-        "ha_subtype": "",
-        "justification": "Journée en cours eedomus",
+        "ha_entity": "sensor",
+        "ha_subtype": "text",
+        "justification": "Current day information from eedomus",
     },
-    "19": {  # fil pilote
+    "19": {
         "ha_entity": "climate",
         "ha_subtype": "fil_pilote",
-        "justification": "Consigne de température eedomus - chauffage fil pilote",
+        "justification": "Fil pilote heating system control - usage_id=19",
     },
-    "20": {  # fil pilote
+    "20": {
         "ha_entity": "climate",
         "ha_subtype": "fil_pilote",
-        "justification": "Consigne de température eedomus - chauffage fil pilote",
+        "justification": "Fil pilote heating system control - usage_id=20",
     },
     "22": {
         "ha_entity": "sensor",
         "ha_subtype": "moisture",
-        "justification": "Sonoff SNZB-02D/SNZB-02P via Zigate",
+        "justification": "Moisture sensor - Sonoff SNZB-02D/SNZB-02P via Zigate",
     },
     "23": {
         "ha_entity": "sensor",
         "ha_subtype": "cpu",
-        "justification": "CPU box eedomus",
+        "justification": "CPU usage monitor - eedomus internal system monitoring",
     },
-    "24": {  # 1+1
+    "24": {
         "ha_entity": "sensor",
-        "ha_subtype": "luminosity",
-        "justification": "Not Z-Wave using usage_id=24.",
-    },
-    "37": {  # Motion sensors
-        "ha_entity": "binary_sensor",
-        "ha_subtype": "motion",
-        "justification": "Motion detection sensors - usage_id=37",
+        "ha_subtype": "illuminance",
+        "justification": "Luminosity sensor - usage_id=24 for light level monitoring",
     },
     "26": {
         "ha_entity": "sensor",
-        "ha_subtype": "",
-        "justification": "compteur eedomus virtuel de consomation. Consomètre",
+        "ha_subtype": "energy",
+        "justification": "Energy consumption meter - virtual eedomus consumption counter",
     },
-    "27": {  # detecteur de fumée
-        "ha_entity": "sensor",
+    "27": {
+        "ha_entity": "binary_sensor",
         "ha_subtype": "smoke",
-        "justification": "Not Z-Wave using usage_id=27.",
+        "justification": "Smoke detector - usage_id=27 for fire/smoke detection",
     },
     "34": {
-        "ha_entity": "text",
-        "ha_subtype": "",
-        "justification": "Phase de la journée Eedomus",
+        "ha_entity": "sensor",
+        "ha_subtype": "text",
+        "justification": "Day phase information from eedomus",
     },
     "35": {
-        "ha_entity": "sensor ou text",
-        "ha_subtype": "",
-        "justification": "App Eedomus ex Elevation soleil/Azimut soleil/Freebox/compteur temps de fonctionnement chauffage/appel api XIAOMI/saison",
+        "ha_entity": "sensor",
+        "ha_subtype": "text",
+        "justification": "Miscellaneous eedomus app data (sun elevation, azimuth, etc.)",
     },
     "36": {
         "ha_entity": "binary_sensor",
         "ha_subtype": "moisture",
-        "justification": "Inondation ",
+        "justification": "Flood/water detector - usage_id=36 for water leakage detection",
     },
-    # Removed duplicate mapping for usage_id=37 as it's already correctly mapped in USAGE_ID_MAPPING
-    # "37": { #detecteur de mouvement
-    #     "ha_entity": "sensor",
-    #     "ha_subtype": "motion",
-    #     "justification": "Not Z-Wave using usage_id=37."
-    # },
-    "38": {  # fil pilote
+    "37": {
+        "ha_entity": "binary_sensor",
+        "ha_subtype": "motion",
+        "justification": "Motion detector - usage_id=37 for movement detection",
+    },
+    "38": {
         "ha_entity": "climate",
-        "ha_subtype": "",
-        "justification": "Not Z-Wave using usage_id=38.",
+        "ha_subtype": "fil_pilote",
+        "justification": "Fil pilote heating control - usage_id=38",
     },
     "42": {
         "ha_entity": "select",
         "ha_subtype": "shutter_group",
-        "justification": "Centralisation des ouvertures de volets eedomus",
+        "justification": "Shutter centralization control - eedomus virtual device",
     },
     "43": {
         "ha_entity": "select",
         "ha_subtype": "automation",
-        "justification": "Scene Eedomus (Périphérique Virtuel) - type autre",
+        "justification": "Eedomus scene trigger - virtual device for automation",
     },
     "48": {
         "ha_entity": "cover",
         "ha_subtype": "shutter",
-        "justification": "Not Z-Wave using usage_id=48 for shutters.",
+        "justification": "Shutter/blind control - usage_id=48 for window coverings",
+        "advanced_rules": ["shutter_with_tilt"]
     },
     "50": {
         "ha_entity": "switch",
         "ha_subtype": "",
-        "justification": "Intimité caméra ??? 1518731",
+        "justification": "Camera privacy control - usage_id=50 for camera intimacy",
     },
     "52": {
         "ha_entity": "switch",
         "ha_subtype": "",
-        "justification": "Interupteur Sonoff / Télécommande",
+        "justification": "Sonoff switch/remote control - usage_id=52",
     },
     "82": {
         "ha_entity": "select",
         "ha_subtype": "color_preset",
-        "justification": "Couleurs prédéfinies pour les devices RGBW - mappé comme select entity",
+        "justification": "RGBW color preset selection - usage_id=82",
     },
     "84": {
-        "ha_entity": "calendar ou texte",
-        "ha_subtype": "",
-        "justification": "Type de journée eedomus dans le calendrier",
+        "ha_entity": "sensor",
+        "ha_subtype": "text",
+        "justification": "Calendar day type information from eedomus",
     },
     "114": {
         "ha_entity": "sensor",
-        "ha_subtype": "",
-        "justification": "App Eedomus ex Détection réseau",
+        "ha_subtype": "text",
+        "justification": "Network detection status - eedomus app data",
     },
     "127": {
-        "ha_entity": "text",
-        "ha_subtype": "",
-        "justification": "Not Z-Wave using usage_id=127.",
+        "ha_entity": "sensor",
+        "ha_subtype": "text",
+        "justification": "Miscellaneous text data - usage_id=127",
     },
+    # Additional common usage_ids that may be encountered
+    "999": {
+        "ha_entity": "select",
+        "ha_subtype": "virtual",
+        "justification": "Virtual device - eedomus scene triggers and automation",
+    },
+}
+
+
+# Common device patterns for additional mapping logic
+COMMON_DEVICE_PATTERNS = {
+    "motion": ["mouvement", "motion", "détection"],
+    "smoke": ["fumée", "smoke", "incendie"],
+    "flood": ["inondation", "flood", "eau"],
+    "temperature": ["température", "temperature", "thermostat"],
+    "shutter": ["volet", "shutter", "store", "rideau"],
+    "light": ["lumière", "light", "lampe", "spot"],
 }
 
 DEVICES_CLASS_MAPPING = {

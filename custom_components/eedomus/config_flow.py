@@ -20,7 +20,7 @@ from .const import (
     CONF_API_PROXY_DISABLE_SECURITY,
     CONF_API_SECRET,
     CONF_API_USER,
-    CONF_DISABLED_ENTITIES,
+
     CONF_ENABLE_API_EEDOMUS,
     CONF_ENABLE_API_PROXY,
     CONF_ENABLE_HISTORY,
@@ -36,7 +36,7 @@ from .const import (
     DEFAULT_API_USER,
     DEFAULT_CONF_ENABLE_API_EEDOMUS,
     DEFAULT_CONF_ENABLE_API_PROXY,
-    DEFAULT_DISABLED_ENTITIES,
+
     DEFAULT_ENABLE_SET_VALUE_RETRY,
     DEFAULT_ENABLE_WEBHOOK,
     DEFAULT_PHP_FALLBACK_ENABLED,
@@ -126,9 +126,6 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Optional(
             CONF_PHP_FALLBACK_TIMEOUT, default=DEFAULT_PHP_FALLBACK_TIMEOUT
         ): int,
-        vol.Optional(
-            CONF_DISABLED_ENTITIES, default=DEFAULT_DISABLED_ENTITIES
-        ): str,
     }
 )
 
@@ -276,9 +273,6 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         ),
                         CONF_PHP_FALLBACK_TIMEOUT: data.get(
                             CONF_PHP_FALLBACK_TIMEOUT, DEFAULT_PHP_FALLBACK_TIMEOUT
-                        ),
-                        CONF_DISABLED_ENTITIES: data.get(
-                            CONF_DISABLED_ENTITIES, DEFAULT_DISABLED_ENTITIES
                         ),
                     },
                     subentries_data=None,

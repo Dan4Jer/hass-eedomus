@@ -18,7 +18,7 @@ from .const import (
     CLASS_MAPPING,
     CONF_API_HOST,
     CONF_API_PROXY_DISABLE_SECURITY,
-    CONF_DISABLED_ENTITIES,
+
     CONF_ENABLE_API_EEDOMUS,
     CONF_ENABLE_API_PROXY,
     CONF_ENABLE_HISTORY,
@@ -109,21 +109,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
         )
         
-        # Get disabled entities from options
-        disabled_entities = entry.options.get(
-            CONF_DISABLED_ENTITIES,
-            entry.data.get(CONF_DISABLED_ENTITIES, [])
-        )
-        
-        # Parse disabled entities string to list
-        if isinstance(disabled_entities, str) and disabled_entities.strip():
-            disabled_entities = [item.strip() for item in disabled_entities.split(",")]
-        elif not disabled_entities:
-            disabled_entities = []
-            
-        _LOGGER.info("Loading configuration with disabled entities: %s", disabled_entities)
-        
-        coordinator = EedomusDataUpdateCoordinator(hass, client, scan_interval, disabled_entities)
+        coordinator = EedomusDataUpdateCoordinator(hass, client, scan_interval)
 
         # Perform initial full refresh only for API Eedomus mode
         try:
@@ -280,7 +266,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
         _LOGGER.info("Removing all entities associated with eedomus integration")
         
         # Get all entities from the entity registry
-        entity_registry = await hass.helpers.entity_registry.async_get_registry()
+        entity_registry = await hass.helpers.entity_registry.async_get(hass)
 
         # Find all entities that belong to this integration
         entities_to_remove = []

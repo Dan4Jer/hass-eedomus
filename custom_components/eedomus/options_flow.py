@@ -12,13 +12,13 @@ from homeassistant.data_entry_flow import FlowResult
 
 from .const import (
     CONF_API_PROXY_DISABLE_SECURITY,
-    CONF_DISABLED_ENTITIES,
+
     CONF_ENABLE_SET_VALUE_RETRY,
     CONF_ENABLE_WEBHOOK,
     CONF_REMOVE_ENTITIES,
     CONF_SCAN_INTERVAL,
     DEFAULT_API_PROXY_DISABLE_SECURITY,
-    DEFAULT_DISABLED_ENTITIES,
+
     DEFAULT_ENABLE_SET_VALUE_RETRY,
     DEFAULT_ENABLE_WEBHOOK,
     DEFAULT_REMOVE_ENTITIES,
@@ -106,16 +106,6 @@ class EedomusOptionsFlowHandler(config_entries.OptionsFlow):
                             ),
                         ),
                     ): bool,
-                    vol.Optional(
-                        CONF_DISABLED_ENTITIES,
-                        default=self.config_entry.options.get(
-                            CONF_DISABLED_ENTITIES,
-                            self.config_entry.data.get(
-                                CONF_DISABLED_ENTITIES,
-                                DEFAULT_DISABLED_ENTITIES,
-                            ),
-                        ),
-                    ): str,
                 }
             ),
             description_placeholders={
@@ -125,9 +115,6 @@ class EedomusOptionsFlowHandler(config_entries.OptionsFlow):
                 "scan_interval_note": "Scan interval in seconds (minimum 30 seconds recommended)",
                 "remove_entities_note": "⚠️ WARNING: This option will remove all entities associated with this integration when the integration is removed. "
                 "This action cannot be undone. Make sure you have a backup of your configuration.",
-                "disabled_entities_note": "🔧 Enter a comma-separated list of peripheral IDs to disable. "
-                "Disabled entities will not be created or updated, and no actions can be performed on them. "
-                "Example: 12345,67890,11111"
             },
         )
 

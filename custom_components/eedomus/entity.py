@@ -139,7 +139,7 @@ class EedomusEntity(CoordinatorEntity):
 
             # Map standard eedomus attributes
             for eedomus_key, ha_key in EEDOMUS_TO_HA_ATTR_MAPPING.items():
-                if eedomus_key != "usage_id" and eedomus_key in periph_data:
+                if eedomus_key in periph_data:
                     attrs[ha_key] = periph_data[eedomus_key]
             
             # Format all timestamp fields using the centralized utility
@@ -148,6 +148,10 @@ class EedomusEntity(CoordinatorEntity):
             
             # Add current timestamp for last_updated (when HA last updated this entity)
             attrs["last_updated"] = datetime.now().isoformat()
+            
+            # Ensure usage_id is always included in attributes
+            if "usage_id" in periph_data:
+                attrs["usage_id"] = periph_data["usage_id"]
             
         return attrs
 
@@ -267,17 +271,7 @@ class EedomusEntity(CoordinatorEntity):
             self._periph_id
         )
         
-        # Check if entity is disabled
-        if self.coordinator.is_entity_disabled(self._periph_id):
-            _LOGGER.warning(
-                "Attempt to set value '%s' on disabled entity %s (%s) - operation blocked",
-                value,
-                self._attr_name,
-                self._periph_id
-            )
-            raise Exception(
-                f"Cannot set value on disabled entity {self._attr_name} ({self._periph_id})"
-            )
+
         
         try:
             # Call coordinator method to set the value
@@ -409,43 +403,118 @@ class EedomusEntity(CoordinatorEntity):
         self.async_schedule_update_ha_state()
 
 
-def map_device_to_ha_entity(device_data, default_ha_entity: str = "sensor"):
+def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: str = "sensor"):
     """Mappe un périphérique eedomus vers une entité Home Assistant.
+    
+    Nouvelle logique de mapping basée sur usage_id avec règles avancées.
+    
     Args:
-          device_data (dict): Données du périphérique.
-          default_ha_entity (str): HA entity a utiliser si pas trouvé
+        device_data (dict): Données du périphérique.
+        all_devices (dict): Tous les périphériques pour les règles avancées.
+        default_ha_entity (str): HA entity à utiliser si pas trouvé.
+    
     Returns:
-          dict: {"ha_entity": str, "ha_subtype": str, "justification": str}
+        dict: {"ha_entity": str, "ha_subtype": str, "justification": str}
     """
     _LOGGER.debug(
         "Starting mapping for %s (%s)", device_data["name"], device_data["periph_id"]
     )
 
-    supported_classes = (
-        device_data.get("SUPPORTED_CLASSES", "").split(",")
-        if isinstance(device_data.get("SUPPORTED_CLASSES"), str)
-        else []
-    )
-    generic = device_data.get("GENERIC", "")
-    product_type_id = device_data.get("PRODUCT_TYPE_ID", "")
-    specific = device_data.get("SPECIFIC", "")
+    # 1. Vérifier d'abord les règles avancées (basées sur les relations parent-enfant)
+    if all_devices:
+        for rule_name, rule_config in ADVANCED_MAPPING_RULES.items():
+            if rule_config["condition"](device_data, all_devices):
+                mapping = {
+                    "ha_entity": rule_config["ha_entity"],
+                    "ha_subtype": rule_config["ha_subtype"],
+                    "justification": f"Advanced rule {rule_name}: {rule_config['justification']}",
+                }
+                _LOGGER.info(
+                    "🎯 Advanced rule mapping for %s (%s): %s",
+                    device_data["name"],
+                    device_data["periph_id"],
+                    mapping,
+                )
+                return mapping
 
-    # Vérifier d'abord si c'est un capteur de fumée (basé uniquement sur usage_id)
-    if device_data.get("usage_id") == "27":
+    # 2. Vérifier les cas spécifiques prioritaires (basés uniquement sur usage_id)
+    usage_id = device_data.get("usage_id")
+    
+    # Cas spécifiques qui doivent être traités en priorité
+    if usage_id == "27":  # Capteur de fumée
         mapping = {
             "ha_entity": "binary_sensor",
             "ha_subtype": "smoke",
             "justification": f"Smoke detector: usage_id=27",
         }
         _LOGGER.info(
-            "Smoke sensor mapping for %s (%s): %s",
+            "🔥 Smoke sensor mapping for %s (%s): %s",
             device_data["name"],
             device_data["periph_id"],
             mapping,
         )
         return mapping
 
-    # Vérifier si c'est un périphérique de messages (basé sur le nom)
+    if usage_id == "23":  # Indicateur CPU
+        mapping = {
+            "ha_entity": "sensor",
+            "ha_subtype": "cpu_usage",
+            "justification": f"CPU usage monitor: usage_id=23",
+        }
+        _LOGGER.info(
+            "💻 CPU usage sensor mapping for %s (%s): %s",
+            device_data["name"],
+            device_data["periph_id"],
+            mapping,
+        )
+        return mapping
+
+    if usage_id == "37":  # Capteur de mouvement
+        mapping = {
+            "ha_entity": "binary_sensor",
+            "ha_subtype": "motion",
+            "justification": f"usage_id=37: Capteur de mouvement (prioritaire)",
+        }
+        _LOGGER.info(
+            "🚶 Motion sensor mapping for %s (%s): %s",
+            device_data["name"],
+            device_data["periph_id"],
+            mapping,
+        )
+        return mapping
+
+    # 3. Appliquer le mapping basé sur usage_id
+    if usage_id in USAGE_ID_MAPPING:
+        mapping = USAGE_ID_MAPPING[usage_id].copy()
+        
+        # Vérifier si des règles avancées sont définies pour ce usage_id
+        if "advanced_rules" in mapping:
+            for rule_name in mapping["advanced_rules"]:
+                if rule_name in ADVANCED_MAPPING_RULES:
+                    rule_config = ADVANCED_MAPPING_RULES[rule_name]
+                    if rule_config["condition"](device_data, all_devices or {}):
+                        mapping.update({
+                            "ha_entity": rule_config["ha_entity"],
+                            "ha_subtype": rule_config["ha_subtype"],
+                            "justification": f"Advanced rule {rule_name}: {rule_config['justification']}",
+                        })
+                        _LOGGER.info(
+                            "🎯 Advanced rule applied for %s (%s): %s",
+                            device_data["name"],
+                            device_data["periph_id"],
+                            mapping,
+                        )
+                        break
+        
+        _LOGGER.debug(
+            "Usage ID mapping for %s (%s): %s",
+            device_data["name"],
+            device_data["periph_id"],
+            mapping,
+        )
+        return mapping
+
+    # 4. Vérifier les cas spécifiques basés sur le nom (en dernier recours)
     device_name_lower = device_data["name"].lower()
     if "message" in device_name_lower and "box" in device_name_lower:
         mapping = {
@@ -461,155 +530,17 @@ def map_device_to_ha_entity(device_data, default_ha_entity: str = "sensor"):
         )
         return mapping
 
-    # Vérifier si c'est un indicateur CPU (basé uniquement sur usage_id)
-    if device_data.get("usage_id") == "23":
-        mapping = {
-            "ha_entity": "sensor",
-            "ha_subtype": "cpu_usage",
-            "justification": f"CPU usage monitor: usage_id=23",
-        }
-        _LOGGER.info(
-            "CPU usage sensor mapping for %s (%s): %s",
-            device_data["name"],
-            device_data["periph_id"],
-            mapping,
-        )
-        return mapping
-
-    # Vérifier d'abord si c'est un périphérique virtuel (PRODUCT_TYPE_ID=999)
-    if product_type_id == "999":
-        mapping = {
-            "ha_entity": "select",
-            "ha_subtype": "virtual",
-            "justification": f"PRODUCT_TYPE_ID=999: Périphérique virtuel eedomus pour scène",
-        }
-        _LOGGER.debug(
-            "Virtual device mapping for %s (%s): %s",
-            device_data["name"],
-            device_data["periph_id"],
-            mapping,
-        )
-        return mapping
-
-    # Vérifier les PRODUCT_TYPE_ID spécifiques qui doivent être prioritaires
-    if product_type_id == "770":  # Volets Fibaro
-        mapping = {
-            "ha_entity": "cover",
-            "ha_subtype": "shutter",
-            "justification": f"PRODUCT_TYPE_ID=770: Volet Fibaro (prioritaire sur usage_id)",
-        }
-        _LOGGER.debug(
-            "Fibaro shutter mapping for %s (%s): %s",
-            device_data["name"],
-            device_data["periph_id"],
-            mapping,
-        )
-        return mapping
-
-    if product_type_id == "4" and device_data.get("usage_id") in [
-        "38",
-        "19",
-        "20",
-    ]:  # Chauffages fil pilote
-        mapping = {
-            "ha_entity": "climate",
-            "ha_subtype": "fil_pilote",
-            "justification": f"PRODUCT_TYPE_ID=4 avec usage_id={device_data.get('usage_id')}: Chauffage fil pilote (prioritaire)",
-        }
-        _LOGGER.debug(
-            "Fil pilote climate mapping for %s (%s): %s",
-            device_data["name"],
-            device_data["periph_id"],
-            mapping,
-        )
-        return mapping
-
-    # Vérifier les exceptions basées sur usage_id avant le mapping par classe
-    # Cas spécial: usage_id=37 (motion) doit être binary_sensor même avec classe 32
-    if device_data.get("usage_id") == "37":
-        mapping = {
-            "ha_entity": "binary_sensor",
-            "ha_subtype": "motion",
-            "justification": f"usage_id=37: Capteur de mouvement (prioritaire sur classe Z-Wave)",
-        }
-        _LOGGER.info(
-            "🚶 Motion sensor mapping for %s (%s): %s",
-            device_data["name"],
-            device_data["periph_id"],
-            mapping,
-        )
-        return mapping
-
-    zwave_class = None
-    for cls in supported_classes:
-        cls_num = cls.split(":")[0]  # Extraire le numéro de classe (ex: "38:3" → "38")
-        if (
-            cls_num in DEVICES_CLASS_MAPPING
-            and DEVICES_CLASS_MAPPING[cls_num]["ha_entity"] is not None
-        ):
-            # Vérifier si GENERIC est compatible
-            if (
-                not DEVICES_CLASS_MAPPING[cls_num]["GENERIC"]
-                or generic in DEVICES_CLASS_MAPPING[cls_num]["GENERIC"]
-            ):
-                zwave_class = cls_num
-                break
-
-    # 2. Appliquer le mapping initial (basé sur SUPPORTED_CLASSES, GENERIC, et PRODUCT_TYPE_ID)
-    if zwave_class:
-        # Vérifier si PRODUCT_TYPE_ID est défini dans DEVICES_CLASS_MAPPING
-        if product_type_id and product_type_id in DEVICES_CLASS_MAPPING[
-            zwave_class
-        ].get("PRODUCT_TYPE_ID", {}):
-            product_mapping = DEVICES_CLASS_MAPPING[zwave_class]["PRODUCT_TYPE_ID"][
-                product_type_id
-            ]
-            mapping = {
-                "ha_entity": product_mapping["ha_entity"],
-                "ha_subtype": product_mapping.get("ha_subtype"),
-                "justification": f"Classe {zwave_class} + PRODUCT_TYPE_ID={product_type_id}: {product_mapping['justification']}",
-            }
-        else:
-            # Utiliser le mapping par défaut
-            mapping = {
-                "ha_entity": DEVICES_CLASS_MAPPING[zwave_class]["ha_entity"],
-                "ha_subtype": DEVICES_CLASS_MAPPING[zwave_class].get("ha_subtype"),
-                "justification": f"Classe {zwave_class} + GENERIC={generic}: {DEVICES_CLASS_MAPPING[zwave_class]['justification']}",
-            }
-
-        # Vérifier les exceptions basées sur SPECIFIC uniquement (pas de mapping basé sur le nom)
-        for exception in DEVICES_CLASS_MAPPING[zwave_class].get("exceptions", []):
-            condition = exception["condition"]
-            if "SPECIFIC=6" in condition and specific == "6":
-                mapping = exception
-                mapping["justification"] = (
-                    f"Exception: {condition} for {device_data['periph_id']}"
-                )
-                break
-            # Note: Nous ne faisons PAS de mapping basé sur le nom des périphériques
-            # Les exceptions basées sur le nom ont été supprimées pour une approche plus robuste
-
-    else:
-        mapping = USAGE_ID_MAPPING.get(device_data["usage_id"])
-
-    if mapping is None:
-        mapping = {
-            "ha_entity": default_ha_entity,
-            "ha_subtype": "unknown",
-            "justification": "Unknown",
-        }
-        _LOGGER.warning(
-            "No mapping found for %s (%s) trying %s... data=%s",
-            device_data["name"],
-            device_data["periph_id"],
-            mapping,
-            device_data,
-        )
-
-    _LOGGER.debug(
-        "Mapping for %s (%s) trying mapping=%s",
+    # 5. Mapping par défaut
+    mapping = {
+        "ha_entity": default_ha_entity,
+        "ha_subtype": "unknown",
+        "justification": "Unknown device type",
+    }
+    _LOGGER.warning(
+        "❓ No mapping found for %s (%s): %s. Data: %s",
         device_data["name"],
         device_data["periph_id"],
         mapping,
+        device_data,
     )
     return mapping

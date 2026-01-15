@@ -100,6 +100,7 @@ La documentation complète est disponible dans le dossier [docs/](docs/) :
 - **[BATTERY_SENSOR_EXAMPLE.md](docs/BATTERY_SENSOR_EXAMPLE.md)** - Exemples de capteurs de batterie
 - **[SCENE_TO_SELECT_MIGRATION.md](docs/SCENE_TO_SELECT_MIGRATION.md)** - Migration des scènes vers select
 - **[TESTING_GUIDE.md](docs/TESTING_GUIDE.md)** - Guide complet de test
+- **[DEVICE_MAPPING_TABLE.md](docs/DEVICE_MAPPING_TABLE.md)** - Tableau complet des mappings périphériques
 - **[MERMAID_CONVERSION_SUMMARY.md](docs/MERMAID_CONVERSION_SUMMARY.md)** - Résumé des diagrammes
 
 ## 🖼️ Aperçu de l'Interface Options Flow
