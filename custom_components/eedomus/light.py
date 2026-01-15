@@ -134,13 +134,13 @@ class EedomusLight(EedomusEntity, LightEntity):
         elif periph_type == "color_temp":
             self._attr_supported_color_modes.add(ColorMode.COLOR_TEMP)
 
-        # Set supported features based on color modes
+        # Set supported features based on color modes (using LightEntityFeature enum)
         if ColorMode.BRIGHTNESS in self._attr_supported_color_modes:
-            self._attr_supported_features = 1  # BRIGHTNESS
+            self._attr_supported_features = LightEntityFeature.BRIGHTNESS
         elif ColorMode.RGBW in self._attr_supported_color_modes:
-            self._attr_supported_features = 1 | 16  # BRIGHTNESS | RGBW
+            self._attr_supported_features = LightEntityFeature.BRIGHTNESS | LightEntityFeature.RGBW
         elif ColorMode.COLOR_TEMP in self._attr_supported_color_modes:
-            self._attr_supported_features = 2  # COLOR_TEMP
+            self._attr_supported_features = LightEntityFeature.COLOR_TEMP
         else:
             self._attr_supported_features = 0
 
@@ -285,9 +285,7 @@ class EedomusRGBWLight(EedomusLight):
             #           ColorMode.XY,  # Ajoute le support du mode XY
             #           ColorMode.COLOR_TEMP
         }
-        self._supported_features = LightEntityFeature.EFFECT | LightEntityFeature(
-            0
-        )  # Support pour le mode RGBW
+        self._supported_features = LightEntityFeature.EFFECT | LightEntityFeature.RGBW
         self._global_brightness_percent = 0
         self._red_percent = 0
         self._green_percent = 0
