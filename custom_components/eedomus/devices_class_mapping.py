@@ -20,15 +20,14 @@ ADVANCED_MAPPING_RULES = {
     "rgbw_lamp_with_children": {
         "condition": lambda device_data, all_devices: (
             device_data.get("usage_id") == "1" and
-            any(
-                child.get("usage_id") == "1" 
-                for child_id, child in all_devices.items()
-                if child.get("parent_periph_id") == device_data.get("periph_id")
-            )
+            sum(
+                1 for child_id, child in all_devices.items()
+                if child.get("parent_periph_id") == device_data.get("periph_id") and child.get("usage_id") == "1"
+            ) >= 4  # Au moins 4 enfants avec usage_id=1 (Rouge, Vert, Bleu, Blanc)
         ),
         "ha_entity": "light",
         "ha_subtype": "rgbw",
-        "justification": "Lampe RGBW avec enfants (Rouge, Vert, Bleu, Blanc)",
+        "justification": "Lampe RGBW avec 4 enfants ou plus (Rouge, Vert, Bleu, Blanc)",
         "child_mapping": {
             "1": {"ha_entity": "light", "ha_subtype": "dimmable"}
         }
