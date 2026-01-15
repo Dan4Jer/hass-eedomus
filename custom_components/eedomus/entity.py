@@ -9,7 +9,7 @@ from homeassistant.helpers.entity import DeviceInfo, Entity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import ATTR_PERIPH_ID, DOMAIN, EEDOMUS_TO_HA_ATTR_MAPPING
-from .devices_class_mapping import DEVICES_CLASS_MAPPING, USAGE_ID_MAPPING, ADVANCED_MAPPING_RULES
+from .device_mapping import DEVICES_CLASS_MAPPING, USAGE_ID_MAPPING, ADVANCED_MAPPING_RULES
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -406,88 +406,67 @@ class EedomusEntity(CoordinatorEntity):
 def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: str = "sensor"):
     """Mappe un périphérique eedomus vers une entité Home Assistant.
     
-    Nouvelle logique de mapping basée sur usage_id avec règles avancées.
+    Logique de mapping simplifiée et optimisée :
+    1. Règles avancées (relations parent-enfant)
+    2. Cas spécifiques prioritaires (usage_id)
+    3. Mapping basé sur usage_id
+    4. Détection par nom (dernier recours)
+    5. Mapping par défaut
     
     Args:
         device_data (dict): Données du périphérique.
         all_devices (dict): Tous les périphériques pour les règles avancées.
-        default_ha_entity (str): HA entity à utiliser si pas trouvé.
+        default_ha_entity (str): Entité HA par défaut.
     
     Returns:
         dict: {"ha_entity": str, "ha_subtype": str, "justification": str}
     """
-    _LOGGER.debug(
-        "Starting mapping for %s (%s)", device_data["name"], device_data["periph_id"]
-    )
-
-    # 1. Vérifier d'abord les règles avancées (basées sur les relations parent-enfant)
-    if all_devices:
-        for rule_name, rule_config in ADVANCED_MAPPING_RULES.items():
-            if rule_config["condition"](device_data, all_devices):
-                mapping = {
-                    "ha_entity": rule_config["ha_entity"],
-                    "ha_subtype": rule_config["ha_subtype"],
-                    "justification": f"Advanced rule {rule_name}: {rule_config['justification']}",
-                }
-                _LOGGER.info(
-                    "🎯 Advanced rule mapping for %s (%s): %s",
-                    device_data["name"],
-                    device_data["periph_id"],
-                    mapping,
-                )
-                return mapping
-
-    # 2. Vérifier les cas spécifiques prioritaires (basés uniquement sur usage_id)
+    periph_id = device_data["periph_id"]
+    periph_name = device_data["name"]
     usage_id = device_data.get("usage_id")
     
-    # Cas spécifiques qui doivent être traités en priorité
-    if usage_id == "27":  # Capteur de fumée
-        mapping = {
-            "ha_entity": "binary_sensor",
-            "ha_subtype": "smoke",
-            "justification": f"Smoke detector: usage_id=27",
-        }
-        _LOGGER.info(
-            "🔥 Smoke sensor mapping for %s (%s): %s",
-            device_data["name"],
-            device_data["periph_id"],
-            mapping,
+    _LOGGER.debug("Mapping device: %s (%s, usage_id=%s)", periph_name, periph_id, usage_id)
+    
+    # Priorité 1: Règles avancées (nécessite all_devices)
+    if all_devices:
+        _LOGGER.debug("Checking advanced rules for %s (%s)", periph_name, periph_id)
+        for rule_name, rule_config in ADVANCED_MAPPING_RULES.items():
+            condition_result = rule_config["condition"](device_data, all_devices)
+            _LOGGER.debug("Advanced rule '%s' for %s (%s): condition_result=%s",
+                         rule_name, periph_name, periph_id, condition_result)
+            
+            if condition_result:
+                # Log spécifique pour le débogage RGBW
+                if rule_name == "rgbw_lamp_with_children":
+                    rgbw_children = [
+                        child for child_id, child in all_devices.items()
+                        if child.get("parent_periph_id") == periph_id and child.get("usage_id") == "1"
+                    ]
+                    _LOGGER.debug("RGBW detection for %s (%s): found %d children with usage_id=1: %s",
+                                periph_name, periph_id, len(rgbw_children),
+                                [c["name"] for c in rgbw_children])
+                
+                return _create_mapping(rule_config, periph_name, periph_id, rule_name, "🎯 Advanced rule")
+    
+    # Priorité 2: Cas spécifiques critiques (usage_id)
+    specific_cases = {
+        "27": ("binary_sensor", "smoke", "🔥 Smoke detector", "fire"),
+        "23": ("sensor", "cpu_usage", "💻 CPU monitor", "info"),
+        "37": ("binary_sensor", "motion", "🚶 Motion sensor", "walking"),
+    }
+    
+    if usage_id in specific_cases:
+        ha_entity, ha_subtype, log_msg, emoji = specific_cases[usage_id]
+        return _create_mapping(
+            {"ha_entity": ha_entity, "ha_subtype": ha_subtype, "justification": f"{log_msg}: usage_id={usage_id}"},
+            periph_name, periph_id, usage_id, emoji
         )
-        return mapping
-
-    if usage_id == "23":  # Indicateur CPU
-        mapping = {
-            "ha_entity": "sensor",
-            "ha_subtype": "cpu_usage",
-            "justification": f"CPU usage monitor: usage_id=23",
-        }
-        _LOGGER.info(
-            "💻 CPU usage sensor mapping for %s (%s): %s",
-            device_data["name"],
-            device_data["periph_id"],
-            mapping,
-        )
-        return mapping
-
-    if usage_id == "37":  # Capteur de mouvement
-        mapping = {
-            "ha_entity": "binary_sensor",
-            "ha_subtype": "motion",
-            "justification": f"usage_id=37: Capteur de mouvement (prioritaire)",
-        }
-        _LOGGER.info(
-            "🚶 Motion sensor mapping for %s (%s): %s",
-            device_data["name"],
-            device_data["periph_id"],
-            mapping,
-        )
-        return mapping
-
-    # 3. Appliquer le mapping basé sur usage_id
-    if usage_id in USAGE_ID_MAPPING:
+    
+    # Priorité 3: Mapping basé sur usage_id
+    if usage_id and usage_id in USAGE_ID_MAPPING:
         mapping = USAGE_ID_MAPPING[usage_id].copy()
         
-        # Vérifier si des règles avancées sont définies pour ce usage_id
+        # Appliquer les règles avancées si définies
         if "advanced_rules" in mapping:
             for rule_name in mapping["advanced_rules"]:
                 if rule_name in ADVANCED_MAPPING_RULES:
@@ -498,49 +477,48 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                             "ha_subtype": rule_config["ha_subtype"],
                             "justification": f"Advanced rule {rule_name}: {rule_config['justification']}",
                         })
-                        _LOGGER.info(
-                            "🎯 Advanced rule applied for %s (%s): %s",
-                            device_data["name"],
-                            device_data["periph_id"],
-                            mapping,
-                        )
+                        _LOGGER.info("🎯 Advanced rule applied: %s (%s) → %s:%s", 
+                                   periph_name, periph_id, mapping["ha_entity"], mapping["ha_subtype"])
                         break
         
-        _LOGGER.debug(
-            "Usage ID mapping for %s (%s): %s",
-            device_data["name"],
-            device_data["periph_id"],
-            mapping,
-        )
+        _LOGGER.debug("Usage ID mapping: %s (%s) → %s:%s", 
+                     periph_name, periph_id, mapping["ha_entity"], mapping["ha_subtype"])
         return mapping
-
-    # 4. Vérifier les cas spécifiques basés sur le nom (en dernier recours)
-    device_name_lower = device_data["name"].lower()
-    if "message" in device_name_lower and "box" in device_name_lower:
-        mapping = {
-            "ha_entity": "sensor",
-            "ha_subtype": "text",
-            "justification": f"Message box detected in name: '{device_data['name']}'",
-        }
-        _LOGGER.info(
-            "📝 Text sensor mapping for %s (%s): %s",
-            device_data["name"],
-            device_data["periph_id"],
-            mapping,
+    
+    # Priorité 4: Détection par nom
+    name_lower = device_data["name"].lower()
+    if "message" in name_lower and "box" in name_lower:
+        return _create_mapping(
+            {"ha_entity": "sensor", "ha_subtype": "text", 
+             "justification": f"Message box: {device_data['name']}"},
+            periph_name, periph_id, "message", "📝"
         )
-        return mapping
-
-    # 5. Mapping par défaut
+    
+    # Priorité 5: Mapping par défaut
     mapping = {
         "ha_entity": default_ha_entity,
         "ha_subtype": "unknown",
-        "justification": "Unknown device type",
+        "justification": "No matching rule found"
     }
-    _LOGGER.warning(
-        "❓ No mapping found for %s (%s): %s. Data: %s",
-        device_data["name"],
-        device_data["periph_id"],
-        mapping,
-        device_data,
-    )
+    _LOGGER.warning("❓ Unknown device: %s (%s) → %s:%s. Data: %s",
+                    periph_name, periph_id, mapping["ha_entity"], mapping["ha_subtype"], device_data)
+    return mapping
+
+def _create_mapping(mapping_config, periph_name, periph_id, context, emoji="🎯"):
+    """Crée un mapping standardisé avec logging approprié."""
+    mapping = {
+        "ha_entity": mapping_config["ha_entity"],
+        "ha_subtype": mapping_config["ha_subtype"],
+        "justification": mapping_config["justification"]
+    }
+    
+    log_method = _LOGGER.info if emoji != "❓" else _LOGGER.warning
+    log_method("%s %s mapping: %s (%s) → %s:%s", 
+               emoji, context, periph_name, periph_id, mapping["ha_entity"], mapping["ha_subtype"])
+    
+    # Debug logging pour le suivi du processus de mapping
+    _LOGGER.debug("Mapping decision details for %s (%s): method=%s, result=%s:%s, justification=%s",
+                  periph_name, periph_id, context, mapping["ha_entity"], mapping["ha_subtype"],
+                  mapping["justification"])
+    
     return mapping
