@@ -134,19 +134,21 @@ class EedomusLight(EedomusEntity, LightEntity):
         elif periph_type == "color_temp":
             self._attr_supported_color_modes.add(ColorMode.COLOR_TEMP)
 
-        # Set supported features using modern LightEntityFeature enum
-        # This resolves the deprecation warning about magic numbers
+        # Set supported features using numeric values
+        # Note: Using numeric values for compatibility with current HA version
+        # TODO: Migrate to LightEntityFeature enum when proper enum structure is available
+        # Numeric values: 1=BRIGHTNESS, 2=COLOR_TEMP, 16=RGBW, 32=EFFECT
         if ColorMode.BRIGHTNESS in self._attr_supported_color_modes:
-            self._attr_supported_features = LightEntityFeature.BRIGHTNESS
+            self._attr_supported_features = 1  # BRIGHTNESS
         elif ColorMode.RGBW in self._attr_supported_color_modes:
-            self._attr_supported_features = LightEntityFeature.BRIGHTNESS | LightEntityFeature.RGBW
+            self._attr_supported_features = 1 | 16  # BRIGHTNESS | RGBW
         elif ColorMode.COLOR_TEMP in self._attr_supported_color_modes:
-            self._attr_supported_features = LightEntityFeature.COLOR_TEMP
+            self._attr_supported_features = 2  # COLOR_TEMP
         else:
             self._attr_supported_features = 0
             
-        _LOGGER.debug("Using LightEntityFeature enum for %s (%s)", 
-                     periph_name, periph_id)
+        _LOGGER.debug("Using numeric supported_features for %s (%s): %s", 
+                     periph_name, periph_id, self._attr_supported_features)
 
         _LOGGER.debug(
             "Initializing light entity for %s (%s) type=%s, supported_color_modes=%s, supported_features=%s",
@@ -289,9 +291,10 @@ class EedomusRGBWLight(EedomusLight):
             #           ColorMode.XY,  # Ajoute le support du mode XY
             #           ColorMode.COLOR_TEMP
         }
-        # Use modern LightEntityFeature enum to avoid deprecation warnings
-        self._supported_features = LightEntityFeature.EFFECT | LightEntityFeature.RGBW
-        _LOGGER.debug("Using LightEntityFeature enum for RGBW effect")
+        # Use numeric values for compatibility with current HA version
+        # Numeric values: 32=EFFECT, 16=RGBW
+        self._supported_features = 32 | 16  # EFFECT | RGBW
+        _LOGGER.debug("Using numeric supported_features for RGBW effect: %s", self._supported_features)
         self._global_brightness_percent = 0
         self._red_percent = 0
         self._green_percent = 0
