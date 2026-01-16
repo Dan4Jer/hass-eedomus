@@ -308,10 +308,7 @@ class EedomusRGBWLight(EedomusLight):
         """Flag supported color modes."""
         return self._supported_color_modes
 
-    @property
-    def supported_features(self):
-        """Flag supported features."""
-        return self._supported_features
+
 
     @property
     def is_on(self):
