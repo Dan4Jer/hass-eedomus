@@ -139,20 +139,16 @@ class EedomusLight(EedomusEntity, LightEntity):
             # Default to ONOFF if no specific type
             self._attr_supported_color_modes = {ColorMode.ONOFF}
 
-        # Remove supported_features as we're using supported_color_modes properly
-        # Home Assistant will infer the appropriate features from color modes
-        self._attr_supported_features = 0
             
         _LOGGER.debug("Using supported_color_modes for %s (%s): %s", 
                      periph_name, periph_id, self._attr_supported_color_modes)
 
         _LOGGER.debug(
-            "Initializing light entity for %s (%s) type=%s, supported_color_modes=%s, supported_features=%s",
+            "Initializing light entity for %s (%s) type=%s, supported_color_modes=%s",
             periph_name,
             periph_id,
             periph_type,
             self._attr_supported_color_modes,
-            self._attr_supported_features,
         )
 
     @property
@@ -287,9 +283,6 @@ class EedomusRGBWLight(EedomusLight):
             #           ColorMode.XY,  # Ajoute le support du mode XY
             #           ColorMode.COLOR_TEMP
         }
-        # Remove supported_features as we're using supported_color_modes properly
-        # Home Assistant will infer the appropriate features from color modes
-        self._supported_features = 0
         _LOGGER.debug("Using supported_color_modes for RGBW light: %s", self._supported_color_modes)
         self._global_brightness_percent = 0
         self._red_percent = 0
