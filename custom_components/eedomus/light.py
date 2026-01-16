@@ -127,12 +127,17 @@ class EedomusLight(EedomusEntity, LightEntity):
         periph_info = self.coordinator.data[periph_id]
         periph_type = periph_info.get("ha_subtype")
         periph_name = periph_info.get("name")
+        
+        # Initialize supported_color_modes based on periph_type
         if periph_type == "brightness" or periph_type == "dimmable":
             self._attr_supported_color_modes = {ColorMode.BRIGHTNESS}
-        if periph_type == "rgb" or periph_type == "rgbw":
-            self._attr_supported_color_modes.add(ColorMode.RGBW)
+        elif periph_type == "rgb" or periph_type == "rgbw":
+            self._attr_supported_color_modes = {ColorMode.RGBW}
         elif periph_type == "color_temp":
-            self._attr_supported_color_modes.add(ColorMode.COLOR_TEMP)
+            self._attr_supported_color_modes = {ColorMode.COLOR_TEMP}
+        else:
+            # Default to ONOFF if no specific type
+            self._attr_supported_color_modes = {ColorMode.ONOFF}
 
         # Set supported features using proper LightEntityFeature flags
         # Based on Home Assistant documentation: https://developers.home-assistant.io/docs/core/entity/light#supported-features
