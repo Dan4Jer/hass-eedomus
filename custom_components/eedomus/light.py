@@ -135,16 +135,32 @@ class EedomusLight(EedomusEntity, LightEntity):
             self._attr_supported_color_modes.add(ColorMode.COLOR_TEMP)
 
         # Set supported features based on color modes
-        # Note: Using numeric values for compatibility with HA versions
-        # TODO: Migrate to LightEntityFeature enum when HA version compatibility is resolved
-        if ColorMode.BRIGHTNESS in self._attr_supported_color_modes:
-            self._attr_supported_features = 1  # BRIGHTNESS
-        elif ColorMode.RGBW in self._attr_supported_color_modes:
-            self._attr_supported_features = 1 | 16  # BRIGHTNESS | RGBW
-        elif ColorMode.COLOR_TEMP in self._attr_supported_color_modes:
-            self._attr_supported_features = 2  # COLOR_TEMP
-        else:
-            self._attr_supported_features = 0
+        # Try modern LightEntityFeature enum first, fall back to numeric values if needed
+        try:
+            # Modern approach using LightEntityFeature enum (HA 2024.1+)
+            if ColorMode.BRIGHTNESS in self._attr_supported_color_modes:
+                self._attr_supported_features = LightEntityFeature.BRIGHTNESS
+            elif ColorMode.RGBW in self._attr_supported_color_modes:
+                self._attr_supported_features = LightEntityFeature.BRIGHTNESS | LightEntityFeature.RGBW
+            elif ColorMode.COLOR_TEMP in self._attr_supported_color_modes:
+                self._attr_supported_features = LightEntityFeature.COLOR_TEMP
+            else:
+                self._attr_supported_features = 0
+                
+            _LOGGER.debug("Using LightEntityFeature enum for %s (%s)", 
+                         periph_name, periph_id)
+        except AttributeError:
+            # Fallback to numeric values for older HA versions
+            _LOGGER.warning("LightEntityFeature enum not available, using numeric values for %s (%s)", 
+                          periph_name, periph_id)
+            if ColorMode.BRIGHTNESS in self._attr_supported_color_modes:
+                self._attr_supported_features = 1  # BRIGHTNESS
+            elif ColorMode.RGBW in self._attr_supported_color_modes:
+                self._attr_supported_features = 1 | 16  # BRIGHTNESS | RGBW
+            elif ColorMode.COLOR_TEMP in self._attr_supported_color_modes:
+                self._attr_supported_features = 2  # COLOR_TEMP
+            else:
+                self._attr_supported_features = 0
 
         _LOGGER.debug(
             "Initializing light entity for %s (%s) type=%s, supported_color_modes=%s, supported_features=%s",
@@ -287,7 +303,12 @@ class EedomusRGBWLight(EedomusLight):
             #           ColorMode.XY,  # Ajoute le support du mode XY
             #           ColorMode.COLOR_TEMP
         }
-        self._supported_features = 32 | 16  # EFFECT | RGBW (using numeric values)
+        try:
+            self._supported_features = LightEntityFeature.EFFECT | LightEntityFeature.RGBW
+            _LOGGER.debug("Using LightEntityFeature enum for RGBW effect")
+        except AttributeError:
+            _LOGGER.warning("LightEntityFeature enum not available, using numeric values for RGBW effect")
+            self._supported_features = 32 | 16  # EFFECT | RGBW (using numeric values)
         self._global_brightness_percent = 0
         self._red_percent = 0
         self._green_percent = 0
