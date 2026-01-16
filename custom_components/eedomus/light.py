@@ -134,29 +134,23 @@ class EedomusLight(EedomusEntity, LightEntity):
         elif periph_type == "color_temp":
             self._attr_supported_color_modes.add(ColorMode.COLOR_TEMP)
 
-        # Set supported features using the approach suggested by HA deprecation warnings
-        # Based on the warning: "Instead it should use <LightEntityFeature: 1> and color modes"
-        # This suggests using the enum directly with proper flag combinations
-        try:
-            # Try the modern enum approach as suggested by HA warnings
-            if ColorMode.BRIGHTNESS in self._attr_supported_color_modes:
-                # LightEntityFeature: 1 corresponds to BRIGHTNESS
-                self._attr_supported_features = 1
-            elif ColorMode.RGBW in self._attr_supported_color_modes:
-                # LightEntityFeature.TRANSITION|16: 48 suggests this combination
-                self._attr_supported_features = 48
-            elif ColorMode.COLOR_TEMP in self._attr_supported_color_modes:
-                # COLOR_TEMP would be a different value
-                self._attr_supported_features = 2
-            else:
-                self._attr_supported_features = 0
-                
-            _LOGGER.debug("Using enum-compatible supported_features for %s (%s): %s", 
-                         periph_name, periph_id, self._attr_supported_features)
-        except Exception as e:
-            _LOGGER.error("Failed to set supported_features for %s (%s): %s", 
-                         periph_name, periph_id, e)
+        # Set supported features using proper LightEntityFeature flags
+        # Based on Home Assistant documentation: https://developers.home-assistant.io/docs/core/entity/light#supported-features
+        # Use integer flags that correspond to LightEntityFeature enum values
+        if ColorMode.BRIGHTNESS in self._attr_supported_color_modes:
+            # LightEntityFeature.BRIGHTNESS = 1
+            self._attr_supported_features = 1
+        elif ColorMode.RGBW in self._attr_supported_color_modes:
+            # LightEntityFeature.BRIGHTNESS | LightEntityFeature.RGBW = 1 | 16 = 17
+            self._attr_supported_features = 1 | 16
+        elif ColorMode.COLOR_TEMP in self._attr_supported_color_modes:
+            # LightEntityFeature.COLOR_TEMP = 2
+            self._attr_supported_features = 2
+        else:
             self._attr_supported_features = 0
+            
+        _LOGGER.debug("Using proper LightEntityFeature flags for %s (%s): %s", 
+                     periph_name, periph_id, self._attr_supported_features)
 
         _LOGGER.debug(
             "Initializing light entity for %s (%s) type=%s, supported_color_modes=%s, supported_features=%s",
@@ -299,10 +293,10 @@ class EedomusRGBWLight(EedomusLight):
             #           ColorMode.XY,  # Ajoute le support du mode XY
             #           ColorMode.COLOR_TEMP
         }
-        # Use the value suggested by HA warning: LightEntityFeature.TRANSITION|16: 48
-        # This should resolve the deprecation warning for RGBW lights
-        self._supported_features = 48  # TRANSITION | RGBW as suggested by HA
-        _LOGGER.debug("Using HA-recommended supported_features for RGBW effect: %s", self._supported_features)
+        # Set supported features for RGBW light using proper LightEntityFeature flags
+        # LightEntityFeature.BRIGHTNESS | LightEntityFeature.RGBW = 1 | 16 = 17
+        self._supported_features = 1 | 16  # BRIGHTNESS | RGBW
+        _LOGGER.debug("Using proper LightEntityFeature flags for RGBW light: %s", self._supported_features)
         self._global_brightness_percent = 0
         self._red_percent = 0
         self._green_percent = 0
