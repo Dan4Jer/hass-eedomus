@@ -1,18 +1,19 @@
 """
 Usage ID Mapping for eedomus devices.
 
-This mapping is used when Z-Wave class mapping fails or is not available.
 Each usage_id represents a specific device type or function in the eedomus ecosystem.
 
 Priority order for device mapping:
 1. Advanced rules (RGBW detection, parent-child relationships)
 2. Usage ID mapping (USAGE_ID_MAPPING)
-3. Z-Wave class mapping (DEVICES_CLASS_MAPPING)
-4. Name pattern matching
-5. Default to sensor:unknown
+3. Name pattern matching
+4. Default to sensor:unknown
 
 Note: This mapping should be kept in sync with the device table generated
 from the eedomus API to ensure consistency.
+
+Note: Z-Wave class mapping (DEVICES_CLASS_MAPPING) is defined but not currently used.
+      It's kept for potential future use or reference.
 """
 
 # Advanced mapping rules for complex device detection

@@ -8,7 +8,7 @@ from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import CLASS_MAPPING, DOMAIN, SENSOR_DEVICE_CLASSES
+from .const import DOMAIN, SENSOR_DEVICE_CLASSES
 from .entity import EedomusEntity, map_device_to_ha_entity
 
 _LOGGER = logging.getLogger(__name__)

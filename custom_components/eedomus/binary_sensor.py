@@ -12,7 +12,7 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import CLASS_MAPPING, DOMAIN
+from .const import DOMAIN
 from .entity import EedomusEntity
 
 _LOGGER = logging.getLogger(__name__)

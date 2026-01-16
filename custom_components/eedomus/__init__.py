@@ -16,7 +16,7 @@ import aiohttp
 from .api_proxy import EedomusApiProxyView
 from .webhook import EedomusWebhookView
 from .const import (
-    CLASS_MAPPING,
+
     CONF_API_HOST,
     CONF_API_PROXY_DISABLE_SECURITY,
 

@@ -9,7 +9,7 @@ from homeassistant.helpers.entity import DeviceInfo, Entity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import ATTR_PERIPH_ID, DOMAIN, EEDOMUS_TO_HA_ATTR_MAPPING
-from .device_mapping import DEVICES_CLASS_MAPPING, USAGE_ID_MAPPING, ADVANCED_MAPPING_RULES
+from .device_mapping import USAGE_ID_MAPPING, ADVANCED_MAPPING_RULES
 
 _LOGGER = logging.getLogger(__name__)
 
