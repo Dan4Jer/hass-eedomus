@@ -32,6 +32,40 @@ ADVANCED_MAPPING_RULES = {
             "1": {"ha_entity": "light", "ha_subtype": "dimmable"}
         }
     },
+    "rgbw_lamp_flexible": {
+        "condition": lambda device_data, all_devices: (
+            # Flexible RGBW detection for devices that should be RGBW but don't meet strict criteria
+            device_data.get("usage_id") == "1" and
+            any(
+                # Device has SUPPORTED_CLASSES containing RGBW-related classes
+                any(rgbw_class in device_data.get("SUPPORTED_CLASSES", "") 
+                    for rgbw_class in ["96:3", "96:4", "96"]) or
+                # Device has PRODUCT_TYPE_ID known for RGBW devices
+                device_data.get("PRODUCT_TYPE_ID") in ["2304", "2306"] or
+                # Device name suggests RGBW functionality
+                any(rgbw_keyword in device_data.get("name", "").lower() 
+                    for rgbw_keyword in ["rgbw", "rgb", "color", "led strip", "led strip"])
+                for _ in [None]  # Just to make the any() work
+            )
+        ),
+        "ha_entity": "light",
+        "ha_subtype": "rgbw",
+        "justification": "Lampe RGBW détectée par critères flexibles (SUPPORTED_CLASSES, PRODUCT_TYPE_ID ou nom)",
+        "child_mapping": {
+            "1": {"ha_entity": "light", "ha_subtype": "dimmable"}
+        }
+    },
+    "rgbw_lamp_specific_devices": {
+        "condition": lambda device_data, all_devices: (
+            device_data.get("periph_id") in ["1269454"]  # Add specific device IDs here
+        ),
+        "ha_entity": "light",
+        "ha_subtype": "rgbw",
+        "justification": "Lampe RGBW spécifique - périphérique connu nécessitant un mapping RGBW",
+        "child_mapping": {
+            "1": {"ha_entity": "light", "ha_subtype": "dimmable"}
+        }
+    },
     "shutter_with_tilt": {
         "condition": lambda device_data, all_devices: (
             device_data.get("usage_id") == "48" and
@@ -66,7 +100,7 @@ USAGE_ID_MAPPING = {
         "ha_entity": "light",
         "ha_subtype": "dimmable",
         "justification": "Light device - usage_id=1 typically represents lamps and lighting",
-        "advanced_rules": ["rgbw_lamp_with_children"]
+        "advanced_rules": ["rgbw_lamp_with_children", "rgbw_lamp_flexible"]
     },
     "2": {
         "ha_entity": "switch",
