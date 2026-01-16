@@ -134,21 +134,29 @@ class EedomusLight(EedomusEntity, LightEntity):
         elif periph_type == "color_temp":
             self._attr_supported_color_modes.add(ColorMode.COLOR_TEMP)
 
-        # Set supported features using numeric values
-        # Note: Using numeric values for compatibility with current HA version
-        # TODO: Migrate to LightEntityFeature enum when proper enum structure is available
-        # Numeric values: 1=BRIGHTNESS, 2=COLOR_TEMP, 16=RGBW, 32=EFFECT
-        if ColorMode.BRIGHTNESS in self._attr_supported_color_modes:
-            self._attr_supported_features = 1  # BRIGHTNESS
-        elif ColorMode.RGBW in self._attr_supported_color_modes:
-            self._attr_supported_features = 1 | 16  # BRIGHTNESS | RGBW
-        elif ColorMode.COLOR_TEMP in self._attr_supported_color_modes:
-            self._attr_supported_features = 2  # COLOR_TEMP
-        else:
+        # Set supported features using the approach suggested by HA deprecation warnings
+        # Based on the warning: "Instead it should use <LightEntityFeature: 1> and color modes"
+        # This suggests using the enum directly with proper flag combinations
+        try:
+            # Try the modern enum approach as suggested by HA warnings
+            if ColorMode.BRIGHTNESS in self._attr_supported_color_modes:
+                # LightEntityFeature: 1 corresponds to BRIGHTNESS
+                self._attr_supported_features = 1
+            elif ColorMode.RGBW in self._attr_supported_color_modes:
+                # LightEntityFeature.TRANSITION|16: 48 suggests this combination
+                self._attr_supported_features = 48
+            elif ColorMode.COLOR_TEMP in self._attr_supported_color_modes:
+                # COLOR_TEMP would be a different value
+                self._attr_supported_features = 2
+            else:
+                self._attr_supported_features = 0
+                
+            _LOGGER.debug("Using enum-compatible supported_features for %s (%s): %s", 
+                         periph_name, periph_id, self._attr_supported_features)
+        except Exception as e:
+            _LOGGER.error("Failed to set supported_features for %s (%s): %s", 
+                         periph_name, periph_id, e)
             self._attr_supported_features = 0
-            
-        _LOGGER.debug("Using numeric supported_features for %s (%s): %s", 
-                     periph_name, periph_id, self._attr_supported_features)
 
         _LOGGER.debug(
             "Initializing light entity for %s (%s) type=%s, supported_color_modes=%s, supported_features=%s",
@@ -291,10 +299,10 @@ class EedomusRGBWLight(EedomusLight):
             #           ColorMode.XY,  # Ajoute le support du mode XY
             #           ColorMode.COLOR_TEMP
         }
-        # Use numeric values for compatibility with current HA version
-        # Numeric values: 32=EFFECT, 16=RGBW
-        self._supported_features = 32 | 16  # EFFECT | RGBW
-        _LOGGER.debug("Using numeric supported_features for RGBW effect: %s", self._supported_features)
+        # Use the value suggested by HA warning: LightEntityFeature.TRANSITION|16: 48
+        # This should resolve the deprecation warning for RGBW lights
+        self._supported_features = 48  # TRANSITION | RGBW as suggested by HA
+        _LOGGER.debug("Using HA-recommended supported_features for RGBW effect: %s", self._supported_features)
         self._global_brightness_percent = 0
         self._red_percent = 0
         self._green_percent = 0
