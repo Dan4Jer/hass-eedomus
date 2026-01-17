@@ -93,14 +93,26 @@ async def async_setup_entry(
         )
         if "light" in coordinator.data[periph_id].get("ha_entity", None):
             if "rgbw" in coordinator.data[periph_id].get("ha_subtype", None):
-                # Créer une entité RGBW agrégée
-                entities.append(
-                    EedomusRGBWLight(
-                        coordinator,
-                        periph_id,
-                        parent_to_children[periph_id],
+                # Vérifier si le périphérique a suffisamment d'enfants pour être RGBW
+                children = parent_to_children.get(periph_id, [])
+                if len(children) >= 4:
+                    # Créer une entité RGBW agrégée
+                    entities.append(
+                        EedomusRGBWLight(
+                            coordinator,
+                            periph_id,
+                            parent_to_children[periph_id],
+                        )
                     )
-                )
+                else:
+                    _LOGGER.warning(
+                        "Device '%s' (%s) mapped as RGBW but only has %d children (need 4). Falling back to regular light.",
+                        periph["name"],
+                        periph_id,
+                        len(children)
+                    )
+                    # Créer une lumière régulière à la place
+                    entities.append(EedomusLight(coordinator, periph_id))
             else:
                 _LOGGER.debug(
                     "Create a light entity %s (%s) mapping=%s",
@@ -333,51 +345,97 @@ class EedomusRGBWLight(EedomusLight):
     @property
     def rgbw_color(self):
         """Return the RGBW color value."""
-        # Convertir les enfants en liste pour accéder par index
-        children = list(self._child_devices.values())
-
         # Vérifier qu'il y a bien 4 enfants (R, G, B, W)
-        if len(children) < 4:
+        if len(self._child_devices) < 4:
             _LOGGER.error(
-                "RGBW light '%s' does not have 4 child devices",
+                "RGBW light '%s' does not have 4 child devices (has %d)",
                 self.coordinator.data[self._parent_id]["name"],
+                len(self._child_devices)
             )
-            return
+            _LOGGER.debug(
+                "Available children for '%s': %s",
+                self.coordinator.data[self._parent_id]["name"],
+                ", ".join(
+                    f"{child_id}({self.coordinator.data[child_id].get('name', '?')})[{self.coordinator.data[child_id].get('usage_name', '?')}]"
+                    for child_id in self._child_devices.keys()
+                )
+            )
+            return None
 
-        # Récupérer les periph_id des canaux dans l'ordre
-        red_periph_id = str(int(self._parent_id) + 1)
-        green_periph_id = str(int(self._parent_id) + 2)
-        blue_periph_id = str(int(self._parent_id) + 3)
-        white_periph_id = str(int(self._parent_id) + 4)
+        # Trouver les enfants par usage_id pour une détection plus robuste
+        red_child = None
+        green_child = None
+        blue_child = None
+        white_child = None
+        
+        for child_id, child_data in self._child_devices.items():
+            usage_id = child_data.get('usage_id', 'unknown')
+            usage_name = child_data.get('usage_name', '').lower()
+            
+            # Détection par usage_id et usage_name
+            if usage_id == '1':  # Lumière générique
+                if 'red' in usage_name or 'rouge' in usage_name:
+                    red_child = child_id
+                elif 'green' in usage_name or 'vert' in usage_name:
+                    green_child = child_id
+                elif 'blue' in usage_name or 'bleu' in usage_name:
+                    blue_child = child_id
+                elif 'white' in usage_name or 'blanc' in usage_name:
+                    white_child = child_id
+            elif usage_id == '2':  # Interrupteur
+                # Essayer de détecter par nom si usage_id n'est pas spécifique
+                name = child_data.get('name', '').lower()
+                if 'red' in name or 'rouge' in name:
+                    red_child = child_id
+                elif 'green' in name or 'vert' in name:
+                    green_child = child_id
+                elif 'blue' in name or 'bleu' in name:
+                    blue_child = child_id
+                elif 'white' in name or 'blanc' in name:
+                    white_child = child_id
+
+        # Si la détection par nom échoue, utiliser l'ordre des enfants
+        if not all([red_child, green_child, blue_child, white_child]):
+            child_list = list(self._child_devices.keys())
+            # Essayer différentes combinaisons d'ordre
+            if len(child_list) >= 4:
+                # Essayer l'ordre naturel
+                red_child = child_list[0]
+                green_child = child_list[1]
+                blue_child = child_list[2]
+                white_child = child_list[3]
+
+        if not all([red_child, green_child, blue_child, white_child]):
+            _LOGGER.error(
+                "RGBW light '%s' could not determine all color channels from children",
+                self.coordinator.data[self._parent_id]["name"]
+            )
+            return None
 
         self._red_percent = int(
-            self.coordinator.data[red_periph_id].get("last_value", 0)
+            self.coordinator.data[red_child].get("last_value", 0)
         )
         self._green_percent = int(
-            self.coordinator.data[green_periph_id].get("last_value", 0)
+            self.coordinator.data[green_child].get("last_value", 0)
         )
         self._blue_percent = int(
-            self.coordinator.data[blue_periph_id].get("last_value", 0)
+            self.coordinator.data[blue_child].get("last_value", 0)
         )
         self._white_percent = int(
-            self.coordinator.data[white_periph_id].get("last_value", 0)
+            self.coordinator.data[white_child].get("last_value", 0)
         )
         self._global_brightness_percent = int(
             self.coordinator.data[self._parent_id].get("last_value", 0)
         )
         _LOGGER.debug(
-            "RGBW color '%s' with (%d,%d,%d,%d){%d} with children %s",
+            "RGBW color '%s' with (%d,%d,%d,%d){%d} - R:%s, G:%s, B:%s, W:%s",
             self.coordinator.data[self._parent_id]["name"],
             self._red_percent,
             self._green_percent,
             self._blue_percent,
             self._white_percent,
             self._global_brightness_percent,
-            ", ".join(
-                f"{self.coordinator.data[child_id].get('name', child_id)} "
-                f"({self.coordinator.data[child_id].get('usage_name', '?')}-{child_id})[{self.coordinator.data[child_id].get('last_value', '?')}] => {self.coordinator.data[child_id].get('ha_entity', '?')}:{self.coordinator.data[child_id].get('usage_id', '?')}"
-                for child_id in self._child_devices.keys()
-            ),
+            red_child, green_child, blue_child, white_child
         )
         return (
             self.percent_to_octal(self._red_percent),
@@ -416,26 +474,64 @@ class EedomusRGBWLight(EedomusLight):
             if not self._global_brightness_percent > 0:
                 self._global_brightness_percent = 100
 
-        # Convertir les enfants en liste pour accéder par index
-        children = list(self._child_devices.values())
-
         # Vérifier qu'il y a bien 4 enfants (R, G, B, W)
-        if len(children) < 4:
+        if len(self._child_devices) < 4:
             _LOGGER.error(
-                "RGBW light '%s' does not have 4 child devices",
+                "RGBW light '%s' does not have 4 child devices (has %d)",
                 self.coordinator.data[self._parent_id]["name"],
+                len(self._child_devices)
             )
             return
 
-        # Récupérer les periph_id des canaux dans l'ordre
-        #        red_periph_id = children[1]["periph_id"]
-        #        green_periph_id = children[0]["periph_id"]
-        #        blue_periph_id = children[2]["periph_id"]
-        #        white_periph_id = children[3]["periph_id"]
-        red_periph_id = str(int(self._parent_id) + 1)
-        green_periph_id = str(int(self._parent_id) + 2)
-        blue_periph_id = str(int(self._parent_id) + 3)
-        white_periph_id = str(int(self._parent_id) + 4)
+        # Trouver les enfants par usage_id pour une détection plus robuste
+        red_periph_id = None
+        green_periph_id = None
+        blue_periph_id = None
+        white_periph_id = None
+        
+        for child_id, child_data in self._child_devices.items():
+            usage_id = child_data.get('usage_id', 'unknown')
+            usage_name = child_data.get('usage_name', '').lower()
+            
+            # Détection par usage_id et usage_name
+            if usage_id == '1':  # Lumière générique
+                if 'red' in usage_name or 'rouge' in usage_name:
+                    red_periph_id = child_id
+                elif 'green' in usage_name or 'vert' in usage_name:
+                    green_periph_id = child_id
+                elif 'blue' in usage_name or 'bleu' in usage_name:
+                    blue_periph_id = child_id
+                elif 'white' in usage_name or 'blanc' in usage_name:
+                    white_periph_id = child_id
+            elif usage_id == '2':  # Interrupteur
+                # Essayer de détecter par nom si usage_id n'est pas spécifique
+                name = child_data.get('name', '').lower()
+                if 'red' in name or 'rouge' in name:
+                    red_periph_id = child_id
+                elif 'green' in name or 'vert' in name:
+                    green_periph_id = child_id
+                elif 'blue' in name or 'bleu' in name:
+                    blue_periph_id = child_id
+                elif 'white' in name or 'blanc' in name:
+                    white_periph_id = child_id
+
+        # Si la détection par nom échoue, utiliser l'ordre des enfants
+        if not all([red_periph_id, green_periph_id, blue_periph_id, white_periph_id]):
+            child_list = list(self._child_devices.keys())
+            # Essayer différentes combinaisons d'ordre
+            if len(child_list) >= 4:
+                # Essayer l'ordre naturel
+                red_periph_id = child_list[0]
+                green_periph_id = child_list[1]
+                blue_periph_id = child_list[2]
+                white_periph_id = child_list[3]
+
+        if not all([red_periph_id, green_periph_id, blue_periph_id, white_periph_id]):
+            _LOGGER.error(
+                "RGBW light '%s' could not determine all color channels from children",
+                self.coordinator.data[self._parent_id]["name"]
+            )
+            return
 
         if ATTR_BRIGHTNESS in kwargs:
             self._global_brightness_percent = self.octal_to_percent(
@@ -480,8 +576,9 @@ class EedomusRGBWLight(EedomusLight):
         await self.coordinator.async_set_periph_value(
             self._parent_id, self._global_brightness_percent
         )
-        # Éteindre tous les canaux enfants
-        # for child_id in self._child_devices:
-        #    await self.coordinator.async_set_periph_value(child_id, "off")
+        # Éteindre tous les canaux enfants pour une extinction complète
+        if self._child_devices:
+            for child_id in self._child_devices:
+                await self.coordinator.async_set_periph_value(child_id, "0")
         self.schedule_update_ha_state()
-        await self.coordinator.async_request_refresh()  # a essayer
+        await self.coordinator.async_request_refresh()
