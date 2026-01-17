@@ -58,15 +58,8 @@ class EedomusOptionsFlowHandler(config_entries.OptionsFlow):
             return self.async_create_entry(title="", data=user_input)
 
         # Add menu options for navigation
-        menu_options = [
-            "configure",  # Main configuration
-            "yaml_mapping",  # YAML mapping configuration
-            "edit_yaml",  # Edit YAML file directly
-        ]
-
         return self.async_show_form(
             step_id="init",
-            menu_options=menu_options,
             data_schema=vol.Schema(
                 {
                     vol.Optional(
