@@ -412,16 +412,48 @@ class EedomusRGBWLight(EedomusLight):
             )
             return None
 
-        self._red_percent = int(
+        # Extraire les valeurs avec gestion des différents formats
+        def safe_extract_value(value):
+            """Extraire une valeur numérique à partir de différents formats."""
+            if not value or value == "0" or value == "off":
+                return 0
+            
+            # Gestion du format "r,g,b,w" (ex: "15,40,30,100")
+            if isinstance(value, str) and "," in value:
+                parts = value.split(",")
+                if len(parts) == 4:
+                    # C'est probablement un format RGBW complet
+                    # Nous devons déterminer quel canal correspond
+                    # Pour l'instant, retournons la moyenne
+                    try:
+                        return sum(int(p.strip()) for p in parts) // 4
+                    except (ValueError, AttributeError):
+                        return 0
+                else:
+                    # Format inattendu, essayer de prendre la première valeur
+                    try:
+                        return int(parts[0].strip())
+                    except (ValueError, IndexError, AttributeError):
+                        return 0
+            
+            # Gestion des valeurs normales (pourcentage 0-100)
+            try:
+                if isinstance(value, str) and value.endswith('%'):
+                    return int(value[:-1])
+                return int(value)
+            except (ValueError, TypeError):
+                return 0
+
+        self._red_percent = safe_extract_value(
             self.coordinator.data[red_child].get("last_value", 0)
         )
-        self._green_percent = int(
+        self._green_percent = safe_extract_value(
             self.coordinator.data[green_child].get("last_value", 0)
         )
-        self._blue_percent = int(
+        self._blue_percent = safe_extract_value(
             self.coordinator.data[blue_child].get("last_value", 0)
         )
-        self._white_percent = int(
+        self._white_percent = safe_extract_value(
             self.coordinator.data[white_child].get("last_value", 0)
         )
         self._global_brightness_percent = int(
