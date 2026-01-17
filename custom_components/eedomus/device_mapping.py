@@ -396,9 +396,9 @@ USAGE_ID_MAPPING = {
         "justification": "Sonoff switch/remote control - usage_id=52",
     },
     "82": {
-        "ha_entity": "sensor",
-        "ha_subtype": "text",
-        "justification": "RGBW color preset - mapped as sensor to avoid PHP fallback issues",
+        "ha_entity": "select",
+        "ha_subtype": "color_preset",
+        "justification": "RGBW color preset selection - usage_id=82",
     },
     "84": {
         "ha_entity": "sensor",
