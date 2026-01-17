@@ -354,13 +354,19 @@ class EedomusRGBWLight(EedomusLight):
             )
             return None
 
-        # Utiliser l'ordre naturel des enfants (les périphériques eedomus sont toujours dans le même ordre)
-        # Les enfants sont toujours dans l'ordre: Rouge, Vert, Bleu, Blanc
-        child_list = list(self._child_devices.keys())
+        # Trier les enfants par periph_id pour garantir l'ordre numérique
+        # Les périphériques eedomus ont toujours leurs enfants dans l'ordre numérique
+        child_list = sorted(self._child_devices.keys(), key=lambda x: int(x))
         red_child = child_list[0]
         green_child = child_list[1]
         blue_child = child_list[2]
         white_child = child_list[3]
+        
+        _LOGGER.debug(
+            "RGBW light '%s' - Sorted children by periph_id: %s",
+            self.coordinator.data[self._parent_id]["name"],
+            child_list
+        )
 
         # Extraire les valeurs avec gestion des différents formats
         def safe_extract_value(value):
@@ -465,13 +471,19 @@ class EedomusRGBWLight(EedomusLight):
             )
             return
 
-        # Utiliser l'ordre naturel des enfants (les périphériques eedomus sont toujours dans le même ordre)
-        # Les enfants sont toujours dans l'ordre: Rouge, Vert, Bleu, Blanc
-        child_list = list(self._child_devices.keys())
+        # Trier les enfants par periph_id pour garantir l'ordre numérique
+        # Les périphériques eedomus ont toujours leurs enfants dans l'ordre numérique
+        child_list = sorted(self._child_devices.keys(), key=lambda x: int(x))
         red_periph_id = child_list[0]
         green_periph_id = child_list[1]
         blue_periph_id = child_list[2]
         white_periph_id = child_list[3]
+        
+        _LOGGER.debug(
+            "RGBW light '%s' - Sorted children by periph_id: %s",
+            self.coordinator.data[self._parent_id]["name"],
+            child_list
+        )
 
         if ATTR_BRIGHTNESS in kwargs:
             self._global_brightness_percent = self.octal_to_percent(
