@@ -213,6 +213,11 @@ ADVANCED_MAPPING_RULES = {
         "condition": lambda device_data, all_devices: (
             # Flexible RGBW detection for devices that should be RGBW but don't meet strict criteria
             device_data.get("usage_id") == "1" and
+            # Must have at least 4 children to be considered RGBW
+            sum(
+                1 for child_id, child in all_devices.items()
+                if child.get("parent_periph_id") == device_data.get("periph_id") and child.get("usage_id") == "1"
+            ) >= 4 and  # Minimum 4 children required
             any(
                 # Device has SUPPORTED_CLASSES containing RGBW-related classes
                 any(rgbw_class in device_data.get("SUPPORTED_CLASSES", "") 
@@ -227,7 +232,7 @@ ADVANCED_MAPPING_RULES = {
         ),
         "ha_entity": "light",
         "ha_subtype": "rgbw",
-        "justification": "Lampe RGBW détectée par critères flexibles (SUPPORTED_CLASSES, PRODUCT_TYPE_ID ou nom)",
+        "justification": "Lampe RGBW détectée par critères flexibles (SUPPORTED_CLASSES, PRODUCT_TYPE_ID ou nom) avec vérification du nombre d'enfants",
         "child_mapping": {
             "1": {"ha_entity": "light", "ha_subtype": "dimmable"}
         }
