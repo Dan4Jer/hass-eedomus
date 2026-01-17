@@ -194,7 +194,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 return self.data
             raise UpdateFailed(f"Error updating data: {err}") from err
 
-    async def _async_partial_data_retreive(self, concat_text_periph_id: str):
+    async def _async_partial_data_retrieve(self, concat_text_periph_id: str):
         peripherals_caract_response = await self.client.get_periph_caract(
             concat_text_periph_id, False
         )
@@ -257,7 +257,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         )
         return (peripherals, peripherals_value_list, peripherals_caract)
 
-    async def _async_full_refresh_data_retreive(self):
+    async def _async_full_refresh_data_retrieve(self):
         """Retrieve only characteristics data for full refresh."""
         peripherals_caract_response = await self.client.get_periph_caract("all", True)
         if not isinstance(peripherals_caract_response, dict):
@@ -285,7 +285,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         _LOGGER.info("Performing full data refresh from eedomus API")
 
         # Récupération des données
-        peripherals_caract = await self._async_full_refresh_data_retreive()
+        peripherals_caract = await self._async_full_refresh_data_retrieve()
         peripherals_caract_dict = {
             str(it["periph_id"]): it for it in peripherals_caract
         }

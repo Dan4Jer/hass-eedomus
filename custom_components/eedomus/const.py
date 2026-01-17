@@ -16,7 +16,8 @@ try:
         DEFAULT_API_USER,
     )
 except ImportError:
-    # Valeurs par défaut (ou lève une erreur si requis)
+    # Valeurs par défaut pour les configurations non définies dans private_const.py
+    # Ces valeurs seront utilisées si le fichier private_const.py n'existe pas
     DEFAULT_API_HOST = "xxx.XXX.xxx.XXX"
     DEFAULT_API_USER = ""
     DEFAULT_API_SECRET = ""
@@ -38,6 +39,11 @@ CONF_REMOVE_ENTITIES = "remove_entities"
 CONF_PHP_FALLBACK_ENABLED = "php_fallback_enabled"
 CONF_PHP_FALLBACK_SCRIPT_NAME = "php_fallback_script_name"
 CONF_PHP_FALLBACK_TIMEOUT = "php_fallback_timeout"
+
+# YAML Mapping Configuration
+CONF_YAML_MAPPING = "yaml_mapping"
+CONF_CUSTOM_MAPPING_FILE = "custom_mapping_file"
+CONF_RELOAD_MAPPING = "reload_mapping"
 DEFAULT_CONF_ENABLE_API_EEDOMUS = True
 DEFAULT_CONF_ENABLE_API_PROXY = False
 DEFAULT_ENABLE_SET_VALUE_RETRY = True  # Set value retry enabled by default

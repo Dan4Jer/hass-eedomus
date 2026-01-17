@@ -136,18 +136,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _LOGGER.warning(
             "History sensor creation is temporarily disabled - will be implemented in feature/history-refactor branch"
         )
-        # entities = []
-        # for device_id, device_data in coordinator.data.items():
-        #     # Add history sensor if enabled
-        #     _LOGGER.info("Retrieve history enabled for device=%s", device_id)
-        #     entities.append(EedomusHistoryProgressSensor(coordinator, {
-        #         "periph_id": device_id,
-        #         "name": device_data["name"],
-        #     }))
-        #
-        # # Add entities to Home Assistant
-        # if entities:
-        #     async_add_entities(entities, True)
+
 
     # Stockage sécurisé
     if DOMAIN not in hass.data:
