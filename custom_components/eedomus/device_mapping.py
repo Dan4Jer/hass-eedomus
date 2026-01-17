@@ -4,10 +4,11 @@ Usage ID Mapping for eedomus devices.
 Each usage_id represents a specific device type or function in the eedomus ecosystem.
 
 Priority order for device mapping:
-1. Advanced rules (RGBW detection, parent-child relationships)
-2. Usage ID mapping (USAGE_ID_MAPPING)
-3. Name pattern matching
-4. Default to sensor:unknown
+1. User custom mappings (from YAML)
+2. Advanced rules (RGBW detection, parent-child relationships)
+3. Usage ID mapping (USAGE_ID_MAPPING)
+4. Name pattern matching
+5. Default to sensor:unknown
 
 Note: This mapping should be kept in sync with the device table generated
 from the eedomus API to ensure consistency.
@@ -15,6 +16,181 @@ from the eedomus API to ensure consistency.
 Note: Z-Wave class mapping (DEVICES_CLASS_MAPPING) is defined but not currently used.
       It's kept for potential future use or reference.
 """
+
+import os
+import logging
+import re
+from typing import Dict, Any, Optional, List
+import yaml
+
+# Initialize logger
+_LOGGER = logging.getLogger(__name__)
+
+# Default YAML configuration paths
+DEFAULT_MAPPING_FILE = "config/device_mapping.yaml"
+CUSTOM_MAPPING_FILE = "config/custom_mapping.yaml"
+
+def load_yaml_file(file_path: str) -> Optional[Dict[str, Any]]:
+    """Load YAML configuration from file.
+    
+    Args:
+        file_path: Path to YAML file
+        
+    Returns:
+        Dictionary with YAML content or None if file doesn't exist or is invalid
+    """
+    try:
+        if not os.path.exists(file_path):
+            _LOGGER.debug("YAML file not found: %s", file_path)
+            return None
+            
+        with open(file_path, 'r', encoding='utf-8') as file:
+            content = yaml.safe_load(file)
+            _LOGGER.info("Successfully loaded YAML mapping from %s", file_path)
+            return content
+            
+    except yaml.YAMLError as e:
+        _LOGGER.error("Failed to parse YAML file %s: %s", file_path, e)
+        return None
+    except Exception as e:
+        _LOGGER.error("Error loading YAML file %s: %s", file_path, e)
+        return None
+
+def load_yaml_mappings(base_path: str = "") -> Dict[str, Any]:
+    """Load and merge YAML mappings from default and custom files.
+    
+    Args:
+        base_path: Base path where YAML files are located
+        
+    Returns:
+        Merged mapping configuration
+    """
+    default_file = os.path.join(base_path, DEFAULT_MAPPING_FILE) if base_path else DEFAULT_MAPPING_FILE
+    custom_file = os.path.join(base_path, CUSTOM_MAPPING_FILE) if base_path else CUSTOM_MAPPING_FILE
+    
+    # Load default mapping
+    default_mapping = load_yaml_file(default_file) or {}
+    
+    # Load custom mapping
+    custom_mapping = load_yaml_file(custom_file) or {}
+    
+    # Merge mappings (custom overrides default)
+    merged = merge_yaml_mappings(default_mapping, custom_mapping)
+    
+    _LOGGER.info("Successfully merged YAML mappings (default: %s, custom: %s)", 
+                bool(default_mapping), bool(custom_mapping))
+    
+    return merged
+
+def merge_yaml_mappings(default_mapping: Dict[str, Any], custom_mapping: Dict[str, Any]) -> Dict[str, Any]:
+    """Merge default and custom mappings, with custom mappings taking precedence.
+    
+    Args:
+        default_mapping: Default mapping configuration
+        custom_mapping: Custom mapping configuration
+        
+    Returns:
+        Merged mapping configuration
+    """
+    merged = default_mapping.copy()
+    
+    # Merge custom rules
+    if 'custom_rules' in custom_mapping:
+        custom_rules = custom_mapping['custom_rules']
+        if 'advanced_rules' not in merged:
+            merged['advanced_rules'] = []
+        merged['advanced_rules'].extend(custom_rules)
+    
+    # Merge custom usage ID mappings
+    if 'custom_usage_id_mappings' in custom_mapping:
+        custom_usage_mappings = custom_mapping['custom_usage_id_mappings']
+        if 'usage_id_mappings' not in merged:
+            merged['usage_id_mappings'] = {}
+        merged['usage_id_mappings'].update(custom_usage_mappings)
+    
+    # Merge custom name patterns
+    if 'custom_name_patterns' in custom_mapping:
+        custom_patterns = custom_mapping['custom_name_patterns']
+        if 'name_patterns' not in merged:
+            merged['name_patterns'] = []
+        merged['name_patterns'].extend(custom_patterns)
+    
+    return merged
+
+def convert_yaml_to_mapping_rules(yaml_config: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert YAML configuration to the internal mapping rules format.
+    
+    Args:
+        yaml_config: YAML configuration dictionary
+        
+    Returns:
+        Dictionary with mapping rules in internal format
+    """
+    if not yaml_config:
+        return {
+            'ADVANCED_MAPPING_RULES': ADVANCED_MAPPING_RULES,
+            'USAGE_ID_MAPPING': USAGE_ID_MAPPING
+        }
+    
+    # Start with default rules
+    advanced_rules = ADVANCED_MAPPING_RULES.copy()
+    usage_id_mappings = USAGE_ID_MAPPING.copy()
+    
+    # Add YAML advanced rules
+    if 'advanced_rules' in yaml_config:
+        for rule in yaml_config['advanced_rules']:
+            rule_name = rule['name'].lower().replace(' ', '_')
+            
+            # Convert YAML conditions to lambda function
+            conditions = rule['conditions']
+            
+            def create_condition_function(conds):
+                def condition_func(device_data, all_devices):
+                    for cond in conds:
+                        if 'usage_id' in cond:
+                            if device_data.get('usage_id') != cond['usage_id']:
+                                return False
+                        if 'min_children' in cond:
+                            child_count = sum(
+                                1 for child_id, child in all_devices.items()
+                                if child.get('parent_periph_id') == device_data.get('periph_id') 
+                                and ('child_usage_id' not in cond or child.get('usage_id') == cond['child_usage_id'])
+                            )
+                            if child_count < cond['min_children']:
+                                return False
+                        if 'name' in cond:
+                            if not re.search(cond['name'], device_data.get('name', '')):
+                                return False
+                    return True
+                return condition_func
+            
+            advanced_rules[rule_name] = {
+                'condition': create_condition_function(conditions),
+                'ha_entity': rule['mapping']['ha_entity'],
+                'ha_subtype': rule['mapping']['ha_subtype'],
+                'justification': rule['mapping']['justification'],
+                'device_class': rule['mapping'].get('device_class'),
+                'icon': rule['mapping'].get('icon')
+            }
+            
+            if 'child_mapping' in rule:
+                advanced_rules[rule_name]['child_mapping'] = rule['child_mapping']
+    
+    # Add YAML usage ID mappings
+    if 'usage_id_mappings' in yaml_config:
+        for usage_id, mapping in yaml_config['usage_id_mappings'].items():
+            usage_id_mappings[usage_id] = {
+                'ha_entity': mapping['ha_entity'],
+                'ha_subtype': mapping['ha_subtype'],
+                'justification': mapping['justification'],
+                'device_class': mapping.get('device_class'),
+                'icon': mapping.get('icon')
+            }
+    
+    return {
+        'ADVANCED_MAPPING_RULES': advanced_rules,
+        'USAGE_ID_MAPPING': usage_id_mappings
+    }
 
 # Advanced mapping rules for complex device detection
 ADVANCED_MAPPING_RULES = {
@@ -576,3 +752,37 @@ DEVICES_CLASS_MAPPING = {
         "justification": "Classe 142 = CRC-16 Encapsulation (non fonctionnelle).",
     },
 }
+
+def load_and_merge_yaml_mappings(base_path: str = "") -> None:
+    """Load YAML mappings and update global mapping rules.
+    
+    This function loads YAML configuration files and merges them with the default
+    mapping rules. It should be called during initialization to allow user
+    customizations to override default mappings.
+    
+    Args:
+        base_path: Base path where YAML files are located
+    """
+    global ADVANCED_MAPPING_RULES, USAGE_ID_MAPPING
+    
+    try:
+        # Load and merge YAML mappings
+        yaml_config = load_yaml_mappings(base_path)
+        
+        if yaml_config:
+            # Convert YAML to internal format
+            mapping_rules = convert_yaml_to_mapping_rules(yaml_config)
+            
+            # Update global variables
+            ADVANCED_MAPPING_RULES = mapping_rules['ADVANCED_MAPPING_RULES']
+            USAGE_ID_MAPPING = mapping_rules['USAGE_ID_MAPPING']
+            
+            _LOGGER.info("Successfully loaded and merged YAML mappings")
+            _LOGGER.debug("Advanced rules count: %d", len(ADVANCED_MAPPING_RULES))
+            _LOGGER.debug("Usage ID mappings count: %d", len(USAGE_ID_MAPPING))
+        else:
+            _LOGGER.info("No YAML mappings found, using default mappings")
+            
+    except Exception as e:
+        _LOGGER.error("Failed to load YAML mappings: %s", e)
+        _LOGGER.info("Falling back to default mappings")
