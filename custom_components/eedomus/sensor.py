@@ -220,7 +220,7 @@ class EedomusSensor(EedomusEntity, SensorEntity):
         if isinstance(value, str) and "(" in value:
             # Extract the first part of the value (e.g., "8" from "8 (31)")
             value = value.split("(")[0].strip()
-            _LOGGER.warning(
+            _LOGGER.debug(
                 "Non-standard value format corrected for sensor %s (periph_id=%s): %s -> %s",
                 self.coordinator.data[self._periph_id].get("name", "unknown"),
                 self._periph_id,
@@ -234,7 +234,7 @@ class EedomusSensor(EedomusEntity, SensorEntity):
         elif isinstance(value, str) and value.replace(".", "", 1).lstrip("-").isdigit():
             return float(value)
         else:
-            _LOGGER.warning(
+            _LOGGER.debug(
                 "Non-numeric value for sensor %s (periph_id=%s): '%s' - returning as None",
                 self.coordinator.data[self._periph_id].get("name", "unknown"),
                 self._periph_id,
