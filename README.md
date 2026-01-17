@@ -19,6 +19,16 @@
 - **Changements immédiats** : Les modifications prennent effet immédiatement après sauvegarde
 - **Interface utilisateur intuitive** : Panneau d'options organisé dans l'interface Home Assistant
 
+### 🆕 Nouveau dans la v0.13.0 : Configuration YAML des Mappings
+
+**La révolution de la personnalisation !** 🎨
+
+- **Configuration YAML complète** : Personnalisez le mapping des devices sans modifier le code
+- **Interface utilisateur intégrée** : Configurez les mappings directement depuis l'options flow
+- **Rechargement à chaud** : Appliquez les modifications sans redémarrage
+- **Fusion intelligente** : Combine les mappings par défaut et personnalisés
+- **Expressions régulières** : Détection flexible des devices par nom
+
 ### Fonctionnalités existantes
 
 - **Gestion complète** de vos 30+ périphériques Z-Wave et 4-5 Zigbee
@@ -28,6 +38,7 @@
 - **Mécanisme de fallback PHP** pour les valeurs rejetées
 - **Architecture modulaire** suivant les bonnes pratiques Home Assistant
 - **Tests complets** pour toutes les entités (covers, switches, lights, sensors)
+- **Configuration YAML avancée** pour une personnalisation complète
 
 ## 🧪 Tests
 
@@ -89,6 +100,154 @@ Consultez [TESTS_README.md](scripts/TESTS_README.md) pour plus de détails.
 - Modifications immédiates sans redémarrage
 - Configuration via interface utilisateur
 - Réduction de 20-40% des appels API avec les paramètres optimaux
+
+### Avec la v0.13.0 (YAML Mapping)
+- **Personnalisation complète** sans modification de code
+- **Rechargement à chaud** des mappings
+- **Détection flexible** par expressions régulières
+- **Fusion intelligente** des configurations
+- **Meilleure maintenabilité** avec séparation configuration/code
+
+## 🎛️ Configuration YAML des Mappings
+
+### Structure des fichiers YAML
+
+La configuration YAML permet de définir comment les périphériques eedomus sont mappés vers les entités Home Assistant. Deux fichiers sont utilisés :
+
+1. **`config/device_mapping.yaml`** : Fichier de mapping par défaut (fournis avec l'intégration)
+2. **`config/custom_mapping.yaml`** : Fichier de mapping utilisateur (personnalisable)
+
+### Structure de base
+
+```yaml
+version: 1.0
+
+# Règles avancées pour la détection complexe
+advanced_rules:
+  - name: "RGBW Lamp Detection"
+    priority: 1
+    conditions:
+      - usage_id: "1"
+      - min_children: 4
+      - child_usage_id: "1"
+    mapping:
+      ha_entity: "light"
+      ha_subtype: "rgbw"
+      justification: "Lampe RGBW avec 4 enfants (Rouge, Vert, Bleu, Blanc)"
+      device_class: null
+      icon: "mdi:lightbulb"
+
+# Mappings basés sur usage_id
+usage_id_mappings:
+  "0":
+    ha_entity: "switch"
+    ha_subtype: ""
+    justification: "Type de périphérique inconnu - mappé comme switch"
+    device_class: null
+    icon: "mdi:toggle-switch"
+
+# Mappings basés sur des motifs de nom (expressions régulières)
+name_patterns:
+  - pattern: ".*consommation.*"
+    ha_entity: "sensor"
+    ha_subtype: "energy"
+    device_class: "energy"
+    icon: "mdi:lightning-bolt"
+
+# Mapping par défaut (fallback)
+default_mapping:
+  ha_entity: "sensor"
+  ha_subtype: "unknown"
+  device_class: null
+  icon: "mdi:help-circle"
+  justification: "Mapping par défaut pour les périphériques inconnus"
+```
+
+### Priorité des mappings
+
+L'intégration utilise l'ordre de priorité suivant pour déterminer le mapping d'un périphérique :
+
+1. **Règles personnalisées** (depuis `custom_mapping.yaml`)
+2. **Règles avancées** (détection RGBW, relations parent-enfant)
+3. **Mappings par usage_id** (depuis YAML ou code)
+4. **Mappings par nom** (expressions régulières)
+5. **Mapping par défaut** (fallback)
+
+### Configuration via l'interface utilisateur
+
+1. **Accédez** à l'intégration eedomus dans Home Assistant
+2. **Cliquez** sur "Options" dans le menu
+3. **Sélectionnez** "YAML Mapping Configuration"
+4. **Configurez** le chemin du fichier de mapping personnalisé
+5. **Activez** "Reload mapping" pour appliquer les modifications immédiatement
+
+### Exemples de personnalisation
+
+#### 1. Ajouter un nouveau type de périphérique
+
+```yaml
+# Dans custom_mapping.yaml
+custom_rules:
+  - name: "My Custom Thermostat"
+    priority: 1
+    conditions:
+      - usage_id: "15"
+      - name: ".*thermostat.*"
+    mapping:
+      ha_entity: "climate"
+      ha_subtype: "thermostat"
+      justification: "Thermostat personnalisé"
+      device_class: "temperature"
+      icon: "mdi:thermostat"
+```
+
+#### 2. Modifier un mapping existant
+
+```yaml
+# Dans custom_mapping.yaml
+custom_usage_id_mappings:
+  "2":
+    ha_entity: "sensor"
+    ha_subtype: "power"
+    justification: "Capteur de puissance personnalisé"
+    device_class: "power"
+    icon: "mdi:gauge"
+```
+
+#### 3. Ajouter un motif de nom
+
+```yaml
+# Dans custom_mapping.yaml
+custom_name_patterns:
+  - pattern: ".*detecteur.*fumée.*"
+    ha_entity: "binary_sensor"
+    ha_subtype: "smoke"
+    device_class: "smoke"
+    icon: "mdi:fire"
+```
+
+### Bonnes pratiques
+
+1. **Commencez par le fichier par défaut** : Copiez `device_mapping.yaml` pour comprendre la structure
+2. **Utilisez des noms clairs** : Donnez des noms descriptifs à vos règles personnalisées
+3. **Priorité appropriée** : Utilisez des priorités élevées (1-2) pour les règles spécifiques
+4. **Testez les motifs** : Vérifiez vos expressions régulières avant de les appliquer
+5. **Sauvegardez** : Faites des sauvegardes avant de modifier les fichiers YAML
+
+### Dépannage
+
+**Problème** : Les modifications YAML ne sont pas appliquées
+- **Solution** : Activez "Reload mapping" dans l'interface ou redémarrez Home Assistant
+
+**Problème** : Erreur de syntaxe YAML
+- **Solution** : Vérifiez la syntaxe avec un validateur YAML en ligne
+
+**Problème** : Fichier de mapping introuvable
+- **Solution** : Vérifiez le chemin dans la configuration et créez le fichier si nécessaire
+
+## 🧪 Tests
+=======
+## 🧪 Tests
 
 ## 📚 Documentation supplémentaire
 
