@@ -1,0 +1,23 @@
+# Custom Eedomus Device Mapping Configuration
+# This file is for user-customized mappings that override the default mappings.
+# It can be edited through the options flow interface in Home Assistant.
+#
+# To add custom mappings, follow the same structure as device_mapping.yaml
+# Example:
+#
+# custom_rules:
+#   - name: "My Custom Device"
+#     priority: 1
+#     conditions:
+#       - usage_id: "123"
+#       - name: ".*my device.*"
+#     mapping:
+#       ha_entity: "light"
+#       ha_subtype: "custom"
+#       device_class: null
+#       icon: "mdi:lightbulb"
+
+version: 1.0
+custom_rules: []
+custom_usage_id_mappings: {}
+custom_name_patterns: []

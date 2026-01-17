@@ -1,0 +1,100 @@
+# Eedomus Device Mapping Configuration
+# Version: 1.0
+# 
+# This file defines how eedomus devices are mapped to Home Assistant entities.
+# Users can customize this mapping through the options flow interface.
+#
+# Priority order:
+# 1. User custom mappings (custom_mapping.yaml)
+# 2. Advanced rules (RGBW detection, parent-child relationships)
+# 3. Usage ID mappings
+# 4. Name pattern matching
+# 5. Default mapping
+
+version: 1.0
+
+# Advanced mapping rules for complex device detection
+advanced_rules:
+  - name: "RGBW Lamp Detection"
+    priority: 1
+    conditions:
+      - usage_id: "1"
+      - min_children: 4
+      - child_usage_id: "1"
+    mapping:
+      ha_entity: "light"
+      ha_subtype: "rgbw"
+      justification: "RGBW lamp with 4+ children (Red, Green, Blue, White)"
+      device_class: null
+      icon: "mdi:lightbulb"
+    child_mapping:
+      "1":
+        ha_entity: "light"
+        ha_subtype: "dimmable"
+
+  - name: "Smoke Detector"
+    priority: 2
+    conditions:
+      - usage_id: "27"
+    mapping:
+      ha_entity: "binary_sensor"
+      ha_subtype: "smoke"
+      justification: "Smoke detector device"
+      device_class: "fire"
+      icon: "mdi:fire"
+
+  - name: "Motion Sensor"
+    priority: 2
+    conditions:
+      - usage_id: "37"
+    mapping:
+      ha_entity: "binary_sensor"
+      ha_subtype: "motion"
+      justification: "Motion sensor device"
+      device_class: "motion"
+      icon: "mdi:walk"
+
+# Usage ID mappings
+usage_id_mappings:
+  "0":
+    ha_entity: "switch"
+    ha_subtype: ""
+    justification: "Unknown device type - default to switch"
+    device_class: null
+    icon: "mdi:toggle-switch"
+  
+  "1":
+    ha_entity: "light"
+    ha_subtype: "dimmable"
+    justification: "Dimmable light device"
+    device_class: null
+    icon: "mdi:lightbulb"
+    
+  "2":
+    ha_entity: "switch"
+    ha_subtype: "consumption"
+    justification: "Switch with consumption monitoring"
+    device_class: "outlet"
+    icon: "mdi:power-socket-eu"
+
+# Name pattern mappings (regex patterns)
+name_patterns:
+  - pattern: ".*consommation.*"
+    ha_entity: "sensor"
+    ha_subtype: "energy"
+    device_class: "energy"
+    icon: "mdi:lightning-bolt"
+    
+  - pattern: ".*température.*"
+    ha_entity: "sensor"
+    ha_subtype: "temperature"
+    device_class: "temperature"
+    icon: "mdi:thermometer"
+
+# Default mapping (fallback)
+default_mapping:
+  ha_entity: "sensor"
+  ha_subtype: "unknown"
+  device_class: null
+  icon: "mdi:help-circle"
+  justification: "Default fallback mapping for unknown devices"
