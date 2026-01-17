@@ -2,16 +2,33 @@
 
 from __future__ import annotations
 from datetime import datetime
-
+import re
 import logging
 
 from homeassistant.helpers.entity import DeviceInfo, Entity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import ATTR_PERIPH_ID, DOMAIN, EEDOMUS_TO_HA_ATTR_MAPPING
-from .device_mapping import USAGE_ID_MAPPING, ADVANCED_MAPPING_RULES
+from .device_mapping import USAGE_ID_MAPPING, load_and_merge_yaml_mappings, load_yaml_mappings
 
 _LOGGER = logging.getLogger(__name__)
+
+# Initialize YAML mappings when module is loaded
+try:
+    load_and_merge_yaml_mappings()
+    _LOGGER.info("YAML device mappings initialized successfully")
+except Exception as e:
+    _LOGGER.error("Failed to initialize YAML mappings: %s", e)
+    _LOGGER.info("Continuing with default mappings")
+
+# Load name patterns for device name matching
+try:
+    yaml_config = load_yaml_mappings()
+    NAME_PATTERNS = yaml_config.get('name_patterns', []) if yaml_config else []
+    _LOGGER.info("Loaded %d name patterns from YAML configuration", len(NAME_PATTERNS))
+except Exception as e:
+    _LOGGER.error("Failed to load name patterns: %s", e)
+    NAME_PATTERNS = []
 
 
 # Timestamp formatting utilities
@@ -421,6 +438,9 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     Returns:
         dict: {"ha_entity": str, "ha_subtype": str, "justification": str}
     """
+    # Import local pour éviter les problèmes d'import circulaire
+    from .device_mapping import ADVANCED_MAPPING_RULES
+    
     periph_id = device_data["periph_id"]
     periph_name = device_data["name"]
     usage_id = device_data.get("usage_id")
@@ -548,8 +568,24 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         
         return mapping
     
-    # Priorité 4: Détection par nom
+    # Priorité 4: Détection par nom (YAML patterns)
     name_lower = device_data["name"].lower()
+    
+    # Check YAML name patterns first
+    for pattern in NAME_PATTERNS:
+        if re.search(pattern['pattern'], name_lower, re.IGNORECASE):
+            mapping = {
+                "ha_entity": pattern['ha_entity'],
+                "ha_subtype": pattern['ha_subtype'],
+                "justification": f"Name pattern match: {pattern['pattern']}",
+                "device_class": pattern.get('device_class'),
+                "icon": pattern.get('icon')
+            }
+            _LOGGER.info("🎯 Name pattern matched: %s (%s) → %s:%s (pattern: %s)",
+                        periph_name, periph_id, mapping["ha_entity"], mapping["ha_subtype"], pattern['pattern'])
+            return mapping
+    
+    # Legacy name detection (can be removed in future)
     if "message" in name_lower and "box" in name_lower:
         return _create_mapping(
             {"ha_entity": "sensor", "ha_subtype": "text", 
@@ -557,12 +593,32 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
             periph_name, periph_id, "message", "📝"
         )
     
-    # Priorité 5: Mapping par défaut
-    mapping = {
-        "ha_entity": default_ha_entity,
-        "ha_subtype": "unknown",
-        "justification": "No matching rule found"
-    }
+    # Priorité 5: Mapping par défaut (YAML fallback)
+    try:
+        yaml_config = load_yaml_mappings()
+        if yaml_config and 'default_mapping' in yaml_config:
+            default_config = yaml_config['default_mapping']
+            mapping = {
+                "ha_entity": default_config['ha_entity'],
+                "ha_subtype": default_config['ha_subtype'],
+                "justification": default_config['justification'],
+                "device_class": default_config.get('device_class'),
+                "icon": default_config.get('icon')
+            }
+        else:
+            mapping = {
+                "ha_entity": default_ha_entity,
+                "ha_subtype": "unknown",
+                "justification": "No matching rule found"
+            }
+    except Exception as e:
+        _LOGGER.error("Failed to load default mapping from YAML: %s", e)
+        mapping = {
+            "ha_entity": default_ha_entity,
+            "ha_subtype": "unknown",
+            "justification": "No matching rule found"
+        }
+    
     _LOGGER.warning("❓ Unknown device: %s (%s) → %s:%s. Data: %s",
                     periph_name, periph_id, mapping["ha_entity"], mapping["ha_subtype"], device_data)
     return mapping
