@@ -18,6 +18,32 @@
 #       icon: "mdi:lightbulb"
 
 version: 1.0
+
+# Custom rules for advanced device mapping
+# These override the default mapping rules
 custom_rules: []
+
+# Custom usage ID mappings
+# Override default mappings for specific usage_ids
 custom_usage_id_mappings: {}
+
+# Custom name patterns
+# Map devices based on name patterns (regex)
 custom_name_patterns: []
+
+# Custom dynamic entity properties
+# Override which entity types should be dynamic
+# Dynamic devices are those whose state can change unpredictably due to user actions
+# They are included in opportunistic refresh mechanisms
+custom_dynamic_entity_properties: {}
+  # Example: Make climate devices dynamic if they have physical controls
+  # climate: true
+
+# Custom specific device dynamic overrides
+# Override dynamic behavior for individual devices by periph_id
+# Use this for devices that don't fit the default entity type behavior
+custom_specific_device_dynamic_overrides: {}
+  # Example: Make a specific temperature sensor dynamic if it's critical
+  # "123456": true
+  # Example: Make a motion sensor static if it's in a low-traffic area
+  # "789012": false

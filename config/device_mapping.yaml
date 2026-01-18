@@ -27,10 +27,12 @@ advanced_rules:
       justification: "RGBW lamp with 4+ children (Red, Green, Blue, White)"
       device_class: null
       icon: "mdi:lightbulb"
+      is_dynamic: true
     child_mapping:
       "1":
         ha_entity: "light"
         ha_subtype: "dimmable"
+        is_dynamic: true
 
   - name: "Smoke Detector"
     priority: 2
@@ -42,6 +44,7 @@ advanced_rules:
       justification: "Smoke detector device"
       device_class: "fire"
       icon: "mdi:fire"
+      is_dynamic: true
 
   - name: "Motion Sensor"
     priority: 2
@@ -53,6 +56,7 @@ advanced_rules:
       justification: "Motion sensor device"
       device_class: "motion"
       icon: "mdi:walk"
+      is_dynamic: true
 
 # Usage ID mappings
 usage_id_mappings:
@@ -62,6 +66,7 @@ usage_id_mappings:
     justification: "Unknown device type - default to switch"
     device_class: null
     icon: "mdi:toggle-switch"
+    is_dynamic: true
   
   "1":
     ha_entity: "light"
@@ -69,6 +74,7 @@ usage_id_mappings:
     justification: "Dimmable light device"
     device_class: null
     icon: "mdi:lightbulb"
+    is_dynamic: true
     
   "2":
     ha_entity: "switch"
@@ -76,6 +82,7 @@ usage_id_mappings:
     justification: "Switch with consumption monitoring"
     device_class: "outlet"
     icon: "mdi:power-socket-eu"
+    is_dynamic: true
 
 # Name pattern mappings (regex patterns)
 name_patterns:
@@ -98,3 +105,27 @@ default_mapping:
   device_class: null
   icon: "mdi:help-circle"
   justification: "Default fallback mapping for unknown devices"
+  is_dynamic: false
+
+# Entity type dynamic properties (default values)
+# These define which entity types are dynamic by default
+# Dynamic devices are those whose state can change unpredictably due to user actions
+# They are included in opportunistic refresh mechanisms for real-time updates
+# Can be overridden in specific mappings
+dynamic_entity_properties:
+  light: true      # Lights can be toggled manually - require frequent updates
+  switch: true     # Switches can be toggled manually - require frequent updates
+  binary_sensor: true  # Motion detectors, door sensors - state changes unpredictably
+  sensor: false    # Temperature, humidity - change slowly and predictably
+  climate: false   # Thermostat settings - change infrequently
+  cover: true      # Shutters/blinds can be operated manually - require frequent updates
+  select: false    # Selection menus - change infrequently
+  scene: false     # Scene activations - change infrequently
+
+# Specific device dynamic overrides
+# Allow users to specify dynamic behavior for individual devices by periph_id
+# Format: periph_id: is_dynamic (true/false)
+specific_device_dynamic_overrides:
+  # Example:
+  # "123456": true
+  # "789012": false

@@ -102,6 +102,34 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             if not "ha_entity" in aggregated_data[periph_id]:
                 eedomus_mapping = map_device_to_ha_entity(aggregated_data[periph_id])
                 aggregated_data[periph_id].update(eedomus_mapping)
+                
+                # Add dynamic property based on entity type
+                try:
+                    from .device_mapping import get_dynamic_entity_properties
+                    dynamic_properties = get_dynamic_entity_properties()
+                    ha_entity = aggregated_data[periph_id].get("ha_entity")
+                    if ha_entity:
+                        aggregated_data[periph_id]["is_dynamic"] = dynamic_properties.get(ha_entity, False)
+                        _LOGGER.debug(
+                            "Set is_dynamic=%s for %s (%s) based on entity type %s",
+                            aggregated_data[periph_id]["is_dynamic"],
+                            aggregated_data[periph_id].get("name"),
+                            periph_id,
+                            ha_entity
+                        )
+                except Exception as e:
+                    _LOGGER.warning(
+                        "Failed to set dynamic property for %s (%s): %s",
+                        aggregated_data[periph_id].get("name"),
+                        periph_id,
+                        e
+                    )
+                    # Set default dynamic property
+                    ha_entity = aggregated_data[periph_id].get("ha_entity")
+                    if ha_entity in ["light", "switch", "binary_sensor"]:
+                        aggregated_data[periph_id]["is_dynamic"] = True
+                    else:
+                        aggregated_data[periph_id]["is_dynamic"] = False
 
         # Logs des tailles
         _LOGGER.info(
@@ -136,6 +164,35 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
 
             # _LOGGER.debug("Processing peripheral (ID: %s, data: %s)", periph_id, periph_data)
+
+            # Ensure is_dynamic property is set for all peripherals
+            if "ha_entity" in periph_data and "is_dynamic" not in periph_data:
+                try:
+                    from .device_mapping import get_dynamic_entity_properties
+                    dynamic_properties = get_dynamic_entity_properties()
+                    ha_entity = periph_data.get("ha_entity")
+                    if ha_entity:
+                        periph_data["is_dynamic"] = dynamic_properties.get(ha_entity, False)
+                        _LOGGER.debug(
+                            "Set is_dynamic=%s for %s (%s) based on entity type %s",
+                            periph_data["is_dynamic"],
+                            periph_data.get("name"),
+                            periph_id,
+                            ha_entity
+                        )
+                except Exception as e:
+                    _LOGGER.warning(
+                        "Failed to set dynamic property for %s (%s): %s",
+                        periph_data.get("name"),
+                        periph_id,
+                        e
+                    )
+                    # Set default dynamic property
+                    ha_entity = periph_data.get("ha_entity")
+                    if ha_entity in ["light", "switch", "binary_sensor"]:
+                        periph_data["is_dynamic"] = True
+                    else:
+                        periph_data["is_dynamic"] = False
 
             if self._is_dynamic_peripheral(periph_data):
                 self._dynamic_peripherals[periph_id] = periph_data
@@ -400,29 +457,79 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         return self.data
 
     def _is_dynamic_peripheral(self, periph):
-        """Determine if a peripheral needs regular updates."""
+        """Determine if a peripheral needs regular updates based on mapping configuration."""
+        periph_id = periph.get("periph_id")
         ha_entity = periph.get("ha_entity")
-
-        dynamic_types = [
-            "light",
-            "switch",
-            "binary_sensor",
-        ]
-
-        if ha_entity in dynamic_types:
-            _LOGGER.debug(
-                "Peripheral is dynamic ! %s (%s)",
+        
+        # Check for specific device overrides first (highest priority)
+        try:
+            from .device_mapping import get_specific_device_dynamic_overrides
+            device_overrides = get_specific_device_dynamic_overrides()
+            if periph_id and str(periph_id) in device_overrides:
+                is_dynamic = device_overrides[str(periph_id)]
+                _LOGGER.debug(
+                    "Peripheral is %s (specific override) ! %s (%s)",
+                    "dynamic" if is_dynamic else "NOT dynamic",
+                    periph.get("name"),
+                    periph_id,
+                )
+                return is_dynamic
+        except Exception as e:
+            _LOGGER.warning(
+                "Failed to check specific device overrides for %s (%s): %s",
                 periph.get("name"),
-                periph.get("periph_id"),
+                periph_id,
+                e
             )
-            return True
-
-        _LOGGER.debug(
-            "Peripheral is NOT dynamic ! %s (%s)",
-            periph.get("name"),
-            periph.get("periph_id"),
-        )
-        return False
+        
+        # Check if the peripheral has explicit is_dynamic property from mapping
+        if "is_dynamic" in periph:
+            is_dynamic = periph.get("is_dynamic", False)
+            if is_dynamic:
+                _LOGGER.debug(
+                    "Peripheral is dynamic (explicit) ! %s (%s)",
+                    periph.get("name"),
+                    periph_id,
+                )
+            else:
+                _LOGGER.debug(
+                    "Peripheral is NOT dynamic (explicit) ! %s (%s)",
+                    periph.get("name"),
+                    periph_id,
+                )
+            return is_dynamic
+        
+        # Fallback to entity type-based dynamic properties
+        try:
+            from .device_mapping import get_dynamic_entity_properties
+            dynamic_properties = get_dynamic_entity_properties()
+            is_dynamic = dynamic_properties.get(ha_entity, False)
+            
+            if is_dynamic:
+                _LOGGER.debug(
+                    "Peripheral is dynamic (entity type) ! %s (%s) - entity: %s",
+                    periph.get("name"),
+                    periph_id,
+                    ha_entity,
+                )
+            else:
+                _LOGGER.debug(
+                    "Peripheral is NOT dynamic (entity type) ! %s (%s) - entity: %s",
+                    periph.get("name"),
+                    periph_id,
+                    ha_entity,
+                )
+            return is_dynamic
+        except Exception as e:
+            _LOGGER.warning(
+                "Failed to determine dynamic status for %s (%s): %s. Falling back to default logic.",
+                periph.get("name"),
+                periph_id,
+                e
+            )
+            # Fallback to old logic
+            dynamic_types = ["light", "switch", "binary_sensor", "cover"]
+            return ha_entity in dynamic_types
 
     def get_all_peripherals(self):
         """Return all peripherals (for entity setup)."""

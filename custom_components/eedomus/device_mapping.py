@@ -30,6 +30,10 @@ _LOGGER = logging.getLogger(__name__)
 DEFAULT_MAPPING_FILE = "config/device_mapping.yaml"
 CUSTOM_MAPPING_FILE = "config/custom_mapping.yaml"
 
+# Global variables for mapping rules
+DYNAMIC_ENTITY_PROPERTIES = {}
+SPECIFIC_DEVICE_DYNAMIC_OVERRIDES = {}
+
 def load_yaml_file(file_path: str) -> Optional[Dict[str, Any]]:
     """Load YAML configuration from file.
     
@@ -115,6 +119,20 @@ def merge_yaml_mappings(default_mapping: Dict[str, Any], custom_mapping: Dict[st
             merged['name_patterns'] = []
         merged['name_patterns'].extend(custom_patterns)
     
+    # Merge custom dynamic entity properties
+    if 'custom_dynamic_entity_properties' in custom_mapping:
+        custom_dynamic_props = custom_mapping['custom_dynamic_entity_properties']
+        if 'dynamic_entity_properties' not in merged:
+            merged['dynamic_entity_properties'] = {}
+        merged['dynamic_entity_properties'].update(custom_dynamic_props)
+    
+    # Merge custom specific device dynamic overrides
+    if 'custom_specific_device_dynamic_overrides' in custom_mapping:
+        custom_device_overrides = custom_mapping['custom_specific_device_dynamic_overrides']
+        if 'specific_device_dynamic_overrides' not in merged:
+            merged['specific_device_dynamic_overrides'] = {}
+        merged['specific_device_dynamic_overrides'].update(custom_device_overrides)
+    
     return merged
 
 def convert_yaml_to_mapping_rules(yaml_config: Dict[str, Any]) -> Dict[str, Any]:
@@ -170,7 +188,8 @@ def convert_yaml_to_mapping_rules(yaml_config: Dict[str, Any]) -> Dict[str, Any]
                 'ha_subtype': rule['mapping']['ha_subtype'],
                 'justification': rule['mapping']['justification'],
                 'device_class': rule['mapping'].get('device_class'),
-                'icon': rule['mapping'].get('icon')
+                'icon': rule['mapping'].get('icon'),
+                'is_dynamic': rule['mapping'].get('is_dynamic', False)
             }
             
             if 'child_mapping' in rule:
@@ -184,7 +203,8 @@ def convert_yaml_to_mapping_rules(yaml_config: Dict[str, Any]) -> Dict[str, Any]
                 'ha_subtype': mapping['ha_subtype'],
                 'justification': mapping['justification'],
                 'device_class': mapping.get('device_class'),
-                'icon': mapping.get('icon')
+                'icon': mapping.get('icon'),
+                'is_dynamic': mapping.get('is_dynamic', False)
             }
     
     return {
@@ -207,7 +227,8 @@ ADVANCED_MAPPING_RULES = {
         "justification": "Lampe RGBW avec 4 enfants ou plus (Rouge, Vert, Bleu, Blanc)",
         "child_mapping": {
             "1": {"ha_entity": "light", "ha_subtype": "dimmable"}
-        }
+        },
+        "is_dynamic": True
     },
     "rgbw_lamp_flexible": {
         "condition": lambda device_data, all_devices: (
@@ -230,7 +251,8 @@ ADVANCED_MAPPING_RULES = {
         "justification": "Lampe RGBW détectée par critères flexibles (SUPPORTED_CLASSES, PRODUCT_TYPE_ID ou nom)",
         "child_mapping": {
             "1": {"ha_entity": "light", "ha_subtype": "dimmable"}
-        }
+        },
+        "is_dynamic": True
     },
     "rgbw_lamp_specific_devices": {
         "condition": lambda device_data, all_devices: (
@@ -241,7 +263,8 @@ ADVANCED_MAPPING_RULES = {
         "justification": "Lampe RGBW spécifique - périphérique connu nécessitant un mapping RGBW",
         "child_mapping": {
             "1": {"ha_entity": "light", "ha_subtype": "dimmable"}
-        }
+        },
+        "is_dynamic": True
     },
     "shutter_with_tilt": {
         "condition": lambda device_data, all_devices: (
@@ -257,7 +280,8 @@ ADVANCED_MAPPING_RULES = {
         "justification": "Volet avec contrôle d'inclinaison des lamelles",
         "child_mapping": {
             "48": {"ha_entity": "cover", "ha_subtype": "shutter"}
-        }
+        },
+        "is_dynamic": True
     }
 }
 
@@ -272,154 +296,184 @@ USAGE_ID_MAPPING = {
         "ha_entity": "switch",
         "ha_subtype": "",
         "justification": "Unknown device type - default to switch",
+        "is_dynamic": True
     },
     "1": {
         "ha_entity": "light",
         "ha_subtype": "dimmable",
         "justification": "Light device - usage_id=1 typically represents lamps and lighting",
-        "advanced_rules": ["rgbw_lamp_with_children", "rgbw_lamp_flexible"]
+        "advanced_rules": ["rgbw_lamp_with_children", "rgbw_lamp_flexible"],
+        "is_dynamic": True
     },
     "2": {
         "ha_entity": "switch",
         "ha_subtype": "",
         "justification": "Generic switch - usage_id=2 for basic on/off devices",
+        "is_dynamic": True
     },
     "4": {
         "ha_entity": "switch",
         "ha_subtype": "",
         "justification": "Generic switch - usage_id=4 for electrical appliances",
+        "is_dynamic": True
     },
     "7": {
         "ha_entity": "sensor",
         "ha_subtype": "temperature",
         "justification": "Temperature sensor - usage_id=7 for temperature monitoring",
+        "is_dynamic": False
     },
     "14": {
         "ha_entity": "select",
         "ha_subtype": "shutter_group",
         "justification": "Virtual device for shutter grouping and Alexa integration",
+        "is_dynamic": False
     },
     "15": {
         "ha_entity": "climate",
         "ha_subtype": "temperature_setpoint",
         "justification": "Virtual thermostat for heating setpoint control",
+        "is_dynamic": False
     },
     "18": {
         "ha_entity": "sensor",
         "ha_subtype": "text",
         "justification": "Current day information from eedomus",
+        "is_dynamic": False
     },
     "19": {
         "ha_entity": "climate",
         "ha_subtype": "fil_pilote",
         "justification": "Fil pilote heating system control - usage_id=19",
+        "is_dynamic": False
     },
     "20": {
         "ha_entity": "climate",
         "ha_subtype": "fil_pilote",
         "justification": "Fil pilote heating system control - usage_id=20",
+        "is_dynamic": False
     },
     "22": {
         "ha_entity": "sensor",
         "ha_subtype": "moisture",
         "justification": "Moisture sensor - Sonoff SNZB-02D/SNZB-02P via Zigate",
+        "is_dynamic": False
     },
     "23": {
         "ha_entity": "sensor",
         "ha_subtype": "cpu",
         "justification": "CPU usage monitor - eedomus internal system monitoring",
+        "is_dynamic": False
     },
     "24": {
         "ha_entity": "sensor",
         "ha_subtype": "illuminance",
         "justification": "Luminosity sensor - usage_id=24 for light level monitoring",
+        "is_dynamic": False
     },
     "26": {
         "ha_entity": "sensor",
         "ha_subtype": "energy",
         "justification": "Energy consumption meter - virtual eedomus consumption counter",
+        "is_dynamic": False
     },
     "27": {
         "ha_entity": "binary_sensor",
         "ha_subtype": "smoke",
         "justification": "Smoke detector - usage_id=27 for fire/smoke detection",
+        "is_dynamic": True
     },
     "34": {
         "ha_entity": "sensor",
         "ha_subtype": "text",
         "justification": "Day phase information from eedomus",
+        "is_dynamic": False
     },
     "35": {
         "ha_entity": "sensor",
         "ha_subtype": "text",
         "justification": "Miscellaneous eedomus app data (sun elevation, azimuth, etc.)",
+        "is_dynamic": False
     },
     "36": {
         "ha_entity": "binary_sensor",
         "ha_subtype": "moisture",
         "justification": "Flood/water detector - usage_id=36 for water leakage detection",
+        "is_dynamic": True
     },
     "37": {
         "ha_entity": "binary_sensor",
         "ha_subtype": "motion",
         "justification": "Motion detector - usage_id=37 for movement detection",
+        "is_dynamic": True
     },
     "38": {
         "ha_entity": "climate",
         "ha_subtype": "fil_pilote",
         "justification": "Fil pilote heating control - usage_id=38",
+        "is_dynamic": False
     },
     "42": {
         "ha_entity": "select",
         "ha_subtype": "shutter_group",
         "justification": "Shutter centralization control - eedomus virtual device",
+        "is_dynamic": False
     },
     "43": {
         "ha_entity": "select",
         "ha_subtype": "automation",
         "justification": "Eedomus scene trigger - virtual device for automation",
+        "is_dynamic": False
     },
     "48": {
         "ha_entity": "cover",
         "ha_subtype": "shutter",
         "justification": "Shutter/blind control - usage_id=48 for window coverings",
-        "advanced_rules": ["shutter_with_tilt"]
+        "advanced_rules": ["shutter_with_tilt"],
+        "is_dynamic": True
     },
     "50": {
         "ha_entity": "switch",
         "ha_subtype": "",
         "justification": "Camera privacy control - usage_id=50 for camera intimacy",
+        "is_dynamic": True
     },
     "52": {
         "ha_entity": "switch",
         "ha_subtype": "",
         "justification": "Sonoff switch/remote control - usage_id=52",
+        "is_dynamic": True
     },
     "82": {
         "ha_entity": "select",
         "ha_subtype": "color_preset",
         "justification": "RGBW color preset selection - usage_id=82",
+        "is_dynamic": False
     },
     "84": {
         "ha_entity": "sensor",
         "ha_subtype": "text",
         "justification": "Calendar day type information from eedomus",
+        "is_dynamic": False
     },
     "114": {
         "ha_entity": "sensor",
         "ha_subtype": "text",
         "justification": "Network detection status - eedomus app data",
+        "is_dynamic": False
     },
     "127": {
         "ha_entity": "sensor",
         "ha_subtype": "text",
         "justification": "Miscellaneous text data - usage_id=127",
+        "is_dynamic": False
     },
     # Additional common usage_ids that may be encountered
     "999": {
         "ha_entity": "select",
         "ha_subtype": "virtual",
         "justification": "Virtual device - eedomus scene triggers and automation",
+        "is_dynamic": False
     },
 }
 
@@ -753,6 +807,15 @@ DEVICES_CLASS_MAPPING = {
     },
 }
 
+def get_dynamic_entity_properties() -> Dict[str, bool]:
+    """Get the dynamic entity properties."""
+    return DYNAMIC_ENTITY_PROPERTIES
+
+def get_specific_device_dynamic_overrides() -> Dict[str, bool]:
+    """Get the specific device dynamic overrides."""
+    return SPECIFIC_DEVICE_DYNAMIC_OVERRIDES
+
+
 def load_and_merge_yaml_mappings(base_path: str = "") -> None:
     """Load YAML mappings and update global mapping rules.
     
@@ -763,7 +826,7 @@ def load_and_merge_yaml_mappings(base_path: str = "") -> None:
     Args:
         base_path: Base path where YAML files are located
     """
-    global ADVANCED_MAPPING_RULES, USAGE_ID_MAPPING
+    global ADVANCED_MAPPING_RULES, USAGE_ID_MAPPING, DYNAMIC_ENTITY_PROPERTIES, SPECIFIC_DEVICE_DYNAMIC_OVERRIDES
     
     try:
         # Load and merge YAML mappings
@@ -777,12 +840,51 @@ def load_and_merge_yaml_mappings(base_path: str = "") -> None:
             ADVANCED_MAPPING_RULES = mapping_rules['ADVANCED_MAPPING_RULES']
             USAGE_ID_MAPPING = mapping_rules['USAGE_ID_MAPPING']
             
+            # Load dynamic entity properties
+            DYNAMIC_ENTITY_PROPERTIES = yaml_config.get('dynamic_entity_properties', {})
+            _LOGGER.info("Loaded dynamic entity properties: %s", DYNAMIC_ENTITY_PROPERTIES)
+            
+            # Load specific device dynamic overrides
+            SPECIFIC_DEVICE_DYNAMIC_OVERRIDES = yaml_config.get('specific_device_dynamic_overrides', {})
+            _LOGGER.info("Loaded specific device dynamic overrides: %s", SPECIFIC_DEVICE_DYNAMIC_OVERRIDES)
+            
             _LOGGER.info("Successfully loaded and merged YAML mappings")
             _LOGGER.debug("Advanced rules count: %d", len(ADVANCED_MAPPING_RULES))
             _LOGGER.debug("Usage ID mappings count: %d", len(USAGE_ID_MAPPING))
+            _LOGGER.debug("Dynamic entity properties: %s", DYNAMIC_ENTITY_PROPERTIES)
         else:
             _LOGGER.info("No YAML mappings found, using default mappings")
+            # Set default dynamic properties
+            DYNAMIC_ENTITY_PROPERTIES = {
+                "light": True,
+                "switch": True,
+                "binary_sensor": True,
+                "sensor": False,
+                "climate": False,
+                "cover": True,
+                "select": False,
+                "scene": False
+            }
+            _LOGGER.info("Using default dynamic entity properties: %s", DYNAMIC_ENTITY_PROPERTIES)
+            
+            # Set default specific device overrides
+            SPECIFIC_DEVICE_DYNAMIC_OVERRIDES = {}
+            _LOGGER.info("Using default specific device dynamic overrides: %s", SPECIFIC_DEVICE_DYNAMIC_OVERRIDES)
             
     except Exception as e:
         _LOGGER.error("Failed to load YAML mappings: %s", e)
         _LOGGER.info("Falling back to default mappings")
+        # Set default dynamic properties on error
+        DYNAMIC_ENTITY_PROPERTIES = {
+            "light": True,
+            "switch": True,
+            "binary_sensor": True,
+            "sensor": False,
+            "climate": False,
+            "cover": True,
+            "select": False,
+            "scene": False
+        }
+        
+        # Set default specific device overrides on error
+        SPECIFIC_DEVICE_DYNAMIC_OVERRIDES = {}

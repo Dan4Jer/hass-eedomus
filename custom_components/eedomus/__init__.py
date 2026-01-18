@@ -12,6 +12,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceResponse, callback
 from homeassistant.helpers import aiohttp_client
 import aiohttp
+import shutil
 
 from .api_proxy import EedomusApiProxyView
 from .webhook import EedomusWebhookView
@@ -37,7 +38,9 @@ from .const import (
     PLATFORMS,
 )
 from .coordinator import EedomusDataUpdateCoordinator
+from .config_panel import async_setup_config_panel
 from .eedomus_client import EedomusClient
+from .lovelace.config_panel_card import EedomusConfigPanelCard
 from .sensor import EedomusHistoryProgressSensor, EedomusSensor
 from .webhook import EedomusWebhookView
 
@@ -216,6 +219,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Forward setup to platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
+    # Set up configuration panel
+    await async_setup_config_panel(hass)
+    
+    # Register Lovelace card
+    if not hass.data.get(DOMAIN):
+        hass.data[DOMAIN] = {}
+    
+    # Create and store the config panel card instance
+    config_panel_card = EedomusConfigPanelCard({}, hass)
+    hass.data[DOMAIN]["config_panel_card"] = config_panel_card
+    
+    # Register the card for Lovelace UI
+    if hasattr(hass.components, 'frontend'):
+        hass.components.frontend.async_register_built_in_panel(
+            "eedomus-config",
+            "Eedomus Configuration",
+            "mdi:cog-transfer",
+            require_admin=True,
+        )
+    
+    _LOGGER.info("Eedomus Configuration Panel card registered")
     _LOGGER.debug("eedomus integration setup completed")
     return True
 
@@ -275,3 +299,32 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
     # Remove the config entry
     _LOGGER.info("Removing eedomus integration config entry")
+
+
+def copy_static_files():
+    """Copy static files to www directory for Lovelace card."""
+    try:
+        # Get the directory where this file is located
+        component_dir = os.path.dirname(os.path.abspath(__file__))
+        www_dir = os.path.join(component_dir, 'www')
+        lovelace_dir = os.path.join(component_dir, 'lovelace')
+        
+        # Create www directory if it doesn't exist
+        os.makedirs(www_dir, exist_ok=True)
+        
+        # Copy Lovelace JS file
+        src_js = os.path.join(lovelace_dir, 'config_panel.js')
+        dst_js = os.path.join(www_dir, 'config_panel.js')
+        
+        if os.path.exists(src_js):
+            shutil.copy2(src_js, dst_js)
+            _LOGGER.info("Copied Lovelace card JS to www directory")
+        else:
+            _LOGGER.warning("Lovelace card JS file not found: %s", src_js)
+            
+    except Exception as e:
+        _LOGGER.error("Failed to copy static files: %s", e)
+
+
+# Copy static files when module is imported
+copy_static_files()
