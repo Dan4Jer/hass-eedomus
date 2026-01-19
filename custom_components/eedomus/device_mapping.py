@@ -26,6 +26,9 @@ import yaml
 # Initialize logger
 _LOGGER = logging.getLogger(__name__)
 
+# Import DOMAIN constant
+from .const import DOMAIN
+
 # Default YAML configuration paths
 DEFAULT_MAPPING_FILE = "config/device_mapping.yaml"
 CUSTOM_MAPPING_FILE = "config/custom_mapping.yaml"
