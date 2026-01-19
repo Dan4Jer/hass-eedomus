@@ -276,58 +276,36 @@ async def async_setup_config_panel(hass: HomeAssistant):
     
     _LOGGER.info("Eedomus configuration panel initialized")
     
-    # Register frontend panel with robust error handling and retry mechanism
-    async def try_register_panel():
-        """Try to register the configuration panel with multiple fallback strategies."""
-        max_attempts = 3
-        attempt = 0
-        
-        while attempt < max_attempts:
-            attempt += 1
-            
-            # Try direct frontend import (modern HA versions)
-            try:
-                from homeassistant.components import frontend as frontend_module
-                if frontend_module is not None:
-                    await frontend_module.async_register_built_in_panel(
-                        hass,
-                        "eedomus-config",
-                        "Eedomus Configuration",
-                        "mdi:cog-transfer",
-                        require_admin=True,
-                    )
-                    _LOGGER.info("Configuration panel registered successfully (attempt %s)", attempt)
-                    return True
-            except Exception as e:
-                _LOGGER.debug("Direct frontend registration failed (attempt %s): %s", attempt, e)
-            
-            # Try via hass.components.frontend (fallback)
-            try:
-                if hasattr(hass.components, 'frontend'):
-                    await hass.components.frontend.async_register_built_in_panel(
-                        "eedomus-config",
-                        "Eedomus Configuration",
-                        "mdi:cog-transfer",
-                        require_admin=True,
-                    )
-                    _LOGGER.info("Configuration panel registered via components.frontend (attempt %s)", attempt)
-                    return True
-            except Exception as e:
-                _LOGGER.debug("Components frontend registration failed (attempt %s): %s", attempt, e)
-            
-            # Wait before retry
-            if attempt < max_attempts:
-                await asyncio.sleep(1)
-        
-        return False
-    
-    # Try to register the panel
-    registration_success = await try_register_panel()
-    
-    if not registration_success:
-        _LOGGER.error("Failed to register configuration panel after multiple attempts")
-        _LOGGER.warning("Configuration panel will not be available in this session")
-        _LOGGER.warning("Please restart Home Assistant to retry panel registration")
+    # Register frontend panel using the most reliable method for HA 2026.02+
+    try:
+        # Method 1: Try using the hass object directly (most reliable for HA 2026.02+)
+        if hasattr(hass, 'components') and hasattr(hass.components, 'frontend'):
+            await hass.components.frontend.async_register_built_in_panel(
+                "eedomus-config",
+                "Eedomus Configuration",
+                "mdi:cog-transfer",
+                require_admin=True,
+            )
+            _LOGGER.info("Configuration panel registered successfully using hass.components.frontend")
+        else:
+            # Method 2: Fallback to direct import if hass.components.frontend not available
+            from homeassistant.components import frontend as frontend_module
+            if frontend_module is not None:
+                await frontend_module.async_register_built_in_panel(
+                    hass,
+                    "eedomus-config",
+                    "Eedomus Configuration",
+                    "mdi:cog-transfer",
+                    require_admin=True,
+                )
+                _LOGGER.info("Configuration panel registered successfully using direct import")
+            else:
+                _LOGGER.warning("Frontend module not available - configuration panel registration skipped")
+                _LOGGER.info("Using Lovelace card as fallback for configuration")
+    except Exception as e:
+        _LOGGER.error("Failed to register configuration panel: %s", e)
+        _LOGGER.warning("Configuration panel registration failed, but integration will continue")
+        _LOGGER.info("You can still access configuration via YAML files or options flow")
     
     # Add method to update from options flow
     async def update_from_options(options: dict) -> None:
