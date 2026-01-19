@@ -14,7 +14,6 @@ from .const import (
     CONF_CUSTOM_DEVICES,
     CONF_YAML_CONTENT,
 )
-from . import async_load_mapping, async_save_custom_mapping
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -61,6 +60,9 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_ui(self, user_input=None):
         """Handle UI-based device configuration."""
+        # Local imports to avoid circular dependency
+        from . import async_load_mapping, async_save_custom_mapping
+        
         errors = {}
 
         if user_input is not None:
@@ -121,6 +123,10 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_yaml(self, user_input=None):
         """Handle YAML-based configuration."""
+        # Local imports to avoid circular dependency
+        from . import async_load_mapping, async_save_custom_mapping
+        from .const import YAML_MAPPING_SCHEMA
+        
         errors = {}
 
         if user_input is not None:

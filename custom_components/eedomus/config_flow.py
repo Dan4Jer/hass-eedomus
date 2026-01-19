@@ -13,7 +13,7 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 # Import the options flow handler for the async_get_options_flow method
-from .options_flow import EedomusOptionsFlowHandler
+from .options_flow import EedomusOptionsFlow
 
 from .const import (
     CONF_API_HOST,
