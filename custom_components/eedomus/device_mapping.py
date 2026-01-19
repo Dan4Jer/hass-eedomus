@@ -1123,10 +1123,8 @@ async def async_setup_config_manager(hass=None):
         hass.data[DOMAIN]["update_config_from_options"] = update_from_options
     
     _LOGGER.info("Eedomus configuration manager initialized")
-    _LOGGER.info("Note: Built-in configuration panel not available in HA 2026.02+")
     _LOGGER.info("Configuration options:")
     _LOGGER.info("  1. YAML files (device_mapping.yaml, custom_mapping.yaml) - RECOMMENDED")
     _LOGGER.info("  2. Integration options flow (Settings → Devices & Services → Eedomus)")
-    _LOGGER.info("  3. Lovelace card (if manually configured)")
     
     return config_manager
