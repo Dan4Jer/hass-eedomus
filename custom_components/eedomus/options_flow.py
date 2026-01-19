@@ -107,10 +107,7 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
 
         # Create dynamic schema for devices
         device_schema = vol.Schema({
-            vol.Optional(CONF_CUSTOM_DEVICES, default=self.current_devices): vol.All(
-                vol.ensure_list,
-                [DEVICE_SCHEMA]
-            )
+            vol.Optional(CONF_CUSTOM_DEVICES, default=self.current_devices): [DEVICE_SCHEMA]
         })
 
         return self.async_show_form(
