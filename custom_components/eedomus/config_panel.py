@@ -275,14 +275,37 @@ async def async_setup_config_panel(hass: HomeAssistant):
     
     _LOGGER.info("Eedomus configuration panel initialized")
     
-    # Register frontend panel
-    await frontend.async_register_built_in_panel(
-        hass,
-        "eedomus-config",
-        "Eedomus Configuration",
-        "mdi:cog-transfer",
-        require_admin=True,
-    )
+    # Register frontend panel (check if frontend is available)
+    if frontend is not None:
+        try:
+            await frontend.async_register_built_in_panel(
+                hass,
+                "eedomus-config",
+                "Eedomus Configuration",
+                "mdi:cog-transfer",
+                require_admin=True,
+            )
+            _LOGGER.info("Configuration panel registered successfully")
+        except Exception as e:
+            _LOGGER.error("Failed to register configuration panel: %s", e)
+    else:
+        _LOGGER.warning("Frontend component not available - panel registration deferred")
+        # Try to register when frontend becomes available
+        async def register_when_ready():
+            await hass.async_add_executor_job(lambda: None)  # Yield to event loop
+            if hasattr(hass.components, 'frontend'):
+                try:
+                    await hass.components.frontend.async_register_built_in_panel(
+                        "eedomus-config",
+                        "Eedomus Configuration",
+                        "mdi:cog-transfer",
+                        require_admin=True,
+                    )
+                    _LOGGER.info("Configuration panel registered after frontend initialization")
+                except Exception as e:
+                    _LOGGER.error("Failed to register panel after frontend init: %s", e)
+        
+        hass.async_create_task(register_when_ready())
     
     # Add method to update from options flow
     async def update_from_options(options: dict) -> None:
