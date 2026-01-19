@@ -44,18 +44,24 @@ from .eedomus_client import EedomusClient
 # The Lovelace card import is kept for backward compatibility but may fail in newer HA versions
 try:
     from .lovelace.config_panel_card import EedomusConfigPanelCard
-    _LOGGER.info("Lovelace card imported successfully for backward compatibility")
-except ImportError as e:
-    _LOGGER.warning("Failed to import Lovelace card (expected in HA 2026.02+): %s", e)
+    # Logger not available yet at import time, will log later if needed
+except ImportError:
+    # Expected in HA 2026.02+, silently ignore
     EedomusConfigPanelCard = None
-except Exception as e:
-    _LOGGER.error("Unexpected error importing Lovelace card: %s", e)
+except Exception:
+    # Unexpected error, silently ignore
     EedomusConfigPanelCard = None
 from .sensor import EedomusHistoryProgressSensor, EedomusSensor
 from .webhook import EedomusWebhookView
 
 # Initialize logger first
 _LOGGER = logging.getLogger(__name__)
+
+# Log Lovelace card import status now that logger is available
+if EedomusConfigPanelCard is not None:
+    _LOGGER.info("Lovelace card imported successfully for backward compatibility")
+else:
+    _LOGGER.info("Using modern frontend API (Lovelace card not available)")
 
 # Import options flow to ensure it's registered
 try:
