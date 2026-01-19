@@ -139,3 +139,31 @@ CLASS_MAPPING: Dict[str, Dict[str, Any]] = {
     # ... (ajoute les autres classes ici)
 }
 
+# YAML Mapping Configuration Constants
+CONF_USE_YAML = "use_yaml"
+CONF_CUSTOM_DEVICES = "custom_devices"
+CONF_YAML_CONTENT = "yaml_content"
+
+# Device Mapping Schema
+DEVICE_SCHEMA = vol.Schema({
+    vol.Required("eedomus_id"): str,
+    vol.Required("ha_entity"): str,
+    vol.Required("type"): vol.In(["light", "switch", "sensor", "cover", "binary_sensor", "climate", "select"]),
+    vol.Required("name"): str,
+    vol.Optional("ha_subtype", default=""): str,
+    vol.Optional("icon"): cv.icon,
+    vol.Optional("room", default=""): str,
+    vol.Optional("justification", default=""): str,
+})
+
+# Schema for YAML files
+YAML_MAPPING_SCHEMA = vol.Schema({
+    vol.Optional(CONF_CUSTOM_DEVICES): vol.All(cv.ensure_list, [DEVICE_SCHEMA]),
+})
+
+# Schema for UI options
+UI_OPTIONS_SCHEMA = vol.Schema({
+    vol.Required(CONF_USE_YAML, default=False): bool,
+    vol.Optional(CONF_CUSTOM_DEVICES): vol.All(cv.ensure_list, [DEVICE_SCHEMA]),
+})
+

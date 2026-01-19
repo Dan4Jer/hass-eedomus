@@ -288,3 +288,79 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     _LOGGER.info("Removing eedomus integration config entry")
 
 
+# YAML Mapping Management Functions
+async def async_load_mapping(hass, config_dir):
+    """Load and merge device mappings from YAML files."""
+    import yaml
+    from homeassistant.helpers import config_validation as cv
+    from .const import YAML_MAPPING_SCHEMA, CONF_CUSTOM_DEVICES
+    
+    default_path = os.path.join(config_dir, "device_mapping.yaml")
+    custom_path = os.path.join(config_dir, "custom_mapping.yaml")
+
+    # Load default mapping
+    default_mapping = {}
+    try:
+        with open(default_path, "r", encoding="utf-8") as f:
+            default_mapping = yaml.safe_load(f) or {}
+            _LOGGER.debug("Loaded default mapping from %s", default_path)
+    except FileNotFoundError:
+        _LOGGER.warning("Default mapping file not found: %s", default_path)
+    except yaml.YAMLError as e:
+        _LOGGER.error("Error parsing default mapping YAML: %s", e)
+        raise
+
+    # Load custom mapping
+    custom_mapping = {}
+    try:
+        with open(custom_path, "r", encoding="utf-8") as f:
+            custom_mapping = yaml.safe_load(f) or {}
+            _LOGGER.debug("Loaded custom mapping from %s", custom_path)
+    except FileNotFoundError:
+        _LOGGER.debug("No custom mapping file found at %s", custom_path)
+    except yaml.YAMLError as e:
+        _LOGGER.error("Error parsing custom mapping YAML: %s", e)
+        raise
+
+    # Merge mappings (custom overrides default)
+    merged = {**default_mapping, **custom_mapping}
+
+    # Validate merged mapping
+    try:
+        validated = YAML_MAPPING_SCHEMA(merged)
+        _LOGGER.debug("Mapping validation successful")
+        return validated
+    except vol.Invalid as e:
+        _LOGGER.error("Mapping validation failed: %s", e)
+        raise
+
+
+async def async_save_custom_mapping(hass, config_dir, mapping_data):
+    """Save custom mapping to YAML file."""
+    import yaml
+    custom_path = os.path.join(config_dir, "custom_mapping.yaml")
+
+    try:
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(custom_path), exist_ok=True)
+
+        with open(custom_path, "w", encoding="utf-8") as f:
+            yaml.dump(mapping_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+            _LOGGER.info("Custom mapping saved to %s", custom_path)
+            return True
+    except Exception as e:
+        _LOGGER.error("Failed to save custom mapping: %s", e)
+        return False
+
+
+async def async_get_mapping_for_options(hass, config_dir):
+    """Get current mapping data for options flow."""
+    try:
+        from .const import CONF_CUSTOM_DEVICES
+        mapping = await async_load_mapping(hass, config_dir)
+        return mapping.get(CONF_CUSTOM_DEVICES, [])
+    except Exception as e:
+        _LOGGER.error("Failed to load mapping for options: %s", e)
+        return []
+
+

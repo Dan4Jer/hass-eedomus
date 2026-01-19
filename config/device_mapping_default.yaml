@@ -1,0 +1,110 @@
+# Default Device Mappings for eedomus Integration
+# This file contains standard mappings for common eedomus devices
+# Users can override these mappings in custom_mapping.yaml
+
+# Note: This file should not be modified directly by users
+# Custom mappings should go in custom_mapping.yaml
+
+default_devices:
+  # Common Light Devices
+  - eedomus_id: "1"
+    ha_entity: "light"
+    type: "light"
+    name: "Generic Light"
+    ha_subtype: "onoff"
+    justification: "Default mapping for usage_id=1 (light control)"
+
+  - eedomus_id: "39:1"
+    ha_entity: "light"
+    type: "light"
+    name: "Dimmable Light"
+    ha_subtype: "dimmable"
+    justification: "Dimmable light with brightness control"
+
+  - eedomus_id: "96:3"
+    ha_entity: "light"
+    type: "light"
+    name: "RGBW Light"
+    ha_subtype: "rgbw"
+    justification: "RGBW light with full color control"
+
+  - eedomus_id: "96:4"
+    ha_entity: "light"
+    type: "light"
+    name: "RGBW Light (Alternative)"
+    ha_subtype: "rgbw"
+    justification: "Alternative RGBW light mapping"
+
+  # Common Switch Devices
+  - eedomus_id: "37:1"
+    ha_entity: "switch"
+    type: "switch"
+    name: "Generic Switch"
+    justification: "Default mapping for usage_id=37:1 (switch)"
+
+  - eedomus_id: "32:1"
+    ha_entity: "switch"
+    type: "switch"
+    name: "Power Switch"
+    justification: "Power switch for appliances"
+
+  # Common Sensor Devices
+  - eedomus_id: "114:1"
+    ha_entity: "sensor"
+    type: "sensor"
+    name: "Temperature Sensor"
+    ha_subtype: "temperature"
+    justification: "Temperature sensor with °C units"
+
+  - eedomus_id: "38:1"
+    ha_entity: "sensor"
+    type: "sensor"
+    name: "Humidity Sensor"
+    ha_subtype: "humidity"
+    justification: "Humidity sensor with % units"
+
+  - eedomus_id: "134:1"
+    ha_entity: "sensor"
+    type: "sensor"
+    name: "Battery Sensor"
+    ha_subtype: "battery"
+    justification: "Battery level sensor"
+
+  # Common Binary Sensor Devices
+  - eedomus_id: "48:1"
+    ha_entity: "binary_sensor"
+    type: "binary_sensor"
+    name: "Motion Sensor"
+    ha_subtype: "motion"
+    justification: "Motion detection sensor"
+
+  - eedomus_id: "133:2"
+    ha_entity: "binary_sensor"
+    type: "binary_sensor"
+    name: "Moisture Sensor"
+    ha_subtype: "moisture"
+    justification: "Water/moisture detection sensor"
+
+  # Common Cover Devices
+  - eedomus_id: "142:2"
+    ha_entity: "cover"
+    type: "cover"
+    name: "Window Cover"
+    justification: "Window blind/shutter control"
+
+  # Common Climate Devices
+  - eedomus_id: "49:1"
+    ha_entity: "climate"
+    type: "climate"
+    name: "Thermostat"
+    justification: "Temperature control device"
+
+  # Common Select Devices (for scenes, modes, etc.)
+  - eedomus_id: "82"
+    ha_entity: "select"
+    type: "select"
+    name: "Scene Selector"
+    justification: "Scene/mode selection device"
+
+# Note: These are default mappings that can be overridden
+# Users should add their custom mappings to custom_mapping.yaml
