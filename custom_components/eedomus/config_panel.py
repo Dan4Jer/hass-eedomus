@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import os
 import yaml
+import asyncio
 from typing import Dict, Any, List, Optional
 from homeassistant.components import frontend
 from homeassistant.core import HomeAssistant
@@ -275,37 +276,58 @@ async def async_setup_config_panel(hass: HomeAssistant):
     
     _LOGGER.info("Eedomus configuration panel initialized")
     
-    # Register frontend panel (check if frontend is available)
-    if frontend is not None:
-        try:
-            await frontend.async_register_built_in_panel(
-                hass,
-                "eedomus-config",
-                "Eedomus Configuration",
-                "mdi:cog-transfer",
-                require_admin=True,
-            )
-            _LOGGER.info("Configuration panel registered successfully")
-        except Exception as e:
-            _LOGGER.error("Failed to register configuration panel: %s", e)
-    else:
-        _LOGGER.warning("Frontend component not available - panel registration deferred")
-        # Try to register when frontend becomes available
-        async def register_when_ready():
-            await hass.async_add_executor_job(lambda: None)  # Yield to event loop
-            if hasattr(hass.components, 'frontend'):
-                try:
+    # Register frontend panel with robust error handling and retry mechanism
+    async def try_register_panel():
+        """Try to register the configuration panel with multiple fallback strategies."""
+        max_attempts = 3
+        attempt = 0
+        
+        while attempt < max_attempts:
+            attempt += 1
+            
+            # Try direct frontend import (modern HA versions)
+            try:
+                from homeassistant.components import frontend as frontend_module
+                if frontend_module is not None:
+                    await frontend_module.async_register_built_in_panel(
+                        hass,
+                        "eedomus-config",
+                        "Eedomus Configuration",
+                        "mdi:cog-transfer",
+                        require_admin=True,
+                    )
+                    _LOGGER.info("Configuration panel registered successfully (attempt %s)", attempt)
+                    return True
+            except Exception as e:
+                _LOGGER.debug("Direct frontend registration failed (attempt %s): %s", attempt, e)
+            
+            # Try via hass.components.frontend (fallback)
+            try:
+                if hasattr(hass.components, 'frontend'):
                     await hass.components.frontend.async_register_built_in_panel(
                         "eedomus-config",
                         "Eedomus Configuration",
                         "mdi:cog-transfer",
                         require_admin=True,
                     )
-                    _LOGGER.info("Configuration panel registered after frontend initialization")
-                except Exception as e:
-                    _LOGGER.error("Failed to register panel after frontend init: %s", e)
+                    _LOGGER.info("Configuration panel registered via components.frontend (attempt %s)", attempt)
+                    return True
+            except Exception as e:
+                _LOGGER.debug("Components frontend registration failed (attempt %s): %s", attempt, e)
+            
+            # Wait before retry
+            if attempt < max_attempts:
+                await asyncio.sleep(1)
         
-        hass.async_create_task(register_when_ready())
+        return False
+    
+    # Try to register the panel
+    registration_success = await try_register_panel()
+    
+    if not registration_success:
+        _LOGGER.error("Failed to register configuration panel after %s attempts", max_attempts)
+        _LOGGER.warning("Configuration panel will not be available in this session")
+        _LOGGER.warning("Please restart Home Assistant to retry panel registration")
     
     # Add method to update from options flow
     async def update_from_options(options: dict) -> None:
