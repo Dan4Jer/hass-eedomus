@@ -13,15 +13,22 @@ from homeassistant.data_entry_flow import FlowResult
 
 from .const import (
     CONF_API_PROXY_DISABLE_SECURITY,
-
+    CONF_ENABLE_API_PROXY,
+    CONF_ENABLE_HISTORY,
     CONF_ENABLE_SET_VALUE_RETRY,
     CONF_ENABLE_WEBHOOK,
+    CONF_PHP_FALLBACK_ENABLED,
+    CONF_PHP_FALLBACK_SCRIPT_NAME,
+    CONF_PHP_FALLBACK_TIMEOUT,
     CONF_REMOVE_ENTITIES,
     CONF_SCAN_INTERVAL,
     DEFAULT_API_PROXY_DISABLE_SECURITY,
-
+    DEFAULT_ENABLE_API_PROXY,
+    DEFAULT_ENABLE_HISTORY,
     DEFAULT_ENABLE_SET_VALUE_RETRY,
     DEFAULT_ENABLE_WEBHOOK,
+    DEFAULT_PHP_FALLBACK_ENABLED,
+    DEFAULT_PHP_FALLBACK_TIMEOUT,
     DEFAULT_REMOVE_ENTITIES,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
@@ -114,6 +121,56 @@ class EedomusOptionsFlowHandler(config_entries.OptionsFlow):
                             ),
                         ),
                     ): bool,
+                    vol.Optional(
+                        CONF_ENABLE_API_PROXY,
+                        default=self.config_entry.options.get(
+                            CONF_ENABLE_API_PROXY,
+                            self.config_entry.data.get(
+                                CONF_ENABLE_API_PROXY,
+                                DEFAULT_ENABLE_API_PROXY,
+                            ),
+                        ),
+                    ): bool,
+                    vol.Optional(
+                        CONF_ENABLE_HISTORY,
+                        default=self.config_entry.options.get(
+                            CONF_ENABLE_HISTORY,
+                            self.config_entry.data.get(
+                                CONF_ENABLE_HISTORY,
+                                DEFAULT_ENABLE_HISTORY,
+                            ),
+                        ),
+                    ): bool,
+                    vol.Optional(
+                        CONF_PHP_FALLBACK_ENABLED,
+                        default=self.config_entry.options.get(
+                            CONF_PHP_FALLBACK_ENABLED,
+                            self.config_entry.data.get(
+                                CONF_PHP_FALLBACK_ENABLED,
+                                DEFAULT_PHP_FALLBACK_ENABLED,
+                            ),
+                        ),
+                    ): bool,
+                    vol.Optional(
+                        CONF_PHP_FALLBACK_SCRIPT_NAME,
+                        default=self.config_entry.options.get(
+                            CONF_PHP_FALLBACK_SCRIPT_NAME,
+                            self.config_entry.data.get(
+                                CONF_PHP_FALLBACK_SCRIPT_NAME,
+                                DEFAULT_PHP_FALLBACK_SCRIPT_NAME,
+                            ),
+                        ),
+                    ): str,
+                    vol.Optional(
+                        CONF_PHP_FALLBACK_TIMEOUT,
+                        default=self.config_entry.options.get(
+                            CONF_PHP_FALLBACK_TIMEOUT,
+                            self.config_entry.data.get(
+                                CONF_PHP_FALLBACK_TIMEOUT,
+                                DEFAULT_PHP_FALLBACK_TIMEOUT,
+                            ),
+                        ),
+                    ): int,
                 }
             ),
             description_placeholders={
