@@ -1,10 +1,10 @@
 /**
- * Eedomus Configuration Panel - Lovelace Card for HA 2026.1+
+ * Eedomus Configuration Panel - Modern Implementation for HA 2026.02+
  * 
- * Modern Lovelace card implementation using HA's card helpers
+ * Uses HA 2026.02+ frontend API and modern web components
  */
 
-class EedomusConfigPanelCard extends HTMLElement {
+class EedomusConfigPanel extends HTMLElement {
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
@@ -15,6 +15,7 @@ class EedomusConfigPanelCard extends HTMLElement {
         this._entityProperties = {};
         this._deviceOverrides = {};
         this._devices = [];
+        this._eventListeners = new Map();
     }
 
     setConfig(config) {
@@ -44,7 +45,11 @@ class EedomusConfigPanelCard extends HTMLElement {
     }
 
     disconnectedCallback() {
-        // Clean up event listeners
+        // Clean up all event listeners
+        this._eventListeners.forEach((listener, element) => {
+            element.removeEventListener(listener.event, listener.handler);
+        });
+        this._eventListeners.clear();
     }
 
     _render() {
@@ -1155,13 +1160,14 @@ class EedomusConfigPanelCard extends HTMLElement {
     }
 }
 
-// Register the card
-customElements.define('eedomus-config-panel-card', EedomusConfigPanelCard);
+// Register the modern config panel for HA 2026.02+
+customElements.define('eedomus-config-panel', EedomusConfigPanel);
 
-// Register the card for Lovelace
+// Note: For HA 2026.02+, we use the built-in panel registration
+// The Lovelace card registration is kept for backward compatibility
 if (window.customCards) {
     window.customCards.push({
-        type: 'eedomus-config-panel-card',
+        type: 'eedomus-config-panel',
         name: 'Eedomus Configuration Panel',
         description: 'Configure eedomus device mapping and dynamic properties',
         preview: true,

@@ -1158,10 +1158,10 @@ class EedomusConfigPanelCard extends HTMLElement {
 // Register the card
 customElements.define('eedomus-config-panel-card', EedomusConfigPanelCard);
 
-// Register the card for Lovelace
+// Register the card for Lovelace (backward compatibility)
 if (window.customCards) {
     window.customCards.push({
-        type: 'eedomus-config-panel-card',
+        type: 'eedomus-config-panel',
         name: 'Eedomus Configuration Panel',
         description: 'Configure eedomus device mapping and dynamic properties',
         preview: true,

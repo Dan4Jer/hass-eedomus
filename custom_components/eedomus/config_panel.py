@@ -284,4 +284,26 @@ async def async_setup_config_panel(hass: HomeAssistant):
         require_admin=True,
     )
     
+    # Add method to update from options flow
+    async def update_from_options(options: dict) -> None:
+        """Update configuration from options flow changes."""
+        try:
+            if "yaml_mapping" in options:
+                yaml_config = options["yaml_mapping"]
+                if "custom_mapping_file" in yaml_config:
+                    # Update the custom mapping file path
+                    config_panel._custom_mapping_file = yaml_config["custom_mapping_file"]
+                    _LOGGER.info("Updated custom mapping file path from options: %s", 
+                                config_panel._custom_mapping_file)
+                    
+                    # Reload configuration if needed
+                    if yaml_config.get("reload_mapping", False):
+                        await config_panel.reload_configuration()
+                        _LOGGER.info("Configuration reloaded from options flow")
+        except Exception as e:
+            _LOGGER.error("Failed to update from options flow: %s", e)
+    
+    # Store update method for external access
+    hass.data[DOMAIN]["update_config_from_options"] = update_from_options
+    
     return True

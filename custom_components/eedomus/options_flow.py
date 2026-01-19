@@ -191,6 +191,13 @@ class EedomusOptionsFlowHandler(config_entries.OptionsFlow):
             # Check if reload is requested
             if user_input.get(CONF_RELOAD_MAPPING, False):
                 await self._reload_yaml_mappings(yaml_config)
+                
+                # Notify config panel about the update
+                if DOMAIN in self.hass.data and "update_config_from_options" in self.hass.data[DOMAIN]:
+                    update_method = self.hass.data[DOMAIN]["update_config_from_options"]
+                    await update_method(updated_options)
+                    _LOGGER.info("Config panel notified about YAML mapping changes")
+                
                 _LOGGER.info("YAML mappings reloaded successfully")
                 return self.async_create_entry(title="", data=updated_options)
             else:

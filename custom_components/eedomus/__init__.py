@@ -230,16 +230,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     config_panel_card = EedomusConfigPanelCard({}, hass)
     hass.data[DOMAIN]["config_panel_card"] = config_panel_card
     
-    # Register the card for Lovelace UI
-    if hasattr(hass.components, 'frontend'):
-        hass.components.frontend.async_register_built_in_panel(
-            "eedomus-config",
-            "Eedomus Configuration",
-            "mdi:cog-transfer",
-            require_admin=True,
-        )
-    
-    _LOGGER.info("Eedomus Configuration Panel card registered")
+    # Note: Configuration panel is now registered in config_panel.py
+    # using the modern frontend.async_register_built_in_panel() method
+    # This ensures compatibility with HA 2026.02+ and avoids double registration
+    _LOGGER.info("Eedomus Configuration Panel initialized (using modern frontend API)")
     _LOGGER.debug("eedomus integration setup completed")
     return True
 
