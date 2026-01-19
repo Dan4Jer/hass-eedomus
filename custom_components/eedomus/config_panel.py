@@ -1,12 +1,16 @@
-"""Configuration panel for eedomus device mapping and dynamic properties."""
+"""Configuration manager for eedomus device mapping and dynamic properties.
+
+Note: For HA 2026.02+, the built-in configuration panel is not available
+due to frontend component changes. This module now focuses on YAML
+configuration management and provides the configuration data structure
+for use by other components.
+"""
 
 from __future__ import annotations
 import logging
 import os
 import yaml
-import asyncio
 from typing import Dict, Any, List, Optional
-from homeassistant.components import frontend
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN
@@ -24,11 +28,15 @@ CONFIG_DIR = "config"
 DEFAULT_MAPPING_FILE = os.path.join(CONFIG_DIR, "device_mapping.yaml")
 CUSTOM_MAPPING_FILE = os.path.join(CONFIG_DIR, "custom_mapping.yaml")
 
-class EedomusConfigPanel:
-    """Main configuration panel for eedomus device mapping and dynamic properties."""
+class EedomusConfigManager:
+    """Configuration manager for eedomus device mapping and dynamic properties.
+    
+    Manages YAML-based configuration and provides access to configuration data.
+    Note: This is not a frontend panel in HA 2026.02+, just a configuration manager.
+    """
     
     def __init__(self, hass: HomeAssistant):
-        """Initialize the configuration panel."""
+        """Initialize the configuration manager."""
         self.hass = hass
         self.current_config = "default"
         self.available_configs = ["default", "custom"]
@@ -263,44 +271,27 @@ class EedomusConfigPanel:
         
         return devices_status
 
-# Frontend panel registration
-async def async_setup_config_panel(hass: HomeAssistant):
-    """Set up the configuration panel."""
-    # Create config panel instance
-    config_panel = EedomusConfigPanel(hass)
+# Configuration manager setup (renamed from panel to manager)
+async def async_setup_config_manager(hass: HomeAssistant):
+    """Set up the configuration manager.
+    
+    Note: This does not register a frontend panel in HA 2026.02+.
+    It only sets up the configuration management system.
+    """
+    # Create configuration manager instance
+    config_manager = EedomusConfigManager(hass)
     
     # Store in hass data for access from other components
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
-    hass.data[DOMAIN]["config_panel"] = config_panel
+    hass.data[DOMAIN]["config_manager"] = config_manager
     
-    _LOGGER.info("Eedomus configuration panel initialized")
-    
-    # For HA 2026.02+, the frontend component may not be available during setup
-    # We'll attempt to register the panel but continue even if it fails
-    try:
-        # Only attempt registration if frontend is clearly available
-        if hasattr(hass, 'components') and hasattr(hass.components, 'frontend'):
-            frontend_comp = hass.components.frontend
-            if frontend_comp is not None:
-                await frontend_comp.async_register_built_in_panel(
-                    "eedomus-config",
-                    "Eedomus Configuration",
-                    "mdi:cog-transfer",
-                    require_admin=True,
-                )
-                _LOGGER.info("Configuration panel registered successfully")
-                return
-    except Exception as e:
-        _LOGGER.debug("Panel registration attempt failed: %s", e)
-    
-    # If we reach here, panel registration failed - this is expected in HA 2026.02+
-    _LOGGER.warning("Configuration panel registration deferred - frontend not available")
-    _LOGGER.info("Integration will continue without built-in configuration panel")
-    _LOGGER.info("Configuration is still available via:")
-    _LOGGER.info("  1. YAML files (device_mapping.yaml, custom_mapping.yaml)")
-    _LOGGER.info("  2. Options flow (Integration settings)")
-    _LOGGER.info("  3. Lovelace card (if available)")
+    _LOGGER.info("Eedomus configuration manager initialized")
+    _LOGGER.info("Note: Built-in configuration panel not available in HA 2026.02+")
+    _LOGGER.info("Configuration options:")
+    _LOGGER.info("  1. YAML files (device_mapping.yaml, custom_mapping.yaml) - RECOMMENDED")
+    _LOGGER.info("  2. Integration options flow (Settings → Devices & Services → Eedomus)")
+    _LOGGER.info("  3. Lovelace card (if manually configured)")
     
     # Add method to update from options flow
     async def update_from_options(options: dict) -> None:
@@ -310,13 +301,13 @@ async def async_setup_config_panel(hass: HomeAssistant):
                 yaml_config = options["yaml_mapping"]
                 if "custom_mapping_file" in yaml_config:
                     # Update the custom mapping file path
-                    config_panel._custom_mapping_file = yaml_config["custom_mapping_file"]
+                    config_manager._custom_mapping_file = yaml_config["custom_mapping_file"]
                     _LOGGER.info("Updated custom mapping file path from options: %s", 
-                                config_panel._custom_mapping_file)
+                                config_manager._custom_mapping_file)
                     
                     # Reload configuration if needed
                     if yaml_config.get("reload_mapping", False):
-                        await config_panel.reload_configuration()
+                        await config_manager.reload_configuration()
                         _LOGGER.info("Configuration reloaded from options flow")
         except Exception as e:
             _LOGGER.error("Failed to update from options flow: %s", e)
@@ -325,3 +316,9 @@ async def async_setup_config_panel(hass: HomeAssistant):
     hass.data[DOMAIN]["update_config_from_options"] = update_from_options
     
     return True
+
+# Backward compatibility: Keep old function name for existing integrations
+async def async_setup_config_panel(hass: HomeAssistant):
+    """Backward compatibility wrapper for async_setup_config_manager."""
+    _LOGGER.warning("async_setup_config_panel() is deprecated, use async_setup_config_manager()")
+    return await async_setup_config_manager(hass)

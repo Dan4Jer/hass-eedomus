@@ -38,7 +38,7 @@ from .const import (
     PLATFORMS,
 )
 from .coordinator import EedomusDataUpdateCoordinator
-from .config_panel import async_setup_config_panel
+from .config_panel import async_setup_config_manager
 from .eedomus_client import EedomusClient
 # Note: For HA 2026.02+, we use the modern frontend API (www/config_panel.js)
 # The Lovelace card import is kept for backward compatibility but may fail in newer HA versions
@@ -235,8 +235,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Forward setup to platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Set up configuration panel
-    await async_setup_config_panel(hass)
+    # Set up configuration manager
+    await async_setup_config_manager(hass)
     
     # Register Lovelace card (backward compatibility only)
     if not hass.data.get(DOMAIN):
