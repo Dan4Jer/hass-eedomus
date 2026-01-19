@@ -106,13 +106,16 @@ async def async_setup_entry(
                     )
                 else:
                     _LOGGER.warning(
-                        "Device '%s' (%s) mapped as RGBW but only has %d children (need 4). Falling back to regular light.",
+                        "Device '%s' (%s) mapped as RGBW but only has %d children (need 4). Falling back to regular light with RGBW color mode.",
                         periph["name"],
                         periph_id,
                         len(children)
                     )
-                    # Créer une lumière régulière à la place
-                    entities.append(EedomusLight(coordinator, periph_id))
+                    # Créer une lumière régulière à la place mais avec le bon mode de couleur
+                    light = EedomusLight(coordinator, periph_id)
+                    # Forcer le mode de couleur RGBW basé sur le mapping
+                    light._attr_supported_color_modes = {ColorMode.RGBW}
+                    entities.append(light)
             else:
                 _LOGGER.debug(
                     "Create a light entity %s (%s) mapping=%s",
@@ -205,10 +208,19 @@ class EedomusLight(EedomusEntity, LightEntity):
             return 255  # Default to full brightness if value is invalid
 
     @property
+    def supported_color_modes(self):
+        """Flag supported color modes."""
+        return self._attr_supported_color_modes
+
+    @property
     def color_mode(self):
         """Return the color mode of the light."""
+        if ColorMode.RGBW in self._attr_supported_color_modes:
+            return ColorMode.RGBW
         if ColorMode.BRIGHTNESS in self._attr_supported_color_modes:
             return ColorMode.BRIGHTNESS
+        if ColorMode.COLOR_TEMP in self._attr_supported_color_modes:
+            return ColorMode.COLOR_TEMP
         return ColorMode.ONOFF
 
     async def async_turn_on(self, **kwargs):
@@ -228,7 +240,7 @@ class EedomusLight(EedomusEntity, LightEntity):
             brightness_percent = self.octal_to_percent(brightness)
             value = str(brightness_percent)
         elif rgbw_color is not None:
-            value = f"rgbw:{rgb_color[0]},{rgb_color[1]},{rgb_color[2]},{rgb_color[3]}"
+            value = f"rgbw:{rgbw_color[0]},{rgbw_color[1]},{rgbw_color[2]},{rgbw_color[3]}"
         elif color_temp_kelvin is not None:
             value = f"color_temp:{color_temp_kelvin}"
         else:

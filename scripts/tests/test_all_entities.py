@@ -22,6 +22,7 @@ async def main():
             "test_sensor.py",
             "test_energy_sensor.py",
             "test_integration.py",
+            "test_color_mode_fix.py",
             "-v",
             "--tb=short",
         ]
