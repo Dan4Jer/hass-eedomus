@@ -276,63 +276,31 @@ async def async_setup_config_panel(hass: HomeAssistant):
     
     _LOGGER.info("Eedomus configuration panel initialized")
     
-    # For HA 2026.02+, we need to use a different approach since frontend may not be available
-    # We'll register the panel asynchronously when the frontend becomes available
+    # For HA 2026.02+, the frontend component may not be available during setup
+    # We'll attempt to register the panel but continue even if it fails
     try:
-        # Check if we can register the panel immediately
-        if hasattr(hass, 'components') and hasattr(hass.components, 'frontend') and hass.components.frontend is not None:
-            await hass.components.frontend.async_register_built_in_panel(
-                "eedomus-config",
-                "Eedomus Configuration",
-                "mdi:cog-transfer",
-                require_admin=True,
-            )
-            _LOGGER.info("Configuration panel registered successfully")
-        else:
-            # Frontend not available yet, we'll try to register later
-            _LOGGER.warning("Frontend not available during setup - will try to register panel later")
-            
-            # Store the registration function for later execution
-            async def delayed_panel_registration():
-                """Try to register the panel after frontend is initialized."""
-                await asyncio.sleep(5)  # Wait for frontend to initialize
-                
-                try:
-                    # Try multiple approaches
-                    if hasattr(hass, 'components') and hasattr(hass.components, 'frontend'):
-                        frontend_comp = hass.components.frontend
-                        if frontend_comp is not None:
-                            await frontend_comp.async_register_built_in_panel(
-                                "eedomus-config",
-                                "Eedomus Configuration",
-                                "mdi:cog-transfer",
-                                require_admin=True,
-                            )
-                            _LOGGER.info("Configuration panel registered after delay")
-                            return
-                    
-                    # Try direct import as fallback
-                    from homeassistant.components import frontend as frontend_module
-                    if frontend_module is not None:
-                        await frontend_module.async_register_built_in_panel(
-                            hass,
-                            "eedomus-config",
-                            "Eedomus Configuration",
-                            "mdi:cog-transfer",
-                            require_admin=True,
-                        )
-                        _LOGGER.info("Configuration panel registered using direct import after delay")
-                        return
-                        
-                except Exception as e:
-                    _LOGGER.debug("Delayed panel registration failed: %s", e)
-            
-            # Schedule the delayed registration
-            hass.async_create_task(delayed_panel_registration())
-            
+        # Only attempt registration if frontend is clearly available
+        if hasattr(hass, 'components') and hasattr(hass.components, 'frontend'):
+            frontend_comp = hass.components.frontend
+            if frontend_comp is not None:
+                await frontend_comp.async_register_built_in_panel(
+                    "eedomus-config",
+                    "Eedomus Configuration",
+                    "mdi:cog-transfer",
+                    require_admin=True,
+                )
+                _LOGGER.info("Configuration panel registered successfully")
+                return
     except Exception as e:
-        _LOGGER.error("Initial panel registration failed: %s", e)
-        _LOGGER.warning("Will try to register panel later when frontend is available")
+        _LOGGER.debug("Panel registration attempt failed: %s", e)
+    
+    # If we reach here, panel registration failed - this is expected in HA 2026.02+
+    _LOGGER.warning("Configuration panel registration deferred - frontend not available")
+    _LOGGER.info("Integration will continue without built-in configuration panel")
+    _LOGGER.info("Configuration is still available via:")
+    _LOGGER.info("  1. YAML files (device_mapping.yaml, custom_mapping.yaml)")
+    _LOGGER.info("  2. Options flow (Integration settings)")
+    _LOGGER.info("  3. Lovelace card (if available)")
     
     # Add method to update from options flow
     async def update_from_options(options: dict) -> None:
