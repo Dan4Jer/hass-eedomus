@@ -38,30 +38,15 @@ from .const import (
     PLATFORMS,
 )
 from .coordinator import EedomusDataUpdateCoordinator
-from .config_panel import async_setup_config_manager
+from .device_mapping import async_setup_config_manager
 from .eedomus_client import EedomusClient
 # Note: For HA 2026.02+, we use the modern frontend API (www/config_panel.js)
 # The Lovelace card import is kept for backward compatibility but may fail in newer HA versions
-try:
-    from .lovelace.config_panel_card import EedomusConfigPanelCard
-    # Logger not available yet at import time, will log later if needed
-except ImportError:
-    # Expected in HA 2026.02+, silently ignore
-    EedomusConfigPanelCard = None
-except Exception:
-    # Unexpected error, silently ignore
-    EedomusConfigPanelCard = None
 from .sensor import EedomusHistoryProgressSensor, EedomusSensor
 from .webhook import EedomusWebhookView
 
 # Initialize logger first
 _LOGGER = logging.getLogger(__name__)
-
-# Log Lovelace card import status now that logger is available
-if EedomusConfigPanelCard is not None:
-    _LOGGER.info("Lovelace card imported successfully for backward compatibility")
-else:
-    _LOGGER.info("Using modern frontend API (Lovelace card not available)")
 
 # Import options flow to ensure it's registered
 try:
@@ -238,21 +223,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Set up configuration manager
     await async_setup_config_manager(hass)
     
-    # Register Lovelace card (backward compatibility only)
-    if not hass.data.get(DOMAIN):
-        hass.data[DOMAIN] = {}
-    
-    # Create and store the config panel card instance (if available)
-    if EedomusConfigPanelCard is not None:
-        try:
-            config_panel_card = EedomusConfigPanelCard({}, hass)
-            hass.data[DOMAIN]["config_panel_card"] = config_panel_card
-            _LOGGER.info("Lovelace card registered for backward compatibility")
-        except Exception as e:
-            _LOGGER.warning("Failed to create Lovelace card instance: %s", e)
-    else:
-        _LOGGER.info("Using modern frontend API (Lovelace card not available in this HA version)")
-    
+
     # Note: Configuration panel is now registered in config_panel.py
     # using the modern frontend.async_register_built_in_panel() method
     # This ensures compatibility with HA 2026.02+ and avoids double registration
