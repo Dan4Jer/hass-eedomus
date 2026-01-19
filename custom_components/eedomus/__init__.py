@@ -40,7 +40,13 @@ from .const import (
 from .coordinator import EedomusDataUpdateCoordinator
 from .config_panel import async_setup_config_panel
 from .eedomus_client import EedomusClient
-from .lovelace.config_panel_card import EedomusConfigPanelCard
+# Note: For HA 2026.02+, we use the modern frontend API (www/config_panel.js)
+# The Lovelace card import is kept for backward compatibility but may fail in newer HA versions
+try:
+    from .lovelace.config_panel_card import EedomusConfigPanelCard
+except ImportError as e:
+    _LOGGER.warning("Failed to import Lovelace card (expected in HA 2026.02+): %s", e)
+    EedomusConfigPanelCard = None
 from .sensor import EedomusHistoryProgressSensor, EedomusSensor
 from .webhook import EedomusWebhookView
 
@@ -222,13 +228,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Set up configuration panel
     await async_setup_config_panel(hass)
     
-    # Register Lovelace card
+    # Register Lovelace card (backward compatibility only)
     if not hass.data.get(DOMAIN):
         hass.data[DOMAIN] = {}
     
-    # Create and store the config panel card instance
-    config_panel_card = EedomusConfigPanelCard({}, hass)
-    hass.data[DOMAIN]["config_panel_card"] = config_panel_card
+    # Create and store the config panel card instance (if available)
+    if EedomusConfigPanelCard is not None:
+        try:
+            config_panel_card = EedomusConfigPanelCard({}, hass)
+            hass.data[DOMAIN]["config_panel_card"] = config_panel_card
+            _LOGGER.info("Lovelace card registered for backward compatibility")
+        except Exception as e:
+            _LOGGER.warning("Failed to create Lovelace card instance: %s", e)
+    else:
+        _LOGGER.info("Using modern frontend API (Lovelace card not available in this HA version)")
     
     # Note: Configuration panel is now registered in config_panel.py
     # using the modern frontend.async_register_built_in_panel() method

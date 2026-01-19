@@ -3,6 +3,9 @@ Eedomus Configuration Panel - Lovelace Card for HA 2026.1+
 
 This card provides a modern interface for configuring eedomus device mapping
 and dynamic properties, compatible with Home Assistant 2026.1 and later.
+
+Note: For HA 2026.02+, the built-in panel (www/config_panel.js) is preferred.
+This Lovelace card is kept for backward compatibility.
 """
 
 from __future__ import annotations
@@ -10,8 +13,16 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from homeassistant.components.lovelace.card import LovelaceCard
-from homeassistant.components.lovelace.const import CardType
+# For HA 2026.02+, we use the modern frontend API instead of Lovelace card
+# Keep this import for backward compatibility, but handle ImportError gracefully
+try:
+    from homeassistant.components.lovelace.card import LovelaceCard
+    from homeassistant.components.lovelace.const import CardType
+except ImportError:
+    # Fallback for newer HA versions where lovelace.card is deprecated
+    LovelaceCard = object  # Type hint fallback
+    CardType = str  # Type hint fallback
+
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_entry_flow
 
