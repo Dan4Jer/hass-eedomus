@@ -23,7 +23,7 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
 
     def __init__(self, config_entry):
         """Initialize options flow."""
-        self.config_entry = config_entry
+        self._config_entry = config_entry
         self.current_devices = []
         self.use_yaml = False
         self.yaml_content = ""
@@ -45,7 +45,7 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 return await self.async_step_ui()
 
         # Get current options
-        current_options = self.config_entry.options.copy()
+        current_options = self._config_entry.options.copy()
         self.use_yaml = current_options.get(CONF_USE_YAML, False)
 
         return self.async_show_form(
