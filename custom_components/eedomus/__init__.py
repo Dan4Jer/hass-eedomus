@@ -227,7 +227,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Note: Configuration panel is now registered in config_panel.py
     # using the modern frontend.async_register_built_in_panel() method
     # This ensures compatibility with HA 2026.02+ and avoids double registration
-    _LOGGER.info("Eedomus Configuration Panel initialized (using modern frontend API)")
+    _LOGGER.info("Eedomus integration initialized successfully")
     _LOGGER.debug("eedomus integration setup completed")
     return True
 
