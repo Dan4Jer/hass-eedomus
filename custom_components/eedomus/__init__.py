@@ -12,7 +12,6 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceResponse, callback
 from homeassistant.helpers import aiohttp_client
 import aiohttp
-import shutil
 
 from .api_proxy import EedomusApiProxyView
 from .webhook import EedomusWebhookView
@@ -289,30 +288,3 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     _LOGGER.info("Removing eedomus integration config entry")
 
 
-def copy_static_files():
-    """Copy static files to www directory for Lovelace card."""
-    try:
-        # Get the directory where this file is located
-        component_dir = os.path.dirname(os.path.abspath(__file__))
-        www_dir = os.path.join(component_dir, 'www')
-        lovelace_dir = os.path.join(component_dir, 'lovelace')
-        
-        # Create www directory if it doesn't exist
-        os.makedirs(www_dir, exist_ok=True)
-        
-        # Copy Lovelace JS file
-        src_js = os.path.join(lovelace_dir, 'config_panel.js')
-        dst_js = os.path.join(www_dir, 'config_panel.js')
-        
-        if os.path.exists(src_js):
-            shutil.copy2(src_js, dst_js)
-            _LOGGER.info("Copied Lovelace card JS to www directory")
-        else:
-            _LOGGER.warning("Lovelace card JS file not found: %s", src_js)
-            
-    except Exception as e:
-        _LOGGER.error("Failed to copy static files: %s", e)
-
-
-# Copy static files when module is imported
-copy_static_files()
