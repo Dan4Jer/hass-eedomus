@@ -106,16 +106,14 @@ async def async_setup_entry(
                     )
                 else:
                     _LOGGER.warning(
-                        "Device '%s' (%s) mapped as RGBW but only has %d children (need 4). Falling back to regular light with RGBW color mode.",
+                        "Device '%s' (%s) mapped as RGBW but only has %d children (need 4). Falling back to regular light.",
                         periph["name"],
                         periph_id,
                         len(children)
                     )
-                    # Créer une lumière régulière à la place mais avec le bon mode de couleur
-                    light = EedomusLight(coordinator, periph_id)
-                    # Forcer le mode de couleur RGBW basé sur le mapping
-                    light._attr_supported_color_modes = {ColorMode.RGBW}
-                    entities.append(light)
+                    # Créer une lumière régulière à la place
+                    # Note: Le mode de couleur sera déterminé par ha_subtype dans EedomusLight.__init__
+                    entities.append(EedomusLight(coordinator, periph_id))
             else:
                 _LOGGER.debug(
                     "Create a light entity %s (%s) mapping=%s",
