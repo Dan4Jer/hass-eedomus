@@ -3,11 +3,13 @@
 from typing import Any, Dict
 
 # Ensure required imports are available
+import voluptuous as vol
 from homeassistant.components.light import (
     ColorMode,
     LightEntityFeature,
 )
 from homeassistant.const import Platform
+from homeassistant.helpers import config_validation as cv
 
 try:
     from .private_const import (
