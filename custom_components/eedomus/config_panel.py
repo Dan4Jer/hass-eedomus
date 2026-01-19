@@ -325,7 +325,7 @@ async def async_setup_config_panel(hass: HomeAssistant):
     registration_success = await try_register_panel()
     
     if not registration_success:
-        _LOGGER.error("Failed to register configuration panel after %s attempts", max_attempts)
+        _LOGGER.error("Failed to register configuration panel after multiple attempts")
         _LOGGER.warning("Configuration panel will not be available in this session")
         _LOGGER.warning("Please restart Home Assistant to retry panel registration")
     
