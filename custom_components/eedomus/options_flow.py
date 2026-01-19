@@ -23,6 +23,7 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
 
     def __init__(self, config_entry):
         """Initialize options flow."""
+        super().__init__(config_entry)
         self._config_entry = config_entry
         self.current_devices = []
         self.use_yaml = False
