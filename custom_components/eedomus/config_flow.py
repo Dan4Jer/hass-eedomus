@@ -384,4 +384,4 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(config_entry: config_entries.ConfigEntry):
         """Get the options flow for this handler."""
-        return EedomusOptionsFlowHandler(config_entry)
+        return EedomusOptionsFlow(config_entry)
