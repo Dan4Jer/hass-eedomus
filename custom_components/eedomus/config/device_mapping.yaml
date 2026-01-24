@@ -71,6 +71,168 @@ usage_id_mappings:
     ha_subtype: ""
     justification: "Generic switch - usage_id=2 for basic on/off devices"
     is_dynamic: true
+  
+  "4":
+    ha_entity: "switch"
+    ha_subtype: ""
+    justification: "Generic switch - usage_id=4 for electrical appliances"
+    is_dynamic: true
+  
+  "7":
+    ha_entity: "sensor"
+    ha_subtype: "temperature"
+    justification: "Temperature sensor - usage_id=7 for temperature monitoring"
+    is_dynamic: false
+  
+  "14":
+    ha_entity: "select"
+    ha_subtype: "shutter_group"
+    justification: "Shutter group control - usage_id=14 for virtual shutter grouping"
+    is_dynamic: false
+  
+  "15":
+    ha_entity: "climate"
+    ha_subtype: "temperature_setpoint"
+    justification: "Virtual thermostat for heating setpoint control"
+    is_dynamic: false
+  
+  "18":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Current day information from eedomus"
+    is_dynamic: false
+  
+  "19":
+    ha_entity: "climate"
+    ha_subtype: "fil_pilote"
+    justification: "Fil pilote heating system control - usage_id=19"
+    is_dynamic: false
+  
+  "20":
+    ha_entity: "climate"
+    ha_subtype: "fil_pilote"
+    justification: "Fil pilote heating system control - usage_id=20"
+    is_dynamic: false
+  
+  "22":
+    ha_entity: "sensor"
+    ha_subtype: "moisture"
+    justification: "Moisture sensor - Sonoff SNZB-02D/SNZB-02P via Zigate"
+    is_dynamic: false
+  
+  "23":
+    ha_entity: "sensor"
+    ha_subtype: "cpu"
+    justification: "CPU usage monitor - eedomus internal system monitoring"
+    is_dynamic: false
+  
+  "24":
+    ha_entity: "sensor"
+    ha_subtype: "illuminance"
+    justification: "Luminosity sensor - usage_id=24 for light level monitoring"
+    is_dynamic: false
+  
+  "26":
+    ha_entity: "sensor"
+    ha_subtype: "energy"
+    justification: "Energy consumption meter - virtual eedomus consumption counter"
+    is_dynamic: false
+  
+  "27":
+    ha_entity: "binary_sensor"
+    ha_subtype: "smoke"
+    justification: "Smoke detector - usage_id=27 for fire/smoke detection"
+    is_dynamic: true
+  
+  "34":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Day phase information from eedomus"
+    is_dynamic: false
+  
+  "35":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Miscellaneous eedomus app data (sun elevation, azimuth, etc.)"
+    is_dynamic: false
+  
+  "36":
+    ha_entity: "binary_sensor"
+    ha_subtype: "moisture"
+    justification: "Flood/water detector - usage_id=36 for water leakage detection"
+    is_dynamic: true
+  
+  "37":
+    ha_entity: "binary_sensor"
+    ha_subtype: "motion"
+    justification: "Motion detector - usage_id=37 for movement detection"
+    is_dynamic: true
+  
+  "38":
+    ha_entity: "climate"
+    ha_subtype: "fil_pilote"
+    justification: "Fil pilote heating control - usage_id=38"
+    is_dynamic: false
+  
+  "42":
+    ha_entity: "select"
+    ha_subtype: "shutter_group"
+    justification: "Shutter centralization control - eedomus virtual device"
+    is_dynamic: false
+  
+  "43":
+    ha_entity: "select"
+    ha_subtype: "automation"
+    justification: "Eedomus scene trigger - virtual device for automation"
+    is_dynamic: false
+  
+  "48":
+    ha_entity: "cover"
+    ha_subtype: "shutter"
+    justification: "Shutter/blind control - usage_id=48 for window coverings"
+    is_dynamic: true
+  
+  "50":
+    ha_entity: "switch"
+    ha_subtype: ""
+    justification: "Camera privacy control - usage_id=50 for camera intimacy"
+    is_dynamic: true
+  
+  "52":
+    ha_entity: "switch"
+    ha_subtype: ""
+    justification: "Sonoff switch/remote control - usage_id=52"
+    is_dynamic: true
+  
+  "82":
+    ha_entity: "select"
+    ha_subtype: "color_preset"
+    justification: "RGBW color preset selection - usage_id=82"
+    is_dynamic: false
+  
+  "84":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Calendar day type information from eedomus"
+    is_dynamic: false
+  
+  "114":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Network detection status - eedomus app data"
+    is_dynamic: false
+  
+  "127":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Miscellaneous text data - usage_id=127"
+    is_dynamic: false
+  
+  "999":
+    ha_entity: "select"
+    ha_subtype: "virtual"
+    justification: "Virtual device - eedomus scene triggers and automation"
+    is_dynamic: false
 
 # Name pattern mappings (regex patterns)
 name_patterns:
