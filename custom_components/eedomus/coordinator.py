@@ -105,10 +105,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 
                 # Add dynamic property based on entity type
                 try:
-                    from .device_mapping import get_dynamic_entity_properties
-                    dynamic_properties = get_dynamic_entity_properties()
+                    from .entity import DEVICE_MAPPINGS
                     ha_entity = aggregated_data[periph_id].get("ha_entity")
-                    if ha_entity:
+                    if ha_entity and DEVICE_MAPPINGS:
+                        dynamic_properties = DEVICE_MAPPINGS.get('dynamic_entity_properties', {})
                         aggregated_data[periph_id]["is_dynamic"] = dynamic_properties.get(ha_entity, False)
                         _LOGGER.debug(
                             "Set is_dynamic=%s for %s (%s) based on entity type %s",
@@ -168,10 +168,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             # Ensure is_dynamic property is set for all peripherals
             if "ha_entity" in periph_data and "is_dynamic" not in periph_data:
                 try:
-                    from .device_mapping import get_dynamic_entity_properties
-                    dynamic_properties = get_dynamic_entity_properties()
+                    from .entity import DEVICE_MAPPINGS
                     ha_entity = periph_data.get("ha_entity")
-                    if ha_entity:
+                    if ha_entity and DEVICE_MAPPINGS:
+                        dynamic_properties = DEVICE_MAPPINGS.get('dynamic_entity_properties', {})
                         periph_data["is_dynamic"] = dynamic_properties.get(ha_entity, False)
                         _LOGGER.debug(
                             "Set is_dynamic=%s for %s (%s) based on entity type %s",
@@ -463,10 +463,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         
         # Check for specific device overrides first (highest priority)
         try:
-            from .device_mapping import get_specific_device_dynamic_overrides
-            device_overrides = get_specific_device_dynamic_overrides()
-            if periph_id and str(periph_id) in device_overrides:
-                is_dynamic = device_overrides[str(periph_id)]
+            from .entity import DEVICE_MAPPINGS
+            if periph_id and DEVICE_MAPPINGS and str(periph_id) in DEVICE_MAPPINGS.get('specific_device_dynamic_overrides', {}):
+                is_dynamic = DEVICE_MAPPINGS['specific_device_dynamic_overrides'][str(periph_id)]
                 _LOGGER.debug(
                     "Peripheral is %s (specific override) ! %s (%s)",
                     "dynamic" if is_dynamic else "NOT dynamic",
@@ -501,8 +500,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         
         # Fallback to entity type-based dynamic properties
         try:
-            from .device_mapping import get_dynamic_entity_properties
-            dynamic_properties = get_dynamic_entity_properties()
+            from .entity import DEVICE_MAPPINGS
+            dynamic_properties = DEVICE_MAPPINGS.get('dynamic_entity_properties', {}) if DEVICE_MAPPINGS else {}
             is_dynamic = dynamic_properties.get(ha_entity, False)
             
             if is_dynamic:

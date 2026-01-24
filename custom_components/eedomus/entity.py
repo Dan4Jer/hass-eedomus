@@ -9,17 +9,33 @@ from homeassistant.helpers.entity import DeviceInfo, Entity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import ATTR_PERIPH_ID, DOMAIN, EEDOMUS_TO_HA_ATTR_MAPPING
-from .device_mapping import USAGE_ID_MAPPING, load_and_merge_yaml_mappings, load_yaml_mappings
+from .device_mapping import load_and_merge_yaml_mappings, load_yaml_mappings
 
 _LOGGER = logging.getLogger(__name__)
 
+# Global variable to store loaded mappings
+DEVICE_MAPPINGS = None
+
 # Initialize YAML mappings when module is loaded
 try:
-    load_and_merge_yaml_mappings()
+    DEVICE_MAPPINGS = load_and_merge_yaml_mappings()
     _LOGGER.info("YAML device mappings initialized successfully")
+    _LOGGER.debug("Loaded %d usage_id mappings and %d advanced rules",
+                 len(DEVICE_MAPPINGS.get('usage_id_mappings', {})),
+                 len(DEVICE_MAPPINGS.get('advanced_rules', [])))
 except Exception as e:
     _LOGGER.error("Failed to initialize YAML mappings: %s", e)
-    _LOGGER.info("Continuing with default mappings")
+    _LOGGER.warning("Using fallback mapping configuration")
+    DEVICE_MAPPINGS = {
+        'usage_id_mappings': {},
+        'advanced_rules': [],
+        'name_patterns': [],
+        'default_mapping': {
+            'ha_entity': 'sensor',
+            'ha_subtype': 'unknown',
+            'justification': 'Fallback mapping'
+        }
+    }
 
 # Load name patterns for device name matching
 try:
@@ -438,8 +454,8 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     Returns:
         dict: {"ha_entity": str, "ha_subtype": str, "justification": str}
     """
-    # Import local pour éviter les problèmes d'import circulaire
-    from .device_mapping import ADVANCED_MAPPING_RULES
+    # Utiliser les mappings chargés globalement
+    # from .device_mapping import ADVANCED_MAPPING_RULES
     
     periph_id = device_data["periph_id"]
     periph_name = device_data["name"]
@@ -472,7 +488,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     #     _LOGGER.info("🔍 Found %d children with usage_id=1: %s", 
     #                 len(usage_id_1_children), [c["name"] for c in usage_id_1_children])
         
-        for rule_name, rule_config in ADVANCED_MAPPING_RULES.items():
+        for rule_name, rule_config in DEVICE_MAPPINGS['advanced_rules'].items():
             condition_result = rule_config["condition"](device_data, all_devices)
             _LOGGER.debug("Advanced rule '%s' for %s (%s): condition_result=%s",
                          rule_name, periph_name, periph_id, condition_result)
@@ -527,8 +543,8 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         )
     
     # Priorité 3: Mapping basé sur usage_id
-    if usage_id and usage_id in USAGE_ID_MAPPING:
-        mapping = USAGE_ID_MAPPING[usage_id].copy()
+    if usage_id and DEVICE_MAPPINGS and usage_id in DEVICE_MAPPINGS['usage_id_mappings']:
+        mapping = DEVICE_MAPPINGS['usage_id_mappings'][usage_id].copy()
         
         # Special debug for device 1269454
         # if periph_id == "1269454":
@@ -538,8 +554,8 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         # Appliquer les règles avancées si définies
         if "advanced_rules" in mapping:
             for rule_name in mapping["advanced_rules"]:
-                if rule_name in ADVANCED_MAPPING_RULES:
-                    rule_config = ADVANCED_MAPPING_RULES[rule_name]
+                if DEVICE_MAPPINGS and rule_name in DEVICE_MAPPINGS['advanced_rules']:
+                    rule_config = DEVICE_MAPPINGS['advanced_rules'][rule_name]
                     advanced_rule_result = rule_config["condition"](device_data, all_devices or {})
                     
                     # Special debug for device 1269454
