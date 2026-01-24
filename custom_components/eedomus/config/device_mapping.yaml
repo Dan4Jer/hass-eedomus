@@ -25,8 +25,6 @@ advanced_rules:
       ha_entity: "light"
       ha_subtype: "rgbw"
       justification: "RGBW lamp with 4+ children (Red, Green, Blue, White)"
-      device_class: null
-      icon: "mdi:lightbulb"
       is_dynamic: true
     child_mapping:
       "1":
@@ -42,8 +40,6 @@ advanced_rules:
       ha_entity: "binary_sensor"
       ha_subtype: "smoke"
       justification: "Smoke detector device"
-      device_class: "fire"
-      icon: "mdi:fire"
       is_dynamic: true
 
   - name: "Motion Sensor"
@@ -54,8 +50,6 @@ advanced_rules:
       ha_entity: "binary_sensor"
       ha_subtype: "motion"
       justification: "Motion sensor device"
-      device_class: "motion"
-      icon: "mdi:walk"
       is_dynamic: true
 
 # Usage ID mappings
@@ -64,24 +58,18 @@ usage_id_mappings:
     ha_entity: "switch"
     ha_subtype: ""
     justification: "Unknown device type - default to switch"
-    device_class: null
-    icon: "mdi:toggle-switch"
     is_dynamic: true
   
   "1":
     ha_entity: "light"
     ha_subtype: "dimmable"
     justification: "Dimmable light device"
-    device_class: null
-    icon: "mdi:lightbulb"
     is_dynamic: true
     
   "2":
     ha_entity: "switch"
-    ha_subtype: "consumption"
-    justification: "Switch with consumption monitoring"
-    device_class: "outlet"
-    icon: "mdi:power-socket-eu"
+    ha_subtype: ""
+    justification: "Generic switch - usage_id=2 for basic on/off devices"
     is_dynamic: true
 
 # Name pattern mappings (regex patterns)
@@ -90,20 +78,16 @@ name_patterns:
     ha_entity: "sensor"
     ha_subtype: "energy"
     device_class: "energy"
-    icon: "mdi:lightning-bolt"
     
   - pattern: ".*température.*"
     ha_entity: "sensor"
     ha_subtype: "temperature"
     device_class: "temperature"
-    icon: "mdi:thermometer"
 
 # Default mapping (fallback)
 default_mapping:
   ha_entity: "sensor"
   ha_subtype: "unknown"
-  device_class: null
-  icon: "mdi:help-circle"
   justification: "Default fallback mapping for unknown devices"
   is_dynamic: false
 
