@@ -120,25 +120,49 @@ def merge_yaml_mappings(default_mapping: Dict[str, Any], custom_mapping: Dict[st
     Returns:
         Merged mapping configuration with only usage_id_mappings and advanced_rules
     """
+    # Ensure we have valid dictionaries
+    if not isinstance(default_mapping, dict):
+        _LOGGER.error("Default mapping is not a dictionary: %s", type(default_mapping))
+        default_mapping = {}
+    if not isinstance(custom_mapping, dict):
+        _LOGGER.error("Custom mapping is not a dictionary: %s", type(custom_mapping))
+        custom_mapping = {}
+    
     merged = {}
     
     # Merge advanced rules (custom rules become advanced rules)
-    merged['advanced_rules'] = default_mapping.get('advanced_rules', [])
-    if 'custom_rules' in custom_mapping:
+    # Ensure we always have a list, never None
+    advanced_rules = default_mapping.get('advanced_rules', [])
+    if not isinstance(advanced_rules, list):
+        _LOGGER.error("Advanced rules is not a list: %s", type(advanced_rules))
+        advanced_rules = []
+    
+    merged['advanced_rules'] = advanced_rules
+    if 'custom_rules' in custom_mapping and isinstance(custom_mapping['custom_rules'], list):
         merged['advanced_rules'].extend(custom_mapping['custom_rules'])
     
     # Merge usage ID mappings (custom overrides default)
-    merged['usage_id_mappings'] = default_mapping.get('usage_id_mappings', {})
-    if 'custom_usage_id_mappings' in custom_mapping:
+    usage_id_mappings = default_mapping.get('usage_id_mappings', {})
+    if not isinstance(usage_id_mappings, dict):
+        _LOGGER.error("Usage ID mappings is not a dictionary: %s", type(usage_id_mappings))
+        usage_id_mappings = {}
+    
+    merged['usage_id_mappings'] = usage_id_mappings
+    if 'custom_usage_id_mappings' in custom_mapping and isinstance(custom_mapping['custom_usage_id_mappings'], dict):
         merged['usage_id_mappings'].update(custom_mapping['custom_usage_id_mappings'])
     
     # Merge name patterns (custom extends default)
-    merged['name_patterns'] = default_mapping.get('name_patterns', [])
-    if 'custom_name_patterns' in custom_mapping:
+    name_patterns = default_mapping.get('name_patterns', [])
+    if not isinstance(name_patterns, list):
+        _LOGGER.error("Name patterns is not a list: %s", type(name_patterns))
+        name_patterns = []
+    
+    merged['name_patterns'] = name_patterns
+    if 'custom_name_patterns' in custom_mapping and isinstance(custom_mapping['custom_name_patterns'], list):
         merged['name_patterns'].extend(custom_mapping['custom_name_patterns'])
     
     # Add default mapping if present
-    if 'default_mapping' in default_mapping:
+    if 'default_mapping' in default_mapping and isinstance(default_mapping['default_mapping'], dict):
         merged['default_mapping'] = default_mapping['default_mapping']
     
     return merged
