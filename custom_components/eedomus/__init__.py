@@ -294,28 +294,38 @@ async def async_load_mapping(hass, config_dir):
     default_path = os.path.join(config_dir, "device_mapping.yaml")
     custom_path = os.path.join(config_dir, "custom_mapping.yaml")
 
-    # Load default mapping
+    # Load default mapping using async executor to avoid blocking event loop
     default_mapping = {}
     try:
-        with open(default_path, "r", encoding="utf-8") as f:
-            default_mapping = yaml.safe_load(f) or {}
-            _LOGGER.debug("Loaded default mapping from %s", default_path)
+        default_path = os.path.join(os.path.dirname(__file__), "config", "device_mapping.yaml")
+        default_mapping = await hass.async_add_executor_job(
+            lambda: yaml.safe_load(open(default_path, "r", encoding="utf-8")) or {}
+        )
+        _LOGGER.debug("Loaded default mapping from %s", default_path)
     except FileNotFoundError:
         _LOGGER.warning("Default mapping file not found: %s", default_path)
     except yaml.YAMLError as e:
         _LOGGER.error("Error parsing default mapping YAML: %s", e)
         raise
+    except Exception as e:
+        _LOGGER.error("Unexpected error loading default mapping: %s", e)
+        raise
 
-    # Load custom mapping
+    # Load custom mapping using async executor to avoid blocking event loop
     custom_mapping = {}
     try:
-        with open(custom_path, "r", encoding="utf-8") as f:
-            custom_mapping = yaml.safe_load(f) or {}
-            _LOGGER.debug("Loaded custom mapping from %s", custom_path)
+        custom_path = os.path.join(os.path.dirname(__file__), "config", "custom_mapping.yaml")
+        custom_mapping = await hass.async_add_executor_job(
+            lambda: yaml.safe_load(open(custom_path, "r", encoding="utf-8")) or {}
+        )
+        _LOGGER.debug("Loaded custom mapping from %s", custom_path)
     except FileNotFoundError:
-        _LOGGER.debug("No custom mapping file found at %s", custom_path)
+        _LOGGER.debug("No custom mapping file found at %s - using defaults only", custom_path)
     except yaml.YAMLError as e:
         _LOGGER.error("Error parsing custom mapping YAML: %s", e)
+        raise
+    except Exception as e:
+        _LOGGER.error("Unexpected error loading custom mapping: %s", e)
         raise
 
     # Merge mappings (custom overrides default)
