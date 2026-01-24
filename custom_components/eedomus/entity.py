@@ -469,9 +469,15 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     
     _LOGGER.debug("Mapping device: %s (%s, usage_id=%s)", periph_name, periph_id, usage_id)
     
+    # Debug: Log the number of advanced rules loaded
+    _LOGGER.debug("Number of advanced rules loaded: %d", len(DEVICE_MAPPINGS.get('advanced_rules', [])))
+    
     # Priorité 1: Règles avancées (nécessite all_devices)
     if all_devices:
         _LOGGER.debug("Checking advanced rules for %s (%s)", periph_name, periph_id)
+        # Debug: List all advanced rule names
+        for rule_name in DEVICE_MAPPINGS.get('advanced_rules', []):
+            _LOGGER.debug("Available advanced rule: %s", rule_name)
         
         # Debug logging for device 1269454 specifically
     # if periph_id == "1269454":
