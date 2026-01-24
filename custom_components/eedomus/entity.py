@@ -332,16 +332,22 @@ class EedomusEntity(CoordinatorEntity):
                     return response
             
             # If we get here, something went wrong
+            error_msg = "Unknown error"
+            if response is None:
+                error_msg = "API returned None response"
+            elif isinstance(response, dict):
+                error_msg = response.get("error", "Unknown error")
+            else:
+                error_msg = str(response)
+            
             _LOGGER.error(
                 "Failed to set value '%s' for %s (%s): %s",
                 value,
                 self._attr_name,
                 self._periph_id,
-                response.get("error", "Unknown error") if isinstance(response, dict) else str(response)
+                error_msg
             )
-            raise Exception(
-                f"Failed to set value: {response.get('error', 'Unknown error') if isinstance(response, dict) else str(response)}"
-            )
+            raise Exception(f"Failed to set value: {error_msg}")
             
         except Exception as e:
             _LOGGER.error(
