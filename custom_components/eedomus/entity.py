@@ -495,7 +495,76 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     #                 len(usage_id_1_children), [c["name"] for c in usage_id_1_children])
         
         for rule_name, rule_config in DEVICE_MAPPINGS['advanced_rules'].items():
-            condition_result = rule_config["condition"](device_data, all_devices)
+            # Check if we have a condition function or conditions list
+            if "condition" in rule_config:
+                # Use the condition function if provided
+                condition_result = rule_config["condition"](device_data, all_devices)
+            elif "conditions" in rule_config:
+                # Evaluate conditions list from YAML
+                condition_result = True
+                for condition in rule_config["conditions"]:
+                    for cond_key, cond_value in condition.items():
+                        if cond_key == "usage_id":
+                            if device_data.get("usage_id") != cond_value:
+                                condition_result = False
+                                break
+                        elif cond_key == "min_children":
+                            if not all_devices:
+                                condition_result = False
+                                break
+                            children = [
+                                child for child_id, child in all_devices.items()
+                                if child.get("parent_periph_id") == periph_id
+                            ]
+                            if len(children) < int(cond_value):
+                                condition_result = False
+                                break
+                        elif cond_key == "child_usage_id":
+                            if not all_devices:
+                                condition_result = False
+                                break
+                            children = [
+                                child for child_id, child in all_devices.items()
+                                if child.get("parent_periph_id") == periph_id and child.get("usage_id") == cond_value
+                            ]
+                            if len(children) < 1:
+                                condition_result = False
+                                break
+                        elif cond_key == "has_parent":
+                            if not device_data.get("parent_periph_id"):
+                                condition_result = False
+                                break
+                        elif cond_key == "parent_usage_id":
+                            if not device_data.get("parent_periph_id"):
+                                condition_result = False
+                                break
+                            parent_id = device_data.get("parent_periph_id")
+                            parent = all_devices.get(parent_id, {})
+                            if parent.get("usage_id") != cond_value:
+                                condition_result = False
+                                break
+                        elif cond_key == "parent_has_min_children":
+                            if not device_data.get("parent_periph_id"):
+                                condition_result = False
+                                break
+                            parent_id = device_data.get("parent_periph_id")
+                            parent_children = [
+                                child for child_id, child in all_devices.items()
+                                if child.get("parent_periph_id") == parent_id
+                            ]
+                            if len(parent_children) < int(cond_value):
+                                condition_result = False
+                                break
+                        else:
+                            _LOGGER.warning("Unknown condition key: %s", cond_key)
+                            condition_result = False
+                            break
+                    if not condition_result:
+                        break
+            else:
+                _LOGGER.warning("No condition or conditions found in rule: %s", rule_name)
+                condition_result = False
+            
             _LOGGER.debug("Advanced rule '%s' for %s (%s): condition_result=%s",
                          rule_name, periph_name, periph_id, condition_result)
             
