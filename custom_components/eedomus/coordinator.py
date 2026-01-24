@@ -441,7 +441,15 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             )
             raise
 
-        for periph_data in peripherals_caract.get("body"):
+        # Ensure peripherals_caract.get("body") is a list before iterating
+        peripherals_body = peripherals_caract.get("body")
+        if not isinstance(peripherals_body, list):
+            _LOGGER.error("peripherals_caract body is not a list: %s", type(peripherals_body))
+            if peripherals_body is None:
+                _LOGGER.error("peripherals_caract body is None, API may have returned empty response")
+            return
+        
+        for periph_data in peripherals_body:
             periph_id = periph_data.get("periph_id")
             # Ajout des données de peripherals_caract_dict (si existantes)
             self.data[periph_id].update(periph_data)
