@@ -11,7 +11,7 @@
 # 4. Name pattern matching
 # 5. Default mapping
 
-version: 1.0
+version: 1.1
 
 # Advanced mapping rules for complex device detection
 advanced_rules:
@@ -91,36 +91,12 @@ usage_id_mappings:
     justification: "Generic switch - usage_id=4 for electrical appliances"
     is_dynamic: true
 
-  "50":
-    ha_entity: "switch"
-    ha_subtype: ""
-    justification: "Camera privacy control - usage_id=50 for camera intimacy"
-    is_dynamic: true
-
-  "52":
-    ha_entity: "switch"
-    ha_subtype: ""
-    justification: "Sonoff switch/remote control - usage_id=52"
-    is_dynamic: true
-  
-  "4":
-    ha_entity: "switch"
-    ha_subtype: ""
-    justification: "Generic switch - usage_id=4 for electrical appliances"
-    is_dynamic: true
-  
   "7":
     ha_entity: "sensor"
     ha_subtype: "temperature"
     justification: "Temperature sensor - usage_id=7 for temperature monitoring"
     is_dynamic: false
 
-  "22":
-    ha_entity: "sensor"
-    ha_subtype: "moisture"
-    justification: "Moisture sensor - Sonoff SNZB-02D/SNZB-02P via Zigate"
-    is_dynamic: false
-  
   "14":
     ha_entity: "select"
     ha_subtype: "shutter_group"
@@ -169,18 +145,6 @@ usage_id_mappings:
     justification: "Luminosity sensor - usage_id=24 for light level monitoring"
     is_dynamic: false
 
-  "35":
-    ha_entity: "sensor"
-    ha_subtype: "text"
-    justification: "Miscellaneous eedomus app data (sun elevation, azimuth, etc.)"
-    is_dynamic: false
-
-  "114":
-    ha_entity: "sensor"
-    ha_subtype: "text"
-    justification: "Network detection status - eedomus app data"
-    is_dynamic: false
-  
   "26":
     ha_entity: "sensor"
     ha_subtype: "energy"
@@ -222,18 +186,6 @@ usage_id_mappings:
     ha_subtype: "fil_pilote"
     justification: "Fil pilote heating control - usage_id=38"
     is_dynamic: false
-
-  "19":
-    ha_entity: "climate"
-    ha_subtype: "fil_pilote"
-    justification: "Fil pilote heating system control - usage_id=19"
-    is_dynamic: false
-
-  "20":
-    ha_entity: "climate"
-    ha_subtype: "fil_pilote"
-    justification: "Fil pilote heating system control - usage_id=20"
-    is_dynamic: false
   
   "42":
     ha_entity: "select"
@@ -258,6 +210,24 @@ usage_id_mappings:
     ha_subtype: ""
     justification: "Camera privacy control - usage_id=50 for camera intimacy"
     is_dynamic: true
+
+  "52":
+    ha_entity: "switch"
+    ha_subtype: ""
+    justification: "Sonoff switch/remote control - usage_id=52"
+    is_dynamic: true
+  
+  "82":
+    ha_entity: "select"
+    ha_subtype: "color_preset"
+    justification: "RGBW color preset selection - usage_id=82"
+    is_dynamic: false
+  
+  "114":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Network detection status - eedomus app data"
+    is_dynamic: false
   
   "52":
     ha_entity: "switch"
