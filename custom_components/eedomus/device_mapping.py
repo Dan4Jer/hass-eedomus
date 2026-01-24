@@ -24,6 +24,22 @@ _LOGGER = logging.getLogger(__name__)
 DEFAULT_MAPPING_FILE = "config/device_mapping.yaml"
 CUSTOM_MAPPING_FILE = "config/custom_mapping.yaml"
 
+
+def get_absolute_path(relative_path: str) -> str:
+    """Convert relative path to absolute path based on module location.
+    
+    Args:
+        relative_path: Path relative to the module directory
+        
+    Returns:
+        Absolute path to the file
+    """
+    import os
+    import inspect
+    # Get the directory where this module is located
+    module_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+    return os.path.join(module_dir, relative_path)
+
 def load_yaml_file(file_path: str) -> Optional[Dict[str, Any]]:
     """Load YAML configuration from file.
     
@@ -56,13 +72,22 @@ def load_yaml_mappings(base_path: str = "") -> Dict[str, Any]:
     """Load and merge YAML mappings from default and custom files.
     
     Args:
-        base_path: Base path where YAML files are located
+        base_path: Base path where YAML files are located (optional)
         
     Returns:
         Merged mapping configuration
     """
-    default_file = os.path.join(base_path, DEFAULT_MAPPING_FILE) if base_path else DEFAULT_MAPPING_FILE
-    custom_file = os.path.join(base_path, CUSTOM_MAPPING_FILE) if base_path else CUSTOM_MAPPING_FILE
+    # Use absolute paths if no base_path provided
+    if base_path:
+        default_file = os.path.join(base_path, DEFAULT_MAPPING_FILE)
+        custom_file = os.path.join(base_path, CUSTOM_MAPPING_FILE)
+    else:
+        # Convert relative paths to absolute paths based on module location
+        default_file = get_absolute_path(DEFAULT_MAPPING_FILE)
+        custom_file = get_absolute_path(CUSTOM_MAPPING_FILE)
+    
+    _LOGGER.debug("Loading default mapping from: %s", default_file)
+    _LOGGER.debug("Loading custom mapping from: %s", custom_file)
     
     # Load default mapping
     default_mapping = load_yaml_file(default_file) or {}
@@ -75,6 +100,12 @@ def load_yaml_mappings(base_path: str = "") -> Dict[str, Any]:
     
     _LOGGER.info("Successfully loaded YAML mappings (default: %s, custom: %s)", 
                 bool(default_mapping), bool(custom_mapping))
+    
+    # Debug logging to help diagnose loading issues
+    if not default_mapping:
+        _LOGGER.warning("⚠️ Default YAML mapping file could not be loaded from: %s", default_file)
+    if not custom_mapping:
+        _LOGGER.debug("Custom YAML mapping file not found or empty: %s", custom_file)
     
     return merged
 
