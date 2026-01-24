@@ -49,7 +49,7 @@ _LOGGER = logging.getLogger(__name__)
 
 # Import options flow to ensure it's registered
 try:
-    from .options_flow import EedomusOptionsFlowHandler
+    from .options_flow import EedomusOptionsFlow
     _LOGGER.debug("Options flow handler loaded successfully")
 except ImportError as e:
     _LOGGER.warning("Failed to load options flow handler: %s", e)

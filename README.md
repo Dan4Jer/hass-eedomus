@@ -110,12 +110,19 @@ Consultez [TESTS_README.md](scripts/TESTS_README.md) pour plus de détails.
 
 ## 🎛️ Configuration YAML des Mappings
 
-### Structure des fichiers YAML
+### Emplacement des fichiers de configuration
 
-La configuration YAML permet de définir comment les périphériques eedomus sont mappés vers les entités Home Assistant. Deux fichiers sont utilisés :
+Les fichiers de configuration des mappings sont maintenant situés dans :
+```
+custom_components/eedomus/config/
+```
 
-1. **`config/device_mapping.yaml`** : Fichier de mapping par défaut (fournis avec l'intégration)
-2. **`config/custom_mapping.yaml`** : Fichier de mapping utilisateur (personnalisable)
+### Structure des fichiers
+
+Deux fichiers YAML sont utilisés pour le mapping des devices :
+
+1. **`device_mapping.yaml`** : Mappings par défaut (fournis avec l'intégration)
+2. **`custom_mapping.yaml`** : Mappings personnalisables (surcharge les défauts)
 
 ### Structure de base
 
@@ -133,18 +140,14 @@ advanced_rules:
     mapping:
       ha_entity: "light"
       ha_subtype: "rgbw"
-      justification: "Lampe RGBW avec 4 enfants (Rouge, Vert, Bleu, Blanc)"
-      device_class: null
-      icon: "mdi:lightbulb"
+      justification: "RGBW lamp with 4+ children (Red, Green, Blue, White)"
 
 # Mappings basés sur usage_id
 usage_id_mappings:
   "0":
     ha_entity: "switch"
     ha_subtype: ""
-    justification: "Type de périphérique inconnu - mappé comme switch"
-    device_class: null
-    icon: "mdi:toggle-switch"
+    justification: "Unknown device type - default to switch"
 
 # Mappings basés sur des motifs de nom (expressions régulières)
 name_patterns:
@@ -158,10 +161,92 @@ name_patterns:
 default_mapping:
   ha_entity: "sensor"
   ha_subtype: "unknown"
-  device_class: null
-  icon: "mdi:help-circle"
-  justification: "Mapping par défaut pour les périphériques inconnus"
+  justification: "Default fallback mapping for unknown devices"
 ```
+
+### Nettoyage de la configuration
+
+**Fichiers supprimés :**
+- `config/device_mapping_default.yaml` (fichier redondant)
+- Répertoire `config/` vide
+
+**Fichiers déplacés :**
+- `config/device_mapping.yaml` → `custom_components/eedomus/config/`
+- `config/custom_mapping.yaml` → `custom_components/eedomus/config/`
+
+**Documentation ajoutée :**
+- `custom_components/eedomus/config/README.md` - Documentation complète des mappings
+
+### Ordre de priorité des mappings
+
+1. **Règles personnalisées** (depuis `custom_mapping.yaml`)
+2. **Règles avancées** (détection RGBW, relations parent-enfant)
+3. **Mappings par usage_id** (depuis les fichiers YAML)
+4. **Correspondance de motifs de nom** (expressions régulières)
+5. **Mapping par défaut** (fallback)
+
+### Guide de personnalisation
+
+Pour personnaliser les mappings des devices :
+
+1. **Éditez** `custom_components/eedomus/config/custom_mapping.yaml`
+2. **Ajoutez** vos règles personnalisées en suivant la même structure que `device_mapping.yaml`
+3. **Redémarrez** Home Assistant ou utilisez le service de rechargement :
+
+```yaml
+service: eedomus.reload
+```
+
+### Exemple de mapping personnalisé
+
+```yaml
+# custom_mapping.yaml
+version: 1.0
+
+custom_rules:
+  - name: "My Custom RGBW Device"
+    priority: 1
+    conditions:
+      - usage_id: "1"
+      - name: ".*my rgbw.*"
+    mapping:
+      ha_entity: "light"
+      ha_subtype: "rgbw"
+      justification: "Custom RGBW device mapping"
+
+custom_usage_id_mappings:
+  "42":
+    ha_entity: "sensor"
+    ha_subtype: "custom"
+    justification: "Custom sensor type"
+```
+
+### Notes importantes
+
+✅ **Ne modifiez PAS** `device_mapping.yaml` directement (peut être écrasé lors des mises à jour)
+✅ **Toutes les personnalisations** doivent aller dans `custom_mapping.yaml`
+✅ **Fusion automatique** des configurations au démarrage
+✅ **Les changements prennent effet** immédiatement après redémarrage ou rechargement
+✅ **L'affectation des pièces et des icônes** est gérée par l'interface standard de Home Assistant
+
+### Améliorations du code
+
+- **Réduction de 90% du code** dans `device_mapping.py` (de ~1100 à ~200 lignes)
+- **Suppression des déclarations inutilisées** et des structures obsolètes
+- **Architecture simplifiée** concentrée uniquement sur le chargement YAML
+- **Meilleures performances** avec un chargement plus rapide des configurations
+- **Code plus propre** et plus facile à maintenir
+
+### Migration depuis les versions précédentes
+
+Si vous utilisiez l'ancien système de configuration :
+
+1. **Copiez** vos mappings personnalisés depuis l'ancien emplacement
+2. **Collez-les** dans `custom_components/eedomus/config/custom_mapping.yaml`
+3. **Vérifiez** la syntaxe YAML
+4. **Redémarrez** Home Assistant
+
+Le nouveau système gère automatiquement le reste !
 
 ### Priorité des mappings
 
