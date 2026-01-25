@@ -167,12 +167,23 @@ class EedomusLight(EedomusEntity, LightEntity):
     @property
     def is_on(self):
         """Return true if the light is on."""
-        value = self.coordinator.data[self._periph_id].get("last_value")
-        if type(value) == "NoneType" or value == "None":
+        # Check if coordinator data is available
+        if self.coordinator.data is None:
+            _LOGGER.warning(f"Coordinator data is None for light {self._periph_id}, assuming off")
+            return False
+        
+        # Check if device data exists
+        device_data = self.coordinator.data.get(self._periph_id)
+        if device_data is None:
+            _LOGGER.warning(f"Device data not found in coordinator for light {self._periph_id}, assuming off")
+            return False
+            
+        value = device_data.get("last_value")
+        if value is None or value == "None":
             return False
 
         # Light is on if value is not "0" (eedomus uses percentage values 0-100)
-        return value != "0" and value is not None
+        return value != "0"
 
     @property
     def brightness(self):
@@ -181,7 +192,12 @@ class EedomusLight(EedomusEntity, LightEntity):
             return 0
             
         # Get the current brightness value from eedomus (0-100 percentage)
-        brightness_percent = self.coordinator.data[self._periph_id].get("last_value", "0")
+        periph_data = self._get_periph_data()
+        if periph_data is None:
+            _LOGGER.warning(f"Cannot get brightness: peripheral data not found for {self._periph_id}")
+            return 0
+            
+        brightness_percent = periph_data.get("last_value", "0")
         
         try:
             # Convert percentage (0-100) to octal (0-255) for Home Assistant

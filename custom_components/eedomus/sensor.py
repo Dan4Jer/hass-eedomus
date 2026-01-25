@@ -150,14 +150,18 @@ class EedomusSensor(EedomusEntity, SensorEntity):
     def __init__(self, coordinator, periph_id):
         """Initialize the sensor."""
         super().__init__(coordinator, periph_id)
+        periph_info = self._get_periph_data(periph_id)
+        if periph_info is None:
+            _LOGGER.warning(f"Peripheral data not found for sensor {periph_id}")
+            return
+            
         _LOGGER.debug(
             "Initializing sensor entity for %s (periph_id=%s)",
-            self.coordinator.data[periph_id].get("name", "unknown"),
+            periph_info.get("name", "unknown"),
             periph_id,
         )
 
         # Set sensor-specific attributes based on ha_subtype
-        periph_info = self.coordinator.data[periph_id]
         periph_type = periph_info.get("ha_subtype")
 
         # Set default device class for all sensors
@@ -187,10 +191,15 @@ class EedomusSensor(EedomusEntity, SensorEntity):
     @property
     def native_value(self):
         """Return the state of the sensor."""
-        value = self.coordinator.data[self._periph_id].get("last_value")
+        periph_data = self._get_periph_data()
+        if periph_data is None:
+            _LOGGER.warning(f"Cannot get native_value: peripheral data not found for {self._periph_id}")
+            return None
+            
+        value = periph_data.get("last_value")
         _LOGGER.debug(
             "Sensor %s (periph_id=%s) native_value: %s",
-            self.coordinator.data[self._periph_id].get("name", "unknown"),
+            periph_data.get("name", "unknown"),
             self._periph_id,
             value,
         )

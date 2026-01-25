@@ -114,13 +114,23 @@ class EedomusCover(EedomusEntity, CoverEntity):
     @property
     def is_closed(self):
         """Return if the cover is closed (position = 0)."""
-        position = self.coordinator.data[self._periph_id].get("last_value")
+        periph_data = self._get_periph_data()
+        if periph_data is None:
+            _LOGGER.warning(f"Cannot get cover position: peripheral data not found for {self._periph_id}")
+            return True  # Assume closed if data not available
+            
+        position = periph_data.get("last_value")
         return position == "0" or position == 0
 
     @property
     def current_cover_position(self):
         """Return the current position of the cover (0-100)."""
-        position = self.coordinator.data[self._periph_id].get("last_value")
+        periph_data = self._get_periph_data()
+        if periph_data is None:
+            _LOGGER.warning(f"Cannot get cover position: peripheral data not found for {self._periph_id}")
+            return 0
+            
+        position = periph_data.get("last_value")
         try:
             return int(position)
         except (ValueError, TypeError):
@@ -150,7 +160,7 @@ class EedomusCover(EedomusEntity, CoverEntity):
         _LOGGER.debug(
             "Setting cover position to %s for %s (periph_id=%s)",
             position,
-            self.coordinator.data[self._periph_id].get("name", "unknown"),
+            self.coordinator.data.get(self._periph_id, {}).get("name", "unknown") if self.coordinator.data else "unknown",
             self._periph_id,
         )
 

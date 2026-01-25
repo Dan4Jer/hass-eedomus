@@ -137,24 +137,50 @@ class EedomusEntity(CoordinatorEntity):
         """Initialize the entity."""
         super().__init__(coordinator)
         self._periph_id = periph_id
-        self._parent_id = self.coordinator.data[periph_id].get("parent_periph_id", None)
+        
+        # Safe access to coordinator data
+        periph_data = self._get_periph_data(periph_id)
+        if periph_data is None:
+            _LOGGER.warning(f"Peripheral data not found for {periph_id}, using fallback")
+            self._attr_name = f"Unknown Device ({periph_id})"
+            self._parent_id = None
+            self._attr_unique_id = f"{periph_id}"
+            self._attr_available = False
+            return
+            
+        self._parent_id = periph_data.get("parent_periph_id", None)
         if self.coordinator.client:
             self._client = self.coordinator.client
         if self._parent_id is None:
             self._attr_unique_id = f"{periph_id}"
         else:
             self._attr_unique_id = f"{self._parent_id}_{periph_id}"
-        if self.coordinator.data[periph_id]["name"]:
-            self._attr_name = self.coordinator.data[periph_id]["name"]
+        if periph_data["name"]:
+            self._attr_name = periph_data["name"]
         _LOGGER.debug(
             "Initializing entity for %s (%s)", self._attr_name, self._periph_id
         )
         self._attr_available = True
 
+    def _get_periph_data(self, periph_id: str = None):
+        """Safely get peripheral data from coordinator."""
+        target_id = periph_id or self._periph_id
+        if self.coordinator.data is None:
+            _LOGGER.warning(f"Coordinator data is None, cannot get data for {target_id}")
+            return None
+        return self.coordinator.data.get(target_id)
+
     @property
     def device_info(self) -> DeviceInfo:
         """Return device information."""
-        periph_info = self.coordinator.data[self._periph_id]
+        periph_info = self._get_periph_data()
+        if periph_info is None:
+            return DeviceInfo(
+                identifiers={(DOMAIN, str(self._periph_id))},
+                name=f"Unknown Device {self._periph_id}",
+                manufacturer="eedomus",
+                model="unknown",
+            )
         return DeviceInfo(
             identifiers={(DOMAIN, str(self._periph_id))},
             name=periph_info.get("name"),
@@ -212,7 +238,15 @@ class EedomusEntity(CoordinatorEntity):
             if isinstance(caract_value, dict):
                 body = caract_value.get("body")
                 if body is not None:
-                    self.coordinator.data[self._periph_id].update(body)
+                    periph_data = self._get_periph_data()
+                    if periph_data is not None:
+                        periph_data.update(body)
+                    else:
+                        _LOGGER.warning(
+                            "Cannot update characteristics: peripheral data not found for %s (%s)",
+                            self._attr_name,
+                            self._periph_id,
+                        )
                 else:
                     _LOGGER.warning(
                         "No body found in API response for %s (%s)",
@@ -256,7 +290,15 @@ class EedomusEntity(CoordinatorEntity):
             if isinstance(caract_value, dict):
                 body = caract_value.get("body")
                 if body is not None:
-                    self.coordinator.data[self._periph_id].update(body)
+                    periph_data = self._get_periph_data()
+                    if periph_data is not None:
+                        periph_data.update(body)
+                    else:
+                        _LOGGER.warning(
+                            "Cannot update characteristics: peripheral data not found for %s (%s)",
+                            self._attr_name,
+                            self._periph_id,
+                        )
                 else:
                     _LOGGER.warning(
                         "No body found in API response for %s (%s)",
@@ -276,8 +318,13 @@ class EedomusEntity(CoordinatorEntity):
 
         self._attr_available = True
         # We don't need to check if device available here
-        self._attr_native_value = self.coordinator.data[self._periph_id]["last_value"]
-        self.coordinator.data[self._periph_id]["last_updated"] = datetime.now().isoformat()
+        periph_data = self._get_periph_data()
+        if periph_data is not None:
+            self._attr_native_value = periph_data["last_value"]
+            periph_data["last_updated"] = datetime.now().isoformat()
+        else:
+            _LOGGER.warning(f"Cannot update native value: peripheral data not found for {self._periph_id}")
+            self._attr_native_value = None
 
     async def async_set_value(self, value: str):
         """Set device value with full eedomus logic including fallback and retry.
@@ -372,19 +419,22 @@ class EedomusEntity(CoordinatorEntity):
         )
         
         # Update the coordinator's data
-        self.coordinator.data[self._periph_id]["last_value"] = str(new_value)
-        
-        # Update last_value_change timestamp to current time
-        # This is crucial for covers and other entities that track when values were last changed
-        from datetime import datetime
-        current_timestamp = datetime.now().isoformat()
-        self.coordinator.data[self._periph_id]["last_value_change"] = current_timestamp
-        _LOGGER.debug(
-            "Updated last_value_change for %s (%s) to: %s",
-            self._attr_name,
-            self._periph_id,
-            current_timestamp
-        )
+        periph_data = self._get_periph_data()
+        if periph_data is not None:
+            periph_data["last_value"] = str(new_value)
+            # Update last_value_change timestamp to current time
+            # This is crucial for covers and other entities that track when values were last changed
+            from datetime import datetime
+            current_timestamp = datetime.now().isoformat()
+            periph_data["last_value_change"] = current_timestamp
+            _LOGGER.debug(
+                "Updated last_value_change for %s (%s) to: %s",
+                self._attr_name,
+                self._periph_id,
+                current_timestamp
+            )
+        else:
+            _LOGGER.warning(f"Cannot force state update: peripheral data not found for {self._periph_id}")
         
         # Force immediate state update in Home Assistant using explicit state machine
         # This ensures we control the timestamp precisely
