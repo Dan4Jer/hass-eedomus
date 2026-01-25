@@ -452,7 +452,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         for periph_data in peripherals_body:
             periph_id = periph_data.get("periph_id")
             # Ajout des données de peripherals_caract_dict (si existantes)
-            self.data[periph_id].update(periph_data)
+            if self.data and periph_id in self.data:
+                self.data[periph_id].update(periph_data)
+            else:
+                _LOGGER.warning("Cannot update peripheral data: data not available for %s", periph_id)
 
             if history_retrieval:
                 if not self._history_progress.get(periph_id, {}).get("completed"):
@@ -583,8 +586,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     {
                         "completed": progress["completed"],
                         "periph_name": (
-                            self.data[periph_id]["name"]
-                            if periph_id in self.data
+                            self.data.get(periph_id, {}).get("name", "Unknown")
+                            if self.data and periph_id in self.data
                             else "Unknown"
                         ),
                     },
@@ -720,7 +723,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             "Setting value '%s' for peripheral '%s' (%s) ",
             value,
             periph_id,
-            self.data[periph_id]["name"],
+            self.data.get(periph_id, {}).get("name", "unknown") if self.data else "unknown",
         )
 
         # Check if retry is enabled in config
@@ -749,7 +752,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         if not enable_retry:
             _LOGGER.info(
                 "⏭️ Set value retry disabled - attempting single set_value for %s (%s)",
-                self.data[periph_id]["name"],
+                self.data.get(periph_id, {}).get("name", "unknown") if self.data else "unknown",
                 periph_id,
             )
             _LOGGER.info(
@@ -765,7 +768,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             if php_fallback_enabled:
                 _LOGGER.info(
                     "🔄 Trying PHP fallback for %s (%s)",
-                    self.data[periph_id]["name"],
+                    self.data.get(periph_id, {}).get("name", "unknown") if self.data else "unknown",
                     periph_id,
                 )
                 fallback_result = await self.client.php_fallback_set_value(
@@ -774,7 +777,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 if fallback_result.get("success") == 1:
                     _LOGGER.info(
                         "✅ PHP fallback succeeded for %s (%s)",
-                        self.data[periph_id]["name"],
+                        self.data.get(periph_id, {}).get("name", "unknown") if self.data else "unknown",
                         periph_id,
                     )
                     # Return success response when PHP fallback succeeds
@@ -782,7 +785,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 else:
                     _LOGGER.warning(
                         "⚠️ PHP fallback failed for %s (%s): %s",
-                        self.data[periph_id]["name"],
+                        self.data.get(periph_id, {}).get("name", "unknown") if self.data else "unknown",
                         periph_id,
                         fallback_result.get("error", "Unknown error"),
                     )
@@ -829,14 +832,17 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         else:
             _LOGGER.info(
                 "✅ Set value successful for %s (%s)",
-                self.data[periph_id]["name"],
+                self.data.get(periph_id, {}).get("name", "unknown") if self.data else "unknown",
                 periph_id,
             )
             
             # Immediately update local state to reflect the change
             # This ensures UI updates instantly without waiting for coordinator refresh
-            self.data[periph_id]["last_value"] = value
-            self.data[periph_id]["last_updated"] = datetime.now().isoformat()
+            if self.data and periph_id in self.data:
+                self.data[periph_id]["last_value"] = value
+                self.data[periph_id]["last_updated"] = datetime.now().isoformat()
+            else:
+                _LOGGER.warning("Cannot update local state: data not available for %s", periph_id)
             # Return success response for normal successful case
             return ret
         # except Exception as e:
