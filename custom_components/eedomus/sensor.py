@@ -386,13 +386,14 @@ class EedomusAggregatedSensor(EedomusSensor):
 
         # Add child device values
         child_attrs = {}
-        for child_id, child in self._child_devices.items():
-            child_data = self.coordinator.data.get(child_id, {})
-            child_attrs[child_id] = {
-                "name": child_data.get("name"),
-                "value": child_data.get("last_value"),
-                "unit": child_data.get("unit"),
-                "type": child_data.get("ha_subtype"),
+        if self.coordinator.data is not None:
+            for child_id, child in self._child_devices.items():
+                child_data = self.coordinator.data.get(child_id, {})
+                child_attrs[child_id] = {
+                    "name": child_data.get("name"),
+                    "value": child_data.get("last_value"),
+                    "unit": child_data.get("unit"),
+                    "type": child_data.get("ha_subtype"),
             }
 
         result_attrs["child_devices"] = child_attrs
