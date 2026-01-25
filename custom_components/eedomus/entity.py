@@ -354,6 +354,11 @@ class EedomusEntity(CoordinatorEntity):
 
         
         try:
+            # Verify periph_id is not None before calling set_value
+            if self._periph_id is None:
+                _LOGGER.error("Cannot set value: periph_id is None for entity %s", self._attr_name)
+                return {"success": 0, "error": "periph_id is None"}
+                
             # Call coordinator method to set the value
             response = await self.coordinator.async_set_periph_value(
                 self._periph_id, str(value)
