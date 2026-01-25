@@ -199,7 +199,12 @@ class EedomusAggregatedCover(EedomusCover):
     @property
     def current_cover_position(self):
         """Return the current position of the cover (0-100)."""
-        position = self.coordinator.data[self._parent_id].get("last_value")
+        periph_data = self._get_periph_data(self._parent_id)
+        if periph_data is None:
+            _LOGGER.warning(f"Cannot get cover position: peripheral data not found for parent {self._parent_id}")
+            return 0
+            
+        position = periph_data.get("last_value")
         try:
             return int(position)
         except (ValueError, TypeError):
