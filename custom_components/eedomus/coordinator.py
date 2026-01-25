@@ -429,6 +429,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             history_retrieval,
         )
 
+        # Skip API call if no dynamic peripherals to refresh
+        if not self._dynamic_peripherals:
+            _LOGGER.info("No dynamic peripherals to refresh, skipping partial refresh")
+            return {"success": 1, "body": []}
+
         concat_text_periph_id = ",".join(self._dynamic_peripherals.keys())
         try:
             peripherals_caract = await self.client.get_periph_caract(
