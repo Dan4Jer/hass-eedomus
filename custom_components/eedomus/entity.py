@@ -598,6 +598,10 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
             ]
             _LOGGER.info("🔍 Found %d children with usage_id=1: %s", 
                         len(usage_id_1_children), [c["name"] for c in usage_id_1_children])
+            
+            # Log the RGBW children names specifically
+            rgbw_names = [c["name"] for c in usage_id_1_children if "Rouge" in c["name"] or "Vert" in c["name"] or "Bleu" in c["name"] or "Blanc" in c["name"]]
+            _LOGGER.info("🔍 RGBW component names: %s", rgbw_names)
         
         # Debug: List all advanced rule names
         for rule_name in DEVICE_MAPPINGS.get('advanced_rules', []):
@@ -685,6 +689,33 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                             if len(parent_children) < int(cond_value):
                                 condition_result = False
                                 break
+                        elif cond_key == "has_children_with_names":
+                            if not all_devices:
+                                condition_result = False
+                                break
+                            # Check if device has children with specific names
+                            required_names = cond_value if isinstance(cond_value, list) else [cond_value]
+                            children = [
+                                child for child_id, child in all_devices.items()
+                                if child.get("parent_periph_id") == periph_id
+                            ]
+                            child_names = [child.get("name", "").lower() for child in children]
+                            
+                            # Check if all required names are present in children
+                            all_found = all(
+                                any(required_name.lower() in child_name for child_name in child_names)
+                                for required_name in required_names
+                            )
+                            
+                            if not all_found:
+                                condition_result = False
+                                # Special debug for device 1269454
+                                if periph_id == "1269454":
+                                    _LOGGER.info("🔍 Required names: %s", required_names)
+                                    _LOGGER.info("🔍 Found child names: %s", child_names)
+                                    missing_names = [name for name in required_names if not any(name.lower() in child_name for child_name in child_names)]
+                                    _LOGGER.info("🔍 Missing names: %s", missing_names)
+                                break
                         else:
                             _LOGGER.warning("Unknown condition key: %s", cond_key)
                             condition_result = False
@@ -710,6 +741,9 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                 elif rule_name == "rgbw_lamp_flexible":
                     _LOGGER.info("🔍 Flexible RGBW rule condition breakdown:")
                     _LOGGER.info("🔍   - usage_id check: %s", device_data.get("usage_id") == "1")
+                    _LOGGER.info("🔍   - min_children check: %s", 
+                                len([child for child_id, child in all_devices.items()
+                                    if child.get("parent_periph_id") == periph_id]) >= 4)
                     _LOGGER.info("🔍   - SUPPORTED_CLASSES: %s", device_data.get("SUPPORTED_CLASSES", "N/A"))
                     _LOGGER.info("🔍   - PRODUCT_TYPE_ID: %s", device_data.get("PRODUCT_TYPE_ID", "N/A"))
                     _LOGGER.info("🔍   - Device name: %s", device_data.get("name", "N/A"))

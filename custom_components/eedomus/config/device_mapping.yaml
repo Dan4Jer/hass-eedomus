@@ -29,7 +29,24 @@ advanced_rules:
     child_mapping:
       "1":
         ha_entity: "light"
-        ha_subtype: "dimmable"
+        ha_subtype: "brightness"
+        is_dynamic: true
+
+  - name: "RGBW Lamp Detection Flexible"
+    priority: 1
+    conditions:
+      - usage_id: "1"
+      - min_children: 4
+      - has_children_with_names: ["Rouge", "Vert", "Bleu", "Blanc"]
+    mapping:
+      ha_entity: "light"
+      ha_subtype: "rgbw"
+      justification: "RGBW lamp detected by child names (Rouge, Vert, Bleu, Blanc)"
+      is_dynamic: true
+    child_mapping:
+      "1":
+        ha_entity: "light"
+        ha_subtype: "brightness"
         is_dynamic: true
 
   - name: "RGBW Child Detection"
