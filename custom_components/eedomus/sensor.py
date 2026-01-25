@@ -481,7 +481,11 @@ class EedomusBatterySensor(EedomusEntity, SensorEntity):
     @property
     def available(self) -> bool:
         """Return True if battery data is available."""
-        battery_level = self.coordinator.data[self._periph_id].get("battery", "")
+        periph_data = self._get_periph_data()
+        if periph_data is None:
+            return False
+            
+        battery_level = periph_data.get("battery", "")
         return (
             battery_level
             and str(battery_level).strip()
