@@ -354,6 +354,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         all_periph_ids = set(peripherals_caract_dict.keys())
 
         for periph_id in all_periph_ids:
+            if aggregated_data is None:
+                _LOGGER.error("aggregated_data is None, cannot process peripheral data")
+                continue
+                
             if not periph_id in aggregated_data:
                 _LOGGER.warning("This periph_id is unknown %d, please do a reload", periph_id)
                 aggregated_data[periph_id] = {}
