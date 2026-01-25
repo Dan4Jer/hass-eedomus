@@ -154,7 +154,7 @@ def merge_yaml_mappings(default_mapping: Dict[str, Any], custom_mapping: Dict[st
     # Merge name patterns (custom extends default)
     name_patterns = default_mapping.get('name_patterns', [])
     if not isinstance(name_patterns, list):
-        _LOGGER.error("Name patterns is not a list: %s", type(name_patterns))
+        _LOGGER.info("Name patterns is not configured (normal for current usage): %s", type(name_patterns))
         name_patterns = []
     
     merged['name_patterns'] = name_patterns
