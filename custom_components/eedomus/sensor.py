@@ -364,12 +364,14 @@ class EedomusAggregatedSensor(EedomusSensor):
         # Example: sum values from children for energy sensors
         if self._parent_device.get("ha_subtype") == "energy":
             total = parent_value or 0
-            for child_id in self._child_devices:
-                child_value = self.coordinator.data[child_id].get("last_value")
-                try:
-                    total += float(child_value or 0)
-                except (ValueError, TypeError):
-                    continue
+            if self.coordinator.data is not None:
+                for child_id in self._child_devices:
+                    child_data = self.coordinator.data.get(child_id, {})
+                    child_value = child_data.get("last_value")
+                    try:
+                        total += float(child_value or 0)
+                    except (ValueError, TypeError):
+                        continue
             return total
 
         # For other types, just return parent value
