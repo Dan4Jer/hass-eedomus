@@ -179,12 +179,17 @@ class EedomusSwitch(EedomusEntity, SwitchEntity):
     @property
     def is_on(self):
         """Return true if the switch is on."""
-        value = self.coordinator.data[self._periph_id].get("last_value")
+        periph_data = self._get_periph_data()
+        if periph_data is None:
+            _LOGGER.warning(f"Cannot get switch state: peripheral data not found for {self._periph_id}")
+            return False
+            
+        value = periph_data.get("last_value")
         _LOGGER.debug(
             "Switch %s is_on: %s name=%s",
             self._periph_id,
-            self.coordinator.data[self._periph_id].get("last_value"),
-            self.coordinator.data[self._periph_id].get("name"),
+            periph_data.get("last_value"),
+            periph_data.get("name"),
         )
         return value == "100"
 

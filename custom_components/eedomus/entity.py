@@ -440,7 +440,12 @@ class EedomusEntity(CoordinatorEntity):
         # This ensures we control the timestamp precisely
         try:
             # Get the timestamp from last_value_change
-            last_value_change = self.coordinator.data[self._periph_id].get("last_value_change")
+            periph_data = self._get_periph_data()
+            if periph_data is None:
+                _LOGGER.warning(f"Cannot get last_value_change: peripheral data not found for {self._periph_id}")
+                return
+                
+            last_value_change = periph_data.get("last_value_change")
             if last_value_change:
                 # Convert ISO format timestamp to datetime object
                 desired_dt = datetime.fromisoformat(last_value_change)
