@@ -524,6 +524,15 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             dynamic_properties = DEVICE_MAPPINGS.get('dynamic_entity_properties', {}) if DEVICE_MAPPINGS else {}
             is_dynamic = dynamic_properties.get(ha_entity, False)
             
+            _LOGGER.debug(
+                "Peripheral dynamic check (entity type) ! %s (%s) - entity: %s, is_dynamic: %s, properties: %s",
+                periph.get("name"),
+                periph_id,
+                ha_entity,
+                is_dynamic,
+                dynamic_properties,
+            )
+            
             if is_dynamic:
                 _LOGGER.debug(
                     "Peripheral is dynamic (entity type) ! %s (%s) - entity: %s",
