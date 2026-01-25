@@ -127,7 +127,12 @@ class EedomusBinarySensor(EedomusEntity, BinarySensorEntity):
     @property
     def is_on(self) -> bool | None:
         """Return true if the binary sensor is on."""
-        value = self.coordinator.data[self._periph_id].get("last_value")
+        periph_data = self._get_periph_data()
+        if periph_data is None:
+            _LOGGER.warning(f"Cannot get binary sensor state: peripheral data not found for {self._periph_id}")
+            return None
+            
+        value = periph_data.get("last_value")
         _LOGGER.debug("Binary sensor %s is_on: %s", self._periph_id, value)
 
         # Gestion des valeurs vides ou invalides
