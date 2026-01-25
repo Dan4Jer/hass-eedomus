@@ -164,7 +164,11 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
     @property
     def available(self) -> bool:
         """Return True if entity is available."""
-        return self.coordinator.data[self._periph_id].get("last_value", "") != ""
+        periph_data = self._get_periph_data()
+        if periph_data is None:
+            return False
+            
+        return periph_data.get("last_value", "") != ""
 
     async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""
