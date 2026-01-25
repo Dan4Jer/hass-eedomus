@@ -248,7 +248,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             )
             # Return last known good data if available
             if hasattr(self, "data") and self.data:
+                _LOGGER.warning("Returning last known good data after API error, data size: %d", len(self.data))
                 return self.data
+            _LOGGER.error("No last known good data available, coordinator.data is None or empty")
             raise UpdateFailed(f"Error updating data: {err}") from err
 
     async def _async_partial_data_retrieve(self, concat_text_periph_id: str):
