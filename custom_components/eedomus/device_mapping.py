@@ -50,21 +50,48 @@ def load_yaml_file(file_path: str) -> Optional[Dict[str, Any]]:
         Dictionary with YAML content or None if file doesn't exist or is invalid
     """
     try:
+        _LOGGER.info("📖 Attempting to load YAML file: %s", file_path)
+        
         if not os.path.exists(file_path):
-            _LOGGER.debug("YAML file not found: %s", file_path)
+            _LOGGER.error("❌ YAML file not found: %s", file_path)
             return None
             
+        _LOGGER.info("✅ YAML file exists, attempting to parse...")
+        
         with open(file_path, 'r', encoding='utf-8') as file:
             content = yaml.safe_load(file)
+            
             if content:
-                _LOGGER.info("Successfully loaded YAML mapping from %s", file_path)
+                _LOGGER.info("✅ Successfully loaded YAML mapping from %s", file_path)
+                _LOGGER.debug("   YAML keys: %s", list(content.keys()))
+                
+                # Critical check for dynamic properties
+                if 'dynamic_entity_properties' in content:
+                    _LOGGER.info("✅ Found dynamic_entity_properties in YAML")
+                else:
+                    _LOGGER.error("❌ CRITICAL: dynamic_entity_properties section missing from YAML!")
+                    
+                if 'specific_device_dynamic_overrides' in content:
+                    _LOGGER.info("✅ Found specific_device_dynamic_overrides in YAML")
+                else:
+                    _LOGGER.debug("⚠️  specific_device_dynamic_overrides section missing (normal if no overrides)")
+                
+            else:
+                _LOGGER.warning("⚠️  YAML file is empty: %s", file_path)
+            
             return content
             
     except yaml.YAMLError as e:
-        _LOGGER.error("Failed to parse YAML file %s: %s", file_path, e)
+        _LOGGER.error("❌ CRITICAL: Failed to parse YAML file %s: %s", file_path, e)
+        _LOGGER.error("❌ This is likely a YAML syntax error - check file format")
+        import traceback
+        _LOGGER.error("YAML parsing error details: %s", traceback.format_exc())
         return None
     except Exception as e:
-        _LOGGER.error("Error loading YAML file %s: %s", file_path, e)
+        _LOGGER.error("❌ CRITICAL: Error loading YAML file %s: %s", file_path, e)
+        _LOGGER.error("❌ This prevented YAML loading - check file permissions and encoding")
+        import traceback
+        _LOGGER.error("Error details: %s", traceback.format_exc())
         return None
 
 
@@ -77,6 +104,8 @@ def load_yaml_mappings(base_path: str = "") -> Dict[str, Any]:
     Returns:
         Merged mapping configuration
     """
+    _LOGGER.info("🔍 Starting YAML mappings load process")
+    
     # Use absolute paths if no base_path provided
     if base_path:
         default_file = os.path.join(base_path, DEFAULT_MAPPING_FILE)
@@ -86,26 +115,62 @@ def load_yaml_mappings(base_path: str = "") -> Dict[str, Any]:
         default_file = get_absolute_path(DEFAULT_MAPPING_FILE)
         custom_file = get_absolute_path(CUSTOM_MAPPING_FILE)
     
-    _LOGGER.debug("Loading default mapping from: %s", default_file)
-    _LOGGER.debug("Loading custom mapping from: %s", custom_file)
+    _LOGGER.info("📁 Default mapping file path: %s", default_file)
+    _LOGGER.info("📁 Custom mapping file path: %s", custom_file)
+    
+    # Check if files exist before loading
+    if not os.path.exists(default_file):
+        _LOGGER.error("❌ CRITICAL: Default YAML file not found at: %s", default_file)
+        _LOGGER.error("❌ This will cause all dynamic properties to be empty!")
+    else:
+        _LOGGER.info("✅ Default YAML file found")
+    
+    if os.path.exists(custom_file):
+        _LOGGER.info("✅ Custom YAML file found")
+    else:
+        _LOGGER.debug("⚠️  Custom YAML file not found (this is normal): %s", custom_file)
     
     # Load default mapping
+    _LOGGER.info("📖 Loading default mapping...")
     default_mapping = load_yaml_file(default_file) or {}
+    _LOGGER.debug("Default mapping loaded: %s", bool(default_mapping))
+    
+    if not default_mapping:
+        _LOGGER.error("❌ CRITICAL: Default mapping could not be loaded!")
+        _LOGGER.error("❌ Check file permissions and YAML syntax")
     
     # Load custom mapping
+    _LOGGER.info("📖 Loading custom mapping...")
     custom_mapping = load_yaml_file(custom_file) or {}
+    _LOGGER.debug("Custom mapping loaded: %s", bool(custom_mapping))
     
     # Merge mappings (custom overrides default)
+    _LOGGER.info("🔧 Merging mappings...")
     merged = merge_yaml_mappings(default_mapping, custom_mapping)
     
-    _LOGGER.info("Successfully loaded YAML mappings (default: %s, custom: %s)", 
-                bool(default_mapping), bool(custom_mapping))
+    # Critical checks for dynamic properties
+    dynamic_props_loaded = bool(merged.get('dynamic_entity_properties'))
+    specific_overrides_loaded = bool(merged.get('specific_device_dynamic_overrides'))
+    
+    _LOGGER.info("📊 Load summary:")
+    _LOGGER.info("   ✅ Default mapping: %s", bool(default_mapping))
+    _LOGGER.info("   ✅ Custom mapping: %s", bool(custom_mapping))
+    _LOGGER.info("   🎯 Dynamic entity properties: %s", dynamic_props_loaded)
+    _LOGGER.info("   🎯 Specific device overrides: %s", specific_overrides_loaded)
+    
+    if not dynamic_props_loaded:
+        _LOGGER.error("❌ CRITICAL: Dynamic entity properties not loaded!")
+        _LOGGER.error("❌ All devices will be treated as static - no partial refresh will work!")
+        _LOGGER.error("❌ Check YAML file content and structure")
+    
+    if not specific_overrides_loaded:
+        _LOGGER.debug("⚠️  Specific device overrides not loaded (this is normal if none defined)")
     
     # Debug logging to help diagnose loading issues
     if not default_mapping:
         _LOGGER.warning("⚠️ Default YAML mapping file could not be loaded from: %s", default_file)
     if not custom_mapping:
-        _LOGGER.debug("Custom YAML mapping file not found or empty: %s", custom_file)
+        _LOGGER.debug("⚠️ Custom YAML mapping file not found or empty: %s", custom_file)
     
     return merged
 
@@ -118,7 +183,8 @@ def merge_yaml_mappings(default_mapping: Dict[str, Any], custom_mapping: Dict[st
         custom_mapping: Custom mapping configuration
         
     Returns:
-        Merged mapping configuration with only usage_id_mappings and advanced_rules
+        Merged mapping configuration with usage_id_mappings, advanced_rules, 
+        dynamic_entity_properties, and specific_device_dynamic_overrides
     """
     # Ensure we have valid dictionaries
     if not isinstance(default_mapping, dict):
@@ -165,6 +231,26 @@ def merge_yaml_mappings(default_mapping: Dict[str, Any], custom_mapping: Dict[st
     if 'default_mapping' in default_mapping and isinstance(default_mapping['default_mapping'], dict):
         merged['default_mapping'] = default_mapping['default_mapping']
     
+    # Merge dynamic entity properties (custom overrides default)
+    dynamic_entity_properties = default_mapping.get('dynamic_entity_properties', {})
+    if not isinstance(dynamic_entity_properties, dict):
+        _LOGGER.error("Dynamic entity properties is not a dictionary: %s", type(dynamic_entity_properties))
+        dynamic_entity_properties = {}
+    
+    merged['dynamic_entity_properties'] = dynamic_entity_properties
+    if 'custom_dynamic_entity_properties' in custom_mapping and isinstance(custom_mapping['custom_dynamic_entity_properties'], dict):
+        merged['dynamic_entity_properties'].update(custom_mapping['custom_dynamic_entity_properties'])
+    
+    # Merge specific device dynamic overrides (custom overrides default)
+    specific_device_dynamic_overrides = default_mapping.get('specific_device_dynamic_overrides', {})
+    if not isinstance(specific_device_dynamic_overrides, dict):
+        _LOGGER.error("Specific device dynamic overrides is not a dictionary: %s", type(specific_device_dynamic_overrides))
+        specific_device_dynamic_overrides = {}
+    
+    merged['specific_device_dynamic_overrides'] = specific_device_dynamic_overrides
+    if 'custom_specific_device_dynamic_overrides' in custom_mapping and isinstance(custom_mapping['custom_specific_device_dynamic_overrides'], dict):
+        merged['specific_device_dynamic_overrides'].update(custom_mapping['custom_specific_device_dynamic_overrides'])
+    
     return merged
 
 
@@ -182,41 +268,88 @@ def load_and_merge_yaml_mappings(base_path: str = "") -> Dict[str, Any]:
         - advanced_rules: List of advanced mapping rules
         - usage_id_mappings: Dictionary of usage_id to entity mappings
         - name_patterns: List of name pattern mappings
+        - dynamic_entity_properties: Dictionary of entity types to dynamic status
+        - specific_device_dynamic_overrides: Dictionary of periph_id to dynamic status overrides
         - default_mapping: Fallback mapping
     """
     try:
+        _LOGGER.info("🔍 Starting YAML mappings load and merge process")
+        
         # Load and merge YAML mappings
         yaml_config = load_yaml_mappings(base_path)
         
+        _LOGGER.debug("YAML mappings loaded: %s", bool(yaml_config))
+        
         if yaml_config:
-            _LOGGER.info("Successfully loaded YAML mappings")
+            _LOGGER.info("✅ Successfully loaded YAML mappings")
+            
+            # Debug: Log all the important sections
+            dynamic_props = yaml_config.get('dynamic_entity_properties', {})
+            specific_overrides = yaml_config.get('specific_device_dynamic_overrides', {})
+            
             _LOGGER.debug("Advanced rules count: %d", len(yaml_config.get('advanced_rules', [])))
             _LOGGER.debug("Usage ID mappings count: %d", len(yaml_config.get('usage_id_mappings', {})))
             _LOGGER.debug("Name patterns count: %d", len(yaml_config.get('name_patterns', [])))
+            _LOGGER.debug("Dynamic entity properties: %s", dynamic_props)
+            _LOGGER.debug("Specific device dynamic overrides: %s", specific_overrides)
+            
+            # Critical check: if dynamic properties are empty, this is a problem
+            if not dynamic_props:
+                _LOGGER.error("❌ CRITICAL: dynamic_entity_properties is empty! This will cause all devices to be treated as static.")
+                _LOGGER.error("❌ Check if YAML file contains dynamic_entity_properties section")
+                _LOGGER.error("❌ Check if YAML file is being loaded correctly")
+            else:
+                _LOGGER.info("✅ Dynamic entity properties loaded successfully: %s", dynamic_props)
+            
+            if not specific_overrides:
+                _LOGGER.debug("⚠️  specific_device_dynamic_overrides is empty (this is normal if no overrides are defined)")
+            else:
+                _LOGGER.info("✅ Specific device dynamic overrides loaded: %s", specific_overrides)
+            
             return yaml_config
         else:
-            _LOGGER.warning("No YAML mappings found, using empty configuration")
-            return {
+            _LOGGER.error("❌ CRITICAL: No YAML mappings found! Falling back to empty configuration")
+            _LOGGER.error("❌ This means load_yaml_mappings() returned None or empty dict")
+            _LOGGER.error("❌ Check file paths and YAML parsing")
+            
+            # Return minimal configuration with error tracking
+            minimal_config = {
                 'advanced_rules': [],
                 'usage_id_mappings': {},
                 'name_patterns': [],
+                'dynamic_entity_properties': {},
+                'specific_device_dynamic_overrides': {},
                 'default_mapping': {
                     'ha_entity': 'sensor',
                     'ha_subtype': 'unknown',
                     'justification': 'Default fallback mapping for unknown devices'
-                }
+                },
+                '_load_error': 'YAML mappings not loaded - check logs for details'
             }
             
+            _LOGGER.error("❌ Returning minimal configuration: %s", minimal_config)
+            return minimal_config
+            
     except Exception as e:
-        _LOGGER.error("Failed to load YAML mappings: %s", e)
-        _LOGGER.warning("Falling back to minimal configuration")
-        return {
+        _LOGGER.error("❌ CRITICAL: Failed to load YAML mappings: %s", e)
+        _LOGGER.error("❌ This exception prevented YAML loading - check stack trace")
+        import traceback
+        _LOGGER.error("Exception stack trace: %s", traceback.format_exc())
+        _LOGGER.warning("⚠️  Falling back to minimal configuration")
+        
+        # Return minimal configuration with error tracking
+        minimal_config = {
             'advanced_rules': [],
             'usage_id_mappings': {},
             'name_patterns': [],
+            'dynamic_entity_properties': {},
+            'specific_device_dynamic_overrides': {},
             'default_mapping': {
                 'ha_entity': 'sensor',
                 'ha_subtype': 'unknown',
                 'justification': 'Default fallback mapping for unknown devices'
-            }
+            },
+            '_load_error': f'Exception during YAML loading: {str(e)}'
         }
+        
+        return minimal_config

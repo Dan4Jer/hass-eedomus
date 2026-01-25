@@ -18,24 +18,65 @@ DEVICE_MAPPINGS = None
 
 # Initialize YAML mappings when module is loaded
 try:
+    _LOGGER.info("🚀 Starting DEVICE_MAPPINGS initialization...")
     DEVICE_MAPPINGS = load_and_merge_yaml_mappings()
-    _LOGGER.info("YAML device mappings initialized successfully")
-    _LOGGER.debug("Loaded %d usage_id mappings and %d advanced rules",
-                 len(DEVICE_MAPPINGS.get('usage_id_mappings', {})),
-                 len(DEVICE_MAPPINGS.get('advanced_rules', [])))
+    
+    if DEVICE_MAPPINGS:
+        _LOGGER.info("✅ YAML device mappings initialized successfully")
+        
+        # Critical checks for dynamic properties
+        dynamic_props = DEVICE_MAPPINGS.get('dynamic_entity_properties', {})
+        specific_overrides = DEVICE_MAPPINGS.get('specific_device_dynamic_overrides', {})
+        
+        _LOGGER.info("📊 DEVICE_MAPPINGS summary:")
+        _LOGGER.info("   📋 Usage ID mappings: %d", len(DEVICE_MAPPINGS.get('usage_id_mappings', {})))
+        _LOGGER.info("   🤖 Advanced rules: %d", len(DEVICE_MAPPINGS.get('advanced_rules', [])))
+        _LOGGER.info("   📝 Name patterns: %d", len(DEVICE_MAPPINGS.get('name_patterns', [])))
+        _LOGGER.info("   ⚡ Dynamic entity properties: %s", dynamic_props)
+        _LOGGER.info("   🎛️ Specific device overrides: %s", specific_overrides)
+        
+        # Critical error if dynamic properties are missing
+        if not dynamic_props:
+            _LOGGER.error("❌ CRITICAL ERROR: dynamic_entity_properties is empty!")
+            _LOGGER.error("❌ This will cause ALL devices to be treated as static!")
+            _LOGGER.error("❌ No partial refresh will work - performance will be severely impacted!")
+            _LOGGER.error("❌ Check YAML file and loading process immediately!")
+        else:
+            _LOGGER.info("✅ Dynamic properties loaded: %s", dynamic_props)
+            
+        if not specific_overrides:
+            _LOGGER.debug("⚠️  No specific device overrides (this is normal)")
+        else:
+            _LOGGER.info("✅ Specific device overrides loaded: %s", specific_overrides)
+            
+    else:
+        _LOGGER.error("❌ CRITICAL ERROR: DEVICE_MAPPINGS is None or empty!")
+        _LOGGER.error("❌ This will cause complete failure of device mapping!")
+        raise Exception("DEVICE_MAPPINGS initialization failed - cannot continue")
+        
 except Exception as e:
-    _LOGGER.error("Failed to initialize YAML mappings: %s", e)
-    _LOGGER.warning("Using fallback mapping configuration")
+    _LOGGER.error("❌ CRITICAL ERROR: Failed to initialize YAML mappings: %s", e)
+    _LOGGER.error("❌ This is a fatal error - device mapping will not work!")
+    import traceback
+    _LOGGER.error("Exception details: %s", traceback.format_exc())
+    _LOGGER.warning("⚠️  Using fallback mapping configuration - expect major issues!")
+    
+    # Fallback configuration with error tracking
     DEVICE_MAPPINGS = {
         'usage_id_mappings': {},
         'advanced_rules': [],
         'name_patterns': [],
+        'dynamic_entity_properties': {},
+        'specific_device_dynamic_overrides': {},
         'default_mapping': {
             'ha_entity': 'sensor',
             'ha_subtype': 'unknown',
-            'justification': 'Fallback mapping'
-        }
+            'justification': 'Fallback mapping - YAML loading failed!'
+        },
+        '_initialization_error': str(e)
     }
+    
+    _LOGGER.error("❌ DEVICE_MAPPINGS set to fallback: %s", DEVICE_MAPPINGS)
 
 # Load name patterns for device name matching
 try:
