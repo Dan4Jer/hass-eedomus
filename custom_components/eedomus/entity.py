@@ -192,7 +192,7 @@ class EedomusEntity(CoordinatorEntity):
     def extra_state_attributes(self):
         """Return the state attributes."""
         attrs = {}
-        if self.coordinator.data.get(self._periph_id):
+        if self.coordinator.data is not None and self.coordinator.data.get(self._periph_id):
             periph_data = self.coordinator.data[self._periph_id]
             attrs[ATTR_PERIPH_ID] = self._periph_id
 
