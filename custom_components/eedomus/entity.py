@@ -590,6 +590,12 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     _LOGGER.info("🔍 Starting mapping process for %s (%s)", periph_name, periph_id)
     _LOGGER.debug("   all_devices available: %s", bool(all_devices))
     _LOGGER.debug("   all_devices type: %s", type(all_devices))
+    
+    # FORCED DEBUG: Log before all_devices check
+    if periph_id == "1269454":
+        _LOGGER.error("🚨 FORCED DEBUG: Before all_devices check")
+        _LOGGER.error("🚨 FORCED DEBUG: all_devices value: %s", all_devices)
+    
     if all_devices:
         _LOGGER.debug("   all_devices keys count: %d", len(all_devices))
         _LOGGER.info("✅ Checking advanced rules for %s (%s)", periph_name, periph_id)
