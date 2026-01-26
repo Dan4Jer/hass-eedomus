@@ -570,6 +570,19 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     
     _LOGGER.debug("Mapping device: %s (%s, usage_id=%s)", periph_name, periph_id, usage_id)
     
+    # FORCED DEBUG FOR DEVICE 1269454
+    if periph_id == "1269454":
+        _LOGGER.error("🚨 FORCED DEBUG: Device 1269454 is being mapped!")
+        _LOGGER.error("🚨 FORCED DEBUG: Device data: %s", device_data)
+        _LOGGER.error("🚨 FORCED DEBUG: all_devices available: %s", bool(all_devices))
+        if all_devices:
+            children = [
+                child for child_id, child in all_devices.items()
+                if child.get("parent_periph_id") == periph_id
+            ]
+            _LOGGER.error("🚨 FORCED DEBUG: Found %d children: %s", 
+                         len(children), [c["name"] for c in children])
+    
     # Debug: Log the number of advanced rules loaded
     _LOGGER.debug("Number of advanced rules loaded: %d", len(DEVICE_MAPPINGS.get('advanced_rules', [])))
     
