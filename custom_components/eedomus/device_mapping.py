@@ -63,7 +63,23 @@ def load_yaml_file(file_path: str) -> Optional[Dict[str, Any]]:
             
             if content:
                 _LOGGER.info("✅ Successfully loaded YAML mapping from %s", file_path)
-                _LOGGER.debug("   YAML keys: %s", list(content.keys()))
+                
+                # Convert list format to dict format if needed
+                if isinstance(content, list):
+                    _LOGGER.info("⚠️  YAML file is in list format, converting to dict format")
+                    # Convert list of rules to dict format
+                    converted_content = {
+                        'advanced_rules': content,
+                        'usage_id_mappings': {},
+                        'name_patterns': [],
+                        'dynamic_entity_properties': {},
+                        'specific_device_dynamic_overrides': {}
+                    }
+                    _LOGGER.info("✅ Converted YAML to dict format")
+                    _LOGGER.debug("   YAML keys after conversion: %s", list(converted_content.keys()))
+                    content = converted_content
+                else:
+                    _LOGGER.debug("   YAML keys: %s", list(content.keys()))
                 
                 # Critical check for dynamic properties
                 if 'dynamic_entity_properties' in content:
@@ -206,6 +222,37 @@ def merge_yaml_mappings(default_mapping: Dict[str, Any], custom_mapping: Dict[st
     merged['advanced_rules'] = advanced_rules
     if 'custom_rules' in custom_mapping and isinstance(custom_mapping['custom_rules'], list):
         merged['advanced_rules'].extend(custom_mapping['custom_rules'])
+    
+    # Extract dynamic properties from advanced rules if they are in list format
+    # This handles the case where YAML file has rules in list format
+    if isinstance(advanced_rules, list):
+        _LOGGER.info("🔍 Extracting dynamic properties from list of advanced rules")
+        dynamic_props = {}
+        specific_overrides = {}
+        
+        for rule in advanced_rules:
+            if isinstance(rule, dict) and 'mapping' in rule:
+                mapping = rule['mapping']
+                # Extract dynamic properties from child_mapping if present
+                if 'child_mapping' in rule:
+                    child_mapping = rule['child_mapping']
+                    for child_usage_id, child_config in child_mapping.items():
+                        if child_config.get('is_dynamic', False):
+                            # This rule defines dynamic children
+                            pass
+                
+                # Check if this rule defines dynamic properties
+                if mapping.get('is_dynamic', False):
+                    ha_entity = mapping.get('ha_entity')
+                    if ha_entity:
+                        dynamic_props[ha_entity] = True
+        
+        # Only override if we found properties in the list
+        if dynamic_props:
+            _LOGGER.info("✅ Extracted dynamic properties from rules: %s", dynamic_props)
+            merged['dynamic_entity_properties'] = dynamic_props
+        else:
+            _LOGGER.debug("⚠️  No dynamic properties found in advanced rules list")
     
     # Merge usage ID mappings (custom overrides default)
     usage_id_mappings = default_mapping.get('usage_id_mappings', {})
