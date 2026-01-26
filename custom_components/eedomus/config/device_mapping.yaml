@@ -19,11 +19,11 @@ advanced_rules:
     priority: 1
     conditions:
       - usage_id: "1"
-      - min_children: 5
+      - min_children: 3
     mapping:
       ha_entity: "light"
       ha_subtype: "rgbw"
-      justification: "RGBW lamp with 5+ children (Red, Green, Blue, White, and color preset)"
+      justification: "RGBW lamp with 3+ children (Red, Green, Blue, White, and optionally color preset)"
       is_dynamic: true
     child_mapping:
       "1":
