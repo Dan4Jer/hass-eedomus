@@ -719,6 +719,14 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     #                 len(usage_id_1_children), [c["name"] for c in usage_id_1_children])
         
         # Handle both list and dict formats for advanced_rules
+        # FORCED DEBUG: Log before rule conversion
+        if periph_id == "1269454":
+            _LOGGER.error("🚨 FORCED DEBUG: Before rule conversion")
+            _LOGGER.error("🚨 FORCED DEBUG: DEVICE_MAPPINGS.get('advanced_rules') type: %s", 
+                         type(DEVICE_MAPPINGS.get('advanced_rules')))
+            _LOGGER.error("🚨 FORCED DEBUG: DEVICE_MAPPINGS.get('advanced_rules') value: %s", 
+                         DEVICE_MAPPINGS.get('advanced_rules'))
+        
         advanced_rules_dict = {}
         if isinstance(DEVICE_MAPPINGS.get('advanced_rules'), list):
             # Convert list of rules to dict format for compatibility
