@@ -612,16 +612,34 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         
         # Debug: List all advanced rule names
         advanced_rules = DEVICE_MAPPINGS.get('advanced_rules', [])
-        _LOGGER.info("📋 Found %d advanced rules: %s", len(advanced_rules), list(advanced_rules.keys()))
+        
+        # Handle both list and dict formats
+        if isinstance(advanced_rules, list):
+            rule_names = [rule.get('name', 'unnamed') for rule in advanced_rules if isinstance(rule, dict)]
+            _LOGGER.info("📋 Found %d advanced rules (list format): %s", len(advanced_rules), rule_names)
+        elif isinstance(advanced_rules, dict):
+            rule_names = list(advanced_rules.keys())
+            _LOGGER.info("📋 Found %d advanced rules (dict format): %s", len(advanced_rules), rule_names)
+        else:
+            _LOGGER.error("❌ CRITICAL: advanced_rules has unexpected type: %s", type(advanced_rules))
+            rule_names = []
         
         # Special check for device 1269454
         if periph_id == "1269454":
             _LOGGER.info("🔍 SPECIAL DEBUG: Device 1269454 mapping process started")
-            _LOGGER.info("🔍 Available rules: %s", list(advanced_rules.keys()))
+            _LOGGER.info("🔍 Available rules: %s", rule_names)
             
-            # Check if our RGBW rules are present
-            has_rgbw_rule = 'rgbw_lamp_with_children' in advanced_rules
-            has_flexible_rule = 'rgbw_lamp_flexible' in advanced_rules
+            # Check if our RGBW rules are present (handle both formats)
+            if isinstance(advanced_rules, list):
+                has_rgbw_rule = any(rule.get('name') == 'rgbw_lamp_with_children' for rule in advanced_rules if isinstance(rule, dict))
+                has_flexible_rule = any(rule.get('name') == 'rgbw_lamp_flexible' for rule in advanced_rules if isinstance(rule, dict))
+            elif isinstance(advanced_rules, dict):
+                has_rgbw_rule = 'rgbw_lamp_with_children' in advanced_rules
+                has_flexible_rule = 'rgbw_lamp_flexible' in advanced_rules
+            else:
+                has_rgbw_rule = False
+                has_flexible_rule = False
+            
             _LOGGER.info("🔍 Has rgbw_lamp_with_children: %s", has_rgbw_rule)
             _LOGGER.info("🔍 Has rgbw_lamp_flexible: %s", has_flexible_rule)
         
