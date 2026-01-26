@@ -738,6 +738,11 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                          len(advanced_rules_dict), periph_name, periph_id)
             _LOGGER.debug("✅ Rule names: %s", list(advanced_rules_dict.keys()))
         
+        # FORCED DEBUG: Log before rule evaluation
+        if periph_id == "1269454":
+            _LOGGER.error("🚨 FORCED DEBUG: About to evaluate %d rules", len(advanced_rules_dict))
+            _LOGGER.error("🚨 FORCED DEBUG: Rule names: %s", list(advanced_rules_dict.keys()))
+        
         for rule_name, rule_config in advanced_rules_dict.items():
             # Debug: Log which rule is being evaluated
             _LOGGER.debug("🔍 Evaluating rule '%s' for device %s (%s)", 
