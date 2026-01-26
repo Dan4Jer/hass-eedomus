@@ -777,6 +777,10 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                             if len(children) < 1:
                                 condition_result = False
                                 break
+                        elif cond_key == "PRODUCT_TYPE_ID":
+                            if device_data.get("PRODUCT_TYPE_ID") != cond_value:
+                                condition_result = False
+                                break
                         elif cond_key == "has_parent":
                             if not device_data.get("parent_periph_id"):
                                 condition_result = False
