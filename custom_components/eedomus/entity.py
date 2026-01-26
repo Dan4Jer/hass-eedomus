@@ -765,6 +765,19 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                             if len(children) < int(cond_value):
                                 condition_result = False
                                 break
+                        elif cond_key == "min_children_with_usage_id":
+                            if not all_devices:
+                                condition_result = False
+                                break
+                            # Get the required usage_id from nested condition
+                            required_usage_id = condition.get("usage_id", "1")
+                            children = [
+                                child for child_id, child in all_devices.items()
+                                if child.get("parent_periph_id") == periph_id and child.get("usage_id") == required_usage_id
+                            ]
+                            if len(children) < int(cond_value):
+                                condition_result = False
+                                break
                         elif cond_key == "child_usage_id":
                             if not all_devices:
                                 condition_result = False

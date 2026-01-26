@@ -19,8 +19,8 @@ advanced_rules:
     priority: 1
     conditions:
       - usage_id: "1"
-      - min_children: 4
-      - child_usage_id: "1"
+      - min_children_with_usage_id: 4
+        usage_id: "1"
     mapping:
       ha_entity: "light"
       ha_subtype: "rgbw"
