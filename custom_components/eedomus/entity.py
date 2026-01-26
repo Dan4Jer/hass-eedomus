@@ -613,6 +613,11 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         # Debug: List all advanced rule names
         advanced_rules = DEVICE_MAPPINGS.get('advanced_rules', [])
         
+        # General debug for RGBW devices
+        if device_data.get("usage_id") == "1":
+            _LOGGER.info("🔍 DEBUG: Processing light device %s (%s) with usage_id=1", 
+                        device_data.get("name"), periph_id)
+        
         # Special debug for device 1269454
         if periph_id == "1269454":
             _LOGGER.info("🔍 SPECIAL DEBUG: Device 1269454 - Starting advanced rules analysis")
@@ -649,9 +654,13 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         if isinstance(advanced_rules, list):
             rule_names = [rule.get('name', 'unnamed') for rule in advanced_rules if isinstance(rule, dict)]
             _LOGGER.info("📋 Found %d advanced rules (list format): %s", len(advanced_rules), rule_names)
+            if periph_id == "1269454":
+                _LOGGER.info("🔍 RGBW RULES LOADED: %s", rule_names)
         elif isinstance(advanced_rules, dict):
             rule_names = list(advanced_rules.keys())
             _LOGGER.info("📋 Found %d advanced rules (dict format): %s", len(advanced_rules), rule_names)
+            if periph_id == "1269454":
+                _LOGGER.info("🔍 RGBW RULES LOADED: %s", rule_names)
         else:
             _LOGGER.error("❌ CRITICAL: advanced_rules has unexpected type: %s", type(advanced_rules))
             rule_names = []
