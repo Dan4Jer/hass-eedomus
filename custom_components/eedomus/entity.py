@@ -715,13 +715,25 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         else:
             advanced_rules_dict = DEVICE_MAPPINGS.get('advanced_rules', {})
         
+        # Debug: Log if advanced_rules_dict is empty
+        if not advanced_rules_dict:
+            _LOGGER.error("❌ CRITICAL: advanced_rules_dict is empty for device %s (%s)", 
+                         periph_name, periph_id)
+            _LOGGER.error("❌ This means no advanced rules will be evaluated!")
+        
         for rule_name, rule_config in advanced_rules_dict.items():
+            # Debug: Log which rule is being evaluated
+            _LOGGER.debug("🔍 Evaluating rule '%s' for device %s (%s)", 
+                         rule_name, periph_name, periph_id)
+            
             # Check if we have a condition function or conditions list
             if "condition" in rule_config:
                 # Use the condition function if provided
+                _LOGGER.debug("🔍 Using condition function for rule '%s'", rule_name)
                 condition_result = rule_config["condition"](device_data, all_devices)
             elif "conditions" in rule_config:
                 # Evaluate conditions list from YAML
+                _LOGGER.debug("🔍 Using conditions list for rule '%s'", rule_name)
                 condition_result = True
                 for condition in rule_config["conditions"]:
                     for cond_key, cond_value in condition.items():
