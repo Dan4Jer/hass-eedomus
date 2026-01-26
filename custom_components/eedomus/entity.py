@@ -664,7 +664,17 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     #     _LOGGER.info("🔍 Found %d children with usage_id=1: %s", 
     #                 len(usage_id_1_children), [c["name"] for c in usage_id_1_children])
         
-        for rule_name, rule_config in DEVICE_MAPPINGS['advanced_rules'].items():
+        # Handle both list and dict formats for advanced_rules
+        advanced_rules_dict = {}
+        if isinstance(DEVICE_MAPPINGS.get('advanced_rules'), list):
+            # Convert list of rules to dict format for compatibility
+            for rule in DEVICE_MAPPINGS.get('advanced_rules', []):
+                if isinstance(rule, dict) and 'name' in rule:
+                    advanced_rules_dict[rule['name']] = rule
+        else:
+            advanced_rules_dict = DEVICE_MAPPINGS.get('advanced_rules', {})
+        
+        for rule_name, rule_config in advanced_rules_dict.items():
             # Check if we have a condition function or conditions list
             if "condition" in rule_config:
                 # Use the condition function if provided
