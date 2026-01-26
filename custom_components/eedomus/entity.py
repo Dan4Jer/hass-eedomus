@@ -593,9 +593,6 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     if all_devices:
         _LOGGER.debug("   all_devices keys count: %d", len(all_devices))
         _LOGGER.info("✅ Checking advanced rules for %s (%s)", periph_name, periph_id)
-    else:
-        _LOGGER.error("❌ CRITICAL: all_devices is None or empty for %s (%s)", periph_name, periph_id)
-        _LOGGER.error("❌ Advanced rules will NOT be executed - using fallback mapping")
         
         # Debug spécifique pour le device 1269454 (RGBW connu)
         if periph_id == "1269454":
@@ -622,6 +619,9 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
             # Log the RGBW children names specifically
             rgbw_names = [c["name"] for c in usage_id_1_children if "Rouge" in c["name"] or "Vert" in c["name"] or "Bleu" in c["name"] or "Blanc" in c["name"]]
             _LOGGER.info("🔍 RGBW component names: %s", rgbw_names)
+    else:
+        _LOGGER.error("❌ CRITICAL: all_devices is None or empty for %s (%s)", periph_name, periph_id)
+        _LOGGER.error("❌ Advanced rules will NOT be executed - using fallback mapping")
         
         # Debug: List all advanced rule names
         advanced_rules = DEVICE_MAPPINGS.get('advanced_rules', [])
