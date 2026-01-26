@@ -100,7 +100,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
             # Mapping des périphériques vers une entité HA : la bonne ? quid des enfants vis à vis de parent ?
             if not "ha_entity" in aggregated_data[periph_id]:
-                eedomus_mapping = map_device_to_ha_entity(aggregated_data[periph_id])
+                eedomus_mapping = map_device_to_ha_entity(aggregated_data[periph_id], aggregated_data)
                 aggregated_data[periph_id].update(eedomus_mapping)
                 
                 # Add dynamic property based on entity type
@@ -433,8 +433,14 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
         # Skip API call if no dynamic peripherals to refresh
         if not self._dynamic_peripherals:
-            _LOGGER.info("No dynamic peripherals to refresh, skipping partial refresh")
-            return {"success": 1, "body": []}
+            _LOGGER.warning("No dynamic peripherals to refresh, skipping partial refresh")
+            # Return current data to preserve state instead of empty dict
+            if hasattr(self, 'data') and self.data:
+                _LOGGER.info("Returning current data to preserve state during partial refresh")
+                return self.data
+            else:
+                _LOGGER.error("No data available to return during partial refresh")
+                return {"success": 1, "body": []}
 
         concat_text_periph_id = ",".join(self._dynamic_peripherals.keys())
         try:
@@ -483,9 +489,26 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         periph_id = periph.get("periph_id")
         ha_entity = periph.get("ha_entity")
         
-        # Check for specific device overrides first (highest priority)
+        # Debug: Log the peripheral being checked
+        _LOGGER.debug("Checking dynamic status for peripheral %s (%s) with ha_entity=%s", 
+                    periph.get("name"), periph_id, ha_entity)
+        
+        # Debug: Log DEVICE_MAPPINGS content
         try:
             from .entity import DEVICE_MAPPINGS
+            _LOGGER.debug("DEVICE_MAPPINGS loaded: %s", bool(DEVICE_MAPPINGS))
+            if DEVICE_MAPPINGS:
+                _LOGGER.debug("DEVICE_MAPPINGS keys: %s", list(DEVICE_MAPPINGS.keys()))
+                _LOGGER.debug("dynamic_entity_properties: %s", DEVICE_MAPPINGS.get('dynamic_entity_properties', {}))
+                _LOGGER.debug("specific_device_dynamic_overrides: %s", DEVICE_MAPPINGS.get('specific_device_dynamic_overrides', {}))
+            else:
+                _LOGGER.error("DEVICE_MAPPINGS is None or empty!")
+        except Exception as e:
+            _LOGGER.error("Failed to import DEVICE_MAPPINGS: %s", e)
+            DEVICE_MAPPINGS = None
+        
+        # Check for specific device overrides first (highest priority)
+        try:
             if periph_id and DEVICE_MAPPINGS and str(periph_id) in DEVICE_MAPPINGS.get('specific_device_dynamic_overrides', {}):
                 is_dynamic = DEVICE_MAPPINGS['specific_device_dynamic_overrides'][str(periph_id)]
                 _LOGGER.debug(
