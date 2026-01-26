@@ -613,6 +613,38 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         # Debug: List all advanced rule names
         advanced_rules = DEVICE_MAPPINGS.get('advanced_rules', [])
         
+        # Special debug for device 1269454
+        if periph_id == "1269454":
+            _LOGGER.info("🔍 SPECIAL DEBUG: Device 1269454 - Starting advanced rules analysis")
+            _LOGGER.info("🔍 Device data: name=%s, usage_id=%s, parent_periph_id=%s",
+                        device_data.get("name"), device_data.get("usage_id"), device_data.get("parent_periph_id"))
+            
+            # Find all children of this device
+            if all_devices:
+                children = [
+                    child for child_id, child in all_devices.items()
+                    if child.get("parent_periph_id") == periph_id
+                ]
+                _LOGGER.info("🔍 Found %d children for device 1269454", len(children))
+                for child in children:
+                    _LOGGER.info("🔍   Child: %s (usage_id=%s)", child.get("name"), child.get("usage_id"))
+                
+                # Count children with usage_id=1
+                usage_id_1_children = [
+                    child for child_id, child in all_devices.items()
+                    if child.get("parent_periph_id") == periph_id and child.get("usage_id") == "1"
+                ]
+                _LOGGER.info("🔍 Found %d children with usage_id=1", len(usage_id_1_children))
+                
+                # Check for RGBW component names
+                rgbw_names = ["Rouge", "Vert", "Bleu", "Blanc"]
+                found_rgbw = []
+                for name in rgbw_names:
+                    if any(name.lower() in child.get("name", "").lower() for child in children):
+                        found_rgbw.append(name)
+                _LOGGER.info("🔍 Found RGBW components: %s", found_rgbw)
+                _LOGGER.info("🔍 Missing RGBW components: %s", [name for name in rgbw_names if name not in found_rgbw])
+        
         # Handle both list and dict formats
         if isinstance(advanced_rules, list):
             rule_names = [rule.get('name', 'unnamed') for rule in advanced_rules if isinstance(rule, dict)]
@@ -780,16 +812,20 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                 _LOGGER.info("🔍 Rule '%s' condition result: %s", rule_name, condition_result)
                 if rule_name == "rgbw_lamp_with_children":
                     _LOGGER.info("🔍 RGBW rule condition breakdown:")
-                    _LOGGER.info("🔍   - usage_id check: %s", device_data.get("usage_id") == "1")
-                    _LOGGER.info("🔍   - child count check: %s", 
-                                sum(1 for child_id, child in all_devices.items()
-                                    if child.get("parent_periph_id") == periph_id and child.get("usage_id") == "1") >= 4)
+                    _LOGGER.info("🔍   - usage_id check: %s (expected: 1, actual: %s)", 
+                                device_data.get("usage_id") == "1", device_data.get("usage_id"))
+                    child_count = sum(1 for child_id, child in all_devices.items()
+                                     if child.get("parent_periph_id") == periph_id and child.get("usage_id") == "1")
+                    _LOGGER.info("🔍   - child count check: %s (expected: >=4, actual: %d)", 
+                                child_count >= 4, child_count)
                 elif rule_name == "rgbw_lamp_flexible":
                     _LOGGER.info("🔍 Flexible RGBW rule condition breakdown:")
-                    _LOGGER.info("🔍   - usage_id check: %s", device_data.get("usage_id") == "1")
-                    _LOGGER.info("🔍   - min_children check: %s", 
-                                len([child for child_id, child in all_devices.items()
-                                    if child.get("parent_periph_id") == periph_id]) >= 4)
+                    _LOGGER.info("🔍   - usage_id check: %s (expected: 1, actual: %s)", 
+                                device_data.get("usage_id") == "1", device_data.get("usage_id"))
+                    total_children = len([child for child_id, child in all_devices.items()
+                                        if child.get("parent_periph_id") == periph_id])
+                    _LOGGER.info("🔍   - min_children check: %s (expected: >=4, actual: %d)", 
+                                total_children >= 4, total_children)
                     _LOGGER.info("🔍   - SUPPORTED_CLASSES: %s", device_data.get("SUPPORTED_CLASSES", "N/A"))
                     _LOGGER.info("🔍   - PRODUCT_TYPE_ID: %s", device_data.get("PRODUCT_TYPE_ID", "N/A"))
                     _LOGGER.info("🔍   - Device name: %s", device_data.get("name", "N/A"))
