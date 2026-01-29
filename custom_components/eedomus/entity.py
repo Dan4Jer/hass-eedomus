@@ -616,9 +616,9 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         _LOGGER.error("🚨 FORCED DEBUG (v%s): all_devices keys: %s", VERSION, list(all_devices.keys()) if all_devices else None)
         _LOGGER.error("🚨 FORCED DEBUG (v%s): Device data: %s", VERSION, device_data)
     
-    if all_devices:
-        _LOGGER.debug("   all_devices keys count: %d", len(all_devices))
-        _LOGGER.info("✅ Checking advanced rules for %s (%s)", periph_name, periph_id)
+    # Always evaluate advanced rules - never skip this section
+    _LOGGER.debug("   all_devices keys count: %d", len(all_devices))
+    _LOGGER.info("✅ Checking advanced rules for %s (%s)", periph_name, periph_id)
         
         # Debug spécifique pour le device 1269454 (RGBW connu)
         if periph_id == "1269454":
