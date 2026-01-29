@@ -732,6 +732,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     #                 len(usage_id_1_children), [c["name"] for c in usage_id_1_children])
         
         # Handle both list and dict formats for advanced_rules
+        _LOGGER.error("🚨 FORCED DEBUG: About to handle advanced rules - periph_id=%s", periph_id)
         # FORCED DEBUG: Log before rule conversion
         if periph_id == "1269454":
             _LOGGER.error("🚨 FORCED DEBUG: Before rule conversion")
