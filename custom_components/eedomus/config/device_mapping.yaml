@@ -25,14 +25,6 @@ advanced_rules:
       ha_subtype: "rgbw"
       justification: "RGBW lamp detected by having at least 4 children with usage_id=1"
       is_dynamic: true
-      - has_parent: true
-      - parent_usage_id: "1"
-      - parent_has_min_children: 4
-    mapping:
-      ha_entity: "light"
-      ha_subtype: "brightness"
-      justification: "RGBW child component (Red, Green, Blue, White)"
-      is_dynamic: true
 
   - name: "Smoke Detector"
     priority: 2
