@@ -597,6 +597,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         all_devices = {}
     
     # FORCED DEBUG: Log before all_devices check
+    _LOGGER.error("🚨 FORCED DEBUG: Before all_devices check - periph_id=%s (type: %s)", periph_id, type(periph_id))
     if periph_id == "1269454":
         _LOGGER.error("🚨 FORCED DEBUG: Before all_devices check")
         _LOGGER.error("🚨 FORCED DEBUG: all_devices value: %s", all_devices)
