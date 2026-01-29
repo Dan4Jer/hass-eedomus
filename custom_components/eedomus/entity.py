@@ -614,6 +614,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         _LOGGER.error("🚨 FORCED DEBUG (v%s): Before all_devices check", VERSION)
         _LOGGER.error("🚨 FORCED DEBUG (v%s): all_devices value: %s", VERSION, all_devices)
         _LOGGER.error("🚨 FORCED DEBUG (v%s): all_devices keys: %s", VERSION, list(all_devices.keys()) if all_devices else None)
+        _LOGGER.error("🚨 FORCED DEBUG (v%s): Device data: %s", VERSION, device_data)
     
     if all_devices:
         _LOGGER.debug("   all_devices keys count: %d", len(all_devices))
@@ -622,8 +623,8 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         # Debug spécifique pour le device 1269454 (RGBW connu)
         if periph_id == "1269454":
             _LOGGER.info("🔍 SPECIAL DEBUG: Analyzing RGBW device 1269454")
-            _LOGGER.info("🔍 Device data: name=%s, usage_id=%s, parent_periph_id=%s",
-                        device_data.get("name"), device_data.get("usage_id"), device_data.get("parent_periph_id"))
+            _LOGGER.info("🔍 Device data: name=%s, usage_id=%s, parent_periph_id=%s, PRODUCT_TYPE_ID=%s",
+                        device_data.get("name"), device_data.get("usage_id"), device_data.get("parent_periph_id"), device_data.get("PRODUCT_TYPE_ID"))
             
             # Find all children of this device
             children = [
@@ -644,6 +645,10 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
             # Log the RGBW children names specifically
             rgbw_names = [c["name"] for c in usage_id_1_children if "Rouge" in c["name"] or "Vert" in c["name"] or "Bleu" in c["name"] or "Blanc" in c["name"]]
             _LOGGER.info("🔍 RGBW component names: %s", rgbw_names)
+            
+            # FORCED DEBUG: Confirm we're about to exit the if all_devices block
+            if periph_id == "1269454":
+                _LOGGER.error("🚨 FORCED DEBUG (v%s): About to exit if all_devices block - continuing to rule evaluation", VERSION)
     else:
         _LOGGER.error("❌ CRITICAL: all_devices is None or empty for %s (%s)", periph_name, periph_id)
         _LOGGER.error("❌ Advanced rules will NOT be executed - using fallback mapping")
@@ -785,6 +790,11 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
             else:
                 _LOGGER.error("🚨 FORCED DEBUG (v%s): rgbw_lamp_with_children rule NOT FOUND!", VERSION)
         
+        # FORCED DEBUG: Confirm we're entering the advanced rules loop
+        if periph_id == "1269454":
+            _LOGGER.error("🚨 FORCED DEBUG (v%s): Entering advanced rules loop with %d rules", VERSION, len(advanced_rules_dict))
+            _LOGGER.error("🚨 FORCED DEBUG (v%s): Rules to evaluate: %s", VERSION, list(advanced_rules_dict.keys()))
+        
         for rule_name, rule_config in advanced_rules_dict.items():
             # Debug: Log which rule is being evaluated
             _LOGGER.debug("🔍 Evaluating rule '%s' for device %s (%s)", 
@@ -873,6 +883,19 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                             ]
                             child_names = [child.get("name", "").lower() for child in children]
                             
+                            # Special debug for device 1269454
+                            if periph_id == "1269454":
+                                _LOGGER.error("🚨 FORCED DEBUG: has_children_with_names condition")
+                                _LOGGER.error("🚨 FORCED DEBUG:   Required names: %s", required_names)
+                                _LOGGER.error("🚨 FORCED DEBUG:   Child names: %s", child_names)
+                                _LOGGER.error("🚨 FORCED DEBUG:   Checking each required name:")
+                                for required_name in required_names:
+                                    found = any(required_name.lower() in child_name for child_name in child_names)
+                                    _LOGGER.error("🚨 FORCED DEBUG:     '%s' found: %s", required_name, found)
+                                    if found:
+                                        matching_children = [name for name in child_names if required_name.lower() in name]
+                                        _LOGGER.error("🚨 FORCED DEBUG:       Matching children: %s", matching_children)
+                            
                             # Check if all required names are present in children
                             all_found = all(
                                 any(required_name.lower() in child_name for child_name in child_names)
@@ -883,10 +906,9 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                                 condition_result = False
                                 # Special debug for device 1269454
                                 if periph_id == "1269454":
-                                    _LOGGER.info("🔍 Required names: %s", required_names)
-                                    _LOGGER.info("🔍 Found child names: %s", child_names)
+                                    _LOGGER.error("🚨 FORCED DEBUG: has_children_with_names FAILED")
                                     missing_names = [name for name in required_names if not any(name.lower() in child_name for child_name in child_names)]
-                                    _LOGGER.info("🔍 Missing names: %s", missing_names)
+                                    _LOGGER.error("🚨 FORCED DEBUG:   Missing names: %s", missing_names)
                                 break
                         else:
                             _LOGGER.warning("Unknown condition key: %s", cond_key)
