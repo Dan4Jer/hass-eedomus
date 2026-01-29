@@ -831,6 +831,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                                 condition_result = False
                                 break
 
+
                         elif cond_key == "child_usage_id":
                             if not all_devices:
                                 condition_result = False
@@ -933,9 +934,9 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                     _LOGGER.error("🚨 FORCED DEBUG:   - PRODUCT_TYPE_ID check: %s (expected: 2304, actual: %s)", 
                                 device_data.get("PRODUCT_TYPE_ID") == "2304", device_data.get("PRODUCT_TYPE_ID"))
                     child_count = sum(1 for child_id, child in all_devices.items()
-                                     if child.get("parent_periph_id") == periph_id and child.get("usage_id") == "1")
-                    _LOGGER.error("🚨 FORCED DEBUG:   - child count check: %s (expected: >=4, actual: %d)", 
-                                child_count >= 4, child_count)
+                                     if child.get("parent_periph_id") == periph_id)
+                    _LOGGER.error("🚨 FORCED DEBUG:   - child count check: %s (expected: >=1, actual: %d)", 
+                                child_count >= 1, child_count)
                 elif rule_name == "rgbw_lamp_flexible":
                     _LOGGER.error("🚨 FORCED DEBUG: Flexible RGBW rule condition breakdown:")
                     _LOGGER.error("🚨 FORCED DEBUG:   - usage_id check: %s (expected: 1, actual: %s)", 

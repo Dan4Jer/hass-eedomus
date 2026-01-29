@@ -20,16 +20,12 @@ advanced_rules:
     conditions:
       - usage_id: "1"
       - PRODUCT_TYPE_ID: "2304"
+      - min_children: 1
     mapping:
       ha_entity: "light"
       ha_subtype: "rgbw"
-      justification: "RGBW lamp detected by PRODUCT_TYPE_ID=2304"
+      justification: "RGBW lamp detected by PRODUCT_TYPE_ID=2304 with children"
       is_dynamic: true
-    child_mapping:
-      "1":
-        ha_entity: "light"
-        ha_subtype: "brightness"
-        is_dynamic: true
 
   - name: "rgbw_lamp_flexible"
     priority: 1
