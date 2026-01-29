@@ -650,88 +650,54 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         if periph_id == "1269454":
             _LOGGER.error("🚨 FORCED DEBUG (v%s): About to exit if all_devices block - continuing to rule evaluation", VERSION)
             _LOGGER.error("🚨 FORCED DEBUG: Advanced rules evaluation completed for device 1269454")
+    
+    # Advanced rules evaluation - this should ALWAYS be executed
+    # Handle both list and dict formats for advanced_rules
+    _LOGGER.error("🚨 FORCED DEBUG (v%s): About to handle advanced rules - periph_id=%s", VERSION, periph_id)
+    # FORCED DEBUG: Log before rule conversion
+    if periph_id == "1269454":
+        _LOGGER.error("🚨 FORCED DEBUG (v%s): Before rule conversion", VERSION)
+        _LOGGER.error("🚨 FORCED DEBUG (v%s): DEVICE_MAPPINGS.get('advanced_rules') type: %s", 
+                     VERSION, type(DEVICE_MAPPINGS.get('advanced_rules')))
+        _LOGGER.error("🚨 FORCED DEBUG (v%s): DEVICE_MAPPINGS.get('advanced_rules') value: %s", 
+                     VERSION, DEVICE_MAPPINGS.get('advanced_rules'))
+        _LOGGER.error("🚨 FORCED DEBUG: DEVICE_MAPPINGS keys: %s", list(DEVICE_MAPPINGS.keys()))
+    
+    advanced_rules_dict = {}
+    if isinstance(DEVICE_MAPPINGS.get('advanced_rules'), list):
+        # Convert list of rules to dict format for compatibility
+        for rule in DEVICE_MAPPINGS.get('advanced_rules', []):
+            if isinstance(rule, dict) and 'name' in rule:
+                advanced_rules_dict[rule['name']] = rule
     else:
-        _LOGGER.error("❌ CRITICAL: all_devices is None or empty for %s (%s)", periph_name, periph_id)
-        _LOGGER.error("❌ Advanced rules will NOT be executed - using fallback mapping")
+        advanced_rules_dict = DEVICE_MAPPINGS.get('advanced_rules', {})
+    
+    # Debug: Log if advanced_rules_dict is empty
+    if not advanced_rules_dict:
+        _LOGGER.error("❌ CRITICAL: advanced_rules_dict is empty for device %s (%s)", 
+                     periph_name, periph_id)
+        _LOGGER.error("❌ This means no advanced rules will be evaluated!")
+    else:
+        _LOGGER.debug("✅ advanced_rules_dict has %d rules for device %s (%s)", 
+                     len(advanced_rules_dict), periph_name, periph_id)
+        _LOGGER.debug("✅ Rule names: %s", list(advanced_rules_dict.keys()))
+    
+    # FORCED DEBUG: Log before rule evaluation
+    if periph_id == "1269454":
+        _LOGGER.error("🚨 FORCED DEBUG: About to evaluate %d rules", len(advanced_rules_dict))
+        _LOGGER.error("🚨 FORCED DEBUG: Rule names: %s", list(advanced_rules_dict.keys()))
         
-        # Debug: List all advanced rule names
-        advanced_rules = DEVICE_MAPPINGS.get('advanced_rules', [])
-        
-        # General debug for RGBW devices
-        if device_data.get("usage_id") == "1":
-            _LOGGER.info("🔍 DEBUG: Processing light device %s (%s) with usage_id=1", 
-                        device_data.get("name"), periph_id)
-        
-        # Special debug for device 1269454
-        if periph_id == "1269454":
-            _LOGGER.info("🔍 SPECIAL DEBUG: Device 1269454 - Starting advanced rules analysis")
-            _LOGGER.info("🔍 Device data: name=%s, usage_id=%s, parent_periph_id=%s",
-                        device_data.get("name"), device_data.get("usage_id"), device_data.get("parent_periph_id"))
-            
-            # Find all children of this device
-            if all_devices:
-                children = [
-                    child for child_id, child in all_devices.items()
-                    if child.get("parent_periph_id") == periph_id
-                ]
-                _LOGGER.info("🔍 Found %d children for device 1269454", len(children))
-                for child in children:
-                    _LOGGER.info("🔍   Child: %s (usage_id=%s)", child.get("name"), child.get("usage_id"))
-                
-                # Count children with usage_id=1
-                usage_id_1_children = [
-                    child for child_id, child in all_devices.items()
-                    if child.get("parent_periph_id") == periph_id and child.get("usage_id") == "1"
-                ]
-                _LOGGER.info("🔍 Found %d children with usage_id=1", len(usage_id_1_children))
-                
-                # Check for RGBW component names
-                rgbw_names = ["Rouge", "Vert", "Bleu", "Blanc"]
-                found_rgbw = []
-                for name in rgbw_names:
-                    if any(name.lower() in child.get("name", "").lower() for child in children):
-                        found_rgbw.append(name)
-                _LOGGER.info("🔍 Found RGBW components: %s", found_rgbw)
-                _LOGGER.info("🔍 Missing RGBW components: %s", [name for name in rgbw_names if name not in found_rgbw])
-        
-        # Handle both list and dict formats
-        if isinstance(advanced_rules, list):
-            rule_names = [rule.get('name', 'unnamed') for rule in advanced_rules if isinstance(rule, dict)]
-            _LOGGER.info("📋 Found %d advanced rules (list format): %s", len(advanced_rules), rule_names)
-            if periph_id == "1269454":
-                _LOGGER.info("🔍 RGBW RULES LOADED: %s", rule_names)
-        elif isinstance(advanced_rules, dict):
-            rule_names = list(advanced_rules.keys())
-            _LOGGER.info("📋 Found %d advanced rules (dict format): %s", len(advanced_rules), rule_names)
-            if periph_id == "1269454":
-                _LOGGER.info("🔍 RGBW RULES LOADED: %s", rule_names)
+        # FORCED DEBUG: Check if rgbw_lamp_with_children rule exists
+        if 'rgbw_lamp_with_children' in advanced_rules_dict:
+            _LOGGER.error("🚨 FORCED DEBUG (v%s): rgbw_lamp_with_children rule found!", VERSION)
+            _LOGGER.error("🚨 FORCED DEBUG (v%s): Rule config: %s", VERSION, advanced_rules_dict['rgbw_lamp_with_children'])
         else:
-            _LOGGER.error("❌ CRITICAL: advanced_rules has unexpected type: %s", type(advanced_rules))
-            rule_names = []
-        
-        # Special check for device 1269454
-        if periph_id == "1269454":
-            _LOGGER.info("🔍 SPECIAL DEBUG: Device 1269454 mapping process started")
-            _LOGGER.info("🔍 Available rules: %s", rule_names)
-            
-            # Check if our RGBW rules are present (handle both formats)
-            if isinstance(advanced_rules, list):
-                has_rgbw_rule = any(rule.get('name') == 'rgbw_lamp_with_children' for rule in advanced_rules if isinstance(rule, dict))
-                has_flexible_rule = any(rule.get('name') == 'rgbw_lamp_flexible' for rule in advanced_rules if isinstance(rule, dict))
-            elif isinstance(advanced_rules, dict):
-                has_rgbw_rule = 'rgbw_lamp_with_children' in advanced_rules
-                has_flexible_rule = 'rgbw_lamp_flexible' in advanced_rules
-            else:
-                has_rgbw_rule = False
-                has_flexible_rule = False
-            
-            _LOGGER.info("🔍 Has rgbw_lamp_with_children: %s", has_rgbw_rule)
-            _LOGGER.info("🔍 Has rgbw_lamp_flexible: %s", has_flexible_rule)
-        
-        # Debug logging for device 1269454 specifically
-    # if periph_id == "1269454":
-    #     _LOGGER.info("🔍 SPECIAL DEBUG: Analyzing device 1269454")
-    #     _LOGGER.info("🔍 Device data: %s", device_data)
+            _LOGGER.error("🚨 FORCED DEBUG (v%s): rgbw_lamp_with_children rule NOT FOUND!", VERSION)
+    
+    # FORCED DEBUG: Confirm we're entering the advanced rules loop
+    if periph_id == "1269454":
+        _LOGGER.error("🚨 FORCED DEBUG (v%s): Entering advanced rules loop with %d rules", VERSION, len(advanced_rules_dict))
+        _LOGGER.error("🚨 FORCED DEBUG (v%s): Rules to evaluate: %s", VERSION, list(advanced_rules_dict.keys()))
     #     
     #     # Find all children of this device
     #     children = [
