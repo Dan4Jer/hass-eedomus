@@ -207,20 +207,15 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         _LOGGER.warning("Found %d dynamic peripherals", dynamic)
         _LOGGER.warning("Skipped %d disabled peripherals", disabled)
 
-        _LOGGER.debug(
-            "Initial Mapping Table %s",
-            "\n".join(
-                f"{aggregated_data[id].get('ha_entity', '?')}/"
-                f"{aggregated_data[id].get('ha_subtype', '?')} "
-                f"usage_id={aggregated_data[id].get('usage_id', '?')} "
-                f"PRODUCT_TYPE_ID={aggregated_data[id].get('PRODUCT_TYPE_ID', '?')} "
-                f"{aggregated_data[id].get('name', '?')}/{aggregated_data[id].get('usage_name', '?')}({id})"
-                for id in aggregated_data.keys()
-            ),
-        )
-        
         # Set the data for the coordinator
         self.data = aggregated_data
+        
+        # Afficher le tableau de mapping global après le premier rafraîchissement
+        try:
+            from .entity import _print_global_mapping_table
+            _print_global_mapping_table()
+        except Exception as e:
+            _LOGGER.warning("Failed to print global mapping table: %s", e)
         
         # No need to call super().async_config_entry_first_refresh() as we've already loaded the data
 

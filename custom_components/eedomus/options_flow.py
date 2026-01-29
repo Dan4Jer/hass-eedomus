@@ -13,6 +13,16 @@ from .const import (
     CONF_USE_YAML,
     CONF_CUSTOM_DEVICES,
     CONF_YAML_CONTENT,
+    CONF_ENABLE_API_EEDOMUS,
+    CONF_ENABLE_API_PROXY,
+    CONF_ENABLE_HISTORY,
+    CONF_SCAN_INTERVAL,
+    CONF_ENABLE_SET_VALUE_RETRY,
+    CONF_ENABLE_WEBHOOK,
+    CONF_API_PROXY_DISABLE_SECURITY,
+    CONF_PHP_FALLBACK_ENABLED,
+    CONF_PHP_FALLBACK_SCRIPT_NAME,
+    CONF_PHP_FALLBACK_TIMEOUT,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -39,7 +49,28 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(self, user_input=None):
         """Manage the options with mode selection."""
         if user_input is not None:
+            # Save all configuration options
+            options = {}
+            
+            # Save mode selection
             self.use_yaml = user_input.get(CONF_USE_YAML, False)
+            options[CONF_USE_YAML] = self.use_yaml
+            
+            # Save API configuration options
+            options[CONF_ENABLE_API_EEDOMUS] = user_input.get(CONF_ENABLE_API_EEDOMUS, True)
+            options[CONF_ENABLE_API_PROXY] = user_input.get(CONF_ENABLE_API_PROXY, False)
+            options[CONF_ENABLE_HISTORY] = user_input.get(CONF_ENABLE_HISTORY, False)
+            options[CONF_SCAN_INTERVAL] = user_input.get(CONF_SCAN_INTERVAL, 300)
+            options[CONF_ENABLE_SET_VALUE_RETRY] = user_input.get(CONF_ENABLE_SET_VALUE_RETRY, True)
+            options[CONF_ENABLE_WEBHOOK] = user_input.get(CONF_ENABLE_WEBHOOK, True)
+            options[CONF_API_PROXY_DISABLE_SECURITY] = user_input.get(CONF_API_PROXY_DISABLE_SECURITY, False)
+            options[CONF_PHP_FALLBACK_ENABLED] = user_input.get(CONF_PHP_FALLBACK_ENABLED, False)
+            options[CONF_PHP_FALLBACK_SCRIPT_NAME] = user_input.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")
+            options[CONF_PHP_FALLBACK_TIMEOUT] = user_input.get(CONF_PHP_FALLBACK_TIMEOUT, 5)
+            
+            # Store options for use in other steps
+            self._config_entry.options.update(options)
+            
             if self.use_yaml:
                 return await self.async_step_yaml()
             else:
@@ -53,6 +84,16 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
             step_id="init",
             data_schema=vol.Schema({
                 vol.Required(CONF_USE_YAML, default=self.use_yaml): bool,
+                vol.Optional(CONF_ENABLE_API_EEDOMUS, default=current_options.get(CONF_ENABLE_API_EEDOMUS, True)): bool,
+                vol.Optional(CONF_ENABLE_API_PROXY, default=current_options.get(CONF_ENABLE_API_PROXY, False)): bool,
+                vol.Optional(CONF_ENABLE_HISTORY, default=current_options.get(CONF_ENABLE_HISTORY, False)): bool,
+                vol.Optional(CONF_SCAN_INTERVAL, default=current_options.get(CONF_SCAN_INTERVAL, 300)): int,
+                vol.Optional(CONF_ENABLE_SET_VALUE_RETRY, default=current_options.get(CONF_ENABLE_SET_VALUE_RETRY, True)): bool,
+                vol.Optional(CONF_ENABLE_WEBHOOK, default=current_options.get(CONF_ENABLE_WEBHOOK, True)): bool,
+                vol.Optional(CONF_API_PROXY_DISABLE_SECURITY, default=current_options.get(CONF_API_PROXY_DISABLE_SECURITY, False)): bool,
+                vol.Optional(CONF_PHP_FALLBACK_ENABLED, default=current_options.get(CONF_PHP_FALLBACK_ENABLED, False)): bool,
+                vol.Optional(CONF_PHP_FALLBACK_SCRIPT_NAME, default=current_options.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")): str,
+                vol.Optional(CONF_PHP_FALLBACK_TIMEOUT, default=current_options.get(CONF_PHP_FALLBACK_TIMEOUT, 5)): int,
             }),
             description_placeholders={
                 "current_mode": "YAML" if self.use_yaml else "UI"
@@ -85,6 +126,17 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                         CONF_USE_YAML: False,
                         **validated_input
                     }
+                    # Add API configuration options
+                    options[CONF_ENABLE_API_EEDOMUS] = self._config_entry.options.get(CONF_ENABLE_API_EEDOMUS, True)
+                    options[CONF_ENABLE_API_PROXY] = self._config_entry.options.get(CONF_ENABLE_API_PROXY, False)
+                    options[CONF_ENABLE_HISTORY] = self._config_entry.options.get(CONF_ENABLE_HISTORY, False)
+                    options[CONF_SCAN_INTERVAL] = self._config_entry.options.get(CONF_SCAN_INTERVAL, 300)
+                    options[CONF_ENABLE_SET_VALUE_RETRY] = self._config_entry.options.get(CONF_ENABLE_SET_VALUE_RETRY, True)
+                    options[CONF_ENABLE_WEBHOOK] = self._config_entry.options.get(CONF_ENABLE_WEBHOOK, True)
+                    options[CONF_API_PROXY_DISABLE_SECURITY] = self._config_entry.options.get(CONF_API_PROXY_DISABLE_SECURITY, False)
+                    options[CONF_PHP_FALLBACK_ENABLED] = self._config_entry.options.get(CONF_PHP_FALLBACK_ENABLED, False)
+                    options[CONF_PHP_FALLBACK_SCRIPT_NAME] = self._config_entry.options.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")
+                    options[CONF_PHP_FALLBACK_TIMEOUT] = self._config_entry.options.get(CONF_PHP_FALLBACK_TIMEOUT, 5)
                     return self.async_create_entry(title="", data=options)
                 else:
                     errors["base"] = "failed_to_save_mapping"
@@ -149,6 +201,17 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                         CONF_USE_YAML: True,
                         CONF_YAML_CONTENT: yaml_content  # Store for re-editing
                     }
+                    # Add API configuration options
+                    options[CONF_ENABLE_API_EEDOMUS] = self._config_entry.options.get(CONF_ENABLE_API_EEDOMUS, True)
+                    options[CONF_ENABLE_API_PROXY] = self._config_entry.options.get(CONF_ENABLE_API_PROXY, False)
+                    options[CONF_ENABLE_HISTORY] = self._config_entry.options.get(CONF_ENABLE_HISTORY, False)
+                    options[CONF_SCAN_INTERVAL] = self._config_entry.options.get(CONF_SCAN_INTERVAL, 300)
+                    options[CONF_ENABLE_SET_VALUE_RETRY] = self._config_entry.options.get(CONF_ENABLE_SET_VALUE_RETRY, True)
+                    options[CONF_ENABLE_WEBHOOK] = self._config_entry.options.get(CONF_ENABLE_WEBHOOK, True)
+                    options[CONF_API_PROXY_DISABLE_SECURITY] = self._config_entry.options.get(CONF_API_PROXY_DISABLE_SECURITY, False)
+                    options[CONF_PHP_FALLBACK_ENABLED] = self._config_entry.options.get(CONF_PHP_FALLBACK_ENABLED, False)
+                    options[CONF_PHP_FALLBACK_SCRIPT_NAME] = self._config_entry.options.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")
+                    options[CONF_PHP_FALLBACK_TIMEOUT] = self._config_entry.options.get(CONF_PHP_FALLBACK_TIMEOUT, 5)
                     return self.async_create_entry(title="", data=options)
                 else:
                     errors["base"] = "failed_to_save_yaml"
