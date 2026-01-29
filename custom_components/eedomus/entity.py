@@ -591,16 +591,16 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     _LOGGER.debug("   all_devices available: %s", bool(all_devices))
     _LOGGER.debug("   all_devices type: %s", type(all_devices))
     
+    # Fix: Ensure all_devices is never None or empty - create empty dict if needed
+    if all_devices is None or not all_devices:
+        _LOGGER.warning("⚠️  all_devices is None or empty, creating empty dict to allow advanced rules evaluation")
+        all_devices = {}
+    
     # FORCED DEBUG: Log before all_devices check
     if periph_id == "1269454":
         _LOGGER.error("🚨 FORCED DEBUG: Before all_devices check")
         _LOGGER.error("🚨 FORCED DEBUG: all_devices value: %s", all_devices)
         _LOGGER.error("🚨 FORCED DEBUG: all_devices keys: %s", list(all_devices.keys()) if all_devices else None)
-    
-    # Fix: Ensure all_devices is never None - create empty dict if None
-    if all_devices is None:
-        _LOGGER.warning("⚠️  all_devices is None, creating empty dict to allow advanced rules evaluation")
-        all_devices = {}
     
     if all_devices:
         _LOGGER.debug("   all_devices keys count: %d", len(all_devices))
