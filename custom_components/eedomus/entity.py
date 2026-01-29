@@ -644,7 +644,9 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     # Advanced rules evaluation - this should ALWAYS be executed
     # Handle both list and dict formats for advanced_rules
     if periph_id == "1269454":
+        _LOGGER.debug("SPECIAL DEBUG (v%s): Device 1269454 - advanced_rules type: %s", 
                      VERSION, type(DEVICE_MAPPINGS.get('advanced_rules')))
+        _LOGGER.debug("SPECIAL DEBUG (v%s): Device 1269454 - advanced_rules content: %s", 
                      VERSION, DEVICE_MAPPINGS.get('advanced_rules'))
     
     advanced_rules_dict = {}
