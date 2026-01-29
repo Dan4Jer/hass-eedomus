@@ -83,6 +83,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             | set(peripherals_caract_dict.keys())
         )
 
+        # Première passe : Ajouter tous les devices à aggregated_data
+        # Cela permet aux règles avancées d'avoir accès à tous les devices, y compris les enfants
         for periph_id in all_periph_ids:
             aggregated_data[periph_id] = {}
 
@@ -98,6 +100,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             if periph_id in peripherals_caract_dict:
                 aggregated_data[periph_id].update(peripherals_caract_dict[periph_id])
 
+        # Deuxième passe : Appliquer le mapping pour chaque device
+        # Maintenant tous les devices sont disponibles dans aggregated_data
+        for periph_id in all_periph_ids:
             # Mapping des périphériques vers une entité HA : la bonne ? quid des enfants vis à vis de parent ?
             if not "ha_entity" in aggregated_data[periph_id]:
                 eedomus_mapping = map_device_to_ha_entity(aggregated_data[periph_id], aggregated_data)
