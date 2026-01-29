@@ -210,7 +210,6 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         _LOGGER.debug(
             "Initial Mapping Table %s",
             "\n".join(
-                "Map: "
                 f"{aggregated_data[id].get('ha_entity', '?')}/"
                 f"{aggregated_data[id].get('ha_subtype', '?')} "
                 f"usage_id={aggregated_data[id].get('usage_id', '?')} "
@@ -414,7 +413,6 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         _LOGGER.debug(
             "Mapping Table %s",
             "\n".join(
-                "Map: "
                 f"{aggregated_data[id].get('ha_entity', '?')}/"
                 f"{aggregated_data[id].get('ha_subtype', '?')} "
                 f"usage_id={aggregated_data[id].get('usage_id', '?')} "

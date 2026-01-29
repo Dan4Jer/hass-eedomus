@@ -1105,3 +1105,30 @@ def _create_mapping(mapping_config, periph_name, periph_id, context, emoji="🎯
     })
     
     return mapping
+
+
+def _print_global_mapping_table():
+    """Affiche un tableau récapitulatif de tous les mappings à la fin du processus."""
+    if not _MAPPING_REGISTRY:
+        return
+    
+    _LOGGER.info("\n" + "="*120)
+    _LOGGER.info("| %-15s | %-30s | %-15s | %-10s | %-15s | %-50s |", 
+                 "Periph ID", "Device Name", "Parent ID", "Type", "Subtype", "Justification")
+    _LOGGER.info("="*120)
+    
+    for mapping in _MAPPING_REGISTRY:
+        _LOGGER.info("| %-15s | %-30s | %-15s | %-10s | %-15s | %-50s |", 
+                     mapping["periph_id"], 
+                     mapping["periph_name"][:29], 
+                     mapping.get("parent_periph_id", "") or "-", 
+                     mapping["ha_entity"], 
+                     mapping["ha_subtype"], 
+                     mapping["justification"][:49])
+    
+    _LOGGER.info("="*120 + "\n")
+    _LOGGER.info("Total devices mapped: %d", len(_MAPPING_REGISTRY))
+    _LOGGER.info("\n")
+    
+    # Réinitialiser le registre pour le prochain cycle
+    _MAPPING_REGISTRY.clear()
