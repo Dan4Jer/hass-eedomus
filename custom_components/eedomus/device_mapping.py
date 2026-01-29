@@ -291,7 +291,7 @@ def merge_yaml_mappings(default_mapping: Dict[str, Any], custom_mapping: Dict[st
     # Merge specific device dynamic overrides (custom overrides default)
     specific_device_dynamic_overrides = default_mapping.get('specific_device_dynamic_overrides', {})
     if not isinstance(specific_device_dynamic_overrides, dict):
-        _LOGGER.error("Specific device dynamic overrides is not a dictionary: %s", type(specific_device_dynamic_overrides))
+        _LOGGER.info("Specific device dynamic overrides is not a dictionary: %s", type(specific_device_dynamic_overrides))
         specific_device_dynamic_overrides = {}
     
     merged['specific_device_dynamic_overrides'] = specific_device_dynamic_overrides
