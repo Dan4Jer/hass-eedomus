@@ -169,8 +169,9 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
 
         # Create dynamic schema for devices
         from homeassistant.helpers import config_validation as cv
+        # Simplified schema to avoid serialization issues
         device_schema = vol.Schema({
-            vol.Optional(CONF_CUSTOM_DEVICES, default=self.current_devices): cv.ensure_list(DEVICE_SCHEMA)
+            vol.Optional(CONF_CUSTOM_DEVICES, default=[]): cv.ensure_list
         })
 
         return self.async_show_form(
