@@ -641,7 +641,8 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         _LOGGER.info("🔍 RGBW component names: %s", rgbw_names)
         
         if periph_id == "1269454":
-    
+            _LOGGER.debug("SPECIAL DEBUG: Device 1269454 - RGBW detection triggered")
+
     # Advanced rules evaluation - this should ALWAYS be executed
     # Handle both list and dict formats for advanced_rules
     if periph_id == "1269454":
@@ -670,11 +671,15 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         _LOGGER.debug("✅ Rule names: %s", list(advanced_rules_dict.keys()))
     
     if periph_id == "1269454":
+        _LOGGER.debug("SPECIAL DEBUG: Device 1269454 - checking rgbw_lamp_with_children rule")
         
         if 'rgbw_lamp_with_children' in advanced_rules_dict:
+            _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_with_children rule found")
         else:
+            _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_with_children rule NOT found")
     
     if periph_id == "1269454":
+        _LOGGER.debug("SPECIAL DEBUG: Device 1269454 - analyzing children")
     #     
     #     # Find all children of this device
     #     children = [
@@ -719,11 +724,15 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
             _LOGGER.debug("✅ Rule names: %s", list(advanced_rules_dict.keys()))
         
         if periph_id == "1269454":
+            _LOGGER.debug("SPECIAL DEBUG: Device 1269454 - checking rgbw_lamp_with_children rule")
             
             if 'rgbw_lamp_with_children' in advanced_rules_dict:
+                _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_with_children rule found")
             else:
+                _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_with_children rule NOT found")
         
         if periph_id == "1269454":
+            _LOGGER.debug("SPECIAL DEBUG: Device 1269454 - analyzing children")
         
         for rule_name, rule_config in advanced_rules_dict.items():
             # Debug: Log which rule is being evaluated
@@ -732,6 +741,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
             
             # Special debug for RGBW rules
             if periph_id == "1269454" and rule_name in ["rgbw_lamp_with_children", "rgbw_lamp_flexible"]:
+                _LOGGER.debug("SPECIAL DEBUG: Evaluating RGBW rule '%s' for device 1269454", rule_name)
             
             # Check if we have a condition function or conditions list
             if "condition" in rule_config:
