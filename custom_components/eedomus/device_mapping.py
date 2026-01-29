@@ -85,7 +85,7 @@ def load_yaml_file(file_path: str) -> Optional[Dict[str, Any]]:
                 if 'dynamic_entity_properties' in content:
                     _LOGGER.info("✅ Found dynamic_entity_properties in YAML")
                 else:
-                    _LOGGER.error("❌ CRITICAL: dynamic_entity_properties section missing from YAML!")
+                    _LOGGER.info("⚠️  dynamic_entity_properties section missing from YAML (will be extracted from advanced rules)")
                     
                 if 'specific_device_dynamic_overrides' in content:
                     _LOGGER.info("✅ Found specific_device_dynamic_overrides in YAML")
