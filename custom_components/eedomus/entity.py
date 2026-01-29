@@ -1090,4 +1090,13 @@ def _create_mapping(mapping_config, periph_name, periph_id, context, emoji="🎯
                   periph_name, periph_id, context, mapping["ha_entity"], mapping["ha_subtype"],
                   mapping["justification"])
     
+    # Afficher un tableau formaté pour le mapping
+    _LOGGER.debug("\n" + "="*80)
+    _LOGGER.debug("| %-30s | %-10s | %-15s | %-50s |", 
+                  "Device", "Type", "Subtype", "Justification")
+    _LOGGER.debug("="*80)
+    _LOGGER.debug("| %-30s | %-10s | %-15s | %-50s |", 
+                  periph_name, mapping["ha_entity"], mapping["ha_subtype"], mapping["justification"])
+    _LOGGER.debug("="*80 + "\n")
+    
     return mapping
