@@ -763,6 +763,13 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         if periph_id == "1269454":
             _LOGGER.error("🚨 FORCED DEBUG: About to evaluate %d rules", len(advanced_rules_dict))
             _LOGGER.error("🚨 FORCED DEBUG: Rule names: %s", list(advanced_rules_dict.keys()))
+            
+            # FORCED DEBUG: Check if rgbw_lamp_with_children rule exists
+            if 'rgbw_lamp_with_children' in advanced_rules_dict:
+                _LOGGER.error("🚨 FORCED DEBUG: rgbw_lamp_with_children rule found!")
+                _LOGGER.error("🚨 FORCED DEBUG: Rule config: %s", advanced_rules_dict['rgbw_lamp_with_children'])
+            else:
+                _LOGGER.error("🚨 FORCED DEBUG: rgbw_lamp_with_children rule NOT FOUND!")
         
         for rule_name, rule_config in advanced_rules_dict.items():
             # Debug: Log which rule is being evaluated
