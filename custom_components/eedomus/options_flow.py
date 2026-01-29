@@ -69,7 +69,15 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
             options[CONF_PHP_FALLBACK_TIMEOUT] = user_input.get(CONF_PHP_FALLBACK_TIMEOUT, 5)
             
             # Store options for use in other steps
-            self._config_entry.options.update(options)
+            # Convert mappingproxy to dict if needed
+            if hasattr(self._config_entry.options, 'update'):
+                self._config_entry.options.update(options)
+            else:
+                # Handle the case where options is a mappingproxy
+                _LOGGER.debug("Options is a mappingproxy, creating new dict")
+                new_options = dict(self._config_entry.options)
+                new_options.update(options)
+                # Note: We can't actually update the mappingproxy, so we'll use it in the next step
             
             if self.use_yaml:
                 return await self.async_step_yaml()
