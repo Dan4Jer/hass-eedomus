@@ -555,6 +555,9 @@ class EedomusEntity(CoordinatorEntity):
         self.async_schedule_update_ha_state()
 
 
+# Liste globale pour stocker tous les mappings
+_MAPPING_REGISTRY = []
+
 def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: str = "sensor"):
     """Mappe un périphérique eedomus vers une entité Home Assistant.
     
@@ -1090,13 +1093,14 @@ def _create_mapping(mapping_config, periph_name, periph_id, context, emoji="🎯
                   periph_name, periph_id, context, mapping["ha_entity"], mapping["ha_subtype"],
                   mapping["justification"])
     
-    # Afficher un tableau formaté pour le mapping
-    _LOGGER.debug("\n" + "="*80)
-    _LOGGER.debug("| %-30s | %-10s | %-15s | %-50s |", 
-                  "Device", "Type", "Subtype", "Justification")
-    _LOGGER.debug("="*80)
-    _LOGGER.debug("| %-30s | %-10s | %-15s | %-50s |", 
-                  periph_name, mapping["ha_entity"], mapping["ha_subtype"], mapping["justification"])
-    _LOGGER.debug("="*80 + "\n")
+    # Stocker le mapping dans le registre global
+    _MAPPING_REGISTRY.append({
+        "periph_id": periph_id,
+        "periph_name": periph_name,
+        "parent_periph_id": device_data.get("parent_periph_id"),
+        "ha_entity": mapping["ha_entity"],
+        "ha_subtype": mapping["ha_subtype"],
+        "justification": mapping["justification"]
+    })
     
     return mapping
