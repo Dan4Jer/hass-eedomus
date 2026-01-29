@@ -595,6 +595,12 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     if periph_id == "1269454":
         _LOGGER.error("🚨 FORCED DEBUG: Before all_devices check")
         _LOGGER.error("🚨 FORCED DEBUG: all_devices value: %s", all_devices)
+        _LOGGER.error("🚨 FORCED DEBUG: all_devices keys: %s", list(all_devices.keys()) if all_devices else None)
+    
+    # Fix: Ensure all_devices is never None - create empty dict if None
+    if all_devices is None:
+        _LOGGER.warning("⚠️  all_devices is None, creating empty dict to allow advanced rules evaluation")
+        all_devices = {}
     
     if all_devices:
         _LOGGER.debug("   all_devices keys count: %d", len(all_devices))
@@ -732,6 +738,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                          type(DEVICE_MAPPINGS.get('advanced_rules')))
             _LOGGER.error("🚨 FORCED DEBUG: DEVICE_MAPPINGS.get('advanced_rules') value: %s", 
                          DEVICE_MAPPINGS.get('advanced_rules'))
+            _LOGGER.error("🚨 FORCED DEBUG: DEVICE_MAPPINGS keys: %s", list(DEVICE_MAPPINGS.keys()))
         
         advanced_rules_dict = {}
         if isinstance(DEVICE_MAPPINGS.get('advanced_rules'), list):
@@ -761,6 +768,10 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
             # Debug: Log which rule is being evaluated
             _LOGGER.debug("🔍 Evaluating rule '%s' for device %s (%s)", 
                          rule_name, periph_name, periph_id)
+            
+            # Special debug for RGBW rules
+            if periph_id == "1269454" and rule_name in ["rgbw_lamp_with_children", "rgbw_lamp_flexible"]:
+                _LOGGER.error("🚨 FORCED DEBUG: Evaluating RGBW rule '%s' for device 1269454", rule_name)
             
             # Check if we have a condition function or conditions list
             if "condition" in rule_config:
@@ -871,26 +882,33 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
             
             # Special debug for device 1269454
             if periph_id == "1269454":
-                _LOGGER.info("🔍 Rule '%s' condition result: %s", rule_name, condition_result)
+                _LOGGER.error("🚨 FORCED DEBUG: Rule '%s' condition result: %s", rule_name, condition_result)
                 if rule_name == "rgbw_lamp_with_children":
-                    _LOGGER.info("🔍 RGBW rule condition breakdown:")
-                    _LOGGER.info("🔍   - usage_id check: %s (expected: 1, actual: %s)", 
+                    _LOGGER.error("🚨 FORCED DEBUG: RGBW rule condition breakdown:")
+                    _LOGGER.error("🚨 FORCED DEBUG:   - usage_id check: %s (expected: 1, actual: %s)", 
                                 device_data.get("usage_id") == "1", device_data.get("usage_id"))
+                    _LOGGER.error("🚨 FORCED DEBUG:   - PRODUCT_TYPE_ID check: %s (expected: 2304, actual: %s)", 
+                                device_data.get("PRODUCT_TYPE_ID") == "2304", device_data.get("PRODUCT_TYPE_ID"))
                     child_count = sum(1 for child_id, child in all_devices.items()
                                      if child.get("parent_periph_id") == periph_id and child.get("usage_id") == "1")
-                    _LOGGER.info("🔍   - child count check: %s (expected: >=4, actual: %d)", 
+                    _LOGGER.error("🚨 FORCED DEBUG:   - child count check: %s (expected: >=4, actual: %d)", 
                                 child_count >= 4, child_count)
                 elif rule_name == "rgbw_lamp_flexible":
-                    _LOGGER.info("🔍 Flexible RGBW rule condition breakdown:")
-                    _LOGGER.info("🔍   - usage_id check: %s (expected: 1, actual: %s)", 
+                    _LOGGER.error("🚨 FORCED DEBUG: Flexible RGBW rule condition breakdown:")
+                    _LOGGER.error("🚨 FORCED DEBUG:   - usage_id check: %s (expected: 1, actual: %s)", 
                                 device_data.get("usage_id") == "1", device_data.get("usage_id"))
                     total_children = len([child for child_id, child in all_devices.items()
                                         if child.get("parent_periph_id") == periph_id])
-                    _LOGGER.info("🔍   - min_children check: %s (expected: >=4, actual: %d)", 
+                    _LOGGER.error("🚨 FORCED DEBUG:   - min_children check: %s (expected: >=4, actual: %d)", 
                                 total_children >= 4, total_children)
-                    _LOGGER.info("🔍   - SUPPORTED_CLASSES: %s", device_data.get("SUPPORTED_CLASSES", "N/A"))
-                    _LOGGER.info("🔍   - PRODUCT_TYPE_ID: %s", device_data.get("PRODUCT_TYPE_ID", "N/A"))
-                    _LOGGER.info("🔍   - Device name: %s", device_data.get("name", "N/A"))
+                    _LOGGER.error("🚨 FORCED DEBUG:   - SUPPORTED_CLASSES: %s", device_data.get("SUPPORTED_CLASSES", "N/A"))
+                    _LOGGER.error("🚨 FORCED DEBUG:   - PRODUCT_TYPE_ID: %s", device_data.get("PRODUCT_TYPE_ID", "N/A"))
+                    _LOGGER.error("🚨 FORCED DEBUG:   - Device name: %s", device_data.get("name", "N/A"))
+                    
+                    # Check children names
+                    children = [child for child_id, child in all_devices.items()
+                               if child.get("parent_periph_id") == periph_id]
+                    _LOGGER.error("🚨 FORCED DEBUG:   - Children: %s", [c.get("name") for c in children])
             
             if condition_result:
                 # Log spécifique pour le débogage RGBW
@@ -905,10 +923,10 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                 
                 # Special debug for device 1269454
                 if periph_id == "1269454":
-                    _LOGGER.info("🎯 RGBW RULE APPLIED for device 1269454!")
-                    _LOGGER.info("🎯 Mapping result: %s:%s", 
+                    _LOGGER.error("🚨 FORCED DEBUG: RGBW RULE APPLIED for device 1269454!")
+                    _LOGGER.error("🚨 FORCED DEBUG: Mapping result: %s:%s", 
                                 rule_config["ha_entity"], rule_config["ha_subtype"])
-                    _LOGGER.info("🎯 Justification: %s", rule_config["justification"])
+                    _LOGGER.error("🚨 FORCED DEBUG: Justification: %s", rule_config["justification"])
                 
                 return _create_mapping(rule_config, periph_name, periph_id, rule_name, "🎯 Advanced rule")
     
@@ -931,9 +949,10 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         mapping = DEVICE_MAPPINGS['usage_id_mappings'][usage_id].copy()
         
         # Special debug for device 1269454
-        # if periph_id == "1269454":
-        #     _LOGGER.info("🔍 Usage ID mapping for device 1269454: usage_id=%s → %s:%s",
-        #                 usage_id, mapping["ha_entity"], mapping["ha_subtype"])
+        if periph_id == "1269454":
+            _LOGGER.error("🚨 FORCED DEBUG: Usage ID mapping for device 1269454: usage_id=%s → %s:%s",
+                        usage_id, mapping["ha_entity"], mapping["ha_subtype"])
+            _LOGGER.error("🚨 FORCED DEBUG: This means advanced rules were NOT applied!")
         
         # Appliquer les règles avancées si définies
         if "advanced_rules" in mapping:
