@@ -591,6 +591,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                 child for child_id, child in all_devices.items()
                 if child.get("parent_periph_id") == periph_id
             ]
+            _LOGGER.debug("Found %d children for device %s: %s", 
                          len(children), [c["name"] for c in children])
     
     # Debug: Log the number of advanced rules loaded
