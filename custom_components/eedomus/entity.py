@@ -970,10 +970,10 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                 if periph_id == "1269454":
                     _LOGGER.error("🚨 FORCED DEBUG: RGBW RULE APPLIED for device 1269454!")
                     _LOGGER.error("🚨 FORCED DEBUG: Mapping result: %s:%s", 
-                                rule_config["ha_entity"], rule_config["ha_subtype"])
-                    _LOGGER.error("🚨 FORCED DEBUG: Justification: %s", rule_config["justification"])
+                                rule_config["mapping"]["ha_entity"], rule_config["mapping"]["ha_subtype"])
+                    _LOGGER.error("🚨 FORCED DEBUG: Justification: %s", rule_config["mapping"]["justification"])
                 
-                return _create_mapping(rule_config, periph_name, periph_id, rule_name, "🎯 Advanced rule")
+                return _create_mapping(rule_config["mapping"], periph_name, periph_id, rule_name, "🎯 Advanced rule")
     
     # Priorité 2: Cas spécifiques critiques (usage_id)
     specific_cases = {
@@ -1013,9 +1013,9 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                     
                     if advanced_rule_result:
                         mapping.update({
-                            "ha_entity": rule_config["ha_entity"],
-                            "ha_subtype": rule_config["ha_subtype"],
-                            "justification": f"Advanced rule {rule_name}: {rule_config['justification']}",
+                            "ha_entity": rule_config["mapping"]["ha_entity"],
+                            "ha_subtype": rule_config["mapping"]["ha_subtype"],
+                            "justification": f"Advanced rule {rule_name}: {rule_config['mapping']['justification']}",
                         })
                         _LOGGER.info("🎯 Advanced rule applied: %s (%s) → %s:%s", 
                                    periph_name, periph_id, mapping["ha_entity"], mapping["ha_subtype"])
@@ -1096,11 +1096,24 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
 
 def _create_mapping(mapping_config, periph_name, periph_id, context, emoji="🎯"):
     """Crée un mapping standardisé avec logging approprié."""
-    mapping = {
-        "ha_entity": mapping_config["ha_entity"],
-        "ha_subtype": mapping_config["ha_subtype"],
-        "justification": mapping_config["justification"]
-    }
+    # mapping_config peut être soit la section 'mapping' directement, soit la règle complète
+    # avec une section 'mapping' imbriquée
+    if "ha_entity" in mapping_config:
+        # Cas 1: mapping_config est la section 'mapping' directement
+        mapping = {
+            "ha_entity": mapping_config["ha_entity"],
+            "ha_subtype": mapping_config["ha_subtype"],
+            "justification": mapping_config["justification"]
+        }
+    elif "mapping" in mapping_config:
+        # Cas 2: mapping_config est la règle complète avec une section 'mapping' imbriquée
+        mapping = {
+            "ha_entity": mapping_config["mapping"]["ha_entity"],
+            "ha_subtype": mapping_config["mapping"]["ha_subtype"],
+            "justification": mapping_config["mapping"]["justification"]
+        }
+    else:
+        raise ValueError(f"Invalid mapping_config structure: {mapping_config}")
     
     log_method = _LOGGER.info if emoji != "❓" else _LOGGER.warning
     log_method("%s %s mapping: %s (%s) → %s:%s", 
