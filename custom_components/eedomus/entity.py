@@ -649,6 +649,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
             # FORCED DEBUG: Confirm we're about to exit the if all_devices block
             if periph_id == "1269454":
                 _LOGGER.error("🚨 FORCED DEBUG (v%s): About to exit if all_devices block - continuing to rule evaluation", VERSION)
+                _LOGGER.error("🚨 FORCED DEBUG: Advanced rules evaluation completed for device 1269454")
     else:
         _LOGGER.error("❌ CRITICAL: all_devices is None or empty for %s (%s)", periph_name, periph_id)
         _LOGGER.error("❌ Advanced rules will NOT be executed - using fallback mapping")
