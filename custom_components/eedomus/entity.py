@@ -942,7 +942,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                                 rule_config["mapping"]["ha_entity"], rule_config["mapping"]["ha_subtype"])
                     _LOGGER.error("🚨 FORCED DEBUG: Justification: %s", rule_config["mapping"]["justification"])
                 
-                return _create_mapping(rule_config["mapping"], periph_name, periph_id, rule_name, "🎯 Advanced rule")
+                return _create_mapping(rule_config["mapping"], periph_name, periph_id, rule_name, "🎯 Advanced rule", device_data)
     
     # Priorité 2: Cas spécifiques critiques (usage_id)
     specific_cases = {
@@ -955,7 +955,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         ha_entity, ha_subtype, log_msg, emoji = specific_cases[usage_id]
         return _create_mapping(
             {"ha_entity": ha_entity, "ha_subtype": ha_subtype, "justification": f"{log_msg}: usage_id={usage_id}"},
-            periph_name, periph_id, usage_id, emoji
+            periph_name, periph_id, usage_id, emoji, device_data
         )
     
     # Priorité 3: Mapping basé sur usage_id
@@ -1023,7 +1023,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         return _create_mapping(
             {"ha_entity": "sensor", "ha_subtype": "text", 
              "justification": f"Message box: {device_data['name']}"},
-            periph_name, periph_id, "message", "📝"
+            periph_name, periph_id, "message", "📝", device_data
         )
     
     # Priorité 5: Mapping par défaut (YAML fallback)
@@ -1063,7 +1063,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                     periph_name, periph_id, mapping["ha_entity"], mapping["ha_subtype"], device_data)
     return mapping
 
-def _create_mapping(mapping_config, periph_name, periph_id, context, emoji="🎯"):
+def _create_mapping(mapping_config, periph_name, periph_id, context, emoji="🎯", device_data=None):
     """Crée un mapping standardisé avec logging approprié."""
     # mapping_config peut être soit la section 'mapping' directement, soit la règle complète
     # avec une section 'mapping' imbriquée
@@ -1094,10 +1094,11 @@ def _create_mapping(mapping_config, periph_name, periph_id, context, emoji="🎯
                   mapping["justification"])
     
     # Stocker le mapping dans le registre global
+    parent_periph_id = device_data.get("parent_periph_id") if device_data else None
     _MAPPING_REGISTRY.append({
         "periph_id": periph_id,
         "periph_name": periph_name,
-        "parent_periph_id": device_data.get("parent_periph_id"),
+        "parent_periph_id": parent_periph_id,
         "ha_entity": mapping["ha_entity"],
         "ha_subtype": mapping["ha_subtype"],
         "justification": mapping["justification"]
