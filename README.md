@@ -221,6 +221,199 @@ custom_usage_id_mappings:
     justification: "Custom sensor type"
 ```
 
+## 📚 Grammaire complète des règles avancées
+
+### Structure d'une règle avancée
+
+```yaml
+- name: "Nom de la règle"
+  priority: 1  # Priorité (1 = plus haute)
+  conditions:
+    - condition1: "valeur1"
+    - condition2: "valeur2"
+    # ... autres conditions
+  mapping:
+    ha_entity: "type_entité"  # light, sensor, switch, etc.
+    ha_subtype: "sous_type"   # rgbw, dimmable, brightness, etc.
+    justification: "Description de la règle"
+    is_dynamic: true          # Optionnel: true/false
+```
+
+### Conditions disponibles
+
+| Condition | Type | Description | Exemple |
+|-----------|------|-------------|---------|
+| `usage_id` | string | ID d'usage du device | `"1"` (lumière) |
+| `PRODUCT_TYPE_ID` | string | ID du type de produit | `"2304"` (RGBW) |
+| `min_children` | integer | Nombre minimum d'enfants | `4` |
+| `child_usage_id` | string | ID d'usage des enfants | `"1"` |
+| `has_parent` | boolean | Device a un parent | `true` |
+| `parent_usage_id` | string | ID d'usage du parent | `"1"` |
+| `name` | string/regex | Nom du device (regex) | `".*RGBW.*"` |
+| `has_children_with_names` | list | Liste de noms d'enfants | `["Rouge", "Vert", "Bleu"]` |
+
+### Exemples de règles supprimées
+
+#### 1. Règle basée sur PRODUCT_TYPE_ID (supprimée)
+
+```yaml
+- name: "rgbw_lamp_with_children"
+  priority: 1
+  conditions:
+    - usage_id: "1"
+    - PRODUCT_TYPE_ID: "2304"  # Spécifique à un type de produit
+  mapping:
+    ha_entity: "light"
+    ha_subtype: "rgbw"
+    justification: "RGBW lamp detected by PRODUCT_TYPE_ID=2304"
+    is_dynamic: true
+```
+
+**Pourquoi supprimée** : Trop spécifique, ne fonctionnait que pour un type de produit particulier.
+
+#### 2. Règle basée sur les noms des enfants (supprimée)
+
+```yaml
+- name: "rgbw_lamp_flexible"
+  priority: 1
+  conditions:
+    - usage_id: "1"
+    - min_children: 4
+    - has_children_with_names: ["Rouge", "Vert", "Bleu", "Blanc"]
+  mapping:
+    ha_entity: "light"
+    ha_subtype: "rgbw"
+    justification: "RGBW lamp detected by child names (Rouge, Vert, Bleu, Blanc)"
+    is_dynamic: true
+  child_mapping:
+    "1":
+      ha_entity: "light"
+      ha_subtype: "brightness"
+      is_dynamic: true
+```
+
+**Pourquoi supprimée** : Trop rigide, ne fonctionnait qu'avec des noms spécifiques en français.
+
+#### 3. Règle pour enfants RGBW (supprimée)
+
+```yaml
+- name: "RGBW Child Detection"
+  priority: 2
+  conditions:
+    - usage_id: "1"
+    - has_parent: true
+    - parent_usage_id: "1"
+    - parent_has_min_children: 4
+  mapping:
+    ha_entity: "light"
+    ha_subtype: "brightness"
+    justification: "RGBW child component (Red, Green, Blue, White)"
+    is_dynamic: true
+```
+
+**Pourquoi supprimée** : Redondante avec la nouvelle règle simplifiée.
+
+### Nouvelle règle simplifiée (recommandée)
+
+```yaml
+- name: "rgbw_lamp_by_children"
+  priority: 1
+  conditions:
+    - usage_id: "1"
+    - min_children: 4
+  mapping:
+    ha_entity: "light"
+    ha_subtype: "rgbw"
+    justification: "RGBW lamp detected by having at least 4 children with usage_id=1"
+    is_dynamic: true
+```
+
+**Avantages** :
+- ✅ Plus flexible : fonctionne avec n'importe quel device ayant 4 enfants
+- ✅ Plus simple : seulement 2 conditions
+- ✅ Plus robuste : ne dépend pas des noms ou du PRODUCT_TYPE_ID
+- ✅ Multilingue : fonctionne avec n'importe quelle langue
+
+### Exemples avancés
+
+#### Règle pour détecteur de fumée
+
+```yaml
+- name: "Smoke Detector"
+  priority: 2
+  conditions:
+    - usage_id: "27"
+  mapping:
+    ha_entity: "binary_sensor"
+    ha_subtype: "smoke"
+    justification: "Smoke detector - usage_id=27"
+    is_dynamic: false
+```
+
+#### Règle pour capteur de température
+
+```yaml
+- name: "Temperature Sensor"
+  priority: 3
+  conditions:
+    - usage_id: "7"
+  mapping:
+    ha_entity: "sensor"
+    ha_subtype: "temperature"
+    device_class: "temperature"
+    unit_of_measurement: "°C"
+    justification: "Temperature sensor - usage_id=7"
+    is_dynamic: false
+```
+
+#### Règle basée sur le nom avec regex
+
+```yaml
+- name: "Consumption Meter"
+  priority: 4
+  conditions:
+    - usage_id: "26"
+    - name: ".*consommation.*|.*consumption.*"
+  mapping:
+    ha_entity: "sensor"
+    ha_subtype: "energy"
+    device_class: "energy"
+    justification: "Energy consumption meter"
+    is_dynamic: false
+```
+
+### Bonnes pratiques
+
+1. **Priorité** : Utilisez des priorités basses (1-5) pour les règles spécifiques
+2. **Spécificité** : Plus une règle est spécifique, plus sa priorité devrait être élevée
+3. **Test** : Testez vos règles avec des devices réels avant de les déployer
+4. **Documentation** : Ajoutez toujours une justification claire
+5. **is_dynamic** : Utilisez `true` pour les devices qui peuvent changer de type
+
+### Débogage
+
+Pour déboguer les règles, activez les logs de niveau DEBUG dans Home Assistant :
+
+```yaml
+# configuration.yaml
+logger:
+  default: warning
+  logs:
+    custom_components.eedomus.entity: debug
+```
+
+Les logs montreront :
+- Quelles règles sont évaluées
+- Quelles conditions matchent ou ne matchent pas
+- Quelle règle est finalement appliquée
+
+```
+DEBUG: Evaluating rule 'rgbw_lamp_by_children' for device My Device (123456)
+DEBUG: Condition 'usage_id' matched: "1"
+DEBUG: Condition 'min_children' matched: 4 children found
+INFO: 🎯 Advanced rule rgbw_lamp_by_children mapping: My Device (123456) → light:rgbw
+```
+
 ### Notes importantes
 
 ✅ **Ne modifiez PAS** `device_mapping.yaml` directement (peut être écrasé lors des mises à jour)
