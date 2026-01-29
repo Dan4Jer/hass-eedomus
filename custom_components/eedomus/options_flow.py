@@ -145,6 +145,8 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                     options[CONF_PHP_FALLBACK_ENABLED] = self._config_entry.options.get(CONF_PHP_FALLBACK_ENABLED, False)
                     options[CONF_PHP_FALLBACK_SCRIPT_NAME] = self._config_entry.options.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")
                     options[CONF_PHP_FALLBACK_TIMEOUT] = self._config_entry.options.get(CONF_PHP_FALLBACK_TIMEOUT, 5)
+                    # Log the options being saved
+                    _LOGGER.debug("Saving options in UI mode: %s", options)
                     return self.async_create_entry(title="", data=options)
                 else:
                     errors["base"] = "failed_to_save_mapping"
@@ -220,6 +222,8 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                     options[CONF_PHP_FALLBACK_ENABLED] = self._config_entry.options.get(CONF_PHP_FALLBACK_ENABLED, False)
                     options[CONF_PHP_FALLBACK_SCRIPT_NAME] = self._config_entry.options.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")
                     options[CONF_PHP_FALLBACK_TIMEOUT] = self._config_entry.options.get(CONF_PHP_FALLBACK_TIMEOUT, 5)
+                    # Log the options being saved
+                    _LOGGER.debug("Saving options in YAML mode: %s", options)
                     return self.async_create_entry(title="", data=options)
                 else:
                     errors["base"] = "failed_to_save_yaml"
