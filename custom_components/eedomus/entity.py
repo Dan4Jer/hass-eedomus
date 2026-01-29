@@ -619,37 +619,37 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     # Always evaluate advanced rules - never skip this section
     _LOGGER.debug("   all_devices keys count: %d", len(all_devices))
     _LOGGER.info("✅ Checking advanced rules for %s (%s)", periph_name, periph_id)
+
+    # Debug spécifique pour le device 1269454 (RGBW connu)
+    if periph_id == "1269454":
+        _LOGGER.info("🔍 SPECIAL DEBUG: Analyzing RGBW device 1269454")
+        _LOGGER.info("🔍 Device data: name=%s, usage_id=%s, parent_periph_id=%s, PRODUCT_TYPE_ID=%s",
+                    device_data.get("name"), device_data.get("usage_id"), device_data.get("parent_periph_id"), device_data.get("PRODUCT_TYPE_ID"))
         
-        # Debug spécifique pour le device 1269454 (RGBW connu)
+        # Find all children of this device
+        children = [
+            child for child_id, child in all_devices.items()
+            if child.get("parent_periph_id") == periph_id
+        ]
+        _LOGGER.info("🔍 Found %d children for device 1269454: %s", 
+                    len(children), [c["name"] for c in children])
+        
+        # Count children with usage_id=1
+        usage_id_1_children = [
+            child for child_id, child in all_devices.items()
+            if child.get("parent_periph_id") == periph_id and child.get("usage_id") == "1"
+        ]
+        _LOGGER.info("🔍 Found %d children with usage_id=1: %s", 
+                    len(usage_id_1_children), [c["name"] for c in usage_id_1_children])
+        
+        # Log the RGBW children names specifically
+        rgbw_names = [c["name"] for c in usage_id_1_children if "Rouge" in c["name"] or "Vert" in c["name"] or "Bleu" in c["name"] or "Blanc" in c["name"]]
+        _LOGGER.info("🔍 RGBW component names: %s", rgbw_names)
+        
+        # FORCED DEBUG: Confirm we're about to exit the if all_devices block
         if periph_id == "1269454":
-            _LOGGER.info("🔍 SPECIAL DEBUG: Analyzing RGBW device 1269454")
-            _LOGGER.info("🔍 Device data: name=%s, usage_id=%s, parent_periph_id=%s, PRODUCT_TYPE_ID=%s",
-                        device_data.get("name"), device_data.get("usage_id"), device_data.get("parent_periph_id"), device_data.get("PRODUCT_TYPE_ID"))
-            
-            # Find all children of this device
-            children = [
-                child for child_id, child in all_devices.items()
-                if child.get("parent_periph_id") == periph_id
-            ]
-            _LOGGER.info("🔍 Found %d children for device 1269454: %s", 
-                        len(children), [c["name"] for c in children])
-            
-            # Count children with usage_id=1
-            usage_id_1_children = [
-                child for child_id, child in all_devices.items()
-                if child.get("parent_periph_id") == periph_id and child.get("usage_id") == "1"
-            ]
-            _LOGGER.info("🔍 Found %d children with usage_id=1: %s", 
-                        len(usage_id_1_children), [c["name"] for c in usage_id_1_children])
-            
-            # Log the RGBW children names specifically
-            rgbw_names = [c["name"] for c in usage_id_1_children if "Rouge" in c["name"] or "Vert" in c["name"] or "Bleu" in c["name"] or "Blanc" in c["name"]]
-            _LOGGER.info("🔍 RGBW component names: %s", rgbw_names)
-            
-            # FORCED DEBUG: Confirm we're about to exit the if all_devices block
-            if periph_id == "1269454":
-                _LOGGER.error("🚨 FORCED DEBUG (v%s): About to exit if all_devices block - continuing to rule evaluation", VERSION)
-                _LOGGER.error("🚨 FORCED DEBUG: Advanced rules evaluation completed for device 1269454")
+            _LOGGER.error("🚨 FORCED DEBUG (v%s): About to exit if all_devices block - continuing to rule evaluation", VERSION)
+            _LOGGER.error("🚨 FORCED DEBUG: Advanced rules evaluation completed for device 1269454")
     else:
         _LOGGER.error("❌ CRITICAL: all_devices is None or empty for %s (%s)", periph_name, periph_id)
         _LOGGER.error("❌ Advanced rules will NOT be executed - using fallback mapping")
