@@ -15,38 +15,16 @@ version: 1.2
 
 # Advanced mapping rules for complex device detection
 advanced_rules:
-  - name: "rgbw_lamp_with_children"
-    priority: 1
-    conditions:
-      - usage_id: "1"
-      - PRODUCT_TYPE_ID: "2304"
-    mapping:
-      ha_entity: "light"
-      ha_subtype: "rgbw"
-      justification: "RGBW lamp detected by PRODUCT_TYPE_ID=2304"
-      is_dynamic: true
-
-  - name: "rgbw_lamp_flexible"
+  - name: "rgbw_lamp_by_children"
     priority: 1
     conditions:
       - usage_id: "1"
       - min_children: 4
-      - has_children_with_names: ["Rouge", "Vert", "Bleu", "Blanc"]
     mapping:
       ha_entity: "light"
       ha_subtype: "rgbw"
-      justification: "RGBW lamp detected by child names (Rouge, Vert, Bleu, Blanc)"
+      justification: "RGBW lamp detected by having at least 4 children with usage_id=1"
       is_dynamic: true
-    child_mapping:
-      "1":
-        ha_entity: "light"
-        ha_subtype: "brightness"
-        is_dynamic: true
-
-  - name: "RGBW Child Detection"
-    priority: 2
-    conditions:
-      - usage_id: "1"
       - has_parent: true
       - parent_usage_id: "1"
       - parent_has_min_children: 4
