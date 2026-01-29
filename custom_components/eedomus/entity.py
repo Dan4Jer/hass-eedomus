@@ -4,12 +4,24 @@ from __future__ import annotations
 from datetime import datetime
 import re
 import logging
+import os
+import json
 
 from homeassistant.helpers.entity import DeviceInfo, Entity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import ATTR_PERIPH_ID, DOMAIN, EEDOMUS_TO_HA_ATTR_MAPPING
 from .device_mapping import load_and_merge_yaml_mappings, load_yaml_mappings
+
+# Get version from manifest.json
+try:
+    manifest_path = os.path.join(os.path.dirname(__file__), "manifest.json")
+    with open(manifest_path, "r") as f:
+        manifest_data = json.load(f)
+        VERSION = manifest_data.get("version", "unknown")
+except Exception as e:
+    VERSION = "unknown"
+    _LOGGER.warning("Failed to read version from manifest.json: %s", e)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -597,11 +609,11 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         all_devices = {}
     
     # FORCED DEBUG: Log before all_devices check
-    _LOGGER.error("🚨 FORCED DEBUG: Before all_devices check - periph_id=%s (type: %s)", periph_id, type(periph_id))
+    _LOGGER.error("🚨 FORCED DEBUG (v%s): Before all_devices check - periph_id=%s (type: %s)", VERSION, periph_id, type(periph_id))
     if periph_id == "1269454":
-        _LOGGER.error("🚨 FORCED DEBUG: Before all_devices check")
-        _LOGGER.error("🚨 FORCED DEBUG: all_devices value: %s", all_devices)
-        _LOGGER.error("🚨 FORCED DEBUG: all_devices keys: %s", list(all_devices.keys()) if all_devices else None)
+        _LOGGER.error("🚨 FORCED DEBUG (v%s): Before all_devices check", VERSION)
+        _LOGGER.error("🚨 FORCED DEBUG (v%s): all_devices value: %s", VERSION, all_devices)
+        _LOGGER.error("🚨 FORCED DEBUG (v%s): all_devices keys: %s", VERSION, list(all_devices.keys()) if all_devices else None)
     
     if all_devices:
         _LOGGER.debug("   all_devices keys count: %d", len(all_devices))
@@ -732,14 +744,14 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     #                 len(usage_id_1_children), [c["name"] for c in usage_id_1_children])
         
         # Handle both list and dict formats for advanced_rules
-        _LOGGER.error("🚨 FORCED DEBUG: About to handle advanced rules - periph_id=%s", periph_id)
+        _LOGGER.error("🚨 FORCED DEBUG (v%s): About to handle advanced rules - periph_id=%s", VERSION, periph_id)
         # FORCED DEBUG: Log before rule conversion
         if periph_id == "1269454":
-            _LOGGER.error("🚨 FORCED DEBUG: Before rule conversion")
-            _LOGGER.error("🚨 FORCED DEBUG: DEVICE_MAPPINGS.get('advanced_rules') type: %s", 
-                         type(DEVICE_MAPPINGS.get('advanced_rules')))
-            _LOGGER.error("🚨 FORCED DEBUG: DEVICE_MAPPINGS.get('advanced_rules') value: %s", 
-                         DEVICE_MAPPINGS.get('advanced_rules'))
+            _LOGGER.error("🚨 FORCED DEBUG (v%s): Before rule conversion", VERSION)
+            _LOGGER.error("🚨 FORCED DEBUG (v%s): DEVICE_MAPPINGS.get('advanced_rules') type: %s", 
+                         VERSION, type(DEVICE_MAPPINGS.get('advanced_rules')))
+            _LOGGER.error("🚨 FORCED DEBUG (v%s): DEVICE_MAPPINGS.get('advanced_rules') value: %s", 
+                         VERSION, DEVICE_MAPPINGS.get('advanced_rules'))
             _LOGGER.error("🚨 FORCED DEBUG: DEVICE_MAPPINGS keys: %s", list(DEVICE_MAPPINGS.keys()))
         
         advanced_rules_dict = {}
@@ -768,10 +780,10 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
             
             # FORCED DEBUG: Check if rgbw_lamp_with_children rule exists
             if 'rgbw_lamp_with_children' in advanced_rules_dict:
-                _LOGGER.error("🚨 FORCED DEBUG: rgbw_lamp_with_children rule found!")
-                _LOGGER.error("🚨 FORCED DEBUG: Rule config: %s", advanced_rules_dict['rgbw_lamp_with_children'])
+                _LOGGER.error("🚨 FORCED DEBUG (v%s): rgbw_lamp_with_children rule found!", VERSION)
+                _LOGGER.error("🚨 FORCED DEBUG (v%s): Rule config: %s", VERSION, advanced_rules_dict['rgbw_lamp_with_children'])
             else:
-                _LOGGER.error("🚨 FORCED DEBUG: rgbw_lamp_with_children rule NOT FOUND!")
+                _LOGGER.error("🚨 FORCED DEBUG (v%s): rgbw_lamp_with_children rule NOT FOUND!", VERSION)
         
         for rule_name, rule_config in advanced_rules_dict.items():
             # Debug: Log which rule is being evaluated
