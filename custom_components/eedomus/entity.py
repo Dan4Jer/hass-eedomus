@@ -12,6 +12,8 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import ATTR_PERIPH_ID, DOMAIN, EEDOMUS_TO_HA_ATTR_MAPPING
 from .device_mapping import load_and_merge_yaml_mappings, load_yaml_mappings
+from .mapping_registry import register_device_mapping, get_mapping_registry, print_mapping_table, print_mapping_summary
+from .mapping_rules import evaluate_advanced_rules, evaluate_conditions
 
 # Get version from manifest.json
 try:
@@ -100,89 +102,6 @@ except Exception as e:
     NAME_PATTERNS = []
 
 
-# Timestamp formatting utilities
-
-def _format_timestamp_value(timestamp_value: str) -> str:
-    """Format various timestamp values from eedomus into ISO 8601 format.
-    
-    Handles multiple timestamp formats:
-    - Unix timestamp (seconds since epoch)
-    - Datetime string (e.g., "2026-01-10 16:21:14")
-    - Invalid datetime (e.g., "0000-00-00 00:00:00")
-    
-    Args:
-        timestamp_value: The raw timestamp value from eedomus
-        
-    Returns:
-        str: ISO 8601 formatted timestamp or None if invalid
-    """
-    if not timestamp_value or timestamp_value == "None":
-        return None
-        
-    try:
-        # Handle Unix timestamp format (seconds since epoch)
-        if isinstance(timestamp_value, (int, float)) or (isinstance(timestamp_value, str) and timestamp_value.isdigit()):
-            timestamp = int(timestamp_value)
-            dt = datetime.fromtimestamp(timestamp)
-            return dt.isoformat()
-            
-        # Handle datetime string format (e.g., "2026-01-10 16:21:14")
-        if isinstance(timestamp_value, str):
-            timestamp_str = timestamp_value.strip()
-            
-            # Skip invalid datetime strings
-            if timestamp_str == "0000-00-00 00:00:00":
-                return None
-                
-            # Try common datetime formats
-            for fmt in ["%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"]:
-                try:
-                    dt = datetime.strptime(timestamp_str, fmt)
-                    return dt.isoformat()
-                except ValueError:
-                    continue
-                    
-    except (ValueError, TypeError, OverflowError) as e:
-        _LOGGER.debug(
-            "Failed to parse timestamp value '%s': %s",
-            timestamp_value,
-            e
-        )
-        return None
-    
-    return None
-
-
-def _format_eedomus_timestamps(periph_data: dict) -> dict:
-    """Format all eedomus timestamp fields into standardized ISO 8601 format.
-    
-    Processes common eedomus timestamp fields and creates standardized
-    Home Assistant timestamp attributes.
-    
-    Args:
-        periph_data: The peripheral data from eedomus
-        
-    Returns:
-        dict: Dictionary with formatted timestamp attributes
-    """
-    timestamps = {}
-    
-    # Map eedomus timestamp fields to HA attribute names
-    timestamp_mapping = {
-        "last_value_change": ["last_changed", "last_reported"],  # Both attributes get same value
-        "creation_date": ["created"],                           # Single attribute
-    }
-    
-    for eedomus_field, ha_attributes in timestamp_mapping.items():
-        if eedomus_field in periph_data:
-            formatted_timestamp = _format_timestamp_value(periph_data[eedomus_field])
-            if formatted_timestamp:
-                for ha_attr in ha_attributes:
-                    timestamps[ha_attr] = formatted_timestamp
-    
-    return timestamps
-
-
 class EedomusEntity(CoordinatorEntity):
     """Base class for eedomus entities."""
 
@@ -198,365 +117,62 @@ class EedomusEntity(CoordinatorEntity):
             self._attr_name = f"Unknown Device ({periph_id})"
             self._parent_id = None
             self._attr_unique_id = f"{periph_id}"
-            self._attr_available = False
-            return
-            
-        self._parent_id = periph_data.get("parent_periph_id", None)
-        if self.coordinator.client:
-            self._client = self.coordinator.client
-        if self._parent_id is None:
-            self._attr_unique_id = f"{periph_id}"
         else:
-            self._attr_unique_id = f"{self._parent_id}_{periph_id}"
-        if periph_data["name"]:
-            self._attr_name = periph_data["name"]
-        _LOGGER.debug(
-            "Initializing entity for %s (%s)", self._attr_name, self._periph_id
-        )
-        self._attr_available = True
+            self._attr_name = periph_data.get("name", f"Unknown Device ({periph_id})")
+            self._parent_id = periph_data.get("parent_periph_id", None)
+            self._attr_unique_id = f"{periph_id}"
 
-    def _get_periph_data(self, periph_id: str = None):
-        """Safely get peripheral data from coordinator."""
-        target_id = periph_id or self._periph_id
-        if self.coordinator.data is None:
-            _LOGGER.warning(f"Coordinator data is None, cannot get data for {target_id}")
+    def _get_periph_data(self, periph_id: str):
+        """Get peripheral data from coordinator."""
+        if not hasattr(self.coordinator, 'data') or not self.coordinator.data:
             return None
-        return self.coordinator.data.get(target_id)
+        return self.coordinator.data.get(periph_id)
 
     @property
     def device_info(self) -> DeviceInfo:
         """Return device information."""
-        periph_info = self._get_periph_data()
-        if periph_info is None:
+        periph_data = self._get_periph_data(self._periph_id)
+        if not periph_data:
             return DeviceInfo(
-                identifiers={(DOMAIN, str(self._periph_id))},
-                name=f"Unknown Device {self._periph_id}",
-                manufacturer="eedomus",
-                model="unknown",
+                identifiers={(DOMAIN, self._periph_id)},
+                name=f"Unknown Device ({self._periph_id})",
+                manufacturer="Eedomus",
             )
+        
+        device_name = periph_data.get("name", f"Unknown Device ({self._periph_id})")
+        parent_id = periph_data.get("parent_periph_id")
+        
+        # If this device has a parent, use the parent's info
+        if parent_id and hasattr(self.coordinator, 'data') and parent_id in self.coordinator.data:
+            parent_data = self.coordinator.data[parent_id]
+            parent_name = parent_data.get("name", f"Unknown Parent ({parent_id})")
+            
+            return DeviceInfo(
+                identifiers={(DOMAIN, parent_id)},
+                name=parent_name,
+                manufacturer="Eedomus",
+                model=parent_data.get("PRODUCT_TYPE_ID", "Unknown"),
+                via_device=(DOMAIN, self._periph_id),
+            )
+        
+        # Otherwise, use this device's info
         return DeviceInfo(
-            identifiers={(DOMAIN, str(self._periph_id))},
-            name=periph_info.get("name"),
-            manufacturer="eedomus",
-            model=periph_info.get("model"),
+            identifiers={(DOMAIN, self._periph_id)},
+            name=device_name,
+            manufacturer="Eedomus",
+            model=periph_data.get("PRODUCT_TYPE_ID", "Unknown"),
         )
 
-    @property
-    def extra_state_attributes(self):
-        """Return the state attributes."""
-        attrs = {}
-        if self.coordinator.data is not None and self.coordinator.data.get(self._periph_id):
-            periph_data = self.coordinator.data[self._periph_id]
-            attrs[ATTR_PERIPH_ID] = self._periph_id
+    async def async_update(self):
+        """Update the entity state."""
+        await self.coordinator.async_request_refresh()
 
-            # Map standard eedomus attributes
-            for eedomus_key, ha_key in EEDOMUS_TO_HA_ATTR_MAPPING.items():
-                if eedomus_key in periph_data:
-                    attrs[ha_key] = periph_data[eedomus_key]
-            
-            # Format all timestamp fields using the centralized utility
-            timestamp_attrs = _format_eedomus_timestamps(periph_data)
-            attrs.update(timestamp_attrs)
-            
-            # Add current timestamp for last_updated (when HA last updated this entity)
-            attrs["last_updated"] = datetime.now().isoformat()
-            
-            # Ensure usage_id is always included in attributes
-            if "usage_id" in periph_data:
-                attrs["usage_id"] = periph_data["usage_id"]
-            
-        return attrs
-
-    @property
-    def available(self):
-        """Return the periph ID."""
-        return self._attr_available
-
-    @property
-    def periph_id(self):
-        """Return the periph ID."""
-        return self._periph_id
-
-    def update(self) -> None:
-        """Update entity state."""
-        _LOGGER.info(
-            "Update for %s (%s) type=%s client=%s",
-            self._attr_name,
-            self._periph_id,
-            type(self),
-            type(self._client),
-        )
-        try:
-            caract_value = self._client.get_periph_caract(self._periph_id)
-            if isinstance(caract_value, dict):
-                body = caract_value.get("body")
-                if body is not None:
-                    periph_data = self._get_periph_data()
-                    if periph_data is not None:
-                        periph_data.update(body)
-                    else:
-                        _LOGGER.warning(
-                            "Cannot update characteristics: peripheral data not found for %s (%s)",
-                            self._attr_name,
-                            self._periph_id,
-                        )
-                else:
-                    _LOGGER.warning(
-                        "No body found in API response for %s (%s)",
-                        self._attr_name,
-                        self._periph_id,
-                    )
-        except Exception as e:
-            if self.available:  # Read current state, no need to prefix with _attr_
-                _LOGGER.warning(
-                    "Update failed for %s (%s) : %s",
-                    self._attr_name,
-                    self._periph_id,
-                    e,
-                )
-                self._attr_available = False  # Set property value
-                return
-
-        self._attr_available = True
-        # We don't need to check if device available here
-        if "last_value" in self.coordinator.data[self._periph_id]:
-            self._attr_native_value = self.coordinator.data[self._periph_id]["last_value"]
-        else:
-            _LOGGER.warning(
-                "No last_value found in data for %s (%s)",
-                self._attr_name,
-                self._periph_id,
-            )
-            self._attr_available = False
-
-    async def async_update(self) -> None:
-        """Update entity state."""
-        _LOGGER.info(
-            "Async Update for %s (%s) type=%s client=%s",
-            self._attr_name,
-            self._periph_id,
-            type(self),
-            type(self._client),
-        )
-        try:
-            caract_value = await self._client.get_periph_caract(self._periph_id)
-            if isinstance(caract_value, dict):
-                body = caract_value.get("body")
-                if body is not None:
-                    periph_data = self._get_periph_data()
-                    if periph_data is not None:
-                        periph_data.update(body)
-                    else:
-                        _LOGGER.warning(
-                            "Cannot update characteristics: peripheral data not found for %s (%s)",
-                            self._attr_name,
-                            self._periph_id,
-                        )
-                else:
-                    _LOGGER.warning(
-                        "No body found in API response for %s (%s)",
-                        self._attr_name,
-                        self._periph_id,
-                    )
-        except Exception as e:
-            if self.available:  # Read current state, no need to prefix with _attr_
-                _LOGGER.warning(
-                    "Update failed for %s (%s) : %s",
-                    self._attr_name,
-                    self._periph_id,
-                    e,
-                )
-                self._attr_available = False  # Set property value
-                return
-
-        self._attr_available = True
-        # We don't need to check if device available here
-        periph_data = self._get_periph_data()
-        if periph_data is not None:
-            self._attr_native_value = periph_data["last_value"]
-            periph_data["last_updated"] = datetime.now().isoformat()
-        else:
-            _LOGGER.warning(f"Cannot update native value: peripheral data not found for {self._periph_id}")
-            self._attr_native_value = None
-
-    async def async_set_value(self, value: str):
-        """Set device value with full eedomus logic including fallback and retry.
-        
-        This method centralizes all value-setting logic including:
-        - PHP fallback for rejected values
-        - Next best value selection
-        - Immediate state updates
-        - Coordinator refresh
-        
-        Args:
-            value: The value to set (e.g., "100", "0", "50")
-            
-        Returns:
-            dict: API response from eedomus
-            
-        Raises:
-            Exception: If the value cannot be set after all retry attempts
-        """
-        _LOGGER.debug(
-            "Setting value '%s' for %s (%s)",
-            value,
-            self._attr_name,
-            self._periph_id
-        )
-        
-
-        
-        try:
-            # Verify periph_id is not None before calling set_value
-            if self._periph_id is None:
-                _LOGGER.error("Cannot set value: periph_id is None for entity %s", self._attr_name)
-                return {"success": 0, "error": "periph_id is None"}
-                
-            # Call coordinator method to set the value
-            response = await self.coordinator.async_set_periph_value(
-                self._periph_id, str(value)
-            )
-            
-            # Check if we need to handle retry/fallback
-            if isinstance(response, dict):
-                if response.get("success") == 1:
-                    # Success! Force immediate state update
-                    await self.async_force_state_update(value)
-                    await self.coordinator.async_request_refresh()
-                    return response
-                elif response.get("error_code") == "6":  # Value refused
-                    _LOGGER.warning(
-                        "Value '%s' refused for %s (%s), checking fallback/next best value",
-                        value,
-                        self._attr_name,
-                        self._periph_id
-                    )
-                    # The coordinator already handled retry/fallback, just update state
-                    await self.async_force_state_update(value)
-                    await self.coordinator.async_request_refresh()
-                    return response
-            
-            # If we get here, something went wrong
-            error_msg = "Unknown error"
-            if response is None:
-                error_msg = "API returned None response"
-            elif isinstance(response, dict):
-                error_msg = response.get("error", "Unknown error")
-            else:
-                error_msg = str(response)
-            
-            _LOGGER.error(
-                "Failed to set value '%s' for %s (%s): %s",
-                value,
-                self._attr_name,
-                self._periph_id,
-                error_msg
-            )
-            raise Exception(f"Failed to set value: {error_msg}")
-            
-        except Exception as e:
-            _LOGGER.error(
-                "Failed to set value for %s (%s): %s",
-                self._attr_name,
-                self._periph_id,
-                e
-            )
-            raise
-
-    async def async_force_state_update(self, new_value):
-        """Force an immediate state update with the given value.
-        
-        This method should be called after successfully setting a device value
-        to ensure the UI updates immediately without waiting for coordinator refresh.
-        """
-        _LOGGER.debug(
-            "Forcing state update for %s (%s) to value: %s",
-            self._attr_name,
-            self._periph_id,
-            new_value
-        )
-        
-        # Update the coordinator's data
-        periph_data = self._get_periph_data()
-        if periph_data is not None:
-            periph_data["last_value"] = str(new_value)
-            # Update last_value_change timestamp to current time
-            # This is crucial for covers and other entities that track when values were last changed
-            from datetime import datetime
-            current_timestamp = datetime.now().isoformat()
-            periph_data["last_value_change"] = current_timestamp
-            _LOGGER.debug(
-                "Updated last_value_change for %s (%s) to: %s",
-                self._attr_name,
-                self._periph_id,
-                current_timestamp
-            )
-        else:
-            _LOGGER.warning(f"Cannot force state update: peripheral data not found for {self._periph_id}")
-        
-        # Force immediate state update in Home Assistant using explicit state machine
-        # This ensures we control the timestamp precisely
-        try:
-            # Get the timestamp from last_value_change
-            periph_data = self._get_periph_data()
-            if periph_data is None:
-                _LOGGER.warning(f"Cannot get last_value_change: peripheral data not found for {self._periph_id}")
-                return
-                
-            last_value_change = periph_data.get("last_value_change")
-            if last_value_change:
-                # Convert ISO format timestamp to datetime object
-                desired_dt = datetime.fromisoformat(last_value_change)
-                desired_ts = desired_dt.timestamp()
-                
-                _LOGGER.debug(
-                    "Setting explicit state for %s (%s) with timestamp %s",
-                    self._attr_name,
-                    self._periph_id,
-                    desired_ts
-                )
-                
-                # Use state machine to set state with precise timestamp
-                if hasattr(self, 'hass') and hasattr(self, 'entity_id'):
-                    self.hass.states.async_set(
-                        self.entity_id,
-                        str(self._attr_native_value) if hasattr(self, '_attr_native_value') else str(new_value),
-                        self.extra_state_attributes,
-                        force_update=True,
-                        timestamp=desired_ts,
-                    )
-                else:
-                    _LOGGER.warning(
-                        "Cannot set explicit state - missing hass or entity_id for %s (%s)",
-                        self._attr_name,
-                        self._periph_id
-                    )
-                    # Fallback to standard method
-                    self.async_write_ha_state()
-            else:
-                _LOGGER.warning(
-                    "No last_value_change timestamp available for %s (%s)",
-                    self._attr_name,
-                    self._periph_id
-                )
-                # Fallback to standard method
-                self.async_write_ha_state()
-        except Exception as e:
-            _LOGGER.error(
-                "Failed to set explicit state for %s (%s): %s",
-                self._attr_name,
-                self._periph_id,
-                e
-            )
-            # Fallback to standard method
-            self.async_write_ha_state()
-        
+    async def async_added_to_hass(self):
+        """Call when the entity is added to Home Assistant."""
+        await super().async_added_to_hass()
         # Schedule a regular update to ensure consistency
         self.async_schedule_update_ha_state()
 
-
-# Liste globale pour stocker tous les mappings
-_MAPPING_REGISTRY = []
 
 def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: str = "sensor"):
     """Mappe un périphérique eedomus vers une entité Home Assistant.
@@ -567,83 +183,23 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     3. Mapping basé sur usage_id
     4. Détection par nom (dernier recours)
     5. Mapping par défaut
-    
-    Args:
-        device_data (dict): Données du périphérique.
-        all_devices (dict): Tous les périphériques pour les règles avancées.
-        default_ha_entity (str): Entité HA par défaut.
-    
-    Returns:
-        dict: {"ha_entity": str, "ha_subtype": str, "justification": str}
     """
-    # Utiliser les mappings chargés globalement
-    # from .device_mapping import ADVANCED_MAPPING_RULES
-    
     periph_id = device_data["periph_id"]
     periph_name = device_data["name"]
     usage_id = device_data.get("usage_id")
     
     _LOGGER.debug("Mapping device: %s (%s, usage_id=%s)", periph_name, periph_id, usage_id)
     
+    # Debug spécifique pour le device 1269454 (RGBW connu)
     if periph_id == "1269454":
-        if all_devices:
-            children = [
-                child for child_id, child in all_devices.items()
-                if child.get("parent_periph_id") == periph_id
-            ]
-            _LOGGER.debug("Found %d children for device %s: %s", 
-                         len(children), [c["name"] for c in children])
-    
-    # Debug: Log the number of advanced rules loaded
-    _LOGGER.debug("Number of advanced rules loaded: %d", len(DEVICE_MAPPINGS.get('advanced_rules', [])))
-    
-    # Priorité 1: Règles avancées (nécessite all_devices)
-    _LOGGER.debug("🔍 Starting mapping process for %s (%s)", periph_name, periph_id)
-    _LOGGER.debug("   all_devices available: %s", bool(all_devices))
-    _LOGGER.debug("   all_devices type: %s", type(all_devices))
+        _LOGGER.debug("🔍 SPECIAL DEBUG: Starting advanced rules evaluation for RGBW device 1269454")
     
     # Fix: Ensure all_devices is never None or empty - create empty dict if needed
     if all_devices is None or not all_devices:
         _LOGGER.warning("⚠️  all_devices is None or empty, creating empty dict to allow advanced rules evaluation")
         all_devices = {}
     
-    if periph_id == "1269454":
-        _LOGGER.debug("🔍 SPECIAL DEBUG: Starting advanced rules evaluation for RGBW device 1269454")
-
-    # Always evaluate advanced rules - never skip this section
-    _LOGGER.debug("   all_devices keys count: %d", len(all_devices))
-    _LOGGER.debug("✅ Checking advanced rules for %s (%s)", periph_name, periph_id)
-
-    # Debug spécifique pour le device 1269454 (RGBW connu)
-    if periph_id == "1269454":
-        _LOGGER.debug("🔍 SPECIAL DEBUG: Analyzing RGBW device 1269454")
-        _LOGGER.debug("🔍 Device data: name=%s, usage_id=%s, parent_periph_id=%s, PRODUCT_TYPE_ID=%s",
-                    device_data.get("name"), device_data.get("usage_id"), device_data.get("parent_periph_id"), device_data.get("PRODUCT_TYPE_ID"))
-        
-        # Find all children of this device
-        children = [
-            child for child_id, child in all_devices.items()
-            if child.get("parent_periph_id") == periph_id
-        ]
-        _LOGGER.debug("🔍 Found %d children for device 1269454: %s", 
-                    len(children), [c["name"] for c in children])
-        
-        # Count children with usage_id=1
-        usage_id_1_children = [
-            child for child_id, child in all_devices.items()
-            if child.get("parent_periph_id") == periph_id and child.get("usage_id") == "1"
-        ]
-        _LOGGER.debug("🔍 Found %d children with usage_id=1: %s", 
-                    len(usage_id_1_children), [c["name"] for c in usage_id_1_children])
-        
-        # Log the RGBW children names specifically
-        rgbw_names = [c["name"] for c in usage_id_1_children if "Rouge" in c["name"] or "Vert" in c["name"] or "Bleu" in c["name"] or "Blanc" in c["name"]]
-        _LOGGER.debug("🔍 RGBW component names: %s", rgbw_names)
-        
-        if periph_id == "1269454":
-            _LOGGER.debug("SPECIAL DEBUG: Device 1269454 - RGBW detection triggered")
-
-    # Advanced rules evaluation - this should ALWAYS be executed
+    # Priorité 1: Règles avancées (nécessite all_devices)
     # Handle both list and dict formats for advanced_rules
     if periph_id == "1269454":
         _LOGGER.debug("SPECIAL DEBUG (v%s): Device 1269454 - advanced_rules type: %s", 
@@ -680,280 +236,81 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     
     if periph_id == "1269454":
         _LOGGER.debug("SPECIAL DEBUG: Device 1269454 - analyzing children")
-    #     
-    #     # Find all children of this device
-    #     children = [
-    #         child for child_id, child in all_devices.items()
-    #         if child.get("parent_periph_id") == periph_id
-    #     ]
-    #     _LOGGER.info("🔍 Found %d children for device 1269454: %s", 
-    #                 len(children), [c["name"] for c in children])
-    #     
-    #     # Count children with usage_id=1
-    #     usage_id_1_children = [
-    #         child for child_id, child in all_devices.items()
-    #         if child.get("parent_periph_id") == periph_id and child.get("usage_id") == "1"
-    #     ]
-    #     _LOGGER.info("🔍 Found %d children with usage_id=1: %s", 
-    #                 len(usage_id_1_children), [c["name"] for c in usage_id_1_children])
+    
+    for rule_name, rule_config in advanced_rules_dict.items():
+        # Debug: Log which rule is being evaluated
+        _LOGGER.debug("🔍 Evaluating rule '%s' for device %s (%s)", 
+                     rule_name, periph_name, periph_id)
         
-        # Handle both list and dict formats for advanced_rules
-        if periph_id == "1269454":
-            _LOGGER.debug("SPECIAL DEBUG (v%s): Device 1269454 - advanced_rules type: %s", 
-                         VERSION, type(DEVICE_MAPPINGS.get('advanced_rules')))
-            _LOGGER.debug("SPECIAL DEBUG (v%s): Device 1269454 - advanced_rules content: %s", 
-                         VERSION, DEVICE_MAPPINGS.get('advanced_rules'))
+        # Special debug for RGBW rules
+        if periph_id == "1269454" and rule_name in ["rgbw_lamp_by_children", "rgbw_lamp_flexible"]:
+            _LOGGER.debug("SPECIAL DEBUG: Evaluating RGBW rule '%s' for device 1269454", rule_name)
         
-        advanced_rules_dict = {}
-        if isinstance(DEVICE_MAPPINGS.get('advanced_rules'), list):
-            # Convert list of rules to dict format for compatibility
-            for rule in DEVICE_MAPPINGS.get('advanced_rules', []):
-                if isinstance(rule, dict) and 'name' in rule:
-                    advanced_rules_dict[rule['name']] = rule
+        # Check if we have a condition function or conditions list
+        if "condition" in rule_config:
+            # Use the condition function if provided
+            _LOGGER.debug("🔍 Using condition function for rule '%s'", rule_name)
+            condition_result = rule_config["condition"](device_data, all_devices)
+        elif "conditions" in rule_config:
+            # Evaluate conditions list from YAML
+            _LOGGER.debug("🔍 Using conditions list for rule '%s'", rule_name)
+            condition_result = evaluate_conditions(rule_config["conditions"], device_data, all_devices, periph_id, rule_name)
         else:
-            advanced_rules_dict = DEVICE_MAPPINGS.get('advanced_rules', {})
+            _LOGGER.warning("No condition or conditions found in rule: %s", rule_name)
+            condition_result = False
         
-        # Debug: Log if advanced_rules_dict is empty
-        if not advanced_rules_dict:
-            _LOGGER.error("❌ CRITICAL: advanced_rules_dict is empty for device %s (%s)", 
-                         periph_name, periph_id)
-            _LOGGER.error("❌ This means no advanced rules will be evaluated!")
-        else:
-            _LOGGER.debug("✅ advanced_rules_dict has %d rules for device %s (%s)", 
-                         len(advanced_rules_dict), periph_name, periph_id)
-            _LOGGER.debug("✅ Rule names: %s", list(advanced_rules_dict.keys()))
+        _LOGGER.debug("Advanced rule '%s' for %s (%s): condition_result=%s",
+                     rule_name, periph_name, periph_id, condition_result)
         
+        # Special debug for device 1269454
         if periph_id == "1269454":
-            _LOGGER.debug("SPECIAL DEBUG: Device 1269454 - checking rgbw_lamp_by_children rule")
-            
-            if 'rgbw_lamp_by_children' in advanced_rules_dict:
-                _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_by_children rule found")
-            else:
-                _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_by_children rule NOT found")
-        
-        if periph_id == "1269454":
-            _LOGGER.debug("SPECIAL DEBUG: Device 1269454 - analyzing children")
-        
-        for rule_name, rule_config in advanced_rules_dict.items():
-            # Debug: Log which rule is being evaluated
-            _LOGGER.debug("🔍 Evaluating rule '%s' for device %s (%s)", 
-                         rule_name, periph_name, periph_id)
-            
-            # Special debug for RGBW rules
-            if periph_id == "1269454" and rule_name in ["rgbw_lamp_by_children", "rgbw_lamp_flexible"]:
-                _LOGGER.debug("SPECIAL DEBUG: Evaluating RGBW rule '%s' for device 1269454", rule_name)
-            
-            # Check if we have a condition function or conditions list
-            if "condition" in rule_config:
-                # Use the condition function if provided
-                _LOGGER.debug("🔍 Using condition function for rule '%s'", rule_name)
-                condition_result = rule_config["condition"](device_data, all_devices)
-            elif "conditions" in rule_config:
-                # Evaluate conditions list from YAML
-                _LOGGER.debug("🔍 Using conditions list for rule '%s'", rule_name)
-                condition_result = True
+            if rule_name == "rgbw_lamp_by_children":
+                _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_by_children - usage_id check: %s == %s", 
+                             device_data.get("usage_id") == "1", device_data.get("usage_id"))
+                _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_by_children - PRODUCT_TYPE_ID check: %s == %s", 
+                             device_data.get("PRODUCT_TYPE_ID") == "2304", device_data.get("PRODUCT_TYPE_ID"))
+                child_count = sum(1 for child_id, child in all_devices.items()
+                                 if child.get("parent_periph_id") == periph_id)
+                _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_by_children - child_count check: %s >= 4", 
+                             child_count)
+            elif rule_name == "rgbw_lamp_flexible":
+                _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_flexible - usage_id check: %s == %s", 
+                             device_data.get("usage_id") == "1", device_data.get("usage_id"))
+                total_children = len([child for child_id, child in all_devices.items()
+                                    if child.get("parent_periph_id") == periph_id])
+                _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_flexible - total_children check: %s >= 4", 
+                             total_children)
                 
-                # Special debug for device 1269454
-                if periph_id == "1269454" and rule_name == "rgbw_lamp_by_children":
-                    _LOGGER.debug("🔍 SPECIAL DEBUG: Evaluating rgbw_lamp_by_children conditions for device 1269454")
-                    _LOGGER.debug("🔍 Device usage_id: %s", device_data.get("usage_id"))
-                    if all_devices:
-                        children = [
-                            child for child_id, child in all_devices.items()
-                            if child.get("parent_periph_id") == periph_id
-                        ]
-                        _LOGGER.debug("🔍 Number of children: %d", len(children))
-                        _LOGGER.debug("🔍 Children details: %s", [
-                            {"id": child_id, "name": child.get("name"), "usage_id": child.get("usage_id")}
-                            for child_id, child in all_devices.items()
-                            if child.get("parent_periph_id") == periph_id
-                        ])
-                
-                # Special debug for RGBW children (1269455-1269458)
-                if periph_id in ["1269455", "1269456", "1269457", "1269458"] and rule_name == "rgbw_child_brightness":
-                    _LOGGER.debug("🔍 SPECIAL DEBUG: Evaluating rgbw_child_brightness conditions for device %s", periph_id)
-                    _LOGGER.debug("🔍 Device usage_id: %s", device_data.get("usage_id"))
-                    _LOGGER.debug("🔍 Parent periph_id: %s", device_data.get("parent_periph_id"))
-                    if all_devices and device_data.get("parent_periph_id"):
-                        parent_id = device_data.get("parent_periph_id")
-                        parent = all_devices.get(parent_id, {})
-                        _LOGGER.debug("🔍 Parent device %s: name=%s, usage_id=%s", 
-                                    parent_id, parent.get("name"), parent.get("usage_id"))
-                        parent_children = [
-                            child for child_id, child in all_devices.items()
-                            if child.get("parent_periph_id") == parent_id
-                        ]
-                        _LOGGER.debug("🔍 Parent has %d children", len(parent_children))
-                
-                for condition in rule_config["conditions"]:
-                    for cond_key, cond_value in condition.items():
-                        if cond_key == "usage_id":
-                            if device_data.get("usage_id") != cond_value:
-                                condition_result = False
-                                break
-                        elif cond_key == "min_children":
-                            if not all_devices:
-                                condition_result = False
-                                break
-                            children = [
-                                child for child_id, child in all_devices.items()
-                                if child.get("parent_periph_id") == periph_id
-                            ]
-                            if len(children) < int(cond_value):
-                                condition_result = False
-                                break
+                # Check children names
+                children = [child for child_id, child in all_devices.items()
+                           if child.get("parent_periph_id") == periph_id]
 
-
-                        elif cond_key == "child_usage_id":
-                            if not all_devices:
-                                condition_result = False
-                                break
-                            children = [
-                                child for child_id, child in all_devices.items()
-                                if child.get("parent_periph_id") == periph_id and child.get("usage_id") == cond_value
-                            ]
-                            if len(children) < 1:
-                                condition_result = False
-                                break
-                        elif cond_key == "PRODUCT_TYPE_ID":
-                            if device_data.get("PRODUCT_TYPE_ID") != cond_value:
-                                condition_result = False
-                                break
-                        elif cond_key == "has_parent":
-                            if not device_data.get("parent_periph_id"):
-                                condition_result = False
-                                break
-                        elif cond_key == "parent_usage_id":
-                            if not device_data.get("parent_periph_id"):
-                                condition_result = False
-                                break
-                            parent_id = device_data.get("parent_periph_id")
-                            parent = all_devices.get(parent_id, {})
-                            if parent.get("usage_id") != cond_value:
-                                condition_result = False
-                                break
-                        elif cond_key == "parent_has_min_children":
-                            if not device_data.get("parent_periph_id"):
-                                condition_result = False
-                                break
-                            parent_id = device_data.get("parent_periph_id")
-                            parent_children = [
-                                child for child_id, child in all_devices.items()
-                                if child.get("parent_periph_id") == parent_id
-                            ]
-                            if len(parent_children) < int(cond_value):
-                                condition_result = False
-                                break
-                
-                # Special debug for device 1269454
-                if periph_id == "1269454" and rule_name == "rgbw_lamp_by_children":
-                    _LOGGER.debug("🔍 SPECIAL DEBUG: rgbw_lamp_by_children condition result: %s", condition_result)
-                    if condition_result:
-                        _LOGGER.debug("✅ rgbw_lamp_by_children rule PASSED for device 1269454")
-                    else:
-                        _LOGGER.debug("❌ rgbw_lamp_by_children rule FAILED for device 1269454")
-                
-                # Special debug for RGBW children (1269455-1269458)
-                if periph_id in ["1269455", "1269456", "1269457", "1269458"] and rule_name == "rgbw_child_brightness":
-                    _LOGGER.debug("🔍 SPECIAL DEBUG: rgbw_child_brightness condition result: %s", condition_result)
-                    if condition_result:
-                        _LOGGER.debug("✅ rgbw_child_brightness rule PASSED for device %s", periph_id)
-                    else:
-                        _LOGGER.debug("❌ rgbw_child_brightness rule FAILED for device %s", periph_id)
-                        
-                elif cond_key == "has_children_with_names":
-                            if not all_devices:
-                                condition_result = False
-                                break
-                            # Check if device has children with specific names
-                            required_names = cond_value if isinstance(cond_value, list) else [cond_value]
-                            children = [
-                                child for child_id, child in all_devices.items()
-                                if child.get("parent_periph_id") == periph_id
-                            ]
-                            child_names = [child.get("name", "").lower() for child in children]
-                            
-                            # Special debug for device 1269454
-                            if periph_id == "1269454":
-                                for required_name in required_names:
-                                    found = any(required_name.lower() in child_name for child_name in child_names)
-                                    if found:
-                                        matching_children = [name for name in child_names if required_name.lower() in name]
-                            
-                            # Check if all required names are present in children
-                            all_found = all(
-                                any(required_name.lower() in child_name for child_name in child_names)
-                                for required_name in required_names
-                            )
-                            
-                            if not all_found:
-                                condition_result = False
-                                # Special debug for device 1269454
-                                if periph_id == "1269454":
-                                    missing_names = [name for name in required_names if not any(name.lower() in child_name for child_name in child_names)]
-                                break
-                        else:
-                            _LOGGER.warning("Unknown condition key: %s", cond_key)
-                            condition_result = False
-                            break
-                    if not condition_result:
-                        break
-            else:
-                _LOGGER.warning("No condition or conditions found in rule: %s", rule_name)
-                condition_result = False
-            
-            _LOGGER.debug("Advanced rule '%s' for %s (%s): condition_result=%s",
-                         rule_name, periph_name, periph_id, condition_result)
+        if condition_result:
+            # Log spécifique pour le débogage RGBW
+            if rule_name == "rgbw_lamp_by_children":
+                rgbw_children = [
+                    child for child_id, child in all_devices.items()
+                    if child.get("parent_periph_id") == periph_id and child.get("usage_id") == "1"
+                ]
+                _LOGGER.debug("RGBW detection for %s (%s): found %d children with usage_id=1: %s",
+                            periph_name, periph_id, len(rgbw_children),
+                            [c["name"] for c in rgbw_children])
             
             # Special debug for device 1269454
             if periph_id == "1269454":
-                if rule_name == "rgbw_lamp_by_children":
-                    _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_by_children - usage_id check: %s == %s", 
-                                 device_data.get("usage_id") == "1", device_data.get("usage_id"))
-                    _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_by_children - PRODUCT_TYPE_ID check: %s == %s", 
-                                 device_data.get("PRODUCT_TYPE_ID") == "2304", device_data.get("PRODUCT_TYPE_ID"))
-                    child_count = sum(1 for child_id, child in all_devices.items()
-                                     if child.get("parent_periph_id") == periph_id)
-                    _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_by_children - child_count check: %s >= 4", 
-                                 child_count)
-                elif rule_name == "rgbw_lamp_flexible":
-                    _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_flexible - usage_id check: %s == %s", 
-                                 device_data.get("usage_id") == "1", device_data.get("usage_id"))
-                    total_children = len([child for child_id, child in all_devices.items()
-                                        if child.get("parent_periph_id") == periph_id])
-                    _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_flexible - total_children check: %s >= 4", 
-                                 total_children)
-                    
-                    # Check children names
-                    children = [child for child_id, child in all_devices.items()
-                               if child.get("parent_periph_id") == periph_id]
+                _LOGGER.debug("SPECIAL DEBUG: Device 1269454 - rule mapping: %s/%s", 
+                             rule_config["mapping"]["ha_entity"], rule_config["mapping"]["ha_subtype"])
+                _LOGGER.debug("✅ rgbw_lamp_by_children rule APPLIED for device 1269454!")
+                _LOGGER.debug("✅ Mapping: %s:%s", 
+                            rule_config["mapping"]["ha_entity"], rule_config["mapping"]["ha_subtype"])
             
-            if condition_result:
-                # Log spécifique pour le débogage RGBW
-                if rule_name == "rgbw_lamp_by_children":
-                    rgbw_children = [
-                        child for child_id, child in all_devices.items()
-                        if child.get("parent_periph_id") == periph_id and child.get("usage_id") == "1"
-                    ]
-                    _LOGGER.debug("RGBW detection for %s (%s): found %d children with usage_id=1: %s",
-                                periph_name, periph_id, len(rgbw_children),
-                                [c["name"] for c in rgbw_children])
-                
-                # Special debug for device 1269454
-                if periph_id == "1269454":
-                    _LOGGER.debug("SPECIAL DEBUG: Device 1269454 - rule mapping: %s/%s", 
-                                 rule_config["mapping"]["ha_entity"], rule_config["mapping"]["ha_subtype"])
-                    _LOGGER.debug("✅ rgbw_lamp_by_children rule APPLIED for device 1269454!")
-                    _LOGGER.debug("✅ Mapping: %s:%s", 
-                                rule_config["mapping"]["ha_entity"], rule_config["mapping"]["ha_subtype"])
-                
-                # Special debug for RGBW children (1269455-1269458)
-                if periph_id in ["1269455", "1269456", "1269457", "1269458"]:
-                    _LOGGER.debug("✅ rgbw_child_brightness rule APPLIED for device %s!", periph_id)
-                    _LOGGER.debug("✅ Mapping: %s:%s", 
-                                rule_config["mapping"]["ha_entity"], rule_config["mapping"]["ha_subtype"])
-                
-                return _create_mapping(rule_config["mapping"], periph_name, periph_id, rule_name, "🎯 Advanced rule", device_data)
+            # Special debug for RGBW children (1269455-1269458)
+            if periph_id in ["1269455", "1269456", "1269457", "1269458"]:
+                _LOGGER.debug("✅ rgbw_child_brightness rule APPLIED for device %s!", periph_id)
+                _LOGGER.debug("✅ Mapping: %s:%s", 
+                            rule_config["mapping"]["ha_entity"], rule_config["mapping"]["ha_subtype"])
+            
+            return _create_mapping(rule_config["mapping"], periph_name, periph_id, rule_name, "🎯 Advanced rule", device_data)
     
     # Priorité 2: Cas spécifiques critiques (usage_id)
     specific_cases = {
@@ -1005,7 +362,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                     
                     # Special debug for device 1269454
                     if periph_id == "1269454":
-                        _LOGGER.info("🔍 Advanced rule '%s' for usage_id mapping: %s", 
+                        _LOGGER.debug("🔍 Advanced rule '%s' for usage_id mapping: %s", 
                                     rule_name, advanced_rule_result)
                     
                     if advanced_rule_result:
@@ -1014,7 +371,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                             "ha_subtype": rule_config["mapping"]["ha_subtype"],
                             "justification": f"Advanced rule {rule_name}: {rule_config['mapping']['justification']}",
                         })
-                        _LOGGER.info("🎯 Advanced rule applied: %s (%s) → %s:%s", 
+                        _LOGGER.debug("🎯 Advanced rule applied: %s (%s) → %s:%s", 
                                    periph_name, periph_id, mapping["ha_entity"], mapping["ha_subtype"])
                         break
         
@@ -1023,9 +380,9 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         
         # Special debug for device 1269454
         if periph_id == "1269454":
-            _LOGGER.info("🔍 FINAL mapping decision for device 1269454: %s:%s",
+            _LOGGER.debug("🔍 FINAL mapping decision for device 1269454: %s:%s",
                         mapping["ha_entity"], mapping["ha_subtype"])
-            _LOGGER.info("🔍 Justification: %s", mapping["justification"])
+            _LOGGER.debug("🔍 Justification: %s", mapping["justification"])
         
         return mapping
     
@@ -1042,7 +399,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                 "device_class": pattern.get('device_class'),
                 "icon": pattern.get('icon')
             }
-            _LOGGER.info("🎯 Name pattern matched: %s (%s) → %s:%s (pattern: %s)",
+            _LOGGER.debug("🎯 Name pattern matched: %s (%s) → %s:%s (pattern: %s)",
                         periph_name, periph_id, mapping["ha_entity"], mapping["ha_subtype"], pattern['pattern'])
             return mapping
     
@@ -1091,6 +448,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                     periph_name, periph_id, mapping["ha_entity"], mapping["ha_subtype"], device_data)
     return mapping
 
+
 def _create_mapping(mapping_config, periph_name, periph_id, context, emoji="🎯", device_data=None):
     """Crée un mapping standardisé avec logging approprié."""
     # mapping_config peut être soit la section 'mapping' directement, soit la règle complète
@@ -1122,76 +480,6 @@ def _create_mapping(mapping_config, periph_name, periph_id, context, emoji="🎯
                   mapping["justification"])
     
     # Stocker le mapping dans le registre global
-    _register_device_mapping(mapping, periph_name, periph_id, device_data)
+    register_device_mapping(mapping, periph_name, periph_id, device_data)
     
     return mapping
-
-
-def _print_global_mapping_table():
-    """Affiche un tableau récapitulatif de tous les mappings à la fin du processus."""
-    if not _MAPPING_REGISTRY:
-        _LOGGER.warning("⚠️  Mapping registry is empty - no devices were mapped!")
-        return
-    
-    _LOGGER.info("\n" + "="*120)
-    _LOGGER.info("| %-15s | %-30s | %-15s | %-10s | %-15s | %-50s |", 
-                 "Periph ID", "Device Name", "Parent ID", "Type", "Subtype", "Justification")
-    _LOGGER.info("="*120)
-    
-    for mapping in _MAPPING_REGISTRY:
-        _LOGGER.info("| %-15s | %-30s | %-15s | %-10s | %-15s | %-50s |", 
-                     mapping["periph_id"], 
-                     mapping["periph_name"][:29], 
-                     mapping.get("parent_periph_id", "") or "-", 
-                     mapping["ha_entity"], 
-                     mapping["ha_subtype"], 
-                     mapping["justification"][:49])
-    
-    _LOGGER.info("="*120 + "\n")
-    _LOGGER.info("Total devices mapped: %d", len(_MAPPING_REGISTRY))
-    _LOGGER.info("⚠️  Note: This table shows only devices that went through map_device_to_ha_entity()")
-    _LOGGER.info("\n")
-    
-    # Réinitialiser le registre après affichage
-    _MAPPING_REGISTRY.clear()
-
-
-def _register_device_mapping(mapping, periph_name, periph_id, device_data=None):
-    """Enregistre un mapping dans le registre global."""
-    parent_periph_id = device_data.get("parent_periph_id") if device_data else None
-    _MAPPING_REGISTRY.append({
-        "periph_id": periph_id,
-        "periph_name": periph_name,
-        "parent_periph_id": parent_periph_id,
-        "ha_entity": mapping["ha_entity"],
-        "ha_subtype": mapping["ha_subtype"],
-        "justification": mapping.get("justification", "No justification provided")
-    })
-    
-    # Log pour suivre le processus de mapping
-    _LOGGER.debug("✅ Device mapped: %s (%s) → %s:%s", periph_name, periph_id, mapping["ha_entity"], mapping["ha_subtype"])
-
-
-def print_mapping_summary():
-    """Affiche un résumé des mappings et vérifie si tous les devices sont mappés."""
-    if not _MAPPING_REGISTRY:
-        _LOGGER.warning("⚠️  Mapping registry is empty - no devices were mapped!")
-        return
-    
-    _LOGGER.info("\n" + "="*120)
-    _LOGGER.info("MAPPING SUMMARY")
-    _LOGGER.info("="*120)
-    _LOGGER.info("Total devices mapped: %d", len(_MAPPING_REGISTRY))
-    _LOGGER.info("Total unique periph_ids: %d", len(set(m["periph_id"] for m in _MAPPING_REGISTRY)))
-    
-    # Compter par type
-    entity_counts = {}
-    for mapping in _MAPPING_REGISTRY:
-        entity_type = f"{mapping['ha_entity']}:{mapping['ha_subtype']}"
-        entity_counts[entity_type] = entity_counts.get(entity_type, 0) + 1
-    
-    _LOGGER.info("\nBreakdown by type:")
-    for entity_type, count in sorted(entity_counts.items(), key=lambda x: x[1], reverse=True):
-        _LOGGER.info("  %s: %d", entity_type, count)
-    
-    _LOGGER.info("="*120 + "\n")

@@ -221,12 +221,12 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         
         # Afficher le tableau de mapping global après le premier rafraîchissement
         try:
-            from .entity import _print_global_mapping_table, print_mapping_summary, _MAPPING_REGISTRY
+            from .mapping_registry import print_mapping_table as _print_global_mapping_table, print_mapping_summary, get_mapping_registry
             _print_global_mapping_table()
             print_mapping_summary()
             
             # Vérifier si tous les devices sont mappés
-            mapped_ids = {m["periph_id"] for m in _MAPPING_REGISTRY}
+            mapped_ids = {m["periph_id"] for m in get_mapping_registry()}
             all_ids = {str(periph["periph_id"]) for periph in aggregated_data}
             
             if len(mapped_ids) < len(all_ids):
