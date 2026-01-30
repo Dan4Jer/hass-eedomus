@@ -61,7 +61,7 @@ async def async_setup_entry(
                 }
             if not eedomus_mapping is None:
                 coordinator.data[periph_id].update(eedomus_mapping)
-                _LOGGER.info(
+                _LOGGER.debug(
                     "Created energy sensor for cover %s (%s) - consumption monitoring",
                     periph["name"],
                     periph_id,
