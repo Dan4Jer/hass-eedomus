@@ -197,10 +197,9 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
             errors["base"] = "failed_to_load_devices"
             self.current_devices = []
 
-        # Create dynamic schema for devices - simplified to avoid serialization issues
-        from homeassistant.helpers import config_validation as cv
+        # Create dynamic schema for devices - using only serializable types
         device_schema = vol.Schema({
-            vol.Optional(CONF_CUSTOM_DEVICES, default=self.current_devices): cv.ensure_list
+            vol.Optional(CONF_CUSTOM_DEVICES, default=[]): list
         })
 
         return self.async_show_form(
