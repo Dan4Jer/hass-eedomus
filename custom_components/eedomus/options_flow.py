@@ -106,10 +106,8 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 new_options.update(options)
                 # Note: We can't actually update the mappingproxy, so we'll use it in the next step
             
-            if self.use_yaml:
-                return await self.async_step_yaml()
-            else:
-                return await self.async_step_ui()
+            # Create entry with only the options that are allowed
+            return self.async_create_entry(title="", data=options)
 
         # Get current options - ensure config values are copied to options
         current_options = self._copy_config_to_options()
