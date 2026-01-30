@@ -79,6 +79,10 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
             # Save all configuration options
             options = {}
             
+            # Debug: Log the user input
+            _LOGGER.debug("User input received: %s", {k: v for k, v in user_input.items() if k != CONF_YAML_CONTENT})
+            _LOGGER.debug("API Proxy Disable Security: %s", user_input.get(CONF_API_PROXY_DISABLE_SECURITY, False))
+            
             # Save mode selection
             self.use_yaml = user_input.get(CONF_USE_YAML, False)
             options[CONF_USE_YAML] = self.use_yaml
@@ -105,6 +109,10 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 new_options = dict(self._config_entry.options)
                 new_options.update(options)
                 # Note: We can't actually update the mappingproxy, so we'll use it in the next step
+            
+            # Debug: Log the options being saved
+            _LOGGER.debug("Options to be saved: %s", {k: v for k, v in options.items() if k != CONF_YAML_CONTENT})
+            _LOGGER.debug("API Proxy Disable Security to be saved: %s", options.get(CONF_API_PROXY_DISABLE_SECURITY, False))
             
             # Create entry with only the options that are allowed
             return self.async_create_entry(title="", data=options)

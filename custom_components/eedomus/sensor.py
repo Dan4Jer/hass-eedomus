@@ -460,7 +460,7 @@ class EedomusBatterySensor(EedomusEntity, SensorEntity):
         self._attr_native_unit_of_measurement = "%"
         self._attr_state_class = "measurement"
 
-        _LOGGER.info(
+        _LOGGER.debug(
             "🔋 Initialized battery sensor for %s (periph_id=%s)",
             device_name,
             periph_id,

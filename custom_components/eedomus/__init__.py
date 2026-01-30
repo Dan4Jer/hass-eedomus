@@ -164,8 +164,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id] = entry_data
 
     # Enregistrement du webhook et service (always register webhooks)
-    disable_security = entry.data.get(
-        CONF_API_PROXY_DISABLE_SECURITY, DEFAULT_API_PROXY_DISABLE_SECURITY
+    disable_security = entry.options.get(
+        CONF_API_PROXY_DISABLE_SECURITY,
+        entry.data.get(CONF_API_PROXY_DISABLE_SECURITY, DEFAULT_API_PROXY_DISABLE_SECURITY)
     )
 
     # Log security warning if disabled
