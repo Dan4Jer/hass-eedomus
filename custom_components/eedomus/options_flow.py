@@ -136,78 +136,14 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
         )
 
     async def async_step_ui(self, user_input=None):
-        """Handle UI-based device configuration."""
-        # Local imports to avoid circular dependency
-        from . import async_load_mapping, async_save_custom_mapping
-        
-        errors = {}
-
-        if user_input is not None:
-            try:
-                # Validate input
-                validated_input = UI_OPTIONS_SCHEMA(user_input)
-
-                # Save devices to custom_mapping.yaml
-                custom_mapping = {CONF_CUSTOM_DEVICES: validated_input.get(CONF_CUSTOM_DEVICES, [])}
-                success = await async_save_custom_mapping(
-                    self.hass,
-                    self.hass.config.config_dir,
-                    custom_mapping
-                )
-
-                if success:
-                    # Update options
-                    options = {
-                        CONF_USE_YAML: False,
-                        **validated_input
-                    }
-                    # Add API configuration options - ensure config values are preserved
-                    current_options = self._copy_config_to_options()
-                    options.update({
-                        CONF_ENABLE_API_EEDOMUS: current_options.get(CONF_ENABLE_API_EEDOMUS, True),
-                        CONF_ENABLE_API_PROXY: current_options.get(CONF_ENABLE_API_PROXY, False),
-                        CONF_ENABLE_HISTORY: current_options.get(CONF_ENABLE_HISTORY, False),
-                        CONF_SCAN_INTERVAL: current_options.get(CONF_SCAN_INTERVAL, 300),
-                        CONF_ENABLE_SET_VALUE_RETRY: current_options.get(CONF_ENABLE_SET_VALUE_RETRY, True),
-                        CONF_ENABLE_WEBHOOK: current_options.get(CONF_ENABLE_WEBHOOK, True),
-                        CONF_API_PROXY_DISABLE_SECURITY: current_options.get(CONF_API_PROXY_DISABLE_SECURITY, False),
-                        CONF_PHP_FALLBACK_ENABLED: current_options.get(CONF_PHP_FALLBACK_ENABLED, False),
-                        CONF_PHP_FALLBACK_SCRIPT_NAME: current_options.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php"),
-                        CONF_PHP_FALLBACK_TIMEOUT: current_options.get(CONF_PHP_FALLBACK_TIMEOUT, 5)
-                    })
-                    # Log the options being saved
-                    _LOGGER.debug("Saving options in UI mode: %s", options)
-                    return self.async_create_entry(title="", data=options)
-                else:
-                    errors["base"] = "failed_to_save_mapping"
-
-            except vol.Invalid as e:
-                _LOGGER.error("UI validation error: %s", e)
-                errors["base"] = f"invalid_configuration: {e}"
-
-        # Load current devices for pre-filling
-        try:
-            self.current_devices = await async_load_mapping(
-                self.hass,
-                self.hass.config.config_dir
-            )
-            self.current_devices = self.current_devices.get(CONF_CUSTOM_DEVICES, [])
-        except Exception as e:
-            _LOGGER.error("Failed to load devices for UI: %s", e)
-            errors["base"] = "failed_to_load_devices"
-            self.current_devices = []
-
-        # Create dynamic schema for devices - using only serializable types
-        device_schema = vol.Schema({
-            vol.Optional(CONF_CUSTOM_DEVICES, default=[]): list
-        })
-
+        """Handle UI-based device configuration - TEMPORARILY DISABLED due to serialization issues."""
+        errors = {"base": "ui_mode_temporarily_disabled"}
         return self.async_show_form(
             step_id="ui",
-            data_schema=device_schema,
+            data_schema=vol.Schema({}),
             errors=errors,
             description_placeholders={
-                "device_count": len(self.current_devices)
+                "message": "L'interface UI est temporairement désactivée. Utilisez le mode YAML pour configurer vos devices."
             }
         )
 
