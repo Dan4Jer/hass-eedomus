@@ -598,7 +598,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     _LOGGER.debug("Number of advanced rules loaded: %d", len(DEVICE_MAPPINGS.get('advanced_rules', [])))
     
     # Priorité 1: Règles avancées (nécessite all_devices)
-    _LOGGER.info("🔍 Starting mapping process for %s (%s)", periph_name, periph_id)
+    _LOGGER.debug("🔍 Starting mapping process for %s (%s)", periph_name, periph_id)
     _LOGGER.debug("   all_devices available: %s", bool(all_devices))
     _LOGGER.debug("   all_devices type: %s", type(all_devices))
     
@@ -608,16 +608,16 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         all_devices = {}
     
     if periph_id == "1269454":
-        _LOGGER.info("🔍 SPECIAL DEBUG: Starting advanced rules evaluation for RGBW device 1269454")
+        _LOGGER.debug("🔍 SPECIAL DEBUG: Starting advanced rules evaluation for RGBW device 1269454")
 
     # Always evaluate advanced rules - never skip this section
     _LOGGER.debug("   all_devices keys count: %d", len(all_devices))
-    _LOGGER.info("✅ Checking advanced rules for %s (%s)", periph_name, periph_id)
+    _LOGGER.debug("✅ Checking advanced rules for %s (%s)", periph_name, periph_id)
 
     # Debug spécifique pour le device 1269454 (RGBW connu)
     if periph_id == "1269454":
-        _LOGGER.info("🔍 SPECIAL DEBUG: Analyzing RGBW device 1269454")
-        _LOGGER.info("🔍 Device data: name=%s, usage_id=%s, parent_periph_id=%s, PRODUCT_TYPE_ID=%s",
+        _LOGGER.debug("🔍 SPECIAL DEBUG: Analyzing RGBW device 1269454")
+        _LOGGER.debug("🔍 Device data: name=%s, usage_id=%s, parent_periph_id=%s, PRODUCT_TYPE_ID=%s",
                     device_data.get("name"), device_data.get("usage_id"), device_data.get("parent_periph_id"), device_data.get("PRODUCT_TYPE_ID"))
         
         # Find all children of this device
@@ -625,7 +625,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
             child for child_id, child in all_devices.items()
             if child.get("parent_periph_id") == periph_id
         ]
-        _LOGGER.info("🔍 Found %d children for device 1269454: %s", 
+        _LOGGER.debug("🔍 Found %d children for device 1269454: %s", 
                     len(children), [c["name"] for c in children])
         
         # Count children with usage_id=1
@@ -633,12 +633,12 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
             child for child_id, child in all_devices.items()
             if child.get("parent_periph_id") == periph_id and child.get("usage_id") == "1"
         ]
-        _LOGGER.info("🔍 Found %d children with usage_id=1: %s", 
+        _LOGGER.debug("🔍 Found %d children with usage_id=1: %s", 
                     len(usage_id_1_children), [c["name"] for c in usage_id_1_children])
         
         # Log the RGBW children names specifically
         rgbw_names = [c["name"] for c in usage_id_1_children if "Rouge" in c["name"] or "Vert" in c["name"] or "Bleu" in c["name"] or "Blanc" in c["name"]]
-        _LOGGER.info("🔍 RGBW component names: %s", rgbw_names)
+        _LOGGER.debug("🔍 RGBW component names: %s", rgbw_names)
         
         if periph_id == "1269454":
             _LOGGER.debug("SPECIAL DEBUG: Device 1269454 - RGBW detection triggered")
@@ -671,12 +671,12 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         _LOGGER.debug("✅ Rule names: %s", list(advanced_rules_dict.keys()))
     
     if periph_id == "1269454":
-        _LOGGER.debug("SPECIAL DEBUG: Device 1269454 - checking rgbw_lamp_with_children rule")
+        _LOGGER.debug("SPECIAL DEBUG: Device 1269454 - checking rgbw_lamp_by_children rule")
         
-        if 'rgbw_lamp_with_children' in advanced_rules_dict:
-            _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_with_children rule found")
+        if 'rgbw_lamp_by_children' in advanced_rules_dict:
+            _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_by_children rule found")
         else:
-            _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_with_children rule NOT found")
+            _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_by_children rule NOT found")
     
     if periph_id == "1269454":
         _LOGGER.debug("SPECIAL DEBUG: Device 1269454 - analyzing children")
@@ -724,12 +724,12 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
             _LOGGER.debug("✅ Rule names: %s", list(advanced_rules_dict.keys()))
         
         if periph_id == "1269454":
-            _LOGGER.debug("SPECIAL DEBUG: Device 1269454 - checking rgbw_lamp_with_children rule")
+            _LOGGER.debug("SPECIAL DEBUG: Device 1269454 - checking rgbw_lamp_by_children rule")
             
-            if 'rgbw_lamp_with_children' in advanced_rules_dict:
-                _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_with_children rule found")
+            if 'rgbw_lamp_by_children' in advanced_rules_dict:
+                _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_by_children rule found")
             else:
-                _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_with_children rule NOT found")
+                _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_by_children rule NOT found")
         
         if periph_id == "1269454":
             _LOGGER.debug("SPECIAL DEBUG: Device 1269454 - analyzing children")
@@ -740,7 +740,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                          rule_name, periph_name, periph_id)
             
             # Special debug for RGBW rules
-            if periph_id == "1269454" and rule_name in ["rgbw_lamp_with_children", "rgbw_lamp_flexible"]:
+            if periph_id == "1269454" and rule_name in ["rgbw_lamp_by_children", "rgbw_lamp_flexible"]:
                 _LOGGER.debug("SPECIAL DEBUG: Evaluating RGBW rule '%s' for device 1269454", rule_name)
             
             # Check if we have a condition function or conditions list
@@ -752,6 +752,39 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                 # Evaluate conditions list from YAML
                 _LOGGER.debug("🔍 Using conditions list for rule '%s'", rule_name)
                 condition_result = True
+                
+                # Special debug for device 1269454
+                if periph_id == "1269454" and rule_name == "rgbw_lamp_by_children":
+                    _LOGGER.debug("🔍 SPECIAL DEBUG: Evaluating rgbw_lamp_by_children conditions for device 1269454")
+                    _LOGGER.debug("🔍 Device usage_id: %s", device_data.get("usage_id"))
+                    if all_devices:
+                        children = [
+                            child for child_id, child in all_devices.items()
+                            if child.get("parent_periph_id") == periph_id
+                        ]
+                        _LOGGER.debug("🔍 Number of children: %d", len(children))
+                        _LOGGER.debug("🔍 Children details: %s", [
+                            {"id": child_id, "name": child.get("name"), "usage_id": child.get("usage_id")}
+                            for child_id, child in all_devices.items()
+                            if child.get("parent_periph_id") == periph_id
+                        ])
+                
+                # Special debug for RGBW children (1269455-1269458)
+                if periph_id in ["1269455", "1269456", "1269457", "1269458"] and rule_name == "rgbw_child_brightness":
+                    _LOGGER.debug("🔍 SPECIAL DEBUG: Evaluating rgbw_child_brightness conditions for device %s", periph_id)
+                    _LOGGER.debug("🔍 Device usage_id: %s", device_data.get("usage_id"))
+                    _LOGGER.debug("🔍 Parent periph_id: %s", device_data.get("parent_periph_id"))
+                    if all_devices and device_data.get("parent_periph_id"):
+                        parent_id = device_data.get("parent_periph_id")
+                        parent = all_devices.get(parent_id, {})
+                        _LOGGER.debug("🔍 Parent device %s: name=%s, usage_id=%s", 
+                                    parent_id, parent.get("name"), parent.get("usage_id"))
+                        parent_children = [
+                            child for child_id, child in all_devices.items()
+                            if child.get("parent_periph_id") == parent_id
+                        ]
+                        _LOGGER.debug("🔍 Parent has %d children", len(parent_children))
+                
                 for condition in rule_config["conditions"]:
                     for cond_key, cond_value in condition.items():
                         if cond_key == "usage_id":
@@ -811,7 +844,24 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                             if len(parent_children) < int(cond_value):
                                 condition_result = False
                                 break
-                        elif cond_key == "has_children_with_names":
+                
+                # Special debug for device 1269454
+                if periph_id == "1269454" and rule_name == "rgbw_lamp_by_children":
+                    _LOGGER.debug("🔍 SPECIAL DEBUG: rgbw_lamp_by_children condition result: %s", condition_result)
+                    if condition_result:
+                        _LOGGER.debug("✅ rgbw_lamp_by_children rule PASSED for device 1269454")
+                    else:
+                        _LOGGER.debug("❌ rgbw_lamp_by_children rule FAILED for device 1269454")
+                
+                # Special debug for RGBW children (1269455-1269458)
+                if periph_id in ["1269455", "1269456", "1269457", "1269458"] and rule_name == "rgbw_child_brightness":
+                    _LOGGER.debug("🔍 SPECIAL DEBUG: rgbw_child_brightness condition result: %s", condition_result)
+                    if condition_result:
+                        _LOGGER.debug("✅ rgbw_child_brightness rule PASSED for device %s", periph_id)
+                    else:
+                        _LOGGER.debug("❌ rgbw_child_brightness rule FAILED for device %s", periph_id)
+                        
+                elif cond_key == "has_children_with_names":
                             if not all_devices:
                                 condition_result = False
                                 break
@@ -857,14 +907,14 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
             
             # Special debug for device 1269454
             if periph_id == "1269454":
-                if rule_name == "rgbw_lamp_with_children":
-                    _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_with_children - usage_id check: %s == %s", 
+                if rule_name == "rgbw_lamp_by_children":
+                    _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_by_children - usage_id check: %s == %s", 
                                  device_data.get("usage_id") == "1", device_data.get("usage_id"))
-                    _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_with_children - PRODUCT_TYPE_ID check: %s == %s", 
+                    _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_by_children - PRODUCT_TYPE_ID check: %s == %s", 
                                  device_data.get("PRODUCT_TYPE_ID") == "2304", device_data.get("PRODUCT_TYPE_ID"))
                     child_count = sum(1 for child_id, child in all_devices.items()
                                      if child.get("parent_periph_id") == periph_id)
-                    _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_with_children - child_count check: %s >= 1", 
+                    _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_by_children - child_count check: %s >= 4", 
                                  child_count)
                 elif rule_name == "rgbw_lamp_flexible":
                     _LOGGER.debug("SPECIAL DEBUG: rgbw_lamp_flexible - usage_id check: %s == %s", 
@@ -880,7 +930,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
             
             if condition_result:
                 # Log spécifique pour le débogage RGBW
-                if rule_name == "rgbw_lamp_with_children":
+                if rule_name == "rgbw_lamp_by_children":
                     rgbw_children = [
                         child for child_id, child in all_devices.items()
                         if child.get("parent_periph_id") == periph_id and child.get("usage_id") == "1"
@@ -893,6 +943,15 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                 if periph_id == "1269454":
                     _LOGGER.debug("SPECIAL DEBUG: Device 1269454 - rule mapping: %s/%s", 
                                  rule_config["mapping"]["ha_entity"], rule_config["mapping"]["ha_subtype"])
+                    _LOGGER.debug("✅ rgbw_lamp_by_children rule APPLIED for device 1269454!")
+                    _LOGGER.debug("✅ Mapping: %s:%s", 
+                                rule_config["mapping"]["ha_entity"], rule_config["mapping"]["ha_subtype"])
+                
+                # Special debug for RGBW children (1269455-1269458)
+                if periph_id in ["1269455", "1269456", "1269457", "1269458"]:
+                    _LOGGER.debug("✅ rgbw_child_brightness rule APPLIED for device %s!", periph_id)
+                    _LOGGER.debug("✅ Mapping: %s:%s", 
+                                rule_config["mapping"]["ha_entity"], rule_config["mapping"]["ha_subtype"])
                 
                 return _create_mapping(rule_config["mapping"], periph_name, periph_id, rule_name, "🎯 Advanced rule", device_data)
     
@@ -918,6 +977,24 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         if periph_id == "1269454":
             _LOGGER.debug("SPECIAL DEBUG: Device 1269454 - final mapping: usage_id=%s, ha_entity=%s, ha_subtype=%s", 
                          usage_id, mapping["ha_entity"], mapping["ha_subtype"])
+        
+        # Special debug for RGBW children (1269455-1269458)
+        if periph_id in ["1269455", "1269456", "1269457", "1269458"]:
+            _LOGGER.debug("🔍 SPECIAL DEBUG: RGBW child device %s - usage_id=%s, ha_entity=%s, ha_subtype=%s", 
+                        periph_id, usage_id, mapping["ha_entity"], mapping["ha_subtype"])
+            _LOGGER.debug("🔍 Device data: %s", device_data)
+            
+            # Check if parent is RGBW device
+            parent_id = device_data.get("parent_periph_id")
+            if parent_id and all_devices and parent_id in all_devices:
+                parent = all_devices[parent_id]
+                _LOGGER.debug("🔍 Parent device %s: name=%s, usage_id=%s", 
+                            parent_id, parent.get("name"), parent.get("usage_id"))
+                
+                # Check if parent is mapped as RGBW
+                parent_mapping = map_device_to_ha_entity(parent, all_devices)
+                _LOGGER.debug("🔍 Parent mapping: %s:%s", 
+                            parent_mapping["ha_entity"], parent_mapping["ha_subtype"])
         
         # Appliquer les règles avancées si définies
         if "advanced_rules" in mapping:
@@ -1045,15 +1122,7 @@ def _create_mapping(mapping_config, periph_name, periph_id, context, emoji="🎯
                   mapping["justification"])
     
     # Stocker le mapping dans le registre global
-    parent_periph_id = device_data.get("parent_periph_id") if device_data else None
-    _MAPPING_REGISTRY.append({
-        "periph_id": periph_id,
-        "periph_name": periph_name,
-        "parent_periph_id": parent_periph_id,
-        "ha_entity": mapping["ha_entity"],
-        "ha_subtype": mapping["ha_subtype"],
-        "justification": mapping["justification"]
-    })
+    _register_device_mapping(mapping, periph_name, periph_id, device_data)
     
     return mapping
 
@@ -1061,6 +1130,7 @@ def _create_mapping(mapping_config, periph_name, periph_id, context, emoji="🎯
 def _print_global_mapping_table():
     """Affiche un tableau récapitulatif de tous les mappings à la fin du processus."""
     if not _MAPPING_REGISTRY:
+        _LOGGER.warning("⚠️  Mapping registry is empty - no devices were mapped!")
         return
     
     _LOGGER.info("\n" + "="*120)
@@ -1079,7 +1149,49 @@ def _print_global_mapping_table():
     
     _LOGGER.info("="*120 + "\n")
     _LOGGER.info("Total devices mapped: %d", len(_MAPPING_REGISTRY))
+    _LOGGER.info("⚠️  Note: This table shows only devices that went through map_device_to_ha_entity()")
     _LOGGER.info("\n")
     
-    # Réinitialiser le registre pour le prochain cycle
+    # Réinitialiser le registre après affichage
     _MAPPING_REGISTRY.clear()
+
+
+def _register_device_mapping(mapping, periph_name, periph_id, device_data=None):
+    """Enregistre un mapping dans le registre global."""
+    parent_periph_id = device_data.get("parent_periph_id") if device_data else None
+    _MAPPING_REGISTRY.append({
+        "periph_id": periph_id,
+        "periph_name": periph_name,
+        "parent_periph_id": parent_periph_id,
+        "ha_entity": mapping["ha_entity"],
+        "ha_subtype": mapping["ha_subtype"],
+        "justification": mapping.get("justification", "No justification provided")
+    })
+    
+    # Log pour suivre le processus de mapping
+    _LOGGER.debug("✅ Device mapped: %s (%s) → %s:%s", periph_name, periph_id, mapping["ha_entity"], mapping["ha_subtype"])
+
+
+def print_mapping_summary():
+    """Affiche un résumé des mappings et vérifie si tous les devices sont mappés."""
+    if not _MAPPING_REGISTRY:
+        _LOGGER.warning("⚠️  Mapping registry is empty - no devices were mapped!")
+        return
+    
+    _LOGGER.info("\n" + "="*120)
+    _LOGGER.info("MAPPING SUMMARY")
+    _LOGGER.info("="*120)
+    _LOGGER.info("Total devices mapped: %d", len(_MAPPING_REGISTRY))
+    _LOGGER.info("Total unique periph_ids: %d", len(set(m["periph_id"] for m in _MAPPING_REGISTRY)))
+    
+    # Compter par type
+    entity_counts = {}
+    for mapping in _MAPPING_REGISTRY:
+        entity_type = f"{mapping['ha_entity']}:{mapping['ha_subtype']}"
+        entity_counts[entity_type] = entity_counts.get(entity_type, 0) + 1
+    
+    _LOGGER.info("\nBreakdown by type:")
+    for entity_type, count in sorted(entity_counts.items(), key=lambda x: x[1], reverse=True):
+        _LOGGER.info("  %s: %d", entity_type, count)
+    
+    _LOGGER.info("="*120 + "\n")

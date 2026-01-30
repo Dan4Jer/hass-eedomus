@@ -210,10 +210,47 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # Set the data for the coordinator
         self.data = aggregated_data
         
+        # Afficher un résumé des devices
+        _LOGGER.info("\n" + "="*120)
+        _LOGGER.info("EEDOMUS INTEGRATION SUMMARY")
+        _LOGGER.info("="*120)
+        _LOGGER.info("Total peripherals from eedomus API: %d", len(aggregated_data))
+        _LOGGER.info("Total dynamic peripherals: %d", dynamic)
+        _LOGGER.info("Total skipped peripherals: %d (invalid: %d, disabled: %d)", skipped + disabled, skipped, disabled)
+        _LOGGER.info("="*120 + "\n")
+        
         # Afficher le tableau de mapping global après le premier rafraîchissement
         try:
-            from .entity import _print_global_mapping_table
+            from .entity import _print_global_mapping_table, print_mapping_summary, _MAPPING_REGISTRY
             _print_global_mapping_table()
+            print_mapping_summary()
+            
+            # Vérifier si tous les devices sont mappés
+            mapped_ids = {m["periph_id"] for m in _MAPPING_REGISTRY}
+            all_ids = {str(periph["periph_id"]) for periph in aggregated_data}
+            
+            if len(mapped_ids) < len(all_ids):
+                _LOGGER.warning("\n" + "="*120)
+                _LOGGER.warning("⚠️  WARNING: Not all devices were mapped!")
+                _LOGGER.warning("="*120)
+                _LOGGER.warning("Total devices from API: %d", len(all_ids))
+                _LOGGER.warning("Total devices mapped: %d", len(mapped_ids))
+                _LOGGER.warning("Missing devices: %d", len(all_ids) - len(mapped_ids))
+                
+                # Afficher les devices non mappés
+                missing_ids = all_ids - mapped_ids
+                _LOGGER.warning("\nDevices not mapped:")
+                for periph_id in sorted(missing_ids)[:10]:  # Afficher seulement les 10 premiers
+                    periph = next((p for p in aggregated_data if str(p["periph_id"]) == periph_id), None)
+                    if periph:
+                        _LOGGER.warning("  - %s (ID: %s, usage_id: %s)", 
+                                     periph.get("name", "Unknown"), periph_id, periph.get("usage_id", "Unknown"))
+                
+                if len(missing_ids) > 10:
+                    _LOGGER.warning("  ... and %d more", len(missing_ids) - 10)
+                
+                _LOGGER.warning("="*120 + "\n")
+                
         except Exception as e:
             _LOGGER.warning("Failed to print global mapping table: %s", e)
         
@@ -491,6 +528,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         _LOGGER.debug("Checking dynamic status for peripheral %s (%s) with ha_entity=%s", 
                     periph.get("name"), periph_id, ha_entity)
         
+        # Special debug for RGBW devices
+        if periph_id in ["1269454", "1269455", "1269456", "1269457", "1269458"]:
+            _LOGGER.info("🔍 SPECIAL DEBUG: Checking dynamic status for RGBW device %s (%s)", 
+                        periph.get("name"), periph_id)
+        
         # Debug: Log DEVICE_MAPPINGS content
         try:
             from .entity import DEVICE_MAPPINGS
@@ -563,6 +605,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     periph_id,
                     ha_entity,
                 )
+                
+                # Special debug for RGBW devices
+                if periph_id in ["1269454", "1269455", "1269456", "1269457", "1269458"]:
+                    _LOGGER.info("🔍 SPECIAL DEBUG: RGBW device %s (%s) is_dynamic=%s (entity type)", 
+                                periph.get("name"), periph_id, is_dynamic)
             else:
                 _LOGGER.debug(
                     "Peripheral is NOT dynamic (entity type) ! %s (%s) - entity: %s",
@@ -570,6 +617,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     periph_id,
                     ha_entity,
                 )
+                
+                # Special debug for RGBW devices
+                if periph_id in ["1269454", "1269455", "1269456", "1269457", "1269458"]:
+                    _LOGGER.info("🔍 SPECIAL DEBUG: RGBW device %s (%s) is_dynamic=%s (entity type)", 
+                                periph.get("name"), periph_id, is_dynamic)
             return is_dynamic
         except Exception as e:
             _LOGGER.warning(
@@ -580,7 +632,14 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             )
             # Fallback to old logic
             dynamic_types = ["light", "switch", "binary_sensor", "cover"]
-            return ha_entity in dynamic_types
+            is_dynamic = ha_entity in dynamic_types
+            
+            # Special debug for RGBW devices
+            if periph_id in ["1269454", "1269455", "1269456", "1269457", "1269458"]:
+                _LOGGER.info("🔍 SPECIAL DEBUG: RGBW device %s (%s) is_dynamic=%s (fallback)", 
+                            periph.get("name"), periph_id, is_dynamic)
+            
+            return is_dynamic
 
     def get_all_peripherals(self):
         """Return all peripherals (for entity setup)."""

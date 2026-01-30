@@ -49,6 +49,9 @@ async def async_setup_entry(
         if "ha_entity" not in coordinator.data[periph_id]:
             eedomus_mapping = map_device_to_ha_entity(periph)
             coordinator.data[periph_id].update(eedomus_mapping)
+            # S'assurer que le mapping est enregistré dans le registre global
+            from .entity import _register_device_mapping
+            _register_device_mapping(eedomus_mapping, periph["name"], periph_id, periph)
 
     # Handle parent-child relationships for motion sensors
     parent_to_children = {}

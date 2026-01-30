@@ -26,6 +26,19 @@ advanced_rules:
       justification: "RGBW lamp detected by having at least 4 children with usage_id=1"
       is_dynamic: true
 
+  - name: "rgbw_child_brightness"
+    priority: 1
+    conditions:
+      - usage_id: "1"
+      - has_parent: true
+      - parent_usage_id: "1"
+      - parent_has_min_children: 4
+    mapping:
+      ha_entity: "light"
+      ha_subtype: "brightness"
+      justification: "RGBW child brightness channel (child of RGBW lamp)"
+      is_dynamic: true
+
   - name: "Smoke Detector"
     priority: 2
     conditions:
