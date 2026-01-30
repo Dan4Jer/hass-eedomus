@@ -13,7 +13,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import ATTR_PERIPH_ID, DOMAIN, EEDOMUS_TO_HA_ATTR_MAPPING
 from .device_mapping import load_and_merge_yaml_mappings, load_yaml_mappings
 from .mapping_registry import register_device_mapping, get_mapping_registry, print_mapping_table, print_mapping_summary
-from .mapping_rules import evaluate_advanced_rules, evaluate_conditions
+from .mapping_rules import evaluate_conditions
 
 # Get version from manifest.json
 try:
