@@ -109,77 +109,14 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
         )
 
     async def async_step_ui(self, user_input=None):
-        """Handle UI-based device configuration."""
-        # Local imports to avoid circular dependency
-        from . import async_load_mapping, async_save_custom_mapping
-        
-        errors = {}
-
-        if user_input is not None:
-            try:
-                # Validate input
-                validated_input = UI_OPTIONS_SCHEMA(user_input)
-
-                # Save devices to custom_mapping.yaml
-                custom_mapping = {CONF_CUSTOM_DEVICES: validated_input.get(CONF_CUSTOM_DEVICES, [])}
-                success = await async_save_custom_mapping(
-                    self.hass,
-                    self.hass.config.config_dir,
-                    custom_mapping
-                )
-
-                if success:
-                    # Update options
-                    options = {
-                        CONF_USE_YAML: False,
-                        **validated_input
-                    }
-                    # Add API configuration options
-                    options[CONF_ENABLE_API_EEDOMUS] = self._config_entry.options.get(CONF_ENABLE_API_EEDOMUS, True)
-                    options[CONF_ENABLE_API_PROXY] = self._config_entry.options.get(CONF_ENABLE_API_PROXY, False)
-                    options[CONF_ENABLE_HISTORY] = self._config_entry.options.get(CONF_ENABLE_HISTORY, False)
-                    options[CONF_SCAN_INTERVAL] = self._config_entry.options.get(CONF_SCAN_INTERVAL, 300)
-                    options[CONF_ENABLE_SET_VALUE_RETRY] = self._config_entry.options.get(CONF_ENABLE_SET_VALUE_RETRY, True)
-                    options[CONF_ENABLE_WEBHOOK] = self._config_entry.options.get(CONF_ENABLE_WEBHOOK, True)
-                    options[CONF_API_PROXY_DISABLE_SECURITY] = self._config_entry.options.get(CONF_API_PROXY_DISABLE_SECURITY, False)
-                    options[CONF_PHP_FALLBACK_ENABLED] = self._config_entry.options.get(CONF_PHP_FALLBACK_ENABLED, False)
-                    options[CONF_PHP_FALLBACK_SCRIPT_NAME] = self._config_entry.options.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")
-                    options[CONF_PHP_FALLBACK_TIMEOUT] = self._config_entry.options.get(CONF_PHP_FALLBACK_TIMEOUT, 5)
-                    # Log the options being saved
-                    _LOGGER.debug("Saving options in UI mode: %s", options)
-                    return self.async_create_entry(title="", data=options)
-                else:
-                    errors["base"] = "failed_to_save_mapping"
-
-            except vol.Invalid as e:
-                _LOGGER.error("UI validation error: %s", e)
-                errors["base"] = f"invalid_configuration: {e}"
-
-        # Load current devices for pre-filling
-        try:
-            self.current_devices = await async_load_mapping(
-                self.hass,
-                self.hass.config.config_dir
-            )
-            self.current_devices = self.current_devices.get(CONF_CUSTOM_DEVICES, [])
-        except Exception as e:
-            _LOGGER.error("Failed to load devices for UI: %s", e)
-            errors["base"] = "failed_to_load_devices"
-            self.current_devices = []
-
-        # Create dynamic schema for devices
-        from homeassistant.helpers import config_validation as cv
-        # Simplified schema to avoid serialization issues
-        device_schema = vol.Schema({
-            vol.Optional(CONF_CUSTOM_DEVICES, default=[]): cv.ensure_list
-        })
-
+        """Handle UI-based device configuration - TEMPORARILY DISABLED."""
+        errors = {"base": "ui_mode_temporarily_disabled"}
         return self.async_show_form(
             step_id="ui",
-            data_schema=device_schema,
+            data_schema=vol.Schema({}),
             errors=errors,
             description_placeholders={
-                "device_count": len(self.current_devices)
+                "message": "L'interface UI est temporairement désactivée. Utilisez le mode YAML pour configurer vos devices."
             }
         )
 
