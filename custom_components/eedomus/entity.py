@@ -122,10 +122,12 @@ class EedomusEntity(CoordinatorEntity):
             self._parent_id = periph_data.get("parent_periph_id", None)
             self._attr_unique_id = f"{periph_id}"
 
-    def _get_periph_data(self, periph_id: str):
+    def _get_periph_data(self, periph_id: str = None):
         """Get peripheral data from coordinator."""
         if not hasattr(self.coordinator, 'data') or not self.coordinator.data:
             return None
+        # Use self._periph_id if no periph_id is provided
+        periph_id = periph_id or self._periph_id
         return self.coordinator.data.get(periph_id)
 
     @property
