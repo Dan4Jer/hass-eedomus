@@ -50,23 +50,23 @@ def load_yaml_file(file_path: str) -> Optional[Dict[str, Any]]:
         Dictionary with YAML content or None if file doesn't exist or is invalid
     """
     try:
-        _LOGGER.info("📖 Attempting to load YAML file: %s", file_path)
+        _LOGGER.debug("📖 Attempting to load YAML file: %s", file_path)
         
         if not os.path.exists(file_path):
             _LOGGER.error("❌ YAML file not found: %s", file_path)
             return None
             
-        _LOGGER.info("✅ YAML file exists, attempting to parse...")
+        _LOGGER.debug("✅ YAML file exists, attempting to parse...")
         
         with open(file_path, 'r', encoding='utf-8') as file:
             content = yaml.safe_load(file)
             
             if content:
-                _LOGGER.info("✅ Successfully loaded YAML mapping from %s", file_path)
+                _LOGGER.debug("✅ Successfully loaded YAML mapping from %s", file_path)
                 
                 # Convert list format to dict format if needed
                 if isinstance(content, list):
-                    _LOGGER.info("⚠️  YAML file is in list format, converting to dict format")
+                    _LOGGER.debug("⚠️  YAML file is in list format, converting to dict format")
                     # Convert list of rules to dict format
                     converted_content = {
                         'advanced_rules': content,
@@ -75,7 +75,7 @@ def load_yaml_file(file_path: str) -> Optional[Dict[str, Any]]:
                         'dynamic_entity_properties': {},
                         'specific_device_dynamic_overrides': {}
                     }
-                    _LOGGER.info("✅ Converted YAML to dict format")
+                    _LOGGER.debug("✅ Converted YAML to dict format")
                     _LOGGER.debug("   YAML keys after conversion: %s", list(converted_content.keys()))
                     content = converted_content
                 else:
@@ -83,12 +83,12 @@ def load_yaml_file(file_path: str) -> Optional[Dict[str, Any]]:
                 
                 # Critical check for dynamic properties
                 if 'dynamic_entity_properties' in content:
-                    _LOGGER.info("✅ Found dynamic_entity_properties in YAML")
+                    _LOGGER.debug("✅ Found dynamic_entity_properties in YAML")
                 else:
-                    _LOGGER.info("⚠️  dynamic_entity_properties section missing from YAML (will be extracted from advanced rules)")
+                    _LOGGER.debug("⚠️  dynamic_entity_properties section missing from YAML (will be extracted from advanced rules)")
                     
                 if 'specific_device_dynamic_overrides' in content:
-                    _LOGGER.info("✅ Found specific_device_dynamic_overrides in YAML")
+                    _LOGGER.debug("✅ Found specific_device_dynamic_overrides in YAML")
                 else:
                     _LOGGER.debug("⚠️  specific_device_dynamic_overrides section missing (normal if no overrides)")
                 
