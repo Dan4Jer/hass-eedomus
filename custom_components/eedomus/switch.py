@@ -137,14 +137,14 @@ async def async_setup_entry(
             keyword in device_name_lower for keyword in controllable_device_keywords
         ):
             should_be_sensor = False  # Force this to remain a switch
-            _LOGGER.info(
+            _LOGGER.debug(
                 "Keeping '%s' (%s) as switch - identified as controllable device with consumption monitoring",
                 periph["name"],
                 periph_id,
             )
 
         if should_be_sensor:
-            _LOGGER.info(
+            _LOGGER.debug(
                 "Remapping switch '%s' (%s) as sensor - detected as consumption monitor",
                 periph["name"],
                 periph_id,

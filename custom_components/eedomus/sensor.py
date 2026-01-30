@@ -69,7 +69,7 @@ async def async_setup_entry(
             # Removed usage_id=82 mapping as it's now handled by the main mapping system as "select"
             if not eedomus_mapping is None:
                 coordinator.data[periph_id].update(eedomus_mapping)
-                _LOGGER.info(
+                _LOGGER.debug(
                     "Created energy sensor for %s (%s) - consumption monitoring",
                     periph["name"],
                     periph_id,
@@ -132,7 +132,7 @@ async def async_setup_entry(
                     # Create battery sensor entity
                     battery_entity = EedomusBatterySensor(coordinator, periph_id)
                     entities.append(battery_entity)
-                    _LOGGER.info(
+                    _LOGGER.debug(
                         "Created battery sensor for %s (%s%%)",
                         periph.get("name", "unknown"),
                         battery_value,

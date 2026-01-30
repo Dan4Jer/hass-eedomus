@@ -62,7 +62,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             await self._async_full_data_retrieve()
         )
         elapsed_time = (datetime.now() - start_time).total_seconds()
-        _LOGGER.info("Initial data retrieval completed in %.3f seconds", elapsed_time)
+        _LOGGER.debug("Initial data retrieval completed in %.3f seconds", elapsed_time)
         
         # Conversion des listes en dictionnaires
         peripherals_dict = {str(periph["periph_id"]): periph for periph in peripherals}
@@ -340,7 +340,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         if not isinstance(peripherals, list):
             _LOGGER.error("Invalid peripherals list: %s", peripherals)
             peripherals = []
-        _LOGGER.info("Found %d peripherals in total", len(peripherals))
+        _LOGGER.debug("Found %d peripherals in total", len(peripherals))
         if not isinstance(peripherals_value_list, list):
             _LOGGER.error("Invalid peripherals list: %s", peripherals_value_list)
             peripherals_value_list = []
@@ -372,12 +372,12 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         if not isinstance(peripherals_caract, list):
             _LOGGER.error("Invalid peripherals list: %s", peripherals_caract)
             peripherals_caract = []
-        _LOGGER.info("Found %d peripherals characteristics in total", len(peripherals_caract))
+        _LOGGER.debug("Found %d peripherals characteristics in total", len(peripherals_caract))
         return peripherals_caract
 
     async def _async_full_refresh(self):
         """Perform a complete refresh of all peripherals."""
-        _LOGGER.info("Performing full data refresh from eedomus API")
+        _LOGGER.debug("Performing full data refresh from eedomus API")
 
         # Récupération des données
         peripherals_caract = await self._async_full_refresh_data_retrieve()
@@ -511,7 +511,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
             if history_retrieval:
                 if not self._history_progress.get(periph_id, {}).get("completed"):
-                    _LOGGER.info("Retrieving data history %s", periph_id)
+                    _LOGGER.debug("Retrieving data history %s", periph_id)
                     chunk = await self.async_fetch_history_chunk(periph_id)
                     if chunk:
                         await self.async_import_history_chunk(periph_id, chunk)
