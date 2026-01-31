@@ -153,7 +153,7 @@ class EedomusEntity(CoordinatorEntity):
                 identifiers={(DOMAIN, parent_id)},
                 name=parent_name,
                 manufacturer="Eedomus",
-                model=parent_data.get("PRODUCT_TYPE_ID", "Unknown"),
+                model=parent_data.get("usage_name", "Unknown"),
                 via_device=(DOMAIN, self._periph_id),
             )
         
@@ -162,7 +162,7 @@ class EedomusEntity(CoordinatorEntity):
             identifiers={(DOMAIN, self._periph_id)},
             name=device_name,
             manufacturer="Eedomus",
-            model=periph_data.get("PRODUCT_TYPE_ID", "Unknown"),
+            model=periph_data.get("usage_name", "Unknown"),
         )
 
     async def async_update(self):
@@ -513,5 +513,35 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
             )
             return None
 
+    
+    return mapping
+
+
+def _create_mapping(mapping_config, periph_name, periph_id, context, emoji="🎯", device_data=None):
+    """Crée un mapping standardisé avec logging approprié."""
+    # mapping_config peut être soit la section 'mapping' directement, soit la règle complète
+    if isinstance(mapping_config, dict) and "mapping" in mapping_config:
+        mapping = mapping_config["mapping"]
+        justification = mapping_config.get("justification", "No justification provided")
+    else:
+        mapping = mapping_config
+        justification = "No justification provided"
+    
+    # Ajouter la justification au mapping
+    if "justification" not in mapping:
+        mapping["justification"] = justification
+    
+    # Log the mapping decision
+    log_method = _LOGGER.info if emoji != "❓" else _LOGGER.warning
+    log_method("%s %s mapping: %s (%s) → %s:%s", 
+               emoji, context, periph_name, periph_id, mapping["ha_entity"], mapping["ha_subtype"])
+    
+    # Debug logging pour le suivi du processus de mapping
+    _LOGGER.debug("Mapping decision details for %s (%s): method=%s, result=%s:%s, justification=%s",
+                  periph_name, periph_id, context, mapping["ha_entity"], mapping["ha_subtype"],
+                  mapping["justification"])
+    
+    # Stocker le mapping dans le registre global
+    register_device_mapping(mapping, periph_name, periph_id, device_data)
     
     return mapping
