@@ -245,6 +245,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     if periph and isinstance(periph, dict):
                         _LOGGER.warning("  - %s (ID: %s, usage_id: %s)", 
                                      periph.get("name", "Unknown"), periph_id, periph.get("usage_id", "Unknown"))
+                    elif isinstance(periph, str):
+                        _LOGGER.warning("  - Device with string data (ID: %s)", periph_id)
                     else:
                         _LOGGER.warning("  - Unknown device (ID: %s)", periph_id)
                 
