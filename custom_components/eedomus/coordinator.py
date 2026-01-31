@@ -231,28 +231,29 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             all_ids = {str(periph_data["periph_id"]) for periph_data in aggregated_data.values() if isinstance(periph_data, dict)}
             
             if len(mapped_ids) < len(all_ids):
-                _LOGGER.warning("\n" + "="*120)
-                _LOGGER.warning("⚠️  WARNING: Not all devices were mapped!")
-                _LOGGER.warning("="*120)
-                _LOGGER.warning("Total devices from API: %d", len(all_ids))
-                _LOGGER.warning("Total devices mapped: %d", len(mapped_ids))
-                _LOGGER.warning("Missing devices: %d", len(all_ids) - len(mapped_ids))
+                _LOGGER.info("\n" + "="*120)
+                _LOGGER.info("ℹ️  INFO: Not all devices were mapped (this is normal)")
+                _LOGGER.info("="*120)
+                _LOGGER.info("Total devices from API: %d", len(all_ids))
+                _LOGGER.info("Total devices mapped: %d", len(mapped_ids))
+                _LOGGER.info("Devices not mapped: %d (virtual/system devices)", len(all_ids) - len(mapped_ids))
                 
                 # Afficher les devices non mappés
                 missing_ids = all_ids - mapped_ids
-                _LOGGER.warning("\nDevices not mapped:")
+                _LOGGER.info("\nFirst 10 unmapped devices (example):")
                 for periph_id in sorted(missing_ids)[:10]:  # Afficher seulement les 10 premiers
                     periph_data = aggregated_data.get(periph_id)
                     if periph_data and isinstance(periph_data, dict):
-                        _LOGGER.warning("  - %s (ID: %s, usage_id: %s)", 
+                        _LOGGER.info("  - %s (ID: %s, usage_id: %s)", 
                                      periph_data.get("name", "Unknown"), periph_id, periph_data.get("usage_id", "Unknown"))
                     else:
-                        _LOGGER.warning("  - Unknown device (ID: %s)", periph_id)
+                        _LOGGER.info("  - Unknown device (ID: %s)", periph_id)
                 
                 if len(missing_ids) > 10:
-                    _LOGGER.warning("  ... and %d more", len(missing_ids) - 10)
+                    _LOGGER.info("  ... and %d more devices (mostly virtual/system)", len(missing_ids) - 10)
                 
-                _LOGGER.warning("="*120 + "\n")
+                _LOGGER.info("="*120 + "\n")
+                _LOGGER.info("ℹ️  This is normal behavior - virtual and system devices are intentionally not mapped")
                 
         except Exception as e:
             _LOGGER.warning("Failed to print global mapping table: %s", e)
