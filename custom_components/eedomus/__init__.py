@@ -45,6 +45,9 @@ from .eedomus_client import EedomusClient
 from .sensor import EedomusHistoryProgressSensor, EedomusSensor
 from .webhook import EedomusWebhookView
 
+# Import service setup
+from .services import async_setup_services
+
 # Initialize logger first
 _LOGGER = logging.getLogger(__name__)
 
@@ -145,11 +148,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER.error("Timeout while fetching data from eedomus")
             return False
 
+        # Setup services after coordinator is initialized
+        try:
+            await async_setup_services(hass, coordinator)
+            _LOGGER.info("✅ Eedomus services registered successfully")
+        except Exception as err:
+            _LOGGER.error("Failed to setup eedomus services: %s", err)
+
 
     # If neither mode is enabled, this shouldn't happen due to validation, but handle it anyway
     if not api_eedomus_enabled and not api_proxy_enabled:
         _LOGGER.error("No connection mode enabled - this should not happen")
         return False
+
+    # Setup services even if coordinator is not created (for proxy-only mode)
+    if not coordinator and api_proxy_enabled:
+        try:
+            await async_setup_services(hass, None)
+            _LOGGER.info("✅ Eedomus services registered in proxy-only mode")
+        except Exception as err:
+            _LOGGER.error("Failed to setup eedomus services in proxy-only mode: %s", err)
 
     # Create entities based on supported classes (only if API Eedomus mode is enabled)
     # NOTE: History sensor creation is temporarily disabled due to refactoring

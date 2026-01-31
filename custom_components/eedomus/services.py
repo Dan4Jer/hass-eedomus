@@ -8,6 +8,8 @@ from typing import Any
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_entry_flow
 
+from .const import DOMAIN
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -18,8 +20,11 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
         """Handle refresh service call."""
         _LOGGER.info("🔄 Manual refresh requested via service call")
         try:
-            await coordinator.async_request_refresh()
-            _LOGGER.info("✅ Eedomus data refreshed successfully")
+            if coordinator:
+                await coordinator.async_request_refresh()
+                _LOGGER.info("✅ Eedomus data refreshed successfully")
+            else:
+                _LOGGER.warning("⚠️  No coordinator available for refresh")
         except Exception as err:
             _LOGGER.error("❌ Failed to refresh eedomus data: %s", err)
             raise err
@@ -36,6 +41,10 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
         _LOGGER.info("📤 Setting value %s for device %s via service", value, device_id)
 
         try:
+            if not coordinator:
+                _LOGGER.error("❌ No coordinator available - cannot set value")
+                raise ValueError("Coordinator not available")
+            
             # Send the command to eedomus
             result = await coordinator.client.async_set("set", device_id, value)
 
@@ -49,7 +58,7 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
         except Exception as err:
             _LOGGER.error("❌ Failed to set value for device %s: %s", device_id, err)
             # Try PHP fallback if enabled and available
-            if coordinator.client.php_fallback_enabled:
+            if coordinator and coordinator.client.php_fallback_enabled:
                 _LOGGER.info("🔄 Trying PHP fallback for device %s", device_id)
                 fallback_result = await coordinator.client.php_fallback_set_value(
                     device_id, value
@@ -69,6 +78,10 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
         """Handle reload service call."""
         _LOGGER.info("🔄 Reload requested via service call")
         try:
+            if not coordinator:
+                _LOGGER.error("❌ No coordinator available - cannot reload")
+                raise ValueError("Coordinator not available")
+            
             # Get the config entry
             config_entry = None
             for entry in hass.config_entries.async_entries(DOMAIN):
