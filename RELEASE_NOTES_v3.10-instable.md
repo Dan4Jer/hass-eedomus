@@ -1,4 +1,4 @@
-# 🎉 Release Notes - Version 3.10-instable
+# 🎉 Release Notes - Version 3.10-unstable
 
 ## 📋 Résumé
 

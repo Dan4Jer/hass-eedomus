@@ -1,7 +1,7 @@
 # Intégration eedomus pour Home Assistant
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/integration)
-[![Version](https://img.shields.io/badge/version-3.10-instable-blue.svg)](https://github.com/Dan4Jer/hass-eedomus/releases/tag/v3.10-instable)
+[![Version](https://img.shields.io/badge/version-3.10-unstable-blue.svg)](https://github.com/Dan4Jer/hass-eedomus/releases/tag/v3.10-unstable)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/Dan4Jer/hass-eedomus/blob/main/LICENSE)
 [![Release](https://img.shields.io/github/v/release/Dan4Jer/hass-eedomus?label=latest%20release)](https://github.com/Dan4Jer/hass-eedomus/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/Dan4Jer/hass-eedomus/total.svg)](https://github.com/Dan4Jer/hass-eedomus/releases)
@@ -10,7 +10,7 @@
 
 ## 🎯 Fonctionnalités principales
 
-### 🆕 Nouveau dans la v3.10-instable : Corrections Critiques et Optimisations
+### 🆕 Nouveau dans la v3.10-unstable : Corrections Critiques et Optimisations
 
 **Une version stable avec des corrections majeures !** 🛠️
 
