@@ -116,6 +116,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         
         coordinator = EedomusDataUpdateCoordinator(hass, client, scan_interval)
 
+        # Create main eedomus box device for proper device hierarchy
+        try:
+            from homeassistant.helpers.device_registry import async_get as async_get_device_registry
+            device_registry = async_get_device_registry(hass)
+            
+            # Create the main eedomus box device
+            box_device = device_registry.async_get_or_create(
+                config_entry_id=entry.entry_id,
+                identifiers={(DOMAIN, "eedomus_box_main")},
+                name="Box eedomus",
+                manufacturer="Eedomus",
+                model="Eedomus Box",
+                sw_version="Unknown",
+            )
+            _LOGGER.info("Created main eedomus box device: %s", box_device.id)
+        except Exception as e:
+            _LOGGER.warning("Failed to create main eedomus box device: %s", e)
+
         # Perform initial full refresh only for API Eedomus mode
         try:
             await coordinator.async_config_entry_first_refresh()
