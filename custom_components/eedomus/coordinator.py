@@ -203,9 +203,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 self._dynamic_peripherals[periph_id] = periph_data
                 dynamic += 1
 
-        _LOGGER.warning("Skipped %d invalid peripherals", skipped)
-        _LOGGER.warning("Found %d dynamic peripherals", dynamic)
-        _LOGGER.warning("Skipped %d disabled peripherals", disabled)
+        _LOGGER.info("Skipped %d invalid peripherals", skipped)
+        _LOGGER.info("Found %d dynamic peripherals", dynamic)
+        _LOGGER.info("Skipped %d disabled peripherals", disabled)
 
         # Set the data for the coordinator
         self.data = aggregated_data
@@ -438,9 +438,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 self._dynamic_peripherals[periph_id] = periph_data
                 dynamic += 1
 
-        _LOGGER.warning("Skipped %d invalid peripherals", skipped)
-        _LOGGER.warning("Found %d dynamic peripherals", dynamic)
-        _LOGGER.warning("Skipped %d disabled peripherals", disabled)
+        _LOGGER.info("Skipped %d invalid peripherals", skipped)
+        _LOGGER.info("Found %d dynamic peripherals", dynamic)
+        _LOGGER.info("Skipped %d disabled peripherals", disabled)
 
         _LOGGER.debug(
             "Mapping Table %s",
