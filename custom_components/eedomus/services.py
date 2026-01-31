@@ -46,7 +46,7 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
                 raise ValueError("Coordinator not available")
             
             # Send the command to eedomus
-            result = await coordinator.client.async_set("set", device_id, value)
+            result = await coordinator.client.set_periph_value(device_id, value)
 
             if result.get("success") == 1:
                 _LOGGER.info("✅ Successfully set value for device %s", device_id)
