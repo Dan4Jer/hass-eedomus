@@ -192,7 +192,7 @@ class EedomusEntity(CoordinatorEntity):
                 DOMAIN,
                 "set_value",
                 {
-                    "periph_id": self._periph_id,
+                    "device_id": self._periph_id,
                     "value": value,
                 },
                 blocking=True,
@@ -529,7 +529,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                 DOMAIN,
                 "set_value",
                 {
-                    "periph_id": self._periph_id,
+                    "device_id": self._periph_id,
                     "value": value,
                 },
                 blocking=True,
