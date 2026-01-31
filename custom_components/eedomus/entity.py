@@ -188,6 +188,7 @@ class EedomusEntity(CoordinatorEntity):
         """
         try:
             # Call the eedomus.set_value service
+            # Note: return_response=False because the service doesn't return responses
             return await self.hass.services.async_call(
                 DOMAIN,
                 "set_value",
@@ -196,7 +197,7 @@ class EedomusEntity(CoordinatorEntity):
                     "value": value,
                 },
                 blocking=True,
-                return_response=True,
+                return_response=False,
             )
         except Exception as e:
             _LOGGER.error(
@@ -525,6 +526,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         """
         try:
             # Call the eedomus.set_value service
+            # Note: return_response=False because the service doesn't return responses
             return await self.hass.services.async_call(
                 DOMAIN,
                 "set_value",
@@ -533,7 +535,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                     "value": value,
                 },
                 blocking=True,
-                return_response=True,
+                return_response=False,
             )
         except Exception as e:
             _LOGGER.error(
