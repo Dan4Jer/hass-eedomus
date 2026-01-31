@@ -2,9 +2,9 @@ name: Run Tests
 
 on:
   push:
-    branches: [ main, HACS_compilant ]
+    branches: [ main, unstable ]
   pull_request:
-    branches: [ main, HACS_compilant ]
+    branches: [ main, unstable ]
 
 jobs:
   test:
