@@ -1,7 +1,7 @@
 # Intégration eedomus pour Home Assistant
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/integration)
-[![Version](https://img.shields.io/badge/version-0.12.0-blue.svg)](https://github.com/Dan4Jer/hass-eedomus/releases/tag/v0.12.0)
+[![Version](https://img.shields.io/badge/version-3.10-instable-blue.svg)](https://github.com/Dan4Jer/hass-eedomus/releases/tag/v3.10-instable)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/Dan4Jer/hass-eedomus/blob/main/LICENSE)
 [![Release](https://img.shields.io/github/v/release/Dan4Jer/hass-eedomus?label=latest%20release)](https://github.com/Dan4Jer/hass-eedomus/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/Dan4Jer/hass-eedomus/total.svg)](https://github.com/Dan4Jer/hass-eedomus/releases)
@@ -10,14 +10,15 @@
 
 ## 🎯 Fonctionnalités principales
 
-### 🆕 Nouveau dans la v0.12.0 : Options Flow avec Configuration Dynamique
+### 🆕 Nouveau dans la v3.10-instable : Corrections Critiques et Optimisations
 
-**La plus grosse nouveauté de cette version !** 🎛️
+**Une version stable avec des corrections majeures !** 🛠️
 
-- **Configuration du scan_interval** : Ajustez la fréquence de rafraîchissement (30s à 15min) sans recréer l'intégration
-- **Options avancées** : Activez/désactivez les fonctionnalités directement depuis l'interface
-- **Changements immédiats** : Les modifications prennent effet immédiatement après sauvegarde
-- **Interface utilisateur intuitive** : Panneau d'options organisé dans l'interface Home Assistant
+- **Correction des mécanismes de fallback** : PHP fallback et next best value restaurés
+- **Amélioration du mapping des devices** : 46 mappings au lieu de 30, couverture accrue
+- **Réduction des erreurs** : Correction de 15+ bugs critiques
+- **Logs plus propres** : Messages informatifs au lieu de warnings inutiles
+- **Interface utilisateur améliorée** : Option renommée en "Edit Custom Mapping"
 
 ### 🆕 Nouveau dans la v0.13.0 : Configuration YAML des Mappings
 
@@ -28,6 +29,15 @@
 - **Rechargement à chaud** : Appliquez les modifications sans redémarrage
 - **Fusion intelligente** : Combine les mappings par défaut et personnalisés
 - **Expressions régulières** : Détection flexible des devices par nom
+
+### 🆕 Nouveau dans la v0.12.0 : Options Flow avec Configuration Dynamique
+
+**La plus grosse nouveauté de cette version !** 🎛️
+
+- **Configuration du scan_interval** : Ajustez la fréquence de rafraîchissement (30s à 15min) sans recréer l'intégration
+- **Options avancées** : Activez/désactivez les fonctionnalités directement depuis l'interface
+- **Changements immédiats** : Les modifications prennent effet immédiatement après sauvegarde
+- **Interface utilisateur intuitive** : Panneau d'options organisé dans l'interface Home Assistant
 
 ### Fonctionnalités existantes
 
