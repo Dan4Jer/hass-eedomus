@@ -257,6 +257,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 
         except Exception as e:
             _LOGGER.warning("Failed to print global mapping table: %s", e)
+            _LOGGER.warning("Exception type: %s", type(e).__name__)
+            _LOGGER.warning("Exception details: %s", str(e))
+            _LOGGER.warning("Traceback:")
+            import traceback
+            _LOGGER.warning(traceback.format_exc())
         
         # No need to call super().async_config_entry_first_refresh() as we've already loaded the data
 
