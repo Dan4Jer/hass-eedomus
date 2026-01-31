@@ -177,6 +177,37 @@ class EedomusEntity(CoordinatorEntity):
         self.async_schedule_update_ha_state()
 
 
+    async def async_set_value(self, value: str) -> dict | None:
+        """Set the value of the peripheral using the eedomus service.
+        
+        Args:
+            value: The value to set (string representation)
+            
+        Returns:
+            The response from the service call, or None if service not available
+        """
+        try:
+            # Call the eedomus.set_value service
+            return await self.hass.services.async_call(
+                DOMAIN,
+                "set_value",
+                {
+                    "periph_id": self._periph_id,
+                    "value": value,
+                },
+                blocking=True,
+                return_response=True,
+            )
+        except Exception as e:
+            _LOGGER.error(
+                "Failed to set value for %s (periph_id=%s) to %s: %s",
+                self._attr_name,
+                self._periph_id,
+                value,
+                e,
+            )
+            return None
+
 def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: str = "sensor"):
     """Mappe un périphérique eedomus vers une entité Home Assistant.
     
@@ -514,10 +545,6 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
             )
             return None
 
-    
-    return mapping
-
-
 def _create_mapping(mapping_config, periph_name, periph_id, context, emoji="🎯", device_data=None):
     """Crée un mapping standardisé avec logging approprié."""
     # mapping_config peut être soit la section 'mapping' directement, soit la règle complète
@@ -545,4 +572,5 @@ def _create_mapping(mapping_config, periph_name, periph_id, context, emoji="🎯
     # Stocker le mapping dans le registre global
     register_device_mapping(mapping, periph_name, periph_id, device_data)
     
+    return mapping
     return mapping
