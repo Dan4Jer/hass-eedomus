@@ -142,7 +142,7 @@ CLASS_MAPPING: Dict[str, Dict[str, Any]] = {
 }
 
 # YAML Mapping Configuration Constants
-CONF_USE_YAML = "use_yaml"
+CONF_USE_YAML = "edit_custom_mapping"
 CONF_CUSTOM_DEVICES = "custom_devices"
 CONF_YAML_CONTENT = "yaml_content"
 
