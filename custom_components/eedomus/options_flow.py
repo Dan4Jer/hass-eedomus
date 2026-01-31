@@ -44,6 +44,7 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
         """Copy configuration values from config_entry.data to options.
         
         This ensures that values set during config_flow are available in options_flow.
+        Only copies values that haven't been explicitly set in options.
         """
         # Start with existing options or empty dict
         if not self._config_entry.options:
@@ -52,17 +53,30 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
             options = dict(self._config_entry.options)
         
         # Copy values from config_entry.data (config_flow values)
+        # Only copy if the option hasn't been explicitly set yet
         config_data = self._config_entry.data
-        options[CONF_ENABLE_API_EEDOMUS] = config_data.get(CONF_ENABLE_API_EEDOMUS, True)
-        options[CONF_ENABLE_API_PROXY] = config_data.get(CONF_ENABLE_API_PROXY, False)
-        options[CONF_ENABLE_HISTORY] = config_data.get(CONF_ENABLE_HISTORY, False)
-        options[CONF_SCAN_INTERVAL] = config_data.get(CONF_SCAN_INTERVAL, 300)
-        options[CONF_ENABLE_SET_VALUE_RETRY] = config_data.get(CONF_ENABLE_SET_VALUE_RETRY, True)
-        options[CONF_ENABLE_WEBHOOK] = config_data.get(CONF_ENABLE_WEBHOOK, True)
-        options[CONF_API_PROXY_DISABLE_SECURITY] = config_data.get(CONF_API_PROXY_DISABLE_SECURITY, False)
-        options[CONF_PHP_FALLBACK_ENABLED] = config_data.get(CONF_PHP_FALLBACK_ENABLED, False)
-        options[CONF_PHP_FALLBACK_SCRIPT_NAME] = config_data.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")
-        options[CONF_PHP_FALLBACK_TIMEOUT] = config_data.get(CONF_PHP_FALLBACK_TIMEOUT, 5)
+        
+        # Only copy if not already in options
+        if CONF_ENABLE_API_EEDOMUS not in options:
+            options[CONF_ENABLE_API_EEDOMUS] = config_data.get(CONF_ENABLE_API_EEDOMUS, True)
+        if CONF_ENABLE_API_PROXY not in options:
+            options[CONF_ENABLE_API_PROXY] = config_data.get(CONF_ENABLE_API_PROXY, False)
+        if CONF_ENABLE_HISTORY not in options:
+            options[CONF_ENABLE_HISTORY] = config_data.get(CONF_ENABLE_HISTORY, False)
+        if CONF_SCAN_INTERVAL not in options:
+            options[CONF_SCAN_INTERVAL] = config_data.get(CONF_SCAN_INTERVAL, 300)
+        if CONF_ENABLE_SET_VALUE_RETRY not in options:
+            options[CONF_ENABLE_SET_VALUE_RETRY] = config_data.get(CONF_ENABLE_SET_VALUE_RETRY, True)
+        if CONF_ENABLE_WEBHOOK not in options:
+            options[CONF_ENABLE_WEBHOOK] = config_data.get(CONF_ENABLE_WEBHOOK, True)
+        if CONF_API_PROXY_DISABLE_SECURITY not in options:
+            options[CONF_API_PROXY_DISABLE_SECURITY] = config_data.get(CONF_API_PROXY_DISABLE_SECURITY, False)
+        if CONF_PHP_FALLBACK_ENABLED not in options:
+            options[CONF_PHP_FALLBACK_ENABLED] = config_data.get(CONF_PHP_FALLBACK_ENABLED, False)
+        if CONF_PHP_FALLBACK_SCRIPT_NAME not in options:
+            options[CONF_PHP_FALLBACK_SCRIPT_NAME] = config_data.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")
+        if CONF_PHP_FALLBACK_TIMEOUT not in options:
+            options[CONF_PHP_FALLBACK_TIMEOUT] = config_data.get(CONF_PHP_FALLBACK_TIMEOUT, 5)
         
         _LOGGER.debug("Copied config to options: %s", {k: v for k, v in options.items() if k not in ['api_user', 'api_secret']})
         return options
