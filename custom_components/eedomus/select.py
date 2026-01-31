@@ -149,7 +149,7 @@ class EedomusSelect(EedomusEntity, SelectEntity):
             )
 
             # Send the selected option to eedomus
-            result = await self._client.set_periph_value(self._periph_id, eedomus_value)
+            result = await self.coordinator.client.set_periph_value(self._periph_id, eedomus_value)
 
             if result.get("success", 0) == 1:
                 _LOGGER.debug(
