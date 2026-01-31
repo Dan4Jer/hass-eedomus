@@ -227,7 +227,13 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             
             # Vérifier si tous les devices sont mappés
             mapped_ids = {m["periph_id"] for m in get_mapping_registry()}
-            all_ids = {str(periph["periph_id"]) for periph in aggregated_data}
+            all_ids = {str(periph["periph_id"]) for periph in aggregated_data if isinstance(periph, dict)}
+            
+            # Log warning if non-dict items found
+            non_dict_items = [periph for periph in aggregated_data if not isinstance(periph, dict)]
+            if non_dict_items:
+                _LOGGER.warning("⚠️  WARNING: Found %d non-dictionary items in aggregated_data", len(non_dict_items))
+                _LOGGER.warning("   First 5 non-dict items: %s", non_dict_items[:5])
             
             if len(mapped_ids) < len(all_ids):
                 _LOGGER.warning("\n" + "="*120)
