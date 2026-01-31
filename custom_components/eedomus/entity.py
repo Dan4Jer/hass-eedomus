@@ -485,3 +485,34 @@ def _create_mapping(mapping_config, periph_name, periph_id, context, emoji="🎯
     register_device_mapping(mapping, periph_name, periph_id, device_data)
     
     return mapping
+
+    async def async_set_value(self, value: str) -> dict | None:
+        """Set the value of the peripheral using the eedomus service.
+        
+        Args:
+            value: The value to set (string representation)
+            
+        Returns:
+            The response from the service call, or None if service not available
+        """
+        try:
+            # Call the eedomus.set_value service
+            return await self.hass.services.async_call(
+                DOMAIN,
+                "set_value",
+                {
+                    "periph_id": self._periph_id,
+                    "value": value,
+                },
+                blocking=True,
+                return_response=True,
+            )
+        except Exception as e:
+            _LOGGER.error(
+                "Failed to set value for %s (periph_id=%s) to %s: %s",
+                self._attr_name,
+                self._periph_id,
+                value,
+                e,
+            )
+            return None
