@@ -575,4 +575,3 @@ def _create_mapping(mapping_config, periph_name, periph_id, context, emoji="🎯
     register_device_mapping(mapping, periph_name, periph_id, device_data)
     
     return mapping
-    return mapping
