@@ -51,6 +51,9 @@ class EedomusScene(EedomusEntity, Scene):
     def __init__(self, coordinator, periph_id: str):
         """Initialize the scene."""
         super().__init__(coordinator, periph_id)
+                # Log pour confirmer que le device a été mappé
+                _LOGGER.debug("✅ Device mapped: %s (%s) → %s:%s", 
+                            periph["name"], periph_id, eedomus_mapping["ha_entity"], eedomus_mapping["ha_subtype"])
         self._attr_name = self.coordinator.data[periph_id]["name"]
         self._attr_unique_id = f"{periph_id}_scene"
         _LOGGER.debug(

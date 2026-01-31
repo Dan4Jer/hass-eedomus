@@ -51,6 +51,9 @@ async def async_setup_entry(
                 }
             if not eedomus_mapping is None:
                 coordinator.data[periph_id].update(eedomus_mapping)
+                # Log pour confirmer que le device a été mappé
+                _LOGGER.debug("✅ Device mapped: %s (%s) → %s:%s", 
+                            periph["name"], periph_id, eedomus_mapping["ha_entity"], eedomus_mapping["ha_subtype"])
 
     for periph_id, periph in all_peripherals.items():
         ha_entity = None

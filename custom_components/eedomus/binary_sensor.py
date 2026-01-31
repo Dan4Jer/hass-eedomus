@@ -51,6 +51,9 @@ async def async_setup_entry(
             coordinator.data[periph_id].update(eedomus_mapping)
             # S'assurer que le mapping est enregistré dans le registre global
             from .entity import _register_device_mapping
+                # Log pour confirmer que le device a été mappé
+                _LOGGER.debug("✅ Device mapped: %s (%s) → %s:%s", 
+                            periph["name"], periph_id, eedomus_mapping["ha_entity"], eedomus_mapping["ha_subtype"])
             _register_device_mapping(eedomus_mapping, periph["name"], periph_id, periph)
 
     # Handle parent-child relationships for motion sensors

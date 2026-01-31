@@ -51,6 +51,9 @@ async def async_setup_entry(
             coordinator.data[periph_id].update(eedomus_mapping)
             # S'assurer que le mapping est enregistré dans le registre global
             _register_device_mapping(eedomus_mapping, periph["name"], periph_id, periph)
+                # Log pour confirmer que le device a été mappé
+                _LOGGER.debug("✅ Light device mapped: %s (%s) → %s:%s", 
+                            periph["name"], periph_id, eedomus_mapping["ha_entity"], eedomus_mapping["ha_subtype"])
 
     for periph_id, periph in all_peripherals.items():
         ha_entity = None

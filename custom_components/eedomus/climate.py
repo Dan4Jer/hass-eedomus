@@ -51,6 +51,9 @@ async def async_setup_entry(
 
 
 class EedomusClimate(EedomusEntity, ClimateEntity):
+                # Log pour confirmer que le device a été mappé
+                _LOGGER.debug("✅ Device mapped: %s (%s) → %s:%s", 
+                            periph["name"], periph_id, eedomus_mapping["ha_entity"], eedomus_mapping["ha_subtype"])
     """Representation of an eedomus climate device."""
 
     def __init__(self, coordinator, periph_id: str):
