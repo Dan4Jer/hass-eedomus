@@ -151,6 +151,24 @@ usage_id_mappings:
     justification: "Smoke detector - usage_id=27 for fire/smoke detection"
     is_dynamic: true
   
+  "28":
+    ha_entity: "sensor"
+    ha_subtype: "power"
+    justification: "Power consumption sensor - usage_id=28 for real-time power monitoring"
+    is_dynamic: false
+  
+  "29":
+    ha_entity: "sensor"
+    ha_subtype: "energy"
+    justification: "Energy consumption sensor - usage_id=29 for cumulative energy monitoring"
+    is_dynamic: false
+  
+  "27":
+    ha_entity: "binary_sensor"
+    ha_subtype: "smoke"
+    justification: "Smoke detector - usage_id=27 for fire/smoke detection"
+    is_dynamic: true
+  
   "34":
     ha_entity: "sensor"
     ha_subtype: "text"
@@ -269,6 +287,96 @@ usage_id_mappings:
     ha_entity: "select"
     ha_subtype: "virtual"
     justification: "Virtual device - eedomus scene triggers and automation"
+    is_dynamic: false
+  
+  "100":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus system information - usage_id=100"
+    is_dynamic: false
+  
+  "101":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus system status - usage_id=101"
+    is_dynamic: false
+  
+  "102":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus app data - usage_id=102"
+    is_dynamic: false
+  
+  "103":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus app data - usage_id=103"
+    is_dynamic: false
+  
+  "104":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus app data - usage_id=104"
+    is_dynamic: false
+  
+  "105":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus app data - usage_id=105"
+    is_dynamic: false
+  
+  "106":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus app data - usage_id=106"
+    is_dynamic: false
+  
+  "107":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus app data - usage_id=107"
+    is_dynamic: false
+  
+  "108":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus app data - usage_id=108"
+    is_dynamic: false
+  
+  "109":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus app data - usage_id=109"
+    is_dynamic: false
+  
+  "110":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus app data - usage_id=110"
+    is_dynamic: false
+  
+  "111":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus app data - usage_id=111"
+    is_dynamic: false
+  
+  "112":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus app data - usage_id=112"
+    is_dynamic: false
+  
+  "113":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus app data - usage_id=113"
+    is_dynamic: false
+  
+  "114":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus app data - usage_id=114"
     is_dynamic: false
 
 # Name pattern mappings (regex patterns)
