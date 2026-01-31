@@ -51,9 +51,6 @@ async def async_setup_entry(
             continue
 
         _LOGGER.debug("Creating select entity for %s (%s)", periph["name"], periph_id)
-                # Log pour confirmer que le device a été mappé
-                _LOGGER.debug("✅ Device mapped: %s (%s) → %s:%s", 
-                            periph["name"], periph_id, eedomus_mapping["ha_entity"], eedomus_mapping["ha_subtype"])
         selects.append(EedomusSelect(coordinator, periph_id))
 
     async_add_entities(selects, True)

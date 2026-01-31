@@ -51,11 +51,11 @@ async def async_setup_entry(
                 eedomus_mapping = {
                     "ha_entity": "sensor",
                     "ha_subtype": "energy",
+                    "justification": "Parent is a cover - energy consumption meter",
+                }
                 # Log pour confirmer que le device a été mappé
                 _LOGGER.debug("✅ Device mapped: %s (%s) → %s:%s", 
                             periph["name"], periph_id, eedomus_mapping["ha_entity"], eedomus_mapping["ha_subtype"])
-                    "justification": "Parent is a cover - energy consumption meter",
-                }
             if periph.get("usage_id") == "48":  # Slats
                 eedomus_mapping = {
                     "ha_entity": "cover",

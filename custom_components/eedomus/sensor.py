@@ -51,9 +51,6 @@ async def async_setup_entry(
 
     # Handle parent-child relationships for sensors similar to light.py
     for periph_id, periph in all_peripherals.items():
-                # Log pour confirmer que le device a été mappé
-                _LOGGER.debug("✅ Device mapped: %s (%s) → %s:%s", 
-                            periph["name"], periph_id, eedomus_mapping["ha_entity"], eedomus_mapping["ha_subtype"])
         ha_entity = None
         if "ha_entity" in coordinator.data[periph_id]:
             ha_entity = coordinator.data[periph_id]["ha_entity"]
