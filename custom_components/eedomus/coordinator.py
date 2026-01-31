@@ -242,9 +242,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 _LOGGER.warning("\nDevices not mapped:")
                 for periph_id in sorted(missing_ids)[:10]:  # Afficher seulement les 10 premiers
                     periph = next((p for p in aggregated_data if str(p["periph_id"]) == periph_id), None)
-                    if periph:
+                    if periph and isinstance(periph, dict):
                         _LOGGER.warning("  - %s (ID: %s, usage_id: %s)", 
                                      periph.get("name", "Unknown"), periph_id, periph.get("usage_id", "Unknown"))
+                    else:
+                        _LOGGER.warning("  - Unknown device (ID: %s)", periph_id)
                 
                 if len(missing_ids) > 10:
                     _LOGGER.warning("  ... and %d more", len(missing_ids) - 10)
