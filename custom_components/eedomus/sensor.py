@@ -8,7 +8,7 @@ from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import CLASS_MAPPING, DOMAIN, SENSOR_DEVICE_CLASSES
+from .const import DOMAIN, SENSOR_DEVICE_CLASSES
 from .entity import EedomusEntity, map_device_to_ha_entity
 
 _LOGGER = logging.getLogger(__name__)
@@ -45,6 +45,9 @@ async def async_setup_entry(
         if not "ha_entity" in coordinator.data[periph_id]:
             eedomus_mapping = map_device_to_ha_entity(periph)
             coordinator.data[periph_id].update(eedomus_mapping)
+            # S'assurer que le mapping est enregistré dans le registre global
+            from .entity import _register_device_mapping
+            _register_device_mapping(eedomus_mapping, periph["name"], periph_id, periph)
 
     # Handle parent-child relationships for sensors similar to light.py
     for periph_id, periph in all_peripherals.items():
@@ -66,7 +69,7 @@ async def async_setup_entry(
             # Removed usage_id=82 mapping as it's now handled by the main mapping system as "select"
             if not eedomus_mapping is None:
                 coordinator.data[periph_id].update(eedomus_mapping)
-                _LOGGER.info(
+                _LOGGER.debug(
                     "Created energy sensor for %s (%s) - consumption monitoring",
                     periph["name"],
                     periph_id,
@@ -129,7 +132,7 @@ async def async_setup_entry(
                     # Create battery sensor entity
                     battery_entity = EedomusBatterySensor(coordinator, periph_id)
                     entities.append(battery_entity)
-                    _LOGGER.info(
+                    _LOGGER.debug(
                         "Created battery sensor for %s (%s%%)",
                         periph.get("name", "unknown"),
                         battery_value,
@@ -150,14 +153,18 @@ class EedomusSensor(EedomusEntity, SensorEntity):
     def __init__(self, coordinator, periph_id):
         """Initialize the sensor."""
         super().__init__(coordinator, periph_id)
+        periph_info = self._get_periph_data(periph_id)
+        if periph_info is None:
+            _LOGGER.warning(f"Peripheral data not found for sensor {periph_id}")
+            return
+            
         _LOGGER.debug(
             "Initializing sensor entity for %s (periph_id=%s)",
-            self.coordinator.data[periph_id].get("name", "unknown"),
+            periph_info.get("name", "unknown"),
             periph_id,
         )
 
         # Set sensor-specific attributes based on ha_subtype
-        periph_info = self.coordinator.data[periph_id]
         periph_type = periph_info.get("ha_subtype")
 
         # Set default device class for all sensors
@@ -187,10 +194,15 @@ class EedomusSensor(EedomusEntity, SensorEntity):
     @property
     def native_value(self):
         """Return the state of the sensor."""
-        value = self.coordinator.data[self._periph_id].get("last_value")
+        periph_data = self._get_periph_data()
+        if periph_data is None:
+            _LOGGER.warning(f"Cannot get native_value: peripheral data not found for {self._periph_id}")
+            return None
+            
+        value = periph_data.get("last_value")
         _LOGGER.debug(
             "Sensor %s (periph_id=%s) native_value: %s",
-            self.coordinator.data[self._periph_id].get("name", "unknown"),
+            periph_data.get("name", "unknown"),
             self._periph_id,
             value,
         )
@@ -209,7 +221,7 @@ class EedomusSensor(EedomusEntity, SensorEntity):
 
         # Handle empty or invalid values
         if not value or value == "":
-            _LOGGER.warning(
+            _LOGGER.info(
                 "Missing or empty value for sensor %s (periph_id=%s)",
                 self.coordinator.data[self._periph_id].get("name", "unknown"),
                 self._periph_id,
@@ -220,7 +232,7 @@ class EedomusSensor(EedomusEntity, SensorEntity):
         if isinstance(value, str) and "(" in value:
             # Extract the first part of the value (e.g., "8" from "8 (31)")
             value = value.split("(")[0].strip()
-            _LOGGER.warning(
+            _LOGGER.debug(
                 "Non-standard value format corrected for sensor %s (periph_id=%s): %s -> %s",
                 self.coordinator.data[self._periph_id].get("name", "unknown"),
                 self._periph_id,
@@ -234,7 +246,7 @@ class EedomusSensor(EedomusEntity, SensorEntity):
         elif isinstance(value, str) and value.replace(".", "", 1).lstrip("-").isdigit():
             return float(value)
         else:
-            _LOGGER.warning(
+            _LOGGER.debug(
                 "Non-numeric value for sensor %s (periph_id=%s): '%s' - returning as None",
                 self.coordinator.data[self._periph_id].get("name", "unknown"),
                 self._periph_id,
@@ -313,7 +325,10 @@ class EedomusSensor(EedomusEntity, SensorEntity):
     def extra_state_attributes(self):
         """Return the state attributes."""
         attrs = {}
-        periph_data = self.coordinator.data.get(self._periph_id, {})
+        if self.coordinator.data is not None:
+            periph_data = self.coordinator.data.get(self._periph_id, {})
+        else:
+            periph_data = {}
 
         if "history" in periph_data:
             attrs["history"] = periph_data["history"]
@@ -352,12 +367,14 @@ class EedomusAggregatedSensor(EedomusSensor):
         # Example: sum values from children for energy sensors
         if self._parent_device.get("ha_subtype") == "energy":
             total = parent_value or 0
-            for child_id in self._child_devices:
-                child_value = self.coordinator.data[child_id].get("last_value")
-                try:
-                    total += float(child_value or 0)
-                except (ValueError, TypeError):
-                    continue
+            if self.coordinator.data is not None:
+                for child_id in self._child_devices:
+                    child_data = self.coordinator.data.get(child_id, {})
+                    child_value = child_data.get("last_value")
+                    try:
+                        total += float(child_value or 0)
+                    except (ValueError, TypeError):
+                        continue
             return total
 
         # For other types, just return parent value
@@ -374,13 +391,14 @@ class EedomusAggregatedSensor(EedomusSensor):
 
         # Add child device values
         child_attrs = {}
-        for child_id, child in self._child_devices.items():
-            child_data = self.coordinator.data.get(child_id, {})
-            child_attrs[child_id] = {
-                "name": child_data.get("name"),
-                "value": child_data.get("last_value"),
-                "unit": child_data.get("unit"),
-                "type": child_data.get("ha_subtype"),
+        if self.coordinator.data is not None:
+            for child_id, child in self._child_devices.items():
+                child_data = self.coordinator.data.get(child_id, {})
+                child_attrs[child_id] = {
+                    "name": child_data.get("name"),
+                    "value": child_data.get("last_value"),
+                    "unit": child_data.get("unit"),
+                    "type": child_data.get("ha_subtype"),
             }
 
         result_attrs["child_devices"] = child_attrs
@@ -442,7 +460,7 @@ class EedomusBatterySensor(EedomusEntity, SensorEntity):
         self._attr_native_unit_of_measurement = "%"
         self._attr_state_class = "measurement"
 
-        _LOGGER.info(
+        _LOGGER.debug(
             "🔋 Initialized battery sensor for %s (periph_id=%s)",
             device_name,
             periph_id,
@@ -466,7 +484,11 @@ class EedomusBatterySensor(EedomusEntity, SensorEntity):
     @property
     def available(self) -> bool:
         """Return True if battery data is available."""
-        battery_level = self.coordinator.data[self._periph_id].get("battery", "")
+        periph_data = self._get_periph_data()
+        if periph_data is None:
+            return False
+            
+        battery_level = periph_data.get("battery", "")
         return (
             battery_level
             and str(battery_level).strip()

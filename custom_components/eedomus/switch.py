@@ -8,7 +8,7 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import CLASS_MAPPING, DOMAIN
+from .const import DOMAIN
 from .entity import EedomusEntity, map_device_to_ha_entity
 
 _LOGGER = logging.getLogger(__name__)
@@ -31,6 +31,9 @@ async def async_setup_entry(
             if not "ha_entity" in coordinator.data[periph_id]:
                 eedomus_mapping = map_device_to_ha_entity(periph)
                 coordinator.data[periph_id].update(eedomus_mapping)
+                # S'assurer que le mapping est enregistré dans le registre global
+                from .entity import _register_device_mapping
+                _register_device_mapping(eedomus_mapping, periph["name"], periph_id, periph)
     for periph_id, periph in all_peripherals.items():
         ha_entity = None
         if "ha_entity" in coordinator.data[periph_id]:
@@ -48,6 +51,9 @@ async def async_setup_entry(
                 }
             if not eedomus_mapping is None:
                 coordinator.data[periph_id].update(eedomus_mapping)
+                # Log pour confirmer que le device a été mappé
+                _LOGGER.debug("✅ Device mapped: %s (%s) → %s:%s", 
+                            periph["name"], periph_id, eedomus_mapping["ha_entity"], eedomus_mapping["ha_subtype"])
 
     for periph_id, periph in all_peripherals.items():
         ha_entity = None
@@ -134,14 +140,14 @@ async def async_setup_entry(
             keyword in device_name_lower for keyword in controllable_device_keywords
         ):
             should_be_sensor = False  # Force this to remain a switch
-            _LOGGER.info(
+            _LOGGER.debug(
                 "Keeping '%s' (%s) as switch - identified as controllable device with consumption monitoring",
                 periph["name"],
                 periph_id,
             )
 
         if should_be_sensor:
-            _LOGGER.info(
+            _LOGGER.debug(
                 "Remapping switch '%s' (%s) as sensor - detected as consumption monitor",
                 periph["name"],
                 periph_id,
@@ -179,12 +185,17 @@ class EedomusSwitch(EedomusEntity, SwitchEntity):
     @property
     def is_on(self):
         """Return true if the switch is on."""
-        value = self.coordinator.data[self._periph_id].get("last_value")
+        periph_data = self._get_periph_data()
+        if periph_data is None:
+            _LOGGER.warning(f"Cannot get switch state: peripheral data not found for {self._periph_id}")
+            return False
+            
+        value = periph_data.get("last_value")
         _LOGGER.debug(
             "Switch %s is_on: %s name=%s",
             self._periph_id,
-            self.coordinator.data[self._periph_id].get("last_value"),
-            self.coordinator.data[self._periph_id].get("name"),
+            periph_data.get("last_value"),
+            periph_data.get("name"),
         )
         return value == "100"
 
@@ -192,22 +203,8 @@ class EedomusSwitch(EedomusEntity, SwitchEntity):
         """Turn the switch on."""
         _LOGGER.debug("Turning on switch %s", self._periph_id)
         try:
-            response = await self.coordinator.client.set_periph_value(
-                self._periph_id, "100"
-            )
-            if isinstance(response, dict) and response.get("success") != 1:
-                _LOGGER.error(
-                    "Failed to turn on switch %s: %s",
-                    self._periph_id,
-                    response.get("error", "Unknown error"),
-                )
-                raise Exception(
-                    f"Failed to turn on switch: {response.get('error', 'Unknown error')}"
-                )
-            # Force immediate state update
-            await self.async_force_state_update("100")
-            
-            await self.coordinator.async_request_refresh()
+            # Use entity method to turn on switch (includes fallback, retry, and state update)
+            response = await self.async_set_value("100")
         except Exception as e:
             _LOGGER.error("Failed to turn on switch %s: %s", self._periph_id, e)
             raise
@@ -216,23 +213,8 @@ class EedomusSwitch(EedomusEntity, SwitchEntity):
         """Turn the switch off."""
         _LOGGER.debug("Turning off switch %s", self._periph_id)
         try:
-            response = await self.coordinator.client.set_periph_value(
-                self._periph_id, "0"
-            )
-            if isinstance(response, dict) and response.get("success") != 1:
-                _LOGGER.error(
-                    "Failed to turn off switch %s: %s",
-                    self._periph_id,
-                    response.get("error", "Unknown error"),
-                )
-                raise Exception(
-                    f"Failed to turn off switch: {response.get('error', 'Unknown error')}"
-                )
-
-            # Force immediate state update
-            await self.async_force_state_update("0")
-            
-            await self.coordinator.async_request_refresh()
+            # Use entity method to turn off switch (includes fallback, retry, and state update)
+            response = await self.async_set_value("0")
 
         except Exception as e:
             _LOGGER.error("Failed to turn off switch %s: %s", self._periph_id, e)

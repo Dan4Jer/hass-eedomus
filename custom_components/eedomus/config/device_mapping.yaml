@@ -1,0 +1,413 @@
+# Eedomus Device Mapping Configuration
+# Version: 1.0
+# 
+# This file defines how eedomus devices are mapped to Home Assistant entities.
+# Users can customize this mapping through the options flow interface.
+#
+# Priority order:
+# 1. User custom mappings (custom_mapping.yaml)
+# 2. Advanced rules (RGBW detection, parent-child relationships)
+# 3. Usage ID mappings
+# 4. Name pattern matching
+# 5. Default mapping
+
+version: 1.3
+
+# Advanced mapping rules for complex device detection
+advanced_rules:
+  - name: "rgbw_lamp_by_children"
+    priority: 1
+    conditions:
+      - usage_id: "1"
+      - min_children: 4
+    mapping:
+      ha_entity: "light"
+      ha_subtype: "rgbw"
+      justification: "RGBW lamp detected by having at least 4 children with usage_id=1"
+      is_dynamic: true
+
+  - name: "rgbw_child_brightness"
+    priority: 1
+    conditions:
+      - usage_id: "1"
+      - has_parent: true
+      - parent_usage_id: "1"
+      - parent_has_min_children: 4
+    mapping:
+      ha_entity: "light"
+      ha_subtype: "brightness"
+      justification: "RGBW child brightness channel (child of RGBW lamp)"
+      is_dynamic: true
+
+  - name: "Smoke Detector"
+    priority: 2
+    conditions:
+      - usage_id: "27"
+    mapping:
+      ha_entity: "binary_sensor"
+      ha_subtype: "smoke"
+      justification: "Smoke detector device"
+      is_dynamic: true
+
+  - name: "Motion Sensor"
+    priority: 2
+    conditions:
+      - usage_id: "37"
+    mapping:
+      ha_entity: "binary_sensor"
+      ha_subtype: "motion"
+      justification: "Motion sensor device"
+      is_dynamic: true
+
+# Usage ID mappings
+usage_id_mappings:
+  "0":
+    ha_entity: "switch"
+    ha_subtype: ""
+    justification: "Unknown device type - default to switch"
+    is_dynamic: true
+  
+  "1":
+    ha_entity: "light"
+    ha_subtype: "dimmable"
+    justification: "Dimmable light device"
+    is_dynamic: true
+    
+  "2":
+    ha_entity: "switch"
+    ha_subtype: ""
+    justification: "Generic switch - usage_id=2 for basic on/off devices"
+    is_dynamic: true
+
+  "4":
+    ha_entity: "switch"
+    ha_subtype: ""
+    justification: "Generic switch - usage_id=4 for electrical appliances"
+    is_dynamic: true
+
+  "7":
+    ha_entity: "sensor"
+    ha_subtype: "temperature"
+    justification: "Temperature sensor - usage_id=7 for temperature monitoring"
+    is_dynamic: false
+
+  "14":
+    ha_entity: "select"
+    ha_subtype: "shutter_group"
+    justification: "Shutter group control - usage_id=14 for virtual shutter grouping"
+    is_dynamic: false
+  
+  "15":
+    ha_entity: "climate"
+    ha_subtype: "temperature_setpoint"
+    justification: "Virtual thermostat for heating setpoint control"
+    is_dynamic: false
+  
+  "18":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Current day information from eedomus"
+    is_dynamic: false
+  
+  "19":
+    ha_entity: "climate"
+    ha_subtype: "fil_pilote"
+    justification: "Fil pilote heating system control - usage_id=19"
+    is_dynamic: false
+  
+  "20":
+    ha_entity: "climate"
+    ha_subtype: "fil_pilote"
+    justification: "Fil pilote heating system control - usage_id=20"
+    is_dynamic: false
+  
+  "22":
+    ha_entity: "sensor"
+    ha_subtype: "moisture"
+    justification: "Moisture sensor - Sonoff SNZB-02D/SNZB-02P via Zigate"
+    is_dynamic: false
+  
+  "23":
+    ha_entity: "sensor"
+    ha_subtype: "cpu"
+    justification: "CPU usage monitor - eedomus internal system monitoring"
+    is_dynamic: false
+  
+  "24":
+    ha_entity: "sensor"
+    ha_subtype: "illuminance"
+    justification: "Luminosity sensor - usage_id=24 for light level monitoring"
+    is_dynamic: false
+
+  "26":
+    ha_entity: "sensor"
+    ha_subtype: "energy"
+    justification: "Energy consumption meter - virtual eedomus consumption counter"
+    is_dynamic: false
+  
+  "27":
+    ha_entity: "binary_sensor"
+    ha_subtype: "smoke"
+    justification: "Smoke detector - usage_id=27 for fire/smoke detection"
+    is_dynamic: true
+  
+  "28":
+    ha_entity: "sensor"
+    ha_subtype: "power"
+    justification: "Power consumption sensor - usage_id=28 for real-time power monitoring"
+    is_dynamic: false
+  
+  "29":
+    ha_entity: "sensor"
+    ha_subtype: "energy"
+    justification: "Energy consumption sensor - usage_id=29 for cumulative energy monitoring"
+    is_dynamic: false
+  
+  "27":
+    ha_entity: "binary_sensor"
+    ha_subtype: "smoke"
+    justification: "Smoke detector - usage_id=27 for fire/smoke detection"
+    is_dynamic: true
+  
+  "34":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Day phase information from eedomus"
+    is_dynamic: false
+  
+  "35":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Miscellaneous eedomus app data (sun elevation, azimuth, etc.)"
+    is_dynamic: false
+  
+  "36":
+    ha_entity: "binary_sensor"
+    ha_subtype: "moisture"
+    justification: "Flood/water detector - usage_id=36 for water leakage detection"
+    is_dynamic: true
+  
+  "37":
+    ha_entity: "binary_sensor"
+    ha_subtype: "motion"
+    justification: "Motion detector - usage_id=37 for movement detection"
+    is_dynamic: true
+  
+  "38":
+    ha_entity: "climate"
+    ha_subtype: "fil_pilote"
+    justification: "Fil pilote heating control - usage_id=38"
+    is_dynamic: false
+  
+  "42":
+    ha_entity: "select"
+    ha_subtype: "shutter_group"
+    justification: "Shutter centralization control - eedomus virtual device"
+    is_dynamic: false
+  
+  "43":
+    ha_entity: "select"
+    ha_subtype: "automation"
+    justification: "Eedomus scene trigger - virtual device for automation"
+    is_dynamic: false
+  
+  "48":
+    ha_entity: "cover"
+    ha_subtype: "shutter"
+    justification: "Shutter/blind control - usage_id=48 for window coverings"
+    is_dynamic: true
+  
+  "50":
+    ha_entity: "switch"
+    ha_subtype: ""
+    justification: "Camera privacy control - usage_id=50 for camera intimacy"
+    is_dynamic: true
+
+  "52":
+    ha_entity: "switch"
+    ha_subtype: ""
+    justification: "Sonoff switch/remote control - usage_id=52"
+    is_dynamic: true
+  
+  "82":
+    ha_entity: "select"
+    ha_subtype: "color_preset"
+    justification: "RGBW color preset selection - usage_id=82"
+    is_dynamic: false
+  
+  "114":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Network detection status - eedomus app data"
+    is_dynamic: false
+  
+  "52":
+    ha_entity: "switch"
+    ha_subtype: ""
+    justification: "Sonoff switch/remote control - usage_id=52"
+    is_dynamic: true
+  
+  "82":
+    ha_entity: "select"
+    ha_subtype: "color_preset"
+    justification: "RGBW color preset selection - usage_id=82"
+    is_dynamic: false
+
+  "48":
+    ha_entity: "cover"
+    ha_subtype: "shutter"
+    justification: "Shutter/blind control - usage_id=48 for window coverings"
+    is_dynamic: true
+
+  "26":
+    ha_entity: "sensor"
+    ha_subtype: "energy"
+    justification: "Energy consumption meter - virtual eedomus consumption counter"
+    is_dynamic: false
+  
+  "84":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Calendar day type information from eedomus"
+    is_dynamic: false
+  
+  "114":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Network detection status - eedomus app data"
+    is_dynamic: false
+  
+  "127":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Miscellaneous text data - usage_id=127"
+    is_dynamic: false
+  
+  "999":
+    ha_entity: "select"
+    ha_subtype: "virtual"
+    justification: "Virtual device - eedomus scene triggers and automation"
+    is_dynamic: false
+  
+  "100":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus system information - usage_id=100"
+    is_dynamic: false
+  
+  "101":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus system status - usage_id=101"
+    is_dynamic: false
+  
+  "102":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus app data - usage_id=102"
+    is_dynamic: false
+  
+  "103":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus app data - usage_id=103"
+    is_dynamic: false
+  
+  "104":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus app data - usage_id=104"
+    is_dynamic: false
+  
+  "105":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus app data - usage_id=105"
+    is_dynamic: false
+  
+  "106":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus app data - usage_id=106"
+    is_dynamic: false
+  
+  "107":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus app data - usage_id=107"
+    is_dynamic: false
+  
+  "108":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus app data - usage_id=108"
+    is_dynamic: false
+  
+  "109":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus app data - usage_id=109"
+    is_dynamic: false
+  
+  "110":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus app data - usage_id=110"
+    is_dynamic: false
+  
+  "111":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus app data - usage_id=111"
+    is_dynamic: false
+  
+  "112":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus app data - usage_id=112"
+    is_dynamic: false
+  
+  "113":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus app data - usage_id=113"
+    is_dynamic: false
+  
+  "114":
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus app data - usage_id=114"
+    is_dynamic: false
+
+# Name pattern mappings (regex patterns)
+name_patterns:
+
+# Default mapping (fallback)
+default_mapping:
+  ha_entity: "sensor"
+  ha_subtype: "unknown"
+  justification: "Default fallback mapping for unknown devices"
+  is_dynamic: false
+
+# Entity type dynamic properties (default values)
+# These define which entity types are dynamic by default
+# Dynamic devices are those whose state can change unpredictably due to user actions
+# They are included in opportunistic refresh mechanisms for real-time updates
+# Can be overridden in specific mappings
+dynamic_entity_properties:
+  light: true      # Lights can be toggled manually - require frequent updates
+  switch: true     # Switches can be toggled manually - require frequent updates
+  binary_sensor: true  # Motion detectors, door sensors - state changes unpredictably
+  sensor: false    # Temperature, humidity - change slowly and predictably
+  climate: false   # Thermostat settings - change infrequently
+  cover: true      # Shutters/blinds can be operated manually - require frequent updates
+  select: false    # Selection menus - change infrequently
+  scene: false     # Scene activations - change infrequently
+
+# Specific device dynamic overrides
+# Allow users to specify dynamic behavior for individual devices by periph_id
+# Format: periph_id: is_dynamic (true/false)
+specific_device_dynamic_overrides:
+  # Example:
+  # "123456": true
+  # "789012": false

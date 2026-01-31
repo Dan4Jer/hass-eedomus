@@ -13,13 +13,14 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 # Import the options flow handler for the async_get_options_flow method
-from .options_flow import EedomusOptionsFlowHandler
+from .options_flow import EedomusOptionsFlow
 
 from .const import (
     CONF_API_HOST,
     CONF_API_PROXY_DISABLE_SECURITY,
     CONF_API_SECRET,
     CONF_API_USER,
+
     CONF_ENABLE_API_EEDOMUS,
     CONF_ENABLE_API_PROXY,
     CONF_ENABLE_HISTORY,
@@ -35,6 +36,7 @@ from .const import (
     DEFAULT_API_USER,
     DEFAULT_CONF_ENABLE_API_EEDOMUS,
     DEFAULT_CONF_ENABLE_API_PROXY,
+
     DEFAULT_ENABLE_SET_VALUE_RETRY,
     DEFAULT_ENABLE_WEBHOOK,
     DEFAULT_PHP_FALLBACK_ENABLED,
@@ -382,4 +384,4 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(config_entry: config_entries.ConfigEntry):
         """Get the options flow for this handler."""
-        return EedomusOptionsFlowHandler(config_entry)
+        return EedomusOptionsFlow(config_entry)

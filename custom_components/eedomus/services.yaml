@@ -4,8 +4,7 @@
 refresh:
   name: Refresh eedomus data
   description: Force a full refresh of all eedomus peripherals
-  fields:
-    # No fields required for refresh
+  fields: {}
 
 set_value:
   name: Set peripheral value
@@ -25,8 +24,7 @@ set_value:
 reload:
   name: Reload eedomus integration
   description: Reload the eedomus integration configuration
-  fields:
-    # No fields required for reload
+  fields: {}
 
 # Additional services can be added here for future expansion
 # Example:

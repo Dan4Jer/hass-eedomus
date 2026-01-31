@@ -1,0 +1,101 @@
+# Example custom_mapping.yaml for hass-eedomus
+# This file allows you to override default device mappings or add new devices
+# that are not covered by the default device_mapping.yaml
+
+# Structure:
+# - custom_devices: List of your custom device mappings
+#   Each device should have:
+#     - eedomus_id: The eedomus device ID (string)
+#     - ha_entity: The Home Assistant entity type (light, switch, sensor, etc.)
+#     - name: Friendly name for the device
+#     - type: (Optional) Additional type information
+#     - ha_subtype: (Optional) Subtype for specialized handling (e.g., "rgbw", "brightness", "energy")
+#     - icon: (Optional) Material Design icon
+#     - room: (Optional) Room assignment
+
+custom_devices:
+  # Example 1: Override a default mapping
+  # This device exists in device_mapping.yaml but you want to customize it
+  - eedomus_id: "12345"
+    ha_entity: "light.salon_principal"
+    type: "light"
+    name: "Lumière Salon (Personnalisé)"
+    ha_subtype: "rgbw"  # Important: This tells the system it's an RGBW light
+    icon: "mdi:lightbulb-multiple"
+    room: "Salon"
+
+  # Example 2: Add a new device not in default mapping
+  - eedomus_id: "67890"
+    ha_entity: "sensor.temperature_chambre"
+    type: "sensor"
+    name: "Température Chambre"
+    ha_subtype: "temperature"  # Helps with unit conversion and device class
+    icon: "mdi:thermometer"
+    room: "Chambre"
+
+  # Example 3: RGBW light that should use RGBW color mode
+  # Even if it doesn't have 4 child devices, it will use RGBW color mode
+  - eedomus_id: "54321"
+    ha_entity: "light.spots_cuisine"
+    type: "light"
+    name: "Spots Cuisine RGBW"
+    ha_subtype: "rgbw"  # This ensures RGBW color mode is used
+    icon: "mdi:spotlight"
+    room: "Cuisine"
+
+  # Example 4: Dimmable light (brightness control)
+  - eedomus_id: "98765"
+    ha_entity: "light.lampe_bureau"
+    type: "light"
+    name: "Lampe Bureau"
+    ha_subtype: "brightness"  # Enables brightness control
+    icon: "mdi:desk-lamp"
+    room: "Bureau"
+
+  # Example 5: Color temperature light
+  - eedomus_id: "13579"
+    ha_entity: "light.plafond_salle_a_manger"
+    type: "light"
+    name: "Plafond Salle à Manger"
+    ha_subtype: "color_temp"  # Enables color temperature control
+    icon: "mdi:ceiling-light"
+    room: "Salle à Manger"
+
+  # Example 6: Binary sensor (motion, door, etc.)
+  - eedomus_id: "24680"
+    ha_entity: "binary_sensor.motion_couloir"
+    type: "binary_sensor"
+    name: "Détection Mouvement Couloir"
+    ha_subtype: "motion"  # Helps with device class
+    icon: "mdi:motion-sensor"
+    room: "Couloir"
+
+  # Example 7: Switch (on/off only)
+  - eedomus_id: "11111"
+    ha_entity: "switch.prise_cafe"
+    type: "switch"
+    name: "Prise Machine à Café"
+    icon: "mdi:coffee-maker"
+    room: "Cuisine"
+
+# Important Notes:
+# 1. The ha_subtype field is crucial for proper functionality:
+#    - "rgbw": RGBW color control (even if device doesn't have 4 children)
+#    - "brightness": Brightness/dimmer control
+#    - "color_temp": Color temperature control
+#    - "energy": Energy monitoring (for child devices of lights)
+#    - "motion": Motion detection (for binary sensors)
+#
+# 2. If a device is mapped as "rgbw" but doesn't have 4 child devices,
+#    it will fall back to a regular light but still use RGBW color mode.
+#    This prevents the warning: "set to unsupported color mode onoff"
+#
+# 3. Icons should use Material Design Icons format: "mdi:icon-name"
+#    See https://materialdesignicons.com/ for available icons
+#
+# 4. Room assignments are optional but help with organization in Home Assistant
+#
+# 5. To use this file:
+#    - Copy it to your Home Assistant config directory as custom_mapping.yaml
+#    - Restart Home Assistant or use the eedomus.reload service
+#    - Your custom mappings will override any default mappings for the same eedomus_id

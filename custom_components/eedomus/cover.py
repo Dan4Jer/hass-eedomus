@@ -34,6 +34,9 @@ async def async_setup_entry(
         if not "ha_entity" in coordinator.data[periph_id]:
             eedomus_mapping = map_device_to_ha_entity(periph)
             coordinator.data[periph_id].update(eedomus_mapping)
+            # S'assurer que le mapping est enregistré dans le registre global
+            from .entity import _register_device_mapping
+            _register_device_mapping(eedomus_mapping, periph["name"], periph_id, periph)
 
     for periph_id, periph in all_peripherals.items():
         ha_entity = None
@@ -50,6 +53,9 @@ async def async_setup_entry(
                     "ha_subtype": "energy",
                     "justification": "Parent is a cover - energy consumption meter",
                 }
+                # Log pour confirmer que le device a été mappé
+                _LOGGER.debug("✅ Device mapped: %s (%s) → %s:%s", 
+                            periph["name"], periph_id, eedomus_mapping["ha_entity"], eedomus_mapping["ha_subtype"])
             if periph.get("usage_id") == "48":  # Slats
                 eedomus_mapping = {
                     "ha_entity": "cover",
@@ -58,7 +64,7 @@ async def async_setup_entry(
                 }
             if not eedomus_mapping is None:
                 coordinator.data[periph_id].update(eedomus_mapping)
-                _LOGGER.info(
+                _LOGGER.debug(
                     "Created energy sensor for cover %s (%s) - consumption monitoring",
                     periph["name"],
                     periph_id,
@@ -114,13 +120,23 @@ class EedomusCover(EedomusEntity, CoverEntity):
     @property
     def is_closed(self):
         """Return if the cover is closed (position = 0)."""
-        position = self.coordinator.data[self._periph_id].get("last_value")
+        periph_data = self._get_periph_data()
+        if periph_data is None:
+            _LOGGER.warning(f"Cannot get cover position: peripheral data not found for {self._periph_id}")
+            return True  # Assume closed if data not available
+            
+        position = periph_data.get("last_value")
         return position == "0" or position == 0
 
     @property
     def current_cover_position(self):
         """Return the current position of the cover (0-100)."""
-        position = self.coordinator.data[self._periph_id].get("last_value")
+        periph_data = self._get_periph_data()
+        if periph_data is None:
+            _LOGGER.warning(f"Cannot get cover position: peripheral data not found for {self._periph_id}")
+            return 0
+            
+        position = periph_data.get("last_value")
         try:
             return int(position)
         except (ValueError, TypeError):
@@ -150,18 +166,12 @@ class EedomusCover(EedomusEntity, CoverEntity):
         _LOGGER.debug(
             "Setting cover position to %s for %s (periph_id=%s)",
             position,
-            self.coordinator.data[self._periph_id].get("name", "unknown"),
+            self.coordinator.data.get(self._periph_id, {}).get("name", "unknown") if self.coordinator.data else "unknown",
             self._periph_id,
         )
 
-        # Use coordinator method to set position
-        await self.coordinator.async_set_periph_value(self._periph_id, str(position))
-        
-        # Force immediate state update
-        await self.async_force_state_update(position)
-        
-        # Force refresh to update attributes immediately
-        await self.coordinator.async_request_refresh()
+        # Use entity method to set position (includes fallback, retry, and state update)
+        await self.async_set_value(str(position))
 
     async def async_stop_cover(self, **kwargs):
         """Stop the cover (not supported by eedomus shutters)."""
@@ -195,7 +205,12 @@ class EedomusAggregatedCover(EedomusCover):
     @property
     def current_cover_position(self):
         """Return the current position of the cover (0-100)."""
-        position = self.coordinator.data[self._parent_id].get("last_value")
+        periph_data = self._get_periph_data(self._parent_id)
+        if periph_data is None:
+            _LOGGER.warning(f"Cannot get cover position: peripheral data not found for parent {self._parent_id}")
+            return 0
+            
+        position = periph_data.get("last_value")
         try:
             return int(position)
         except (ValueError, TypeError):
@@ -212,13 +227,14 @@ class EedomusAggregatedCover(EedomusCover):
 
         # Add child device values
         child_attrs = {}
-        for child_id, child in self._child_devices.items():
-            child_data = self.coordinator.data.get(child_id, {})
-            child_attrs[child_id] = {
-                "name": child_data.get("name"),
-                "value": child_data.get("last_value"),
-                "unit": child_data.get("unit"),
-                "type": child_data.get("ha_subtype"),
+        if self.coordinator.data is not None:
+            for child_id, child in self._child_devices.items():
+                child_data = self.coordinator.data.get(child_id, {})
+                child_attrs[child_id] = {
+                    "name": child_data.get("name"),
+                    "value": child_data.get("last_value"),
+                    "unit": child_data.get("unit"),
+                    "type": child_data.get("ha_subtype"),
             }
 
         result_attrs["child_devices"] = child_attrs

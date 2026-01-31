@@ -3,21 +3,24 @@
 from __future__ import annotations
 from datetime import timedelta
 
+import asyncio
 import json
 import logging
 import os
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant, ServiceResponse, callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import aiohttp_client
+import aiohttp
 
 from .api_proxy import EedomusApiProxyView
 from .webhook import EedomusWebhookView
 from .const import (
-    CLASS_MAPPING,
+
     CONF_API_HOST,
     CONF_API_PROXY_DISABLE_SECURITY,
+
     CONF_ENABLE_API_EEDOMUS,
     CONF_ENABLE_API_PROXY,
     CONF_ENABLE_HISTORY,
@@ -35,16 +38,22 @@ from .const import (
     PLATFORMS,
 )
 from .coordinator import EedomusDataUpdateCoordinator
+
 from .eedomus_client import EedomusClient
+# Note: For HA 2026.02+, we use the modern frontend API (www/config_panel.js)
+# The Lovelace card import is kept for backward compatibility but may fail in newer HA versions
 from .sensor import EedomusHistoryProgressSensor, EedomusSensor
 from .webhook import EedomusWebhookView
+
+# Import service setup
+from .services import async_setup_services
 
 # Initialize logger first
 _LOGGER = logging.getLogger(__name__)
 
 # Import options flow to ensure it's registered
 try:
-    from .options_flow import EedomusOptionsFlowHandler
+    from .options_flow import EedomusOptionsFlow
     _LOGGER.debug("Options flow handler loaded successfully")
 except ImportError as e:
     _LOGGER.warning("Failed to load options flow handler: %s", e)
@@ -107,7 +116,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             CONF_SCAN_INTERVAL,
             entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
         )
+        
         coordinator = EedomusDataUpdateCoordinator(hass, client, scan_interval)
+
+        # Create main eedomus box device for proper device hierarchy
+        try:
+            from homeassistant.helpers.device_registry import async_get as async_get_device_registry
+            device_registry = async_get_device_registry(hass)
+            
+            # Create the main eedomus box device
+            box_device = device_registry.async_get_or_create(
+                config_entry_id=entry.entry_id,
+                identifiers={(DOMAIN, "eedomus_box_main")},
+                name="Box eedomus",
+                manufacturer="Eedomus",
+                model="Eedomus Box",
+                sw_version="Unknown",
+            )
+            _LOGGER.info("Created main eedomus box device: %s", box_device.id)
+        except Exception as e:
+            _LOGGER.warning("Failed to create main eedomus box device: %s", e)
 
         # Perform initial full refresh only for API Eedomus mode
         try:
@@ -120,11 +148,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER.error("Timeout while fetching data from eedomus")
             return False
 
+        # Setup services after coordinator is initialized
+        try:
+            await async_setup_services(hass, coordinator)
+            _LOGGER.info("✅ Eedomus services registered successfully")
+        except Exception as err:
+            _LOGGER.error("Failed to setup eedomus services: %s", err)
+
 
     # If neither mode is enabled, this shouldn't happen due to validation, but handle it anyway
     if not api_eedomus_enabled and not api_proxy_enabled:
         _LOGGER.error("No connection mode enabled - this should not happen")
         return False
+
+    # Setup services even if coordinator is not created (for proxy-only mode)
+    if not coordinator and api_proxy_enabled:
+        try:
+            await async_setup_services(hass, None)
+            _LOGGER.info("✅ Eedomus services registered in proxy-only mode")
+        except Exception as err:
+            _LOGGER.error("Failed to setup eedomus services in proxy-only mode: %s", err)
 
     # Create entities based on supported classes (only if API Eedomus mode is enabled)
     # NOTE: History sensor creation is temporarily disabled due to refactoring
@@ -133,18 +176,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _LOGGER.warning(
             "History sensor creation is temporarily disabled - will be implemented in feature/history-refactor branch"
         )
-        # entities = []
-        # for device_id, device_data in coordinator.data.items():
-        #     # Add history sensor if enabled
-        #     _LOGGER.info("Retrieve history enabled for device=%s", device_id)
-        #     entities.append(EedomusHistoryProgressSensor(coordinator, {
-        #         "periph_id": device_id,
-        #         "name": device_data["name"],
-        #     }))
-        #
-        # # Add entities to Home Assistant
-        # if entities:
-        #     async_add_entities(entities, True)
+
 
     # Stockage sécurisé
     if DOMAIN not in hass.data:
@@ -168,8 +200,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id] = entry_data
 
     # Enregistrement du webhook et service (always register webhooks)
-    disable_security = entry.data.get(
-        CONF_API_PROXY_DISABLE_SECURITY, DEFAULT_API_PROXY_DISABLE_SECURITY
+    disable_security = entry.options.get(
+        CONF_API_PROXY_DISABLE_SECURITY,
+        entry.data.get(CONF_API_PROXY_DISABLE_SECURITY, DEFAULT_API_PROXY_DISABLE_SECURITY)
     )
 
     # Log security warning if disabled
@@ -224,6 +257,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Forward setup to platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
+    # Note: Configuration manager has been removed - using YAML-based configuration only
+    # using the modern frontend.async_register_built_in_panel() method
+    # This ensures compatibility with HA 2026.02+ and avoids double registration
+    _LOGGER.info("Eedomus integration initialized successfully")
     _LOGGER.debug("eedomus integration setup completed")
     return True
 
@@ -264,7 +301,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
         _LOGGER.info("Removing all entities associated with eedomus integration")
         
         # Get all entities from the entity registry
-        entity_registry = await hass.helpers.entity_registry.async_get_registry()
+        entity_registry = await hass.helpers.entity_registry.async_get(hass)
 
         # Find all entities that belong to this integration
         entities_to_remove = []
@@ -283,3 +320,91 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
     # Remove the config entry
     _LOGGER.info("Removing eedomus integration config entry")
+
+
+# YAML Mapping Management Functions
+async def async_load_mapping(hass, config_dir):
+    """Load and merge device mappings from YAML files."""
+    import yaml
+    from homeassistant.helpers import config_validation as cv
+    from .const import YAML_MAPPING_SCHEMA, CONF_CUSTOM_DEVICES
+    
+    default_path = os.path.join(config_dir, "device_mapping.yaml")
+    custom_path = os.path.join(config_dir, "custom_mapping.yaml")
+
+    # Load default mapping using async executor to avoid blocking event loop
+    default_mapping = {}
+    try:
+        default_path = os.path.join(os.path.dirname(__file__), "config", "device_mapping.yaml")
+        default_mapping = await hass.async_add_executor_job(
+            lambda: yaml.safe_load(open(default_path, "r", encoding="utf-8")) or {}
+        )
+        _LOGGER.debug("Loaded default mapping from %s", default_path)
+    except FileNotFoundError:
+        _LOGGER.warning("Default mapping file not found: %s", default_path)
+    except yaml.YAMLError as e:
+        _LOGGER.error("Error parsing default mapping YAML: %s", e)
+        raise
+    except Exception as e:
+        _LOGGER.error("Unexpected error loading default mapping: %s", e)
+        raise
+
+    # Load custom mapping using async executor to avoid blocking event loop
+    custom_mapping = {}
+    try:
+        custom_path = os.path.join(os.path.dirname(__file__), "config", "custom_mapping.yaml")
+        custom_mapping = await hass.async_add_executor_job(
+            lambda: yaml.safe_load(open(custom_path, "r", encoding="utf-8")) or {}
+        )
+        _LOGGER.debug("Loaded custom mapping from %s", custom_path)
+    except FileNotFoundError:
+        _LOGGER.debug("No custom mapping file found at %s - using defaults only", custom_path)
+    except yaml.YAMLError as e:
+        _LOGGER.error("Error parsing custom mapping YAML: %s", e)
+        raise
+    except Exception as e:
+        _LOGGER.error("Unexpected error loading custom mapping: %s", e)
+        raise
+
+    # Merge mappings (custom overrides default)
+    merged = {**default_mapping, **custom_mapping}
+
+    # Validate merged mapping
+    try:
+        validated = YAML_MAPPING_SCHEMA(merged)
+        _LOGGER.debug("Mapping validation successful")
+        return validated
+    except vol.Invalid as e:
+        _LOGGER.error("Mapping validation failed: %s", e)
+        raise
+
+
+async def async_save_custom_mapping(hass, config_dir, mapping_data):
+    """Save custom mapping to YAML file."""
+    import yaml
+    custom_path = os.path.join(config_dir, "custom_mapping.yaml")
+
+    try:
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(custom_path), exist_ok=True)
+
+        with open(custom_path, "w", encoding="utf-8") as f:
+            yaml.dump(mapping_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+            _LOGGER.info("Custom mapping saved to %s", custom_path)
+            return True
+    except Exception as e:
+        _LOGGER.error("Failed to save custom mapping: %s", e)
+        return False
+
+
+async def async_get_mapping_for_options(hass, config_dir):
+    """Get current mapping data for options flow."""
+    try:
+        from .const import CONF_CUSTOM_DEVICES
+        mapping = await async_load_mapping(hass, config_dir)
+        return mapping.get(CONF_CUSTOM_DEVICES, [])
+    except Exception as e:
+        _LOGGER.error("Failed to load mapping for options: %s", e)
+        return []
+
+

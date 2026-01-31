@@ -3,11 +3,13 @@
 from typing import Any, Dict
 
 # Ensure required imports are available
+import voluptuous as vol
 from homeassistant.components.light import (
     ColorMode,
     LightEntityFeature,
 )
 from homeassistant.const import Platform
+from homeassistant.helpers import config_validation as cv
 
 try:
     from .private_const import (
@@ -16,7 +18,8 @@ try:
         DEFAULT_API_USER,
     )
 except ImportError:
-    # Valeurs par défaut (ou lève une erreur si requis)
+    # Valeurs par défaut pour les configurations non définies dans private_const.py
+    # Ces valeurs seront utilisées si le fichier private_const.py n'existe pas
     DEFAULT_API_HOST = "xxx.XXX.xxx.XXX"
     DEFAULT_API_USER = ""
     DEFAULT_API_SECRET = ""
@@ -34,14 +37,23 @@ CONF_ENABLE_SET_VALUE_RETRY = "enable_set_value_retry"
 CONF_ENABLE_WEBHOOK = "enable_webhook"
 CONF_REMOVE_ENTITIES = "remove_entities"
 
+
 CONF_PHP_FALLBACK_ENABLED = "php_fallback_enabled"
 CONF_PHP_FALLBACK_SCRIPT_NAME = "php_fallback_script_name"
 CONF_PHP_FALLBACK_TIMEOUT = "php_fallback_timeout"
+
+# YAML Mapping Configuration
+CONF_YAML_MAPPING = "yaml_mapping"
+CONF_CUSTOM_MAPPING_FILE = "custom_mapping_file"
+CONF_RELOAD_MAPPING = "reload_mapping"
 DEFAULT_CONF_ENABLE_API_EEDOMUS = True
 DEFAULT_CONF_ENABLE_API_PROXY = False
+DEFAULT_ENABLE_API_PROXY = False  # API Proxy disabled by default in options
+DEFAULT_ENABLE_HISTORY = False  # History disabled by default (temporarily)
 DEFAULT_ENABLE_SET_VALUE_RETRY = True  # Set value retry enabled by default
 DEFAULT_ENABLE_WEBHOOK = True  # Webhook enabled by default
 DEFAULT_REMOVE_ENTITIES = False  # Remove entities disabled by default
+
 
 DEFAULT_API_PROXY_DISABLE_SECURITY = False  # Security enabled by default
 DEFAULT_SCAN_INTERVAL = 300  # 5 minutes
@@ -82,8 +94,6 @@ EEDOMUS_TO_HA_ATTR_MAPPING = {
     "last_value_text" : "last_value_text",
     "last_value_change" : "last_value_change",
     "creation_date" : "creation_date",
-    "last_value_change" : "last_changed",
-    "last_value_change" : "last_reported",
 #    "values" : "values", #all values from value_list
 }
 
@@ -130,4 +140,32 @@ CLASS_MAPPING: Dict[str, Dict[str, Any]] = {
     "142:2": {"ha_entity": "cover", "attributes": {}},
     # ... (ajoute les autres classes ici)
 }
+
+# YAML Mapping Configuration Constants
+CONF_USE_YAML = "edit_custom_mapping"
+CONF_CUSTOM_DEVICES = "custom_devices"
+CONF_YAML_CONTENT = "yaml_content"
+
+# Device Mapping Schema
+DEVICE_SCHEMA = vol.Schema({
+    vol.Required("eedomus_id"): str,
+    vol.Required("ha_entity"): str,
+    vol.Required("type"): vol.In(["light", "switch", "sensor", "cover", "binary_sensor", "climate", "select"]),
+    vol.Required("name"): str,
+    vol.Optional("ha_subtype", default=""): str,
+    vol.Optional("icon"): cv.icon,
+    vol.Optional("room", default=""): str,
+    vol.Optional("justification", default=""): str,
+})
+
+# Schema for YAML files
+YAML_MAPPING_SCHEMA = vol.Schema({
+    vol.Optional(CONF_CUSTOM_DEVICES): vol.All(cv.ensure_list, [DEVICE_SCHEMA]),
+})
+
+# Schema for UI options
+UI_OPTIONS_SCHEMA = vol.Schema({
+    vol.Required(CONF_USE_YAML, default=False): bool,
+    vol.Optional(CONF_CUSTOM_DEVICES): vol.All(cv.ensure_list, [DEVICE_SCHEMA]),
+})
 

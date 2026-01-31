@@ -12,7 +12,7 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import CLASS_MAPPING, DOMAIN
+from .const import DOMAIN
 from .entity import EedomusEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -49,6 +49,12 @@ async def async_setup_entry(
         if "ha_entity" not in coordinator.data[periph_id]:
             eedomus_mapping = map_device_to_ha_entity(periph)
             coordinator.data[periph_id].update(eedomus_mapping)
+            # S'assurer que le mapping est enregistré dans le registre global
+            from .entity import _register_device_mapping
+            # Log pour confirmer que le device a été mappé
+            _LOGGER.debug("✅ Device mapped: %s (%s) → %s:%s", 
+                        periph["name"], periph_id, eedomus_mapping["ha_entity"], eedomus_mapping["ha_subtype"])
+            _register_device_mapping(eedomus_mapping, periph["name"], periph_id, periph)
 
     # Handle parent-child relationships for motion sensors
     parent_to_children = {}
@@ -127,7 +133,12 @@ class EedomusBinarySensor(EedomusEntity, BinarySensorEntity):
     @property
     def is_on(self) -> bool | None:
         """Return true if the binary sensor is on."""
-        value = self.coordinator.data[self._periph_id].get("last_value")
+        periph_data = self._get_periph_data()
+        if periph_data is None:
+            _LOGGER.warning(f"Cannot get binary sensor state: peripheral data not found for {self._periph_id}")
+            return None
+            
+        value = periph_data.get("last_value")
         _LOGGER.debug("Binary sensor %s is_on: %s", self._periph_id, value)
 
         # Gestion des valeurs vides ou invalides

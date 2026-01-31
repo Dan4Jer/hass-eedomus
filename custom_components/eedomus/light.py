@@ -23,7 +23,7 @@ from homeassistant.util.color import (  # color_rgb_to_kelvin,; color_rgb_to_xy,
     value_to_brightness,
 )
 
-from .const import CLASS_MAPPING, DOMAIN
+from .const import DOMAIN
 from .entity import EedomusEntity, map_device_to_ha_entity
 
 _LOGGER = logging.getLogger(__name__)
@@ -49,6 +49,11 @@ async def async_setup_entry(
         if not "ha_entity" in coordinator.data[periph_id]:
             eedomus_mapping = map_device_to_ha_entity(periph)
             coordinator.data[periph_id].update(eedomus_mapping)
+            # S'assurer que le mapping est enregistré dans le registre global
+            _register_device_mapping(eedomus_mapping, periph["name"], periph_id, periph)
+            # Log pour confirmer que le device a été mappé
+            _LOGGER.debug("✅ Light device mapped: %s (%s) → %s:%s", 
+                        periph["name"], periph_id, eedomus_mapping["ha_entity"], eedomus_mapping["ha_subtype"])
 
     for periph_id, periph in all_peripherals.items():
         ha_entity = None
@@ -74,7 +79,7 @@ async def async_setup_entry(
                 }
             if not eedomus_mapping is None:
                 coordinator.data[periph_id].update(eedomus_mapping)
-                _LOGGER.info(
+                _LOGGER.debug(
                     "Created energy sensor for light %s (%s) - consumption monitoring",
                     periph["name"],
                     periph_id,
@@ -93,14 +98,27 @@ async def async_setup_entry(
         )
         if "light" in coordinator.data[periph_id].get("ha_entity", None):
             if "rgbw" in coordinator.data[periph_id].get("ha_subtype", None):
-                # Créer une entité RGBW agrégée
-                entities.append(
-                    EedomusRGBWLight(
-                        coordinator,
-                        periph_id,
-                        parent_to_children[periph_id],
+                # Vérifier si le périphérique a suffisamment d'enfants pour être RGBW
+                children = parent_to_children.get(periph_id, [])
+                if len(children) >= 4:
+                    # Créer une entité RGBW agrégée
+                    entities.append(
+                        EedomusRGBWLight(
+                            coordinator,
+                            periph_id,
+                            parent_to_children[periph_id],
+                        )
                     )
-                )
+                else:
+                    _LOGGER.warning(
+                        "Device '%s' (%s) mapped as RGBW but only has %d children (need 4). Falling back to regular light.",
+                        periph["name"],
+                        periph_id,
+                        len(children)
+                    )
+                    # Créer une lumière régulière à la place
+                    # Note: Le mode de couleur sera déterminé par ha_subtype dans EedomusLight.__init__
+                    entities.append(EedomusLight(coordinator, periph_id))
             else:
                 _LOGGER.debug(
                     "Create a light entity %s (%s) mapping=%s",
@@ -127,12 +145,21 @@ class EedomusLight(EedomusEntity, LightEntity):
         periph_info = self.coordinator.data[periph_id]
         periph_type = periph_info.get("ha_subtype")
         periph_name = periph_info.get("name")
-        if periph_type == "brightness":
+        
+        # Initialize supported_color_modes based on periph_type
+        if periph_type == "brightness" or periph_type == "dimmable":
             self._attr_supported_color_modes = {ColorMode.BRIGHTNESS}
-        if periph_type == "rgb" or periph_type == "rgbw":
-            self._attr_supported_color_modes.add(ColorMode.RGBW)
+        elif periph_type == "rgb" or periph_type == "rgbw":
+            self._attr_supported_color_modes = {ColorMode.RGBW}
         elif periph_type == "color_temp":
-            self._attr_supported_color_modes.add(ColorMode.COLOR_TEMP)
+            self._attr_supported_color_modes = {ColorMode.COLOR_TEMP}
+        else:
+            # Default to ONOFF if no specific type
+            self._attr_supported_color_modes = {ColorMode.ONOFF}
+
+            
+        _LOGGER.debug("Using supported_color_modes for %s (%s): %s", 
+                     periph_name, periph_id, self._attr_supported_color_modes)
 
         _LOGGER.debug(
             "Initializing light entity for %s (%s) type=%s, supported_color_modes=%s",
@@ -145,11 +172,75 @@ class EedomusLight(EedomusEntity, LightEntity):
     @property
     def is_on(self):
         """Return true if the light is on."""
-        value = self.coordinator.data[self._periph_id].get("last_value")
-        if type(value) == "NoneType" or value == "None":
-            return false
+        # Check if coordinator data is available
+        if self.coordinator.data is None:
+            _LOGGER.warning(f"Coordinator data is None for light {self._periph_id}, assuming off")
+            return False
+        
+        # Check if device data exists
+        device_data = self.coordinator.data.get(self._periph_id)
+        if device_data is None:
+            _LOGGER.warning(f"Device data not found in coordinator for light {self._periph_id}, assuming off")
+            return False
+            
+        value = device_data.get("last_value")
+        if value is None or value == "None":
+            return False
 
-        return value == "on"
+        # Light is on if value is not "0" (eedomus uses percentage values 0-100)
+        return value != "0"
+
+    @property
+    def brightness(self):
+        """Return the brightness of the light (0-255)."""
+        if not self.is_on:
+            return 0
+            
+        # Get the current brightness value from eedomus (0-100 percentage)
+        periph_data = self._get_periph_data()
+        if periph_data is None:
+            _LOGGER.warning(f"Cannot get brightness: peripheral data not found for {self._periph_id}")
+            return 0
+            
+        brightness_percent = periph_data.get("last_value", "0")
+        
+        try:
+            # Convert percentage (0-100) to octal (0-255) for Home Assistant
+            if brightness_percent == "on":
+                return 255  # Full brightness
+            brightness_octal = self.percent_to_octal(int(brightness_percent))
+            _LOGGER.debug(
+                "Brightness for %s (%s): percent=%s, octal=%s",
+                self._attr_name,
+                self._periph_id,
+                brightness_percent,
+                brightness_octal
+            )
+            return brightness_octal
+        except (ValueError, TypeError):
+            _LOGGER.warning(
+                "Invalid brightness value '%s' for %s (%s)",
+                brightness_percent,
+                self._attr_name,
+                self._periph_id
+            )
+            return 255  # Default to full brightness if value is invalid
+
+    @property
+    def supported_color_modes(self):
+        """Flag supported color modes."""
+        return self._attr_supported_color_modes
+
+    @property
+    def color_mode(self):
+        """Return the color mode of the light."""
+        if ColorMode.RGBW in self._attr_supported_color_modes:
+            return ColorMode.RGBW
+        if ColorMode.BRIGHTNESS in self._attr_supported_color_modes:
+            return ColorMode.BRIGHTNESS
+        if ColorMode.COLOR_TEMP in self._attr_supported_color_modes:
+            return ColorMode.COLOR_TEMP
+        return ColorMode.ONOFF
 
     async def async_turn_on(self, **kwargs):
         """Turn the light on."""
@@ -163,38 +254,26 @@ class EedomusLight(EedomusEntity, LightEntity):
         rgbw_color = kwargs.get(ATTR_RGBW_COLOR)
         color_temp_kelvin = kwargs.get(ATTR_COLOR_TEMP_KELVIN)
 
-        value = "on"
+        # Convert brightness from octal (0-255) to percentage (0-100) for eedomus API
         if brightness is not None:
-            value = f"on:{brightness}"
-        if rgbw_color is not None:
-            value = f"rgbw:{rgb_color[0]},{rgb_color[1]},{rgb_color[2]},{rgb_color[3]}"
-        if color_temp_kelvin is not None:
+            brightness_percent = self.octal_to_percent(brightness)
+            value = str(brightness_percent)
+        elif rgbw_color is not None:
+            value = f"rgbw:{rgbw_color[0]},{rgbw_color[1]},{rgbw_color[2]},{rgbw_color[3]}"
+        elif color_temp_kelvin is not None:
             value = f"color_temp:{color_temp_kelvin}"
+        else:
+            value = "100"  # Default to 100% if no brightness specified
 
         try:
-            response = await self.coordinator.client.set_periph_value(
-                self._periph_id, "100"
-            )
-
-            # Correction: le bloc if doit être correctement indenté
-            if isinstance(response, dict) and response.get("success") != 1:
-                _LOGGER.error(
-                    "Failed to set light value: %s",
-                    response.get("error", "Unknown error"),
-                )
-                raise Exception(
-                    f"Failed to set light value: {response.get('error', 'Unknown error')}"
-                )
-
-            # Force immediate state update
-            await self.async_force_state_update("100")
-            
-            await self.coordinator.async_request_refresh()
+            # Use entity method to turn on light (includes fallback, retry, and state update)
+            response = await self.async_set_value(value)
             _LOGGER.debug(
-                "Light %s (%s) turned on with value: %s",
+                "Light %s (%s) turned on with value: %s (brightness: %s%%)",
                 self._attr_name,
                 self._periph_id,
                 value,
+                brightness_percent if brightness is not None else "default",
             )
 
         except Exception as e:
@@ -210,24 +289,8 @@ class EedomusLight(EedomusEntity, LightEntity):
         """Turn the light off."""
         _LOGGER.debug("Turning off light %s", self._periph_id)
         try:
-            response = await self.coordinator.client.set_periph_value(
-                self._periph_id, 0
-            )
-            if isinstance(response, dict) and response.get("success") != 1:
-                _LOGGER.error(
-                    "Failed to turn off light %s (%s): %s",
-                    self._attr_name,
-                    self._periph_id,
-                    response.get("error", "Unknown error"),
-                )
-                raise Exception(
-                    f"Failed to turn off light: {response.get('error', 'Unknown error')}"
-                )
-
-            # Force immediate state update
-            await self.async_force_state_update("0")
-            
-            await self.coordinator.async_request_refresh()
+            # Use entity method to turn off light (includes fallback, retry, and state update)
+            response = await self.async_set_value("0")
 
         except Exception as e:
             _LOGGER.error(
@@ -263,9 +326,7 @@ class EedomusRGBWLight(EedomusLight):
             #           ColorMode.XY,  # Ajoute le support du mode XY
             #           ColorMode.COLOR_TEMP
         }
-        self._supported_features = LightEntityFeature.EFFECT | LightEntityFeature(
-            0
-        )  # Support pour le mode RGBW
+        _LOGGER.debug("Using supported_color_modes for RGBW light: %s", self._supported_color_modes)
         self._global_brightness_percent = 0
         self._red_percent = 0
         self._green_percent = 0
@@ -283,10 +344,7 @@ class EedomusRGBWLight(EedomusLight):
         """Flag supported color modes."""
         return self._supported_color_modes
 
-    @property
-    def supported_features(self):
-        """Flag supported features."""
-        return self._supported_features
+
 
     @property
     def is_on(self):
@@ -318,51 +376,85 @@ class EedomusRGBWLight(EedomusLight):
     @property
     def rgbw_color(self):
         """Return the RGBW color value."""
-        # Convertir les enfants en liste pour accéder par index
-        children = list(self._child_devices.values())
-
         # Vérifier qu'il y a bien 4 enfants (R, G, B, W)
-        if len(children) < 4:
+        if len(self._child_devices) < 4:
             _LOGGER.error(
-                "RGBW light '%s' does not have 4 child devices",
+                "RGBW light '%s' does not have 4 child devices (has %d)",
                 self.coordinator.data[self._parent_id]["name"],
+                len(self._child_devices)
             )
-            return
+            return None
 
-        # Récupérer les periph_id des canaux dans l'ordre
-        red_periph_id = str(int(self._parent_id) + 1)
-        green_periph_id = str(int(self._parent_id) + 2)
-        blue_periph_id = str(int(self._parent_id) + 3)
-        white_periph_id = str(int(self._parent_id) + 4)
+        # Trier les enfants par periph_id pour garantir l'ordre numérique
+        # Les périphériques eedomus ont toujours leurs enfants dans l'ordre numérique
+        child_list = sorted(self._child_devices.keys(), key=lambda x: int(x))
+        red_child = child_list[0]
+        green_child = child_list[1]
+        blue_child = child_list[2]
+        white_child = child_list[3]
+        
+        _LOGGER.debug(
+            "RGBW light '%s' - Sorted children by periph_id: %s",
+            self.coordinator.data[self._parent_id]["name"],
+            child_list
+        )
 
-        self._red_percent = int(
-            self.coordinator.data[red_periph_id].get("last_value", 0)
+        # Extraire les valeurs avec gestion des différents formats
+        def safe_extract_value(value):
+            """Extraire une valeur numérique à partir de différents formats."""
+            if not value or value == "0" or value == "off":
+                return 0
+            
+            # Gestion du format "r,g,b,w" (ex: "15,40,30,100")
+            if isinstance(value, str) and "," in value:
+                parts = value.split(",")
+                if len(parts) == 4:
+                    # C'est probablement un format RGBW complet
+                    # Nous devons déterminer quel canal correspond
+                    # Pour l'instant, retournons la moyenne
+                    try:
+                        return sum(int(p.strip()) for p in parts) // 4
+                    except (ValueError, AttributeError):
+                        return 0
+                else:
+                    # Format inattendu, essayer de prendre la première valeur
+                    try:
+                        return int(parts[0].strip())
+                    except (ValueError, IndexError, AttributeError):
+                        return 0
+            
+            # Gestion des valeurs normales (pourcentage 0-100)
+            try:
+                if isinstance(value, str) and value.endswith('%'):
+                    return int(value[:-1])
+                return int(value)
+            except (ValueError, TypeError):
+                return 0
+
+        self._red_percent = safe_extract_value(
+            self.coordinator.data[red_child].get("last_value", 0)
         )
-        self._green_percent = int(
-            self.coordinator.data[green_periph_id].get("last_value", 0)
+        self._green_percent = safe_extract_value(
+            self.coordinator.data[green_child].get("last_value", 0)
         )
-        self._blue_percent = int(
-            self.coordinator.data[blue_periph_id].get("last_value", 0)
+        self._blue_percent = safe_extract_value(
+            self.coordinator.data[blue_child].get("last_value", 0)
         )
-        self._white_percent = int(
-            self.coordinator.data[white_periph_id].get("last_value", 0)
+        self._white_percent = safe_extract_value(
+            self.coordinator.data[white_child].get("last_value", 0)
         )
         self._global_brightness_percent = int(
             self.coordinator.data[self._parent_id].get("last_value", 0)
         )
         _LOGGER.debug(
-            "RGBW color '%s' with (%d,%d,%d,%d){%d} with children %s",
+            "RGBW color '%s' with (%d,%d,%d,%d){%d} - R:%s, G:%s, B:%s, W:%s",
             self.coordinator.data[self._parent_id]["name"],
             self._red_percent,
             self._green_percent,
             self._blue_percent,
             self._white_percent,
             self._global_brightness_percent,
-            ", ".join(
-                f"{self.coordinator.data[child_id].get('name', child_id)} "
-                f"({self.coordinator.data[child_id].get('usage_name', '?')}-{child_id})[{self.coordinator.data[child_id].get('last_value', '?')}] => {self.coordinator.data[child_id].get('ha_entity', '?')}:{self.coordinator.data[child_id].get('usage_id', '?')}"
-                for child_id in self._child_devices.keys()
-            ),
+            red_child, green_child, blue_child, white_child
         )
         return (
             self.percent_to_octal(self._red_percent),
@@ -401,26 +493,28 @@ class EedomusRGBWLight(EedomusLight):
             if not self._global_brightness_percent > 0:
                 self._global_brightness_percent = 100
 
-        # Convertir les enfants en liste pour accéder par index
-        children = list(self._child_devices.values())
-
         # Vérifier qu'il y a bien 4 enfants (R, G, B, W)
-        if len(children) < 4:
+        if len(self._child_devices) < 4:
             _LOGGER.error(
-                "RGBW light '%s' does not have 4 child devices",
+                "RGBW light '%s' does not have 4 child devices (has %d)",
                 self.coordinator.data[self._parent_id]["name"],
+                len(self._child_devices)
             )
             return
 
-        # Récupérer les periph_id des canaux dans l'ordre
-        #        red_periph_id = children[1]["periph_id"]
-        #        green_periph_id = children[0]["periph_id"]
-        #        blue_periph_id = children[2]["periph_id"]
-        #        white_periph_id = children[3]["periph_id"]
-        red_periph_id = str(int(self._parent_id) + 1)
-        green_periph_id = str(int(self._parent_id) + 2)
-        blue_periph_id = str(int(self._parent_id) + 3)
-        white_periph_id = str(int(self._parent_id) + 4)
+        # Trier les enfants par periph_id pour garantir l'ordre numérique
+        # Les périphériques eedomus ont toujours leurs enfants dans l'ordre numérique
+        child_list = sorted(self._child_devices.keys(), key=lambda x: int(x))
+        red_periph_id = child_list[0]
+        green_periph_id = child_list[1]
+        blue_periph_id = child_list[2]
+        white_periph_id = child_list[3]
+        
+        _LOGGER.debug(
+            "RGBW light '%s' - Sorted children by periph_id: %s",
+            self.coordinator.data[self._parent_id]["name"],
+            child_list
+        )
 
         if ATTR_BRIGHTNESS in kwargs:
             self._global_brightness_percent = self.octal_to_percent(
@@ -465,8 +559,9 @@ class EedomusRGBWLight(EedomusLight):
         await self.coordinator.async_set_periph_value(
             self._parent_id, self._global_brightness_percent
         )
-        # Éteindre tous les canaux enfants
-        # for child_id in self._child_devices:
-        #    await self.coordinator.async_set_periph_value(child_id, "off")
+        # Éteindre tous les canaux enfants pour une extinction complète
+        if self._child_devices:
+            for child_id in self._child_devices:
+                await self.coordinator.async_set_periph_value(child_id, "0")
         self.schedule_update_ha_state()
-        await self.coordinator.async_request_refresh()  # a essayer
+        await self.coordinator.async_request_refresh()

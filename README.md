@@ -1,7 +1,7 @@
 # Intégration eedomus pour Home Assistant
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/integration)
-[![Version](https://img.shields.io/badge/version-0.12.0-blue.svg)](https://github.com/Dan4Jer/hass-eedomus/releases/tag/v0.12.0)
+[![Version](https://img.shields.io/badge/version-3.10-unstable-blue.svg)](https://github.com/Dan4Jer/hass-eedomus/releases/tag/v3.10-unstable)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/Dan4Jer/hass-eedomus/blob/main/LICENSE)
 [![Release](https://img.shields.io/github/v/release/Dan4Jer/hass-eedomus?label=latest%20release)](https://github.com/Dan4Jer/hass-eedomus/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/Dan4Jer/hass-eedomus/total.svg)](https://github.com/Dan4Jer/hass-eedomus/releases)
@@ -9,6 +9,26 @@
 **hass-eedomus** est une intégration personnalisée qui permet de connecter votre box domotique **eedomus** à **Home Assistant**, en suivant l'architecture standard des [custom integrations](https://developers.home-assistant.io/docs/creating_component_index).
 
 ## 🎯 Fonctionnalités principales
+
+### 🆕 Nouveau dans la v3.10-unstable : Corrections Critiques et Optimisations
+
+**Une version stable avec des corrections majeures !** 🛠️
+
+- **Correction des mécanismes de fallback** : PHP fallback et next best value restaurés
+- **Amélioration du mapping des devices** : 46 mappings au lieu de 30, couverture accrue
+- **Réduction des erreurs** : Correction de 15+ bugs critiques
+- **Logs plus propres** : Messages informatifs au lieu de warnings inutiles
+- **Interface utilisateur améliorée** : Option renommée en "Edit Custom Mapping"
+
+### 🆕 Nouveau dans la v0.13.0 : Configuration YAML des Mappings
+
+**La révolution de la personnalisation !** 🎨
+
+- **Configuration YAML complète** : Personnalisez le mapping des devices sans modifier le code
+- **Interface utilisateur intégrée** : Configurez les mappings directement depuis l'options flow
+- **Rechargement à chaud** : Appliquez les modifications sans redémarrage
+- **Fusion intelligente** : Combine les mappings par défaut et personnalisés
+- **Expressions régulières** : Détection flexible des devices par nom
 
 ### 🆕 Nouveau dans la v0.12.0 : Options Flow avec Configuration Dynamique
 
@@ -28,6 +48,7 @@
 - **Mécanisme de fallback PHP** pour les valeurs rejetées
 - **Architecture modulaire** suivant les bonnes pratiques Home Assistant
 - **Tests complets** pour toutes les entités (covers, switches, lights, sensors)
+- **Configuration YAML avancée** pour une personnalisation complète
 
 ## 🧪 Tests
 
@@ -90,6 +111,432 @@ Consultez [TESTS_README.md](scripts/TESTS_README.md) pour plus de détails.
 - Configuration via interface utilisateur
 - Réduction de 20-40% des appels API avec les paramètres optimaux
 
+### Avec la v0.13.0 (YAML Mapping)
+- **Personnalisation complète** sans modification de code
+- **Rechargement à chaud** des mappings
+- **Détection flexible** par expressions régulières
+- **Fusion intelligente** des configurations
+- **Meilleure maintenabilité** avec séparation configuration/code
+
+## 🎛️ Configuration YAML des Mappings
+
+### Emplacement des fichiers de configuration
+
+Les fichiers de configuration des mappings sont maintenant situés dans :
+```
+custom_components/eedomus/config/
+```
+
+### Structure des fichiers
+
+Deux fichiers YAML sont utilisés pour le mapping des devices :
+
+1. **`device_mapping.yaml`** : Mappings par défaut (fournis avec l'intégration)
+2. **`custom_mapping.yaml`** : Mappings personnalisables (surcharge les défauts)
+
+### Structure de base
+
+```yaml
+version: 1.0
+
+# Règles avancées pour la détection complexe
+advanced_rules:
+  - name: "RGBW Lamp Detection"
+    priority: 1
+    conditions:
+      - usage_id: "1"
+      - min_children: 4
+      - child_usage_id: "1"
+    mapping:
+      ha_entity: "light"
+      ha_subtype: "rgbw"
+      justification: "RGBW lamp with 4+ children (Red, Green, Blue, White)"
+
+# Mappings basés sur usage_id
+usage_id_mappings:
+  "0":
+    ha_entity: "switch"
+    ha_subtype: ""
+    justification: "Unknown device type - default to switch"
+
+# Mappings basés sur des motifs de nom (expressions régulières)
+name_patterns:
+  - pattern: ".*consommation.*"
+    ha_entity: "sensor"
+    ha_subtype: "energy"
+    device_class: "energy"
+    icon: "mdi:lightning-bolt"
+
+# Mapping par défaut (fallback)
+default_mapping:
+  ha_entity: "sensor"
+  ha_subtype: "unknown"
+  justification: "Default fallback mapping for unknown devices"
+```
+
+### Nettoyage de la configuration
+
+**Fichiers supprimés :**
+- `config/device_mapping_default.yaml` (fichier redondant)
+- Répertoire `config/` vide
+
+**Fichiers déplacés :**
+- `config/device_mapping.yaml` → `custom_components/eedomus/config/`
+- `config/custom_mapping.yaml` → `custom_components/eedomus/config/`
+
+**Documentation ajoutée :**
+- `custom_components/eedomus/config/README.md` - Documentation complète des mappings
+
+### Ordre de priorité des mappings
+
+1. **Règles personnalisées** (depuis `custom_mapping.yaml`)
+2. **Règles avancées** (détection RGBW, relations parent-enfant)
+3. **Mappings par usage_id** (depuis les fichiers YAML)
+4. **Correspondance de motifs de nom** (expressions régulières)
+5. **Mapping par défaut** (fallback)
+
+### Guide de personnalisation
+
+Pour personnaliser les mappings des devices :
+
+1. **Éditez** `custom_components/eedomus/config/custom_mapping.yaml`
+2. **Ajoutez** vos règles personnalisées en suivant la même structure que `device_mapping.yaml`
+3. **Redémarrez** Home Assistant ou utilisez le service de rechargement :
+
+```yaml
+service: eedomus.reload
+```
+
+### Exemple de mapping personnalisé
+
+```yaml
+# custom_mapping.yaml
+version: 1.0
+
+custom_rules:
+  - name: "My Custom RGBW Device"
+    priority: 1
+    conditions:
+      - usage_id: "1"
+      - name: ".*my rgbw.*"
+    mapping:
+      ha_entity: "light"
+      ha_subtype: "rgbw"
+      justification: "Custom RGBW device mapping"
+
+custom_usage_id_mappings:
+  "42":
+    ha_entity: "sensor"
+    ha_subtype: "custom"
+    justification: "Custom sensor type"
+```
+
+## 📚 Grammaire complète des règles avancées
+
+### Structure d'une règle avancée
+
+```yaml
+- name: "Nom de la règle"
+  priority: 1  # Priorité (1 = plus haute)
+  conditions:
+    - condition1: "valeur1"
+    - condition2: "valeur2"
+    # ... autres conditions
+  mapping:
+    ha_entity: "type_entité"  # light, sensor, switch, etc.
+    ha_subtype: "sous_type"   # rgbw, dimmable, brightness, etc.
+    justification: "Description de la règle"
+    is_dynamic: true          # Optionnel: true/false
+```
+
+### Conditions disponibles
+
+| Condition | Type | Description | Exemple |
+|-----------|------|-------------|---------|
+| `usage_id` | string | ID d'usage du device | `"1"` (lumière) |
+| `PRODUCT_TYPE_ID` | string | ID du type de produit | `"2304"` (RGBW) |
+| `min_children` | integer | Nombre minimum d'enfants | `4` |
+| `child_usage_id` | string | ID d'usage des enfants | `"1"` |
+| `has_parent` | boolean | Device a un parent | `true` |
+| `parent_usage_id` | string | ID d'usage du parent | `"1"` |
+| `name` | string/regex | Nom du device (regex) | `".*RGBW.*"` |
+| `has_children_with_names` | list | Liste de noms d'enfants | `["Rouge", "Vert", "Bleu"]` |
+
+### Exemples de règles supprimées
+
+#### 1. Règle basée sur PRODUCT_TYPE_ID (supprimée)
+
+```yaml
+- name: "rgbw_lamp_with_children"
+  priority: 1
+  conditions:
+    - usage_id: "1"
+    - PRODUCT_TYPE_ID: "2304"  # Spécifique à un type de produit
+  mapping:
+    ha_entity: "light"
+    ha_subtype: "rgbw"
+    justification: "RGBW lamp detected by PRODUCT_TYPE_ID=2304"
+    is_dynamic: true
+```
+
+**Pourquoi supprimée** : Trop spécifique, ne fonctionnait que pour un type de produit particulier.
+
+#### 2. Règle basée sur les noms des enfants (supprimée)
+
+```yaml
+- name: "rgbw_lamp_flexible"
+  priority: 1
+  conditions:
+    - usage_id: "1"
+    - min_children: 4
+    - has_children_with_names: ["Rouge", "Vert", "Bleu", "Blanc"]
+  mapping:
+    ha_entity: "light"
+    ha_subtype: "rgbw"
+    justification: "RGBW lamp detected by child names (Rouge, Vert, Bleu, Blanc)"
+    is_dynamic: true
+  child_mapping:
+    "1":
+      ha_entity: "light"
+      ha_subtype: "brightness"
+      is_dynamic: true
+```
+
+**Pourquoi supprimée** : Trop rigide, ne fonctionnait qu'avec des noms spécifiques en français.
+
+#### 3. Règle pour enfants RGBW (supprimée)
+
+```yaml
+- name: "RGBW Child Detection"
+  priority: 2
+  conditions:
+    - usage_id: "1"
+    - has_parent: true
+    - parent_usage_id: "1"
+    - parent_has_min_children: 4
+  mapping:
+    ha_entity: "light"
+    ha_subtype: "brightness"
+    justification: "RGBW child component (Red, Green, Blue, White)"
+    is_dynamic: true
+```
+
+**Pourquoi supprimée** : Redondante avec la nouvelle règle simplifiée.
+
+### Nouvelle règle simplifiée (recommandée)
+
+```yaml
+- name: "rgbw_lamp_by_children"
+  priority: 1
+  conditions:
+    - usage_id: "1"
+    - min_children: 4
+  mapping:
+    ha_entity: "light"
+    ha_subtype: "rgbw"
+    justification: "RGBW lamp detected by having at least 4 children with usage_id=1"
+    is_dynamic: true
+```
+
+**Avantages** :
+- ✅ Plus flexible : fonctionne avec n'importe quel device ayant 4 enfants
+- ✅ Plus simple : seulement 2 conditions
+- ✅ Plus robuste : ne dépend pas des noms ou du PRODUCT_TYPE_ID
+- ✅ Multilingue : fonctionne avec n'importe quelle langue
+
+### Exemples avancés
+
+#### Règle pour détecteur de fumée
+
+```yaml
+- name: "Smoke Detector"
+  priority: 2
+  conditions:
+    - usage_id: "27"
+  mapping:
+    ha_entity: "binary_sensor"
+    ha_subtype: "smoke"
+    justification: "Smoke detector - usage_id=27"
+    is_dynamic: false
+```
+
+#### Règle pour capteur de température
+
+```yaml
+- name: "Temperature Sensor"
+  priority: 3
+  conditions:
+    - usage_id: "7"
+  mapping:
+    ha_entity: "sensor"
+    ha_subtype: "temperature"
+    device_class: "temperature"
+    unit_of_measurement: "°C"
+    justification: "Temperature sensor - usage_id=7"
+    is_dynamic: false
+```
+
+#### Règle basée sur le nom avec regex
+
+```yaml
+- name: "Consumption Meter"
+  priority: 4
+  conditions:
+    - usage_id: "26"
+    - name: ".*consommation.*|.*consumption.*"
+  mapping:
+    ha_entity: "sensor"
+    ha_subtype: "energy"
+    device_class: "energy"
+    justification: "Energy consumption meter"
+    is_dynamic: false
+```
+
+### Bonnes pratiques
+
+1. **Priorité** : Utilisez des priorités basses (1-5) pour les règles spécifiques
+2. **Spécificité** : Plus une règle est spécifique, plus sa priorité devrait être élevée
+3. **Test** : Testez vos règles avec des devices réels avant de les déployer
+4. **Documentation** : Ajoutez toujours une justification claire
+5. **is_dynamic** : Utilisez `true` pour les devices qui peuvent changer de type
+
+### Débogage
+
+Pour déboguer les règles, activez les logs de niveau DEBUG dans Home Assistant :
+
+```yaml
+# configuration.yaml
+logger:
+  default: warning
+  logs:
+    custom_components.eedomus.entity: debug
+```
+
+Les logs montreront :
+- Quelles règles sont évaluées
+- Quelles conditions matchent ou ne matchent pas
+- Quelle règle est finalement appliquée
+
+```
+DEBUG: Evaluating rule 'rgbw_lamp_by_children' for device My Device (123456)
+DEBUG: Condition 'usage_id' matched: "1"
+DEBUG: Condition 'min_children' matched: 4 children found
+INFO: 🎯 Advanced rule rgbw_lamp_by_children mapping: My Device (123456) → light:rgbw
+```
+
+### Notes importantes
+
+✅ **Ne modifiez PAS** `device_mapping.yaml` directement (peut être écrasé lors des mises à jour)
+✅ **Toutes les personnalisations** doivent aller dans `custom_mapping.yaml`
+✅ **Fusion automatique** des configurations au démarrage
+✅ **Les changements prennent effet** immédiatement après redémarrage ou rechargement
+✅ **L'affectation des pièces et des icônes** est gérée par l'interface standard de Home Assistant
+
+### Améliorations du code
+
+- **Réduction de 90% du code** dans `device_mapping.py` (de ~1100 à ~200 lignes)
+- **Suppression des déclarations inutilisées** et des structures obsolètes
+- **Architecture simplifiée** concentrée uniquement sur le chargement YAML
+- **Meilleures performances** avec un chargement plus rapide des configurations
+- **Code plus propre** et plus facile à maintenir
+
+### Migration depuis les versions précédentes
+
+Si vous utilisiez l'ancien système de configuration :
+
+1. **Copiez** vos mappings personnalisés depuis l'ancien emplacement
+2. **Collez-les** dans `custom_components/eedomus/config/custom_mapping.yaml`
+3. **Vérifiez** la syntaxe YAML
+4. **Redémarrez** Home Assistant
+
+Le nouveau système gère automatiquement le reste !
+
+### Priorité des mappings
+
+L'intégration utilise l'ordre de priorité suivant pour déterminer le mapping d'un périphérique :
+
+1. **Règles personnalisées** (depuis `custom_mapping.yaml`)
+2. **Règles avancées** (détection RGBW, relations parent-enfant)
+3. **Mappings par usage_id** (depuis YAML ou code)
+4. **Mappings par nom** (expressions régulières)
+5. **Mapping par défaut** (fallback)
+
+### Configuration via l'interface utilisateur
+
+1. **Accédez** à l'intégration eedomus dans Home Assistant
+2. **Cliquez** sur "Options" dans le menu
+3. **Sélectionnez** "YAML Mapping Configuration"
+4. **Configurez** le chemin du fichier de mapping personnalisé
+5. **Activez** "Reload mapping" pour appliquer les modifications immédiatement
+
+### Exemples de personnalisation
+
+#### 1. Ajouter un nouveau type de périphérique
+
+```yaml
+# Dans custom_mapping.yaml
+custom_rules:
+  - name: "My Custom Thermostat"
+    priority: 1
+    conditions:
+      - usage_id: "15"
+      - name: ".*thermostat.*"
+    mapping:
+      ha_entity: "climate"
+      ha_subtype: "thermostat"
+      justification: "Thermostat personnalisé"
+      device_class: "temperature"
+      icon: "mdi:thermostat"
+```
+
+#### 2. Modifier un mapping existant
+
+```yaml
+# Dans custom_mapping.yaml
+custom_usage_id_mappings:
+  "2":
+    ha_entity: "sensor"
+    ha_subtype: "power"
+    justification: "Capteur de puissance personnalisé"
+    device_class: "power"
+    icon: "mdi:gauge"
+```
+
+#### 3. Ajouter un motif de nom
+
+```yaml
+# Dans custom_mapping.yaml
+custom_name_patterns:
+  - pattern: ".*detecteur.*fumée.*"
+    ha_entity: "binary_sensor"
+    ha_subtype: "smoke"
+    device_class: "smoke"
+    icon: "mdi:fire"
+```
+
+### Bonnes pratiques
+
+1. **Commencez par le fichier par défaut** : Copiez `device_mapping.yaml` pour comprendre la structure
+2. **Utilisez des noms clairs** : Donnez des noms descriptifs à vos règles personnalisées
+3. **Priorité appropriée** : Utilisez des priorités élevées (1-2) pour les règles spécifiques
+4. **Testez les motifs** : Vérifiez vos expressions régulières avant de les appliquer
+5. **Sauvegardez** : Faites des sauvegardes avant de modifier les fichiers YAML
+
+### Dépannage
+
+**Problème** : Les modifications YAML ne sont pas appliquées
+- **Solution** : Activez "Reload mapping" dans l'interface ou redémarrez Home Assistant
+
+**Problème** : Erreur de syntaxe YAML
+- **Solution** : Vérifiez la syntaxe avec un validateur YAML en ligne
+
+**Problème** : Fichier de mapping introuvable
+- **Solution** : Vérifiez le chemin dans la configuration et créez le fichier si nécessaire
+
+## 🧪 Tests
+=======
+## 🧪 Tests
+
 ## 📚 Documentation supplémentaire
 
 La documentation complète est disponible dans le dossier [docs/](docs/) :
@@ -100,6 +547,7 @@ La documentation complète est disponible dans le dossier [docs/](docs/) :
 - **[BATTERY_SENSOR_EXAMPLE.md](docs/BATTERY_SENSOR_EXAMPLE.md)** - Exemples de capteurs de batterie
 - **[SCENE_TO_SELECT_MIGRATION.md](docs/SCENE_TO_SELECT_MIGRATION.md)** - Migration des scènes vers select
 - **[TESTING_GUIDE.md](docs/TESTING_GUIDE.md)** - Guide complet de test
+- **[DEVICE_MAPPING_TABLE.md](docs/DEVICE_MAPPING_TABLE.md)** - Tableau complet des mappings périphériques
 - **[MERMAID_CONVERSION_SUMMARY.md](docs/MERMAID_CONVERSION_SUMMARY.md)** - Résumé des diagrammes
 
 ## 🖼️ Aperçu de l'Interface Options Flow
@@ -569,6 +1017,231 @@ EEDOMUS_TO_HA_ATTR_MAPPING = {
 - **Code Plus Maintenable** : Le code est maintenant plus facile à maintenir et à étendre.
 - **Consistance** : Le mapping des attributs est maintenant centralisé dans une constante, ce qui assure une consistance dans tout le code.
 - **Flexibilité** : Le mapping dynamique permet d'ajouter facilement de nouveaux attributs sans modifier la logique de la méthode `extra_state_attributes`.
+
+### 🕒 Gestion des Attributs de Timestamp
+
+L'intégration inclut maintenant une gestion avancée des attributs de timestamp pour une meilleure traçabilité des changements d'état :
+
+#### Attributs de Timestamp Disponibles
+
+| Attribut | Source | Format | Description |
+|----------|--------|--------|-------------|
+| `last_value_change` | Eedomus | Timestamp Unix | Timestamp brut du dernier changement côté eedomus (ex: `1710451200`) |
+| `last_changed` | Calculé | ISO 8601 | Date/heure du dernier changement de valeur (ex: `2024-03-15T12:00:00+00:00`) |
+| `last_reported` | Calculé | ISO 8601 | Date/heure du dernier rapport de valeur (identique à `last_changed`) |
+| `last_updated` | Home Assistant | ISO 8601 | Date/heure de la dernière mise à jour par Home Assistant |
+
+#### Exemple d'Attributs de Timestamp
+
+```yaml
+# Exemple d'attributs pour une entité lumière
+attributes:
+  last_value_change: "1710451200"          # Valeur brute de eedomus
+  last_changed: "2024-03-15T12:00:00+00:00"  # Format ISO pour HA
+  last_reported: "2024-03-15T12:00:00+00:00" # Format ISO pour HA
+  last_updated: "2024-03-15T12:05:30+00:00"   # Quand HA a mis à jour
+  name: "Lampe Salon"
+  room: "Salon"
+  usage_id: "1"
+  usage_name: "Lumière"
+```
+
+#### Différences entre les Attributs
+
+- **`last_value_change`** : Timestamp brut provenant directement de la box eedomus (en secondes depuis epoch)
+- **`last_changed`** et **`last_reported`** : Timestamps convertis au format ISO 8601 pour une meilleure compatibilité avec Home Assistant
+- **`last_updated`** : Indique quand Home Assistant a traité la mise à jour (peut être légèrement différent de `last_changed`)
+
+#### Utilisation dans les Automations
+
+```yaml
+# Exemple d'automatisation utilisant last_changed
+automation:
+  - alias: "Alerte si lumière allumée tard le soir"
+    trigger:
+      - platform: state
+        entity_id: light.lampe_salon
+    condition:
+      - condition: template
+        value_template: >-
+          {{ (as_timestamp(states.light.lampe_salon.attributes.last_changed) | int) > 
+             (now().timestamp() - 3600) }}
+    action:
+      - service: notify.mobile_app
+        data:
+          message: >-
+            La lumière du salon a été allumée à 
+            {{ states.light.lampe_salon.attributes.last_changed }}
+```
+
+#### Utilisation dans les Tableaux de Bord
+
+```yaml
+# Exemple de carte d'entité avec attributs de timestamp
+type: entities
+entities:
+  - entity: light.lampe_salon
+    name: "Lampe Salon"
+    secondary_info: last-changed
+  - entity: sensor.temperature_salon
+    name: "Température Salon"
+    secondary_info: last-reported
+```
+
+#### Gestion des Erreurs
+
+L'intégration inclut une gestion robuste des erreurs pour les timestamps invalides :
+
+- **Validation** : Vérifie que `last_value_change` existe et n'est pas vide
+- **Conversion sécurisée** : Utilise `try/except` pour gérer les formats invalides
+- **Logging** : Journalise les erreurs de conversion pour le débogage
+- **Compatibilité** : Maintient l'attribut brut même en cas d'erreur de conversion
+
+#### Cas d'Utilisation Avancés
+
+1. **Audit des changements** : Utilisez `last_changed` pour savoir exactement quand un périphérique a changé d'état
+2. **Détection d'inactivité** : Comparez `last_reported` avec l'heure actuelle pour détecter les périphériques inactifs
+3. **Synchronisation** : Utilisez les timestamps pour synchroniser les états entre plusieurs systèmes
+4. **Analyse historique** : Stockez les attributs de timestamp pour une analyse historique des patterns d'utilisation
+
+### 🔧 Architecture de Définition des Valeurs
+
+L'intégration utilise une architecture centralisée pour la définition des valeurs des périphériques, garantissant une gestion cohérente des erreurs, des fallbacks et des mises à jour d'état.
+
+#### Méthode Centralisée `async_set_value()`
+
+Toutes les entités (lumières, interrupteurs, volets) utilisent maintenant une méthode centralisée pour définir les valeurs :
+
+```python
+async def async_set_value(self, value: str):
+    """Set device value with full eedomus logic including fallback and retry.
+    
+    Centralizes all value-setting logic including:
+    - PHP fallback for rejected values
+    - Next best value selection
+    - Immediate state updates
+    - Coordinator refresh
+    - Consistent error handling
+    """
+```
+
+#### Avantages de l'Architecture Centralisée
+
+1. **Consistance** : Toutes les entités utilisent le même mécanisme
+2. **Maintenabilité** : Un seul endroit pour mettre à jour la logique
+3. **Fiabilité** : Gestion d'erreur et fallback garantis
+4. **Extensibilité** : Facile d'ajouter de nouvelles fonctionnalités
+
+#### Flux de Définition des Valeurs
+
+```mermaid
+flowchart TD
+    A[Entity.async_set_value] --> B[Coordinator.async_set_periph_value]
+    B --> C{Success?}
+    C -->|Oui| D[Force State Update]
+    C -->|Non| E{Error Code 6?}
+    E -->|Oui| F[PHP Fallback]
+    E -->|Non| G[Log Error]
+    D --> H[Coordinator Refresh]
+    F --> D
+```
+
+#### Gestion des Erreurs et Fallbacks
+
+L'architecture inclut plusieurs niveaux de gestion d'erreur :
+
+1. **Réessai automatique** : Pour les valeurs rejetées (error_code=6)
+2. **Fallback PHP** : Si configuré et activé
+3. **Next Best Value** : Sélection de la valeur acceptable la plus proche
+4. **Logging détaillé** : Pour le débogage et l'audit
+
+#### Exemple d'Utilisation dans les Entités
+
+**Avant la refactorisation** (code dupliqué) :
+```python
+# Dans chaque entité (cover, light, switch)
+await self.coordinator.client.set_periph_value(self._periph_id, "100")
+if isinstance(response, dict) and response.get("success") != 1:
+    _LOGGER.error("Failed to set value")
+    raise Exception("Failed to set value")
+await self.async_force_state_update("100")
+await self.coordinator.async_request_refresh()
+```
+
+**Après la refactorisation** (code centralisé) :
+```python
+# Dans toutes les entités
+await self.async_set_value("100")
+```
+
+#### Diagramme de Séquence
+
+```mermaid
+sequenceDiagram
+    participant Entity
+    participant Coordinator
+    participant EedomusAPI
+    
+    Entity->>Coordinator: async_set_value("100")
+    Coordinator->>EedomusAPI: set_periph_value("100")
+    alt Success
+        EedomusAPI-->>Coordinator: {success: 1}
+        Coordinator->>Entity: Update local state
+        Entity->>Entity: async_force_state_update()
+        Entity->>Coordinator: async_request_refresh()
+    else Value Refused (error_code=6)
+        EedomusAPI-->>Coordinator: {success: 0, error_code: 6}
+        Coordinator->>EedomusAPI: PHP fallback attempt
+        alt PHP Success
+            EedomusAPI-->>Coordinator: {success: 1}
+            Coordinator->>Entity: Update local state
+            Entity->>Entity: async_force_state_update()
+        else Try Next Best Value
+            Coordinator->>EedomusAPI: set_periph_value(best_value)
+            EedomusAPI-->>Coordinator: {success: 1}
+            Coordinator->>Entity: Update local state
+        end
+    else Other Error
+        EedomusAPI-->>Coordinator: {success: 0, error: "..."}
+        Coordinator-->>Entity: Raise exception
+    end
+```
+
+#### Configuration des Options de Fallback
+
+Les options de fallback peuvent être configurées dans l'interface de l'intégration :
+
+| Option | Description | Valeur par défaut |
+|--------|-------------|-------------------|
+| `enable_set_value_retry` | Active la réessai des valeurs rejetées | `true` |
+| `php_fallback_enabled` | Active le fallback PHP pour les valeurs rejetées | `true` |
+
+**Recommandations** :
+- Gardez les deux options activées pour une meilleure compatibilité
+- Le fallback PHP est particulièrement utile pour les périphériques avec des contraintes de valeur strictes
+- Le réessai automatique améliore la fiabilité sans intervention manuelle
+
+#### Journalisation et Débogage
+
+Tous les événements de définition de valeur sont journalisés :
+
+```log
+DEBUG: Setting value '100' for Lampe Salon (1234567)
+INFO: ✅ Set value successful for Lampe Salon (1234567)
+DEBUG: Forcing state update for Lampe Salon (1234567) to value: 100
+
+# En cas d'erreur
+WARNING: Value '50' refused for Lampe Salon (1234567), checking fallback/next best value
+INFO: 🔄 Retry enabled - trying next best value (50 => 45) for Lampe Salon (1234567)
+INFO: ✅ Set value successful for Lampe Salon (1234567)
+```
+
+#### Bonnes Pratiques
+
+1. **Toujours utiliser `async_set_value()`** pour la définition des valeurs
+2. **Ne pas appeler directement** `coordinator.client.set_periph_value()`
+3. **Laisser le coordinateur gérer** les fallbacks et réessais
+4. **Utiliser les exceptions** pour gérer les erreurs irrécoverables
 
 ---
 

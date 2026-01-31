@@ -9,11 +9,13 @@ from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
+
     CONF_ENABLE_HISTORY,
     CONF_ENABLE_SET_VALUE_RETRY,
     CONF_PHP_FALLBACK_ENABLED,
     CONF_PHP_FALLBACK_SCRIPT_NAME,
     CONF_PHP_FALLBACK_TIMEOUT,
+
     DEFAULT_ENABLE_SET_VALUE_RETRY,
     DEFAULT_PHP_FALLBACK_ENABLED,
     DEFAULT_PHP_FALLBACK_SCRIPT_NAME,
@@ -55,9 +57,12 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         await self._load_history_progress()
         
         # Perform initial full data retrieval including peripherals list and value list
+        start_time = datetime.now()
         peripherals, peripherals_value_list, peripherals_caract = (
-            await self._async_full_data_retreive()
+            await self._async_full_data_retrieve()
         )
+        elapsed_time = (datetime.now() - start_time).total_seconds()
+        _LOGGER.debug("Initial data retrieval completed in %.3f seconds", elapsed_time)
         
         # Conversion des listes en dictionnaires
         peripherals_dict = {str(periph["periph_id"]): periph for periph in peripherals}
@@ -78,6 +83,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             | set(peripherals_caract_dict.keys())
         )
 
+        # Première passe : Ajouter tous les devices à aggregated_data
+        # Cela permet aux règles avancées d'avoir accès à tous les devices, y compris les enfants
         for periph_id in all_periph_ids:
             aggregated_data[periph_id] = {}
 
@@ -93,10 +100,41 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             if periph_id in peripherals_caract_dict:
                 aggregated_data[periph_id].update(peripherals_caract_dict[periph_id])
 
+        # Deuxième passe : Appliquer le mapping pour chaque device
+        # Maintenant tous les devices sont disponibles dans aggregated_data
+        for periph_id in all_periph_ids:
             # Mapping des périphériques vers une entité HA : la bonne ? quid des enfants vis à vis de parent ?
             if not "ha_entity" in aggregated_data[periph_id]:
-                eedomus_mapping = map_device_to_ha_entity(aggregated_data[periph_id])
+                eedomus_mapping = map_device_to_ha_entity(aggregated_data[periph_id], aggregated_data)
                 aggregated_data[periph_id].update(eedomus_mapping)
+                
+                # Add dynamic property based on entity type
+                try:
+                    from .entity import DEVICE_MAPPINGS
+                    ha_entity = aggregated_data[periph_id].get("ha_entity")
+                    if ha_entity and DEVICE_MAPPINGS:
+                        dynamic_properties = DEVICE_MAPPINGS.get('dynamic_entity_properties', {})
+                        aggregated_data[periph_id]["is_dynamic"] = dynamic_properties.get(ha_entity, False)
+                        _LOGGER.debug(
+                            "Set is_dynamic=%s for %s (%s) based on entity type %s",
+                            aggregated_data[periph_id]["is_dynamic"],
+                            aggregated_data[periph_id].get("name"),
+                            periph_id,
+                            ha_entity
+                        )
+                except Exception as e:
+                    _LOGGER.warning(
+                        "Failed to set dynamic property for %s (%s): %s",
+                        aggregated_data[periph_id].get("name"),
+                        periph_id,
+                        e
+                    )
+                    # Set default dynamic property
+                    ha_entity = aggregated_data[periph_id].get("ha_entity")
+                    if ha_entity in ["light", "switch", "binary_sensor"]:
+                        aggregated_data[periph_id]["is_dynamic"] = True
+                    else:
+                        aggregated_data[periph_id]["is_dynamic"] = False
 
         # Logs des tailles
         _LOGGER.info(
@@ -115,6 +153,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # Traitement des périphériques
         skipped = 0
         dynamic = 0
+        disabled = 0
         for periph_id, periph_data in aggregated_data.items():
             if not isinstance(periph_data, dict) or "periph_id" not in periph_data:
                 _LOGGER.warning(
@@ -126,30 +165,103 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 skipped += 1
                 continue
 
+            # Check if entity is disabled
+
+
             # _LOGGER.debug("Processing peripheral (ID: %s, data: %s)", periph_id, periph_data)
+
+            # Ensure is_dynamic property is set for all peripherals
+            if "ha_entity" in periph_data and "is_dynamic" not in periph_data:
+                try:
+                    from .entity import DEVICE_MAPPINGS
+                    ha_entity = periph_data.get("ha_entity")
+                    if ha_entity and DEVICE_MAPPINGS:
+                        dynamic_properties = DEVICE_MAPPINGS.get('dynamic_entity_properties', {})
+                        periph_data["is_dynamic"] = dynamic_properties.get(ha_entity, False)
+                        _LOGGER.debug(
+                            "Set is_dynamic=%s for %s (%s) based on entity type %s",
+                            periph_data["is_dynamic"],
+                            periph_data.get("name"),
+                            periph_id,
+                            ha_entity
+                        )
+                except Exception as e:
+                    _LOGGER.warning(
+                        "Failed to set dynamic property for %s (%s): %s",
+                        periph_data.get("name"),
+                        periph_id,
+                        e
+                    )
+                    # Set default dynamic property
+                    ha_entity = periph_data.get("ha_entity")
+                    if ha_entity in ["light", "switch", "binary_sensor"]:
+                        periph_data["is_dynamic"] = True
+                    else:
+                        periph_data["is_dynamic"] = False
 
             if self._is_dynamic_peripheral(periph_data):
                 self._dynamic_peripherals[periph_id] = periph_data
                 dynamic += 1
 
-        _LOGGER.warning("Skipped %d invalid peripherals", skipped)
-        _LOGGER.warning("Found %d dynamic peripherals", dynamic)
+        _LOGGER.info("Skipped %d invalid peripherals", skipped)
+        _LOGGER.info("Found %d dynamic peripherals", dynamic)
+        _LOGGER.info("Skipped %d disabled peripherals", disabled)
 
-        _LOGGER.debug(
-            "Initial Mapping Table %s",
-            "\n".join(
-                "Map: "
-                f"{aggregated_data[id].get('ha_entity', '?')}/"
-                f"{aggregated_data[id].get('ha_subtype', '?')} "
-                f"usage_id={aggregated_data[id].get('usage_id', '?')} "
-                f"PRODUCT_TYPE_ID={aggregated_data[id].get('PRODUCT_TYPE_ID', '?')} "
-                f"{aggregated_data[id].get('name', '?')}/{aggregated_data[id].get('usage_name', '?')}({id})"
-                for id in aggregated_data.keys()
-            ),
-        )
-        
         # Set the data for the coordinator
         self.data = aggregated_data
+        
+        # Afficher un résumé des devices
+        _LOGGER.info("\n" + "="*120)
+        _LOGGER.info("EEDOMUS INTEGRATION SUMMARY")
+        _LOGGER.info("="*120)
+        _LOGGER.info("Total peripherals from eedomus API: %d", len(aggregated_data))
+        _LOGGER.info("Total dynamic peripherals: %d", dynamic)
+        _LOGGER.info("Total skipped peripherals: %d (invalid: %d, disabled: %d)", skipped + disabled, skipped, disabled)
+        _LOGGER.info("="*120 + "\n")
+        
+        # Afficher le tableau de mapping global après le premier rafraîchissement
+        try:
+            from .mapping_registry import print_mapping_table as _print_global_mapping_table, print_mapping_summary, get_mapping_registry
+            _print_global_mapping_table()
+            print_mapping_summary()
+            
+            # Vérifier si tous les devices sont mappés
+            mapped_ids = {m["periph_id"] for m in get_mapping_registry()}
+            # aggregated_data est un dictionnaire, donc nous devons itérer sur ses valeurs
+            all_ids = {str(periph_data["periph_id"]) for periph_data in aggregated_data.values() if isinstance(periph_data, dict)}
+            
+            if len(mapped_ids) < len(all_ids):
+                _LOGGER.info("\n" + "="*120)
+                _LOGGER.info("ℹ️  INFO: Not all devices were mapped (this is normal)")
+                _LOGGER.info("="*120)
+                _LOGGER.info("Total devices from API: %d", len(all_ids))
+                _LOGGER.info("Total devices mapped: %d", len(mapped_ids))
+                _LOGGER.info("Devices not mapped: %d (virtual/system devices)", len(all_ids) - len(mapped_ids))
+                
+                # Afficher les devices non mappés
+                missing_ids = all_ids - mapped_ids
+                _LOGGER.info("\nFirst 10 unmapped devices (example):")
+                for periph_id in sorted(missing_ids)[:10]:  # Afficher seulement les 10 premiers
+                    periph_data = aggregated_data.get(periph_id)
+                    if periph_data and isinstance(periph_data, dict):
+                        _LOGGER.info("  - %s (ID: %s, usage_id: %s)", 
+                                     periph_data.get("name", "Unknown"), periph_id, periph_data.get("usage_id", "Unknown"))
+                    else:
+                        _LOGGER.info("  - Unknown device (ID: %s)", periph_id)
+                
+                if len(missing_ids) > 10:
+                    _LOGGER.info("  ... and %d more devices (mostly virtual/system)", len(missing_ids) - 10)
+                
+                _LOGGER.info("="*120 + "\n")
+                _LOGGER.info("ℹ️  This is normal behavior - virtual and system devices are intentionally not mapped")
+                
+        except Exception as e:
+            _LOGGER.warning("Failed to print global mapping table: %s", e)
+            _LOGGER.warning("Exception type: %s", type(e).__name__)
+            _LOGGER.warning("Exception details: %s", str(e))
+            _LOGGER.warning("Traceback:")
+            import traceback
+            _LOGGER.warning(traceback.format_exc())
         
         # No need to call super().async_config_entry_first_refresh() as we've already loaded the data
 
@@ -181,10 +293,12 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             )
             # Return last known good data if available
             if hasattr(self, "data") and self.data:
+                _LOGGER.warning("Returning last known good data after API error, data size: %d", len(self.data))
                 return self.data
+            _LOGGER.error("No last known good data available, coordinator.data is None or empty")
             raise UpdateFailed(f"Error updating data: {err}") from err
 
-    async def _async_partial_data_retreive(self, concat_text_periph_id: str):
+    async def _async_partial_data_retrieve(self, concat_text_periph_id: str):
         peripherals_caract_response = await self.client.get_periph_caract(
             concat_text_periph_id, False
         )
@@ -203,7 +317,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             peripherals_caract = []
         return peripherals_caract
 
-    async def _async_full_data_retreive(self):
+    async def _async_full_data_retrieve(self):
         """Retrieve full data including peripherals list, value list, and characteristics."""
         peripherals_response = await self.client.get_periph_list()
         peripherals_value_list_response = await self.client.get_periph_value_list("all")
@@ -235,7 +349,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         if not isinstance(peripherals, list):
             _LOGGER.error("Invalid peripherals list: %s", peripherals)
             peripherals = []
-        _LOGGER.info("Found %d peripherals in total", len(peripherals))
+        _LOGGER.debug("Found %d peripherals in total", len(peripherals))
         if not isinstance(peripherals_value_list, list):
             _LOGGER.error("Invalid peripherals list: %s", peripherals_value_list)
             peripherals_value_list = []
@@ -247,7 +361,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         )
         return (peripherals, peripherals_value_list, peripherals_caract)
 
-    async def _async_full_refresh_data_retreive(self):
+    async def _async_full_refresh_data_retrieve(self):
         """Retrieve only characteristics data for full refresh."""
         peripherals_caract_response = await self.client.get_periph_caract("all", True)
         if not isinstance(peripherals_caract_response, dict):
@@ -258,19 +372,24 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.error("API request failed: %s", error)
             _LOGGER.debug("API peripherals_response %s", peripherals_caract_response)
             raise UpdateFailed(f"API request failed: {error}")
+        if peripherals_caract_response.get("success", 0) != 1:
+            error = peripherals_caract_response.get("error", "Unknown API error")
+            _LOGGER.error("API request failed: %s", error)
+            _LOGGER.debug("API peripherals_response %s", peripherals_caract_response)
+            raise UpdateFailed(f"API request failed: {error}")
         peripherals_caract = peripherals_caract_response.get("body", [])
         if not isinstance(peripherals_caract, list):
             _LOGGER.error("Invalid peripherals list: %s", peripherals_caract)
             peripherals_caract = []
-        _LOGGER.info("Found %d peripherals characteristics in total", len(peripherals_caract))
+        _LOGGER.debug("Found %d peripherals characteristics in total", len(peripherals_caract))
         return peripherals_caract
 
     async def _async_full_refresh(self):
         """Perform a complete refresh of all peripherals."""
-        _LOGGER.info("Performing full data refresh from eedomus API")
+        _LOGGER.debug("Performing full data refresh from eedomus API")
 
         # Récupération des données
-        peripherals_caract = await self._async_full_refresh_data_retreive()
+        peripherals_caract = await self._async_full_refresh_data_retrieve()
         peripherals_caract_dict = {
             str(it["periph_id"]): it for it in peripherals_caract
         }
@@ -282,8 +401,12 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         all_periph_ids = set(peripherals_caract_dict.keys())
 
         for periph_id in all_periph_ids:
+            if aggregated_data is None:
+                _LOGGER.error("aggregated_data is None, cannot process peripheral data")
+                continue
+                
             if not periph_id in aggregated_data:
-                _LOGGER.warn("This periph_id is unknown %d, please do a reload", periph_id)
+                _LOGGER.warning("This periph_id is unknown %d, please do a reload", periph_id)
                 aggregated_data[periph_id] = {}
 
             # Ajout des données de peripherals_caract_dict (si existantes)
@@ -306,6 +429,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # Traitement des périphériques
         skipped = 0
         dynamic = 0
+        disabled = 0
         for periph_id, periph_data in aggregated_data.items():
             if not isinstance(periph_data, dict) or "periph_id" not in periph_data:
                 _LOGGER.warning(
@@ -323,13 +447,13 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 self._dynamic_peripherals[periph_id] = periph_data
                 dynamic += 1
 
-        _LOGGER.warning("Skipped %d invalid peripherals", skipped)
-        _LOGGER.warning("Found %d dynamic peripherals", dynamic)
+        _LOGGER.info("Skipped %d invalid peripherals", skipped)
+        _LOGGER.info("Found %d dynamic peripherals", dynamic)
+        _LOGGER.info("Skipped %d disabled peripherals", disabled)
 
         _LOGGER.debug(
             "Mapping Table %s",
             "\n".join(
-                "Map: "
                 f"{aggregated_data[id].get('ha_entity', '?')}/"
                 f"{aggregated_data[id].get('ha_subtype', '?')} "
                 f"usage_id={aggregated_data[id].get('usage_id', '?')} "
@@ -351,6 +475,17 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             history_retrieval,
         )
 
+        # Skip API call if no dynamic peripherals to refresh
+        if not self._dynamic_peripherals:
+            _LOGGER.warning("No dynamic peripherals to refresh, skipping partial refresh")
+            # Return current data to preserve state instead of empty dict
+            if hasattr(self, 'data') and self.data:
+                _LOGGER.info("Returning current data to preserve state during partial refresh")
+                return self.data
+            else:
+                _LOGGER.error("No data available to return during partial refresh")
+                return {"success": 1, "body": []}
+
         concat_text_periph_id = ",".join(self._dynamic_peripherals.keys())
         try:
             peripherals_caract = await self.client.get_periph_caract(
@@ -367,14 +502,25 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             )
             raise
 
-        for periph_data in peripherals_caract.get("body"):
+        # Ensure peripherals_caract.get("body") is a list before iterating
+        peripherals_body = peripherals_caract.get("body")
+        if not isinstance(peripherals_body, list):
+            _LOGGER.error("peripherals_caract body is not a list: %s", type(peripherals_body))
+            if peripherals_body is None:
+                _LOGGER.error("peripherals_caract body is None, API may have returned empty response")
+            return
+        
+        for periph_data in peripherals_body:
             periph_id = periph_data.get("periph_id")
             # Ajout des données de peripherals_caract_dict (si existantes)
-            self.data[periph_id].update(periph_data)
+            if self.data and periph_id in self.data:
+                self.data[periph_id].update(periph_data)
+            else:
+                _LOGGER.warning("Cannot update peripheral data: data not available for %s", periph_id)
 
             if history_retrieval:
                 if not self._history_progress.get(periph_id, {}).get("completed"):
-                    _LOGGER.info("Retrieving data history %s", periph_id)
+                    _LOGGER.debug("Retrieving data history %s", periph_id)
                     chunk = await self.async_fetch_history_chunk(periph_id)
                     if chunk:
                         await self.async_import_history_chunk(periph_id, chunk)
@@ -383,29 +529,126 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         return self.data
 
     def _is_dynamic_peripheral(self, periph):
-        """Determine if a peripheral needs regular updates."""
+        """Determine if a peripheral needs regular updates based on mapping configuration."""
+        periph_id = periph.get("periph_id")
         ha_entity = periph.get("ha_entity")
-
-        dynamic_types = [
-            "light",
-            "switch",
-            "binary_sensor",
-        ]
-
-        if ha_entity in dynamic_types:
-            _LOGGER.debug(
-                "Peripheral is dynamic ! %s (%s)",
+        
+        # Debug: Log the peripheral being checked
+        _LOGGER.debug("Checking dynamic status for peripheral %s (%s) with ha_entity=%s", 
+                    periph.get("name"), periph_id, ha_entity)
+        
+        # Special debug for RGBW devices
+        if periph_id in ["1269454", "1269455", "1269456", "1269457", "1269458"]:
+            _LOGGER.debug("🔍 SPECIAL DEBUG: Checking dynamic status for RGBW device %s (%s)", 
+                        periph.get("name"), periph_id)
+        
+        # Debug: Log DEVICE_MAPPINGS content
+        try:
+            from .entity import DEVICE_MAPPINGS
+            _LOGGER.debug("DEVICE_MAPPINGS loaded: %s", bool(DEVICE_MAPPINGS))
+            if DEVICE_MAPPINGS:
+                _LOGGER.debug("DEVICE_MAPPINGS keys: %s", list(DEVICE_MAPPINGS.keys()))
+                _LOGGER.debug("dynamic_entity_properties: %s", DEVICE_MAPPINGS.get('dynamic_entity_properties', {}))
+                _LOGGER.debug("specific_device_dynamic_overrides: %s", DEVICE_MAPPINGS.get('specific_device_dynamic_overrides', {}))
+            else:
+                _LOGGER.error("DEVICE_MAPPINGS is None or empty!")
+        except Exception as e:
+            _LOGGER.error("Failed to import DEVICE_MAPPINGS: %s", e)
+            DEVICE_MAPPINGS = None
+        
+        # Check for specific device overrides first (highest priority)
+        try:
+            if periph_id and DEVICE_MAPPINGS and str(periph_id) in DEVICE_MAPPINGS.get('specific_device_dynamic_overrides', {}):
+                is_dynamic = DEVICE_MAPPINGS['specific_device_dynamic_overrides'][str(periph_id)]
+                _LOGGER.debug(
+                    "Peripheral is %s (specific override) ! %s (%s)",
+                    "dynamic" if is_dynamic else "NOT dynamic",
+                    periph.get("name"),
+                    periph_id,
+                )
+                return is_dynamic
+        except Exception as e:
+            _LOGGER.warning(
+                "Failed to check specific device overrides for %s (%s): %s",
                 periph.get("name"),
-                periph.get("periph_id"),
+                periph_id,
+                e
             )
-            return True
-
-        _LOGGER.debug(
-            "Peripheral is NOT dynamic ! %s (%s)",
-            periph.get("name"),
-            periph.get("periph_id"),
-        )
-        return False
+        
+        # Check if the peripheral has explicit is_dynamic property from mapping
+        if "is_dynamic" in periph:
+            is_dynamic = periph.get("is_dynamic", False)
+            if is_dynamic:
+                _LOGGER.debug(
+                    "Peripheral is dynamic (explicit) ! %s (%s)",
+                    periph.get("name"),
+                    periph_id,
+                )
+            else:
+                _LOGGER.debug(
+                    "Peripheral is NOT dynamic (explicit) ! %s (%s)",
+                    periph.get("name"),
+                    periph_id,
+                )
+            return is_dynamic
+        
+        # Fallback to entity type-based dynamic properties
+        try:
+            from .entity import DEVICE_MAPPINGS
+            dynamic_properties = DEVICE_MAPPINGS.get('dynamic_entity_properties', {}) if DEVICE_MAPPINGS else {}
+            is_dynamic = dynamic_properties.get(ha_entity, False)
+            
+            _LOGGER.debug(
+                "Peripheral dynamic check (entity type) ! %s (%s) - entity: %s, is_dynamic: %s, properties: %s",
+                periph.get("name"),
+                periph_id,
+                ha_entity,
+                is_dynamic,
+                dynamic_properties,
+            )
+            
+            if is_dynamic:
+                _LOGGER.debug(
+                    "Peripheral is dynamic (entity type) ! %s (%s) - entity: %s",
+                    periph.get("name"),
+                    periph_id,
+                    ha_entity,
+                )
+                
+                # Special debug for RGBW devices
+                if periph_id in ["1269454", "1269455", "1269456", "1269457", "1269458"]:
+                    _LOGGER.debug("🔍 SPECIAL DEBUG: RGBW device %s (%s) is_dynamic=%s (entity type)", 
+                                periph.get("name"), periph_id, is_dynamic)
+            else:
+                _LOGGER.debug(
+                    "Peripheral is NOT dynamic (entity type) ! %s (%s) - entity: %s",
+                    periph.get("name"),
+                    periph_id,
+                    ha_entity,
+                )
+                
+                # Special debug for RGBW devices
+                if periph_id in ["1269454", "1269455", "1269456", "1269457", "1269458"]:
+                    _LOGGER.debug("🔍 SPECIAL DEBUG: RGBW device %s (%s) is_dynamic=%s (entity type)", 
+                                periph.get("name"), periph_id, is_dynamic)
+            return is_dynamic
+        except Exception as e:
+            _LOGGER.warning(
+                "Failed to determine dynamic status for %s (%s): %s. Falling back to default logic.",
+                periph.get("name"),
+                periph_id,
+                e
+            )
+            # Fallback to old logic
+            dynamic_types = ["light", "switch", "binary_sensor", "cover"]
+            is_dynamic = ha_entity in dynamic_types
+            
+            # Special debug for RGBW devices
+            if periph_id in ["1269454", "1269455", "1269456", "1269457", "1269458"]:
+                _LOGGER.debug("🔍 SPECIAL DEBUG: RGBW device %s (%s) is_dynamic=%s (fallback)", 
+                            periph.get("name"), periph_id, is_dynamic)
+            
+            return is_dynamic
 
     def get_all_peripherals(self):
         """Return all peripherals (for entity setup)."""
@@ -452,8 +695,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     {
                         "completed": progress["completed"],
                         "periph_name": (
-                            self.data[periph_id]["name"]
-                            if periph_id in self.data
+                            self.data.get(periph_id, {}).get("name", "Unknown")
+                            if self.data and periph_id in self.data
                             else "Unknown"
                         ),
                     },
@@ -589,7 +832,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             "Setting value '%s' for peripheral '%s' (%s) ",
             value,
             periph_id,
-            self.data[periph_id]["name"],
+            self.data.get(periph_id, {}).get("name", "unknown") if self.data else "unknown",
         )
 
         # Check if retry is enabled in config
@@ -618,7 +861,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         if not enable_retry:
             _LOGGER.info(
                 "⏭️ Set value retry disabled - attempting single set_value for %s (%s)",
-                self.data[periph_id]["name"],
+                self.data.get(periph_id, {}).get("name", "unknown") if self.data else "unknown",
                 periph_id,
             )
             _LOGGER.info(
@@ -634,7 +877,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             if php_fallback_enabled:
                 _LOGGER.info(
                     "🔄 Trying PHP fallback for %s (%s)",
-                    self.data[periph_id]["name"],
+                    self.data.get(periph_id, {}).get("name", "unknown") if self.data else "unknown",
                     periph_id,
                 )
                 fallback_result = await self.client.php_fallback_set_value(
@@ -643,19 +886,21 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 if fallback_result.get("success") == 1:
                     _LOGGER.info(
                         "✅ PHP fallback succeeded for %s (%s)",
-                        self.data[periph_id]["name"],
+                        self.data.get(periph_id, {}).get("name", "unknown") if self.data else "unknown",
                         periph_id,
                     )
+                    # Return success response when PHP fallback succeeds
+                    return {"success": 1, "fallback_used": True}
                 else:
                     _LOGGER.warning(
                         "⚠️ PHP fallback failed for %s (%s): %s",
-                        self.data[periph_id]["name"],
+                        self.data.get(periph_id, {}).get("name", "unknown") if self.data else "unknown",
                         periph_id,
                         fallback_result.get("error", "Unknown error"),
                     )
                     # Try next best value if PHP fallback fails
                     next_value = self.next_best_value(periph_id, value)
-                    _LOGGER.warn(
+                    _LOGGER.warning(
                         "🔄 Retry enabled - trying next best value (%s => %s) for %s (%s)",
                         value,
                         next_value,
@@ -665,10 +910,12 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     await self.client.set_periph_value(
                         periph_id, next_value.get("value")
                     )
+                    # Return success response when next best value is used
+                    return {"success": 1, "fallback_used": True, "value_used": next_value.get("value")}
             else:
                 # Try next best value if PHP fallback is not enabled
                 next_value = self.next_best_value(periph_id, value)
-                _LOGGER.warn(
+                _LOGGER.warning(
                     "🔄 Retry enabled - trying next best value (%s => %s) for %s (%s)",
                     value,
                     next_value,
@@ -676,6 +923,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     periph_id,
                 )
                 await self.client.set_periph_value(periph_id, next_value.get("value"))
+                # Return success response when next best value is used
+                return {"success": 1, "fallback_used": True, "value_used": next_value.get("value")}
         elif ret.get("success") == 0:
             _LOGGER.error(
                 "❌ Set value failed for %s (%s): %s - retry disabled or not applicable",
@@ -692,14 +941,19 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         else:
             _LOGGER.info(
                 "✅ Set value successful for %s (%s)",
-                self.data[periph_id]["name"],
+                self.data.get(periph_id, {}).get("name", "unknown") if self.data else "unknown",
                 periph_id,
             )
             
             # Immediately update local state to reflect the change
             # This ensures UI updates instantly without waiting for coordinator refresh
-            self.data[periph_id]["last_value"] = value
-
+            if self.data and periph_id in self.data:
+                self.data[periph_id]["last_value"] = value
+                self.data[periph_id]["last_updated"] = datetime.now().isoformat()
+            else:
+                _LOGGER.warning("Cannot update local state: data not available for %s", periph_id)
+            # Return success response for normal successful case
+            return ret
         # except Exception as e:
         #    _LOGGER.error(
         #        "Failed to set value for peripheral '%s': %s\ndata=%s\n\nalldata=%s",
