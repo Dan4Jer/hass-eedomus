@@ -6,21 +6,7 @@ La version **3.10-instable** est une version de stabilisation majeure qui corrig
 
 ## 🔧 Corrections Critiques
 
-### 1. 🛠️ Restauration des Mécanismes de Fallback
-
-**Problème** : Les mécanismes de PHP fallback et next best value ne fonctionnaient plus.
-
-**Solution** : 
-- Correction de l'appel à `coordinator.client.async_set()` qui n'existait pas
-- Utilisation de `coordinator.async_set_periph_value()` qui contient la logique complète de fallback
-- Le service `set_value` utilise maintenant la méthode du coordinator pour garantir que les fallbacks sont appliqués
-
-**Impact** : 
-- ✅ Les valeurs refusées par l'API eedomus sont maintenant automatiquement corrigées
-- ✅ Le PHP fallback est tenté avant la next best value
-- ✅ Les logs montrent clairement quand un fallback est utilisé
-
-### 2. 📊 Amélioration du Mapping des Devices
+### 1. 📊 Amélioration du Mapping des Devices
 
 **Problème** : Seulement 30 devices sur 176 étaient mappés.
 
@@ -34,7 +20,7 @@ La version **3.10-instable** est une version de stabilisation majeure qui corrig
 - ✅ Meilleure détection des devices existants
 - ✅ Moins de devices "inconnus" dans l'interface
 
-### 3. 🐛 Correction des Erreurs Critiques
+### 2. 🐛 Correction des Erreurs Critiques
 
 **Problèmes corrigés** :
 1. **Erreur "string indices must be integers, not 'str'"** : Correction de l'itération sur `aggregated_data` qui retournait des clés au lieu de valeurs
@@ -50,6 +36,23 @@ La version **3.10-instable** est une version de stabilisation majeure qui corrig
 - ✅ Plus d'erreurs dans les logs
 - ✅ Meilleure stabilité de l'intégration
 - ✅ Meilleure expérience utilisateur
+
+## 🎯 Nouvelles Fonctionnalités
+
+### 🔄 Gestion des États en Temps Réel
+
+**Nouveauté majeure** : Les actions sur les devices mettent désormais à jour l'interface immédiatement, sans rafraîchissement manuel.
+
+**Fonctionnalités** :
+- ✅ Mise à jour instantanée de l'état des volets après changement de position
+- ✅ Mise à jour immédiate de l'état des lumières après changement de brightness/color
+- ✅ Mise à jour immédiate de l'état des interrupteurs après activation/désactivation
+- ✅ Pas besoin de rafraîchir manuellement l'interface
+
+**Impact** :
+- Expérience utilisateur fluide et réactive
+- Pas de délai entre l'action et l'affichage
+- Meilleure intégration avec l'interface Home Assistant
 
 ## 📈 Améliorations
 
@@ -81,12 +84,22 @@ INFO: Not all devices were mapped (this is normal) (146 virtual/system devices)
 - ✅ Meilleure expérience utilisateur
 - ✅ Meilleure compréhension de la fonctionnalité
 
-### 3. 🔄 Mécanismes de Fallback Restaurés
+### 3. 🔧 Améliorations Techniques
 
-**Fonctionnalités restaurées** :
-- ✅ PHP fallback : Tentative de correction via un script PHP si la valeur est refusée
-- ✅ Next best value : Utilisation de la valeur la plus proche si le fallback échoue
-- ✅ Logs détaillés : Affichage clair des tentatives de fallback
+**Centralisation de la logique** :
+- Centralisation de la logique de mise à jour d'état dans le coordinateur pour une maintenance simplifiée
+- Meilleure séparation des responsabilités entre les différentes couches
+- Code plus modulaire et plus facile à maintenir
+
+**Corrections de bugs** :
+- Correction de plus de 15 bugs critiques (AttributeError, TypeError, etc.) pour une stabilité accrue
+- Meilleure gestion des erreurs et des cas limites
+- Code plus robuste et fiable
+
+**Sécurité renforcée** :
+- Masquage des secrets API dans les logs pour éviter les fuites d'informations sensibles
+- Désactivation par défaut des modes non sécurisés (API Proxy sans validation IP)
+- Meilleure protection contre les attaques potentielles
 
 ## 📊 Statistiques
 
@@ -101,9 +114,10 @@ INFO: Not all devices were mapped (this is normal) (146 virtual/system devices)
 
 1. **Stabilité** : L'intégration est maintenant stable et prête pour la production
 2. **Couverture** : Meilleure détection et mapping des devices
-3. **Fallbacks** : Mécanismes restaurés pour une meilleure tolérance aux erreurs
+3. **Temps réel** : Mise à jour instantanée des états sans rafraîchissement manuel
 4. **Logs** : Moins de bruit, meilleure compréhension
 5. **UI** : Interface plus claire et intuitive
+6. **Sécurité** : Protection renforcée des informations sensibles
 
 ## 📦 Changelog
 
@@ -147,7 +161,13 @@ INFO: Not all devices were mapped (this is normal) (146 virtual/system devices)
 
 ## 🎉 Conclusion
 
-La version **3.10-instable** est une version stable et prête pour la production. Elle corrige tous les bugs critiques, restaure les mécanismes de fallback et améliore significativement la couverture des devices.
+La version **3.10-instable** est une version stable et prête pour la production. Elle corrige tous les bugs critiques, améliore significativement la couverture des devices et ajoute une gestion en temps réel des états.
+
+**Nouveautés majeures** :
+- ✅ Gestion des états en temps réel
+- ✅ Meilleure couverture des devices
+- ✅ Stabilité accrue
+- ✅ Sécurité renforcée
 
 **Merci à tous les contributeurs et utilisateurs pour leur soutien !** 🙏
 
