@@ -530,7 +530,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         
         # Special debug for RGBW devices
         if periph_id in ["1269454", "1269455", "1269456", "1269457", "1269458"]:
-            _LOGGER.info("🔍 SPECIAL DEBUG: Checking dynamic status for RGBW device %s (%s)", 
+            _LOGGER.debug("🔍 SPECIAL DEBUG: Checking dynamic status for RGBW device %s (%s)", 
                         periph.get("name"), periph_id)
         
         # Debug: Log DEVICE_MAPPINGS content
@@ -608,7 +608,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 
                 # Special debug for RGBW devices
                 if periph_id in ["1269454", "1269455", "1269456", "1269457", "1269458"]:
-                    _LOGGER.info("🔍 SPECIAL DEBUG: RGBW device %s (%s) is_dynamic=%s (entity type)", 
+                    _LOGGER.debug("🔍 SPECIAL DEBUG: RGBW device %s (%s) is_dynamic=%s (entity type)", 
                                 periph.get("name"), periph_id, is_dynamic)
             else:
                 _LOGGER.debug(
@@ -620,7 +620,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 
                 # Special debug for RGBW devices
                 if periph_id in ["1269454", "1269455", "1269456", "1269457", "1269458"]:
-                    _LOGGER.info("🔍 SPECIAL DEBUG: RGBW device %s (%s) is_dynamic=%s (entity type)", 
+                    _LOGGER.debug("🔍 SPECIAL DEBUG: RGBW device %s (%s) is_dynamic=%s (entity type)", 
                                 periph.get("name"), periph_id, is_dynamic)
             return is_dynamic
         except Exception as e:
@@ -636,7 +636,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             
             # Special debug for RGBW devices
             if periph_id in ["1269454", "1269455", "1269456", "1269457", "1269458"]:
-                _LOGGER.info("🔍 SPECIAL DEBUG: RGBW device %s (%s) is_dynamic=%s (fallback)", 
+                _LOGGER.debug("🔍 SPECIAL DEBUG: RGBW device %s (%s) is_dynamic=%s (fallback)", 
                             periph.get("name"), periph_id, is_dynamic)
             
             return is_dynamic
