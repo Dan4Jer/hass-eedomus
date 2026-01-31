@@ -227,13 +227,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             
             # Vérifier si tous les devices sont mappés
             mapped_ids = {m["periph_id"] for m in get_mapping_registry()}
-            all_ids = {str(periph["periph_id"]) for periph in aggregated_data if isinstance(periph, dict)}
-            
-            # Log warning if non-dict items found
-            non_dict_items = [periph for periph in aggregated_data if not isinstance(periph, dict)]
-            if non_dict_items:
-                _LOGGER.warning("⚠️  WARNING: Found %d non-dictionary items in aggregated_data", len(non_dict_items))
-                _LOGGER.warning("   First 5 non-dict items: %s", non_dict_items[:5])
+            # aggregated_data est un dictionnaire, donc nous devons itérer sur ses valeurs
+            all_ids = {str(periph_data["periph_id"]) for periph_data in aggregated_data.values() if isinstance(periph_data, dict)}
             
             if len(mapped_ids) < len(all_ids):
                 _LOGGER.warning("\n" + "="*120)
@@ -247,12 +242,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 missing_ids = all_ids - mapped_ids
                 _LOGGER.warning("\nDevices not mapped:")
                 for periph_id in sorted(missing_ids)[:10]:  # Afficher seulement les 10 premiers
-                    periph = next((p for p in aggregated_data if str(p["periph_id"]) == periph_id), None)
-                    if periph and isinstance(periph, dict):
+                    periph_data = aggregated_data.get(periph_id)
+                    if periph_data and isinstance(periph_data, dict):
                         _LOGGER.warning("  - %s (ID: %s, usage_id: %s)", 
-                                     periph.get("name", "Unknown"), periph_id, periph.get("usage_id", "Unknown"))
-                    elif isinstance(periph, str):
-                        _LOGGER.warning("  - Device with string data (ID: %s)", periph_id)
+                                     periph_data.get("name", "Unknown"), periph_id, periph_data.get("usage_id", "Unknown"))
                     else:
                         _LOGGER.warning("  - Unknown device (ID: %s)", periph_id)
                 
