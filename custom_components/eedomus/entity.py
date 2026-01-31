@@ -317,7 +317,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     # Priorité 2: Cas spécifiques critiques (usage_id)
     specific_cases = {
         "27": ("binary_sensor", "smoke", "🔥 Smoke detector", "fire"),
-        "23": ("sensor", "cpu_usage", "💻 CPU monitor", "info"),
+        "23": ("sensor", "usage", "📊 Usage monitor", "info"),
         "37": ("binary_sensor", "motion", "🚶 Motion sensor", "walking"),
     }
     
