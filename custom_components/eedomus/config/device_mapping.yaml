@@ -11,7 +11,7 @@
 # 4. Name pattern matching
 # 5. Default mapping
 
-version: 1.2
+version: 1.3
 
 # Advanced mapping rules for complex device detection
 advanced_rules:
