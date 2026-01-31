@@ -45,8 +45,9 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
                 _LOGGER.error("❌ No coordinator available - cannot set value")
                 raise ValueError("Coordinator not available")
             
-            # Send the command to eedomus
-            result = await coordinator.client.set_periph_value(device_id, value)
+            # Send the command to eedomus using the coordinator's method
+            # This ensures proper fallback and retry logic is applied
+            result = await coordinator.async_set_periph_value(device_id, value)
 
             if result.get("success") == 1:
                 _LOGGER.info("✅ Successfully set value for device %s", device_id)
@@ -54,24 +55,10 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
                 await coordinator.async_request_refresh()
             else:
                 _LOGGER.warning("⚠️ Set value returned non-success: %s", result)
+                raise ValueError(f"Failed to set value: {result.get('error', 'Unknown error')}")
 
         except Exception as err:
             _LOGGER.error("❌ Failed to set value for device %s: %s", device_id, err)
-            # Try PHP fallback if enabled and available
-            if coordinator and coordinator.client.php_fallback_enabled:
-                _LOGGER.info("🔄 Trying PHP fallback for device %s", device_id)
-                fallback_result = await coordinator.client.php_fallback_set_value(
-                    device_id, value
-                )
-                if fallback_result.get("success") == 1:
-                    _LOGGER.info("✅ PHP fallback succeeded for device %s", device_id)
-                    await coordinator.async_request_refresh()
-                    return
-                else:
-                    _LOGGER.warning(
-                        "⚠️ PHP fallback failed: %s",
-                        fallback_result.get("error", "Unknown error"),
-                    )
             raise err
 
     async def handle_reload(call: ServiceCall) -> None:
