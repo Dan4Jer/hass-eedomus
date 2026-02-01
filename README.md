@@ -10,25 +10,15 @@
 
 ## 🎯 Fonctionnalités principales
 
-### 🆕 Nouveau dans la v3.10-unstable : Corrections Critiques et Optimisations
+### 🆕 Nouveau dans la v0.13.10-unstable : Système de Mapping Révolutionnaire
 
-**Une version stable avec des corrections majeures !** 🛠️
+**Une approche entièrement configurable et flexible !** 🎨
 
-- **Correction des mécanismes de fallback** : PHP fallback et next best value restaurés
-- **Amélioration du mapping des devices** : 46 mappings au lieu de 30, couverture accrue
-- **Réduction des erreurs** : Correction de 15+ bugs critiques
-- **Logs plus propres** : Messages informatifs au lieu de warnings inutiles
-- **Interface utilisateur améliorée** : Option renommée en "Edit Custom Mapping"
-
-### 🆕 Nouveau dans la v0.13.0 : Configuration YAML des Mappings
-
-**La révolution de la personnalisation !** 🎨
-
-- **Configuration YAML complète** : Personnalisez le mapping des devices sans modifier le code
-- **Interface utilisateur intégrée** : Configurez les mappings directement depuis l'options flow
-- **Rechargement à chaud** : Appliquez les modifications sans redémarrage
-- **Fusion intelligente** : Combine les mappings par défaut et personnalisés
-- **Expressions régulières** : Détection flexible des devices par nom
+- **Configuration YAML complète** : Personnalisez le mapping des devices sans modifier le code source
+- **Règles avancées** : Détection intelligente des relations parent-enfant et des types de devices complexes
+- **Détection RGBW améliorée** : Identification automatique des lampes RGBW avec gestion des enfants (brightness)
+- **Architecture extensible** : Ajoutez facilement de nouveaux types de devices sans modifier le code
+- **Interface utilisateur complète** : Toutes les options accessibles depuis l'interface Home Assistant
 
 ### 🆕 Nouveau dans la v0.12.0 : Options Flow avec Configuration Dynamique
 
@@ -50,7 +40,54 @@
 - **Tests complets** pour toutes les entités (covers, switches, lights, sensors)
 - **Configuration YAML avancée** pour une personnalisation complète
 
+## 🎛️ Configuration YAML et Interface Utilisateur
+
+### 📝 Configuration YAML des Mappings
+
+Les mappings des devices sont maintenant entièrement configurables via des fichiers YAML :
+
+**Fichiers de configuration** :
+- `custom_components/eedomus/config/device_mapping.yaml` : Mappings par défaut
+- `custom_components/eedomus/config/custom_mapping.yaml` : Mappings personnalisés
+
+**Exemple de mapping personnalisé** :
+```yaml
+# custom_mapping.yaml
+version: 1.0
+
+custom_rules:
+  - name: "My Custom RGBW Device"
+    priority: 1
+    conditions:
+      - usage_id: "1"
+      - name: ".*my rgbw.*"
+    mapping:
+      ha_entity: "light"
+      ha_subtype: "rgbw"
+      justification: "Custom RGBW device mapping"
+```
+
+### 🎛️ Interface de Configuration
+
+Toutes les options sont accessibles depuis l'interface Home Assistant :
+
+1. **Accédez à l'intégration** : Paramètres > Appareils et services
+2. **Sélectionnez Eedomus** et cliquez sur **Options**
+3. **Configurez les paramètres** :
+   - **Intervalle de scan** : Fréquence de rafraîchissement (300s par défaut)
+   - **Réessai automatique** : Activez/désactivez le réessai des valeurs rejetées
+   - **Sécurité du proxy** : Activez/désactivez la validation IP
+   - **Fallback PHP** : Activez/désactivez le fallback PHP
+   - **Logging** : Activez/désactivez les logs de débogage
+
+**Options disponibles** :
+- `scan_interval` : Fréquence de rafraîchissement (30s à 15min)
+- `enable_set_value_retry` : Réessai automatique des valeurs rejetées
+- `api_proxy_disable_security` : Désactive la validation IP (debug uniquement)
+- `php_fallback_enabled` : Active le fallback PHP pour les valeurs rejetées
+
 ## 🧪 Tests
+=======
 
 L'intégration inclut des tests complets pour toutes les entités :
 
