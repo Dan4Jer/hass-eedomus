@@ -88,8 +88,11 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
             raise err
 
     # Register services
-    hass.services.async_register("eedomus", "refresh", handle_refresh)
-    hass.services.async_register("eedomus", "set_value", handle_set_value)
-    hass.services.async_register("eedomus", "reload", handle_reload)
-
-    _LOGGER.info("🛠️  Eedomus services registered: refresh, set_value, reload")
+    try:
+        hass.services.async_register("eedomus", "refresh", handle_refresh)
+        hass.services.async_register("eedomus", "set_value", handle_set_value)
+        hass.services.async_register("eedomus", "reload", handle_reload)
+        _LOGGER.info("🛠️  Eedomus services registered: refresh, set_value, reload")
+    except Exception as err:
+        _LOGGER.error("❌ Failed to register eedomus services: %s", err)
+        raise err
