@@ -1,8 +1,8 @@
-# 🎉 Release Notes - Version 3.10-unstable
+# 🎉 Release Notes - Version 0.13.10-unstable
 
 ## 📋 Summary
 
-Version **3.10-unstable** is a major stabilization release that fixes 15+ critical bugs, improves device coverage, and adds real-time state management.
+Version **0.13.10-unstable** is a major stabilization release that fixes 15+ critical bugs, improves device coverage, and adds real-time state management.
 
 ## 🔧 Critical Fixes
 
