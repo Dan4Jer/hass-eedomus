@@ -1,10 +1,11 @@
 # Intégration eedomus pour Home Assistant
-
+[![HACS Validated](https://img.shields.io/badge/HACS-Validated-green.svg)](https://github.com/hacs/integration)
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/integration)
 [![Version](https://img.shields.io/badge/version-0.13.10-blue.svg)](https://github.com/Dan4Jer/hass-eedomus/releases/tag/v0.13.10-unstable)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/Dan4Jer/hass-eedomus/blob/main/LICENSE)
 [![Release](https://img.shields.io/github/v/release/Dan4Jer/hass-eedomus?label=latest%20release)](https://github.com/Dan4Jer/hass-eedomus/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/Dan4Jer/hass-eedomus/total.svg)](https://github.com/Dan4Jer/hass-eedomus/releases)
+[![GitHub downloads (latest)](https://img.shields.io/github/downloads/Dan4Jer/hass-eedomus/latest/total)](https://github.com/Dan4Jer/hass-eedomus/releases/latest)
 
 **hass-eedomus** est une intégration personnalisée qui permet de connecter votre box domotique **eedomus** à **Home Assistant**, en suivant l'architecture standard des [custom integrations](https://developers.home-assistant.io/docs/creating_component_index).
 
