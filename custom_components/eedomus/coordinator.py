@@ -896,7 +896,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # Vérifier si le recorder est disponible
         if not hasattr(self.hass, "components.recorder"):
             _LOGGER.debug(
-                "Recorder component not available. History will not be imported to database."
+                "Recorder component not available. History will not be imported to database. "
+                "This is normal if you're using virtual history sensors."
             )
             return
 
