@@ -487,15 +487,15 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             # No options set, use config
             history_retrieval = history_from_config
         
+        # Get all peripherals that need history retrieval
+        # Include all peripherals that have data, not just dynamic ones
+        peripherals_for_history = []
+        
         _LOGGER.info(
             "Performing partial refresh for %d peripherals (history retrieval: %s)",
             len(peripherals_for_history) if history_retrieval else len(self._dynamic_peripherals),
             history_retrieval,
         )
-
-        # Get all peripherals that need history retrieval
-        # Include all peripherals that have data, not just dynamic ones
-        peripherals_for_history = []
         if hasattr(self, 'data') and self.data:
             for periph_id, periph_data in self.data.items():
                 if isinstance(periph_data, dict) and periph_data.get("periph_id"):
