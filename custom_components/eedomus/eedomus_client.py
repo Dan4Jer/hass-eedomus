@@ -489,8 +489,10 @@ class EedomusClient:
             return estimated_count
             
         except Exception as e:
-            _LOGGER.warning("Error estimating history count for %s: %s", periph_id, e)
-            return 10000  # Default estimate
+            _LOGGER.debug("Could not estimate history count precisely for %s: %s", periph_id, e)
+        
+        # Default estimation: 1 year of data at 1 point per hour
+        return 8760  # 365 days * 24 hours
 
     async def get_device_history(
         self,
