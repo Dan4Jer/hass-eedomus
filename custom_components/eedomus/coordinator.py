@@ -661,12 +661,12 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         await self.async_request_refresh()
 
     async def _load_history_progress(self):
-        """Charge la progression depuis le stockage HA.
+        """Charge la progression depuis les states Home Assistant.
         
         Cette méthode charge la progression depuis les states existants.
-        Elle fonctionne avec ou sans Recorder component.
+        Elle ne dépend pas du Recorder component.
         """
-        _LOGGER.debug("Starting to load history progress")
+        _LOGGER.debug("Loading history progress from Home Assistant states")
         
         try:
             # Charger la progression depuis les states existants
@@ -691,12 +691,12 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             )
 
     async def _save_history_progress(self):
-        """Sauvegarde la progression dans le stockage HA.
+        """Sauvegarde la progression dans les states Home Assistant.
         
-        Cette méthode utilise les states de Home Assistant pour sauvegarder
-        la progression, sans dépendre du Recorder component.
+        Cette méthode utilise uniquement les states de Home Assistant.
+        Aucune dépendance au Recorder component.
         """
-        _LOGGER.debug("Saving history progress...")
+        _LOGGER.debug("Saving history progress to Home Assistant states")
         
         try:
             for periph_id, progress in self._history_progress.items():
@@ -892,69 +892,13 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         
         Note: Cette méthode est conservée pour compatibilité mais n'est plus
         utilisée lorsque l'option des capteurs virtuels est activée.
+        Elle n'a aucune dépendance au Recorder component.
         """
-        # Vérifier si le recorder est disponible
-        if not hasattr(self.hass, "components.recorder"):
-            _LOGGER.debug(
-                "Recorder component not available. History will not be imported to database. "
-                "This is normal if you're using virtual history sensors."
-            )
-            return
-
-        entity_id = f"sensor.eedomus_{periph_id}"
-
-        if not isinstance(chunk, list) or not chunk:
-            _LOGGER.warning("Invalid history chunk for %s: %s", periph_id, chunk)
-            return
-
-        states = []
-        for entry in chunk:
-            try:
-                if not isinstance(entry, dict):
-                    _LOGGER.warning("Invalid history entry (not a dict): %s", entry)
-                    continue
-
-                value = entry.get("value")
-                timestamp_str = entry.get("timestamp")
-
-                if value is None or timestamp_str is None:
-                    _LOGGER.warning("History entry missing data: %s", entry)
-                    continue
-
-                try:
-                    last_changed = datetime.fromisoformat(timestamp_str)
-                except ValueError as e:
-                    _LOGGER.warning(
-                        "Invalid timestamp format in entry %s: %s", entry, e
-                    )
-                    continue
-
-                states.append(
-                    State(
-                        entity_id,
-                        str(value),
-                        last_changed=last_changed,
-                    )
-                )
-            except Exception as e:
-
-                _LOGGER.warning("Failed to create state for entry %s: %s", entry, e)
-
-        if not states:
-            _LOGGER.warning("No valid states to import for %s", periph_id)
-            return
-
-        try:
-            await self.hass.components.recorder.async_add_executor_job(
-                lambda: self.hass.components.recorder.history.async_add_states(states)
-            )
-            _LOGGER.info(
-                "Successfully imported %d historical states for %s",
-                len(states),
-                entity_id,
-            )
-        except Exception as e:
-            _LOGGER.exception("Failed to import history for %s: %s", entity_id, e)
+        # Cette méthode est maintenant un stub - elle ne fait plus rien
+        # car nous utilisons les capteurs virtuels pour le suivi de progression
+        _LOGGER.debug(
+            "History chunk import skipped. Using virtual sensors instead."
+        )
 
     # Add method to set value for a specific peripheral
     async def async_set_periph_value(self, periph_id: str, value: str):
