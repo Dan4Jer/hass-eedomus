@@ -468,10 +468,15 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_partial_refresh(self):
         # Check history option from both config_entry.data and options
         history_from_config = self.client.config_entry.data.get(CONF_ENABLE_HISTORY, False)
-        history_from_options = self.config_entry.options.get(CONF_ENABLE_HISTORY, False)
         
-        # Use options if available, otherwise use config
-        history_retrieval = history_from_options if history_from_options else history_from_config
+        # Check if history option is explicitly set in options
+        if CONF_ENABLE_HISTORY in self.config_entry.options:
+            history_from_options = self.config_entry.options[CONF_ENABLE_HISTORY]
+        else:
+            history_from_options = None
+        
+        # Use options if explicitly set, otherwise use config
+        history_retrieval = history_from_options if history_from_options is not None else history_from_config
         
         _LOGGER.info(
             "Performing partial refresh for %d dynamic peripherals, history=%s",
