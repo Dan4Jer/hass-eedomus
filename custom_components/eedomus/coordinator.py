@@ -704,7 +704,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 e
             )
             # Fallback to old logic
-            dynamic_types = ["light", "switch", "binary_sensor", "cover"]
+            dynamic_types = ["light", "switch", "binary_sensor", "cover", "sensor"]
             is_dynamic = ha_entity in dynamic_types
             
             # Special debug for RGBW devices
