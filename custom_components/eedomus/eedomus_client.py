@@ -426,10 +426,10 @@ class EedomusClient:
         _LOGGER.debug("Getting info for peripheral %s", periph_id)
         
         try:
-            # Use get_periph_list to get device info
+            # Use getPeriphList to get device info
             # We'll filter by periph_id from the list
             params = {
-                "action": "list",
+                "action": "getPeriphList",
             }
             
             response = await self.fetch_data("peripherals", params)
