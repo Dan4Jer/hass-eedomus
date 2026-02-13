@@ -154,6 +154,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER.info("✅ Eedomus services registered successfully")
         except Exception as err:
             _LOGGER.error("Failed to setup eedomus services: %s", err)
+        
+        # Create history progress sensors if history is enabled
+        if coordinator and coordinator.config_entry.data.get(CONF_ENABLE_HISTORY, False):
+            try:
+                for periph_id in coordinator.data.keys():
+                    await coordinator._create_history_progress_sensor(periph_id)
+                _LOGGER.info("✅ History progress sensors created for all devices")
+            except Exception as err:
+                _LOGGER.error("Failed to create history progress sensors: %s", err)
 
 
     # If neither mode is enabled, this shouldn't happen due to validation, but handle it anyway

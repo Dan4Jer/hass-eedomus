@@ -414,6 +414,50 @@ class EedomusClient:
         """Authorization check."""
         return await self.fetch_data("auth.test")
 
+    async def get_device_history_count(self, periph_id: str) -> int:
+        """
+        Estime le nombre total de points d'historique disponibles pour un périphérique.
+        
+        Args:
+            periph_id (str): ID du périphérique.
+            
+        Returns:
+            int: Estimation du nombre total de points d'historique.
+        """
+        try:
+            # Get the device info to determine its age
+            device_info = await self.get_periph_info(periph_id)
+            if not device_info:
+                return 0
+            
+            # Estimate based on device age (in days) * average data points per day
+            # This is an approximation since we can't get exact count without full API call
+            creation_date = device_info.get("creation_date", time.time())
+            device_age_days = max(1, (time.time() - creation_date) / 86400)
+            
+            # Average data points per day for different device types
+            # Sensors typically have more data points than switches/lights
+            if device_info.get("usage_id") in ["7", "23", "24", "28", "29"]:  # Temperature, CPU, Illuminance, Power, Energy
+                avg_points_per_day = 1440  # 1 point per minute
+            elif device_info.get("usage_id") in ["1", "2", "4"]:  # Lights, Switches
+                avg_points_per_day = 144  # 1 point per hour
+            else:
+                avg_points_per_day = 288  # 1 point every 5 minutes
+            
+            estimated_count = int(device_age_days * avg_points_per_day)
+            _LOGGER.debug(
+                "Estimated history count for %s: %d points (age: %.1f days, avg: %d/day)",
+                periph_id,
+                estimated_count,
+                device_age_days,
+                avg_points_per_day
+            )
+            return estimated_count
+            
+        except Exception as e:
+            _LOGGER.warning("Error estimating history count for %s: %s", periph_id, e)
+            return 10000  # Default estimate
+
     async def get_device_history(
         self,
         periph_id: str,

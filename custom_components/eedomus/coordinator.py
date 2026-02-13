@@ -663,7 +663,21 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
     async def _load_history_progress(self):
         """Charge la progression depuis le stockage HA."""
         _LOGGER.debug("Starting to load history progress")
-        if hasattr(self.hass, "components.recorder"):
+        
+        # Check if recorder component is available
+        recorder_available = (
+            hasattr(self.hass, "components.recorder") 
+            and self.hass.components.recorder is not None
+        )
+        
+        if not recorder_available:
+            _LOGGER.warning(
+                "Recorder component not available. Cannot load history progress. "
+                "Please ensure Home Assistant recorder is enabled in configuration.yaml"
+            )
+            return
+        
+        try:
             if progress := await self.hass.async_add_executor_job(
                 lambda: self.hass.states.async_all(f"{DOMAIN}.history_progress_*")
             ):
@@ -678,15 +692,30 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                         periph_id,
                         self._history_progress[periph_id],
                     )
-        else:
-            _LOGGER.warning(
-                "Recorder component not available. Cannot load history progress."
+        except Exception as e:
+            _LOGGER.error(
+                "Error loading history progress: %s. Recorder may not be properly initialized.",
+                e
             )
 
     async def _save_history_progress(self):
         """Sauvegarde la progression dans le stockage HA."""
         _LOGGER.debug("Saving history progress...")
-        if hasattr(self.hass, "components.recorder"):
+        
+        # Check if recorder component is available
+        recorder_available = (
+            hasattr(self.hass, "components.recorder") 
+            and self.hass.components.recorder is not None
+        )
+        
+        if not recorder_available:
+            _LOGGER.warning(
+                "Recorder component not available. History progress will not be saved. "
+                "Please ensure Home Assistant recorder is enabled in configuration.yaml"
+            )
+            return
+        
+        try:
             for periph_id, progress in self._history_progress.items():
                 entity_id = f"{DOMAIN}.history_progress_{periph_id}"
                 self.hass.states.async_set(
@@ -699,12 +728,15 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                             if self.data and periph_id in self.data
                             else "Unknown"
                         ),
+                        "device_class": "timestamp",
+                        "state_class": "measurement",
                     },
                 )
                 _LOGGER.debug("Saved progress for %s: %s", periph_id, progress)
-        else:
-            _LOGGER.warning(
-                "Recorder component not available. History progress will not be saved."
+        except Exception as e:
+            _LOGGER.error(
+                "Error saving history progress: %s. Recorder may not be properly initialized.",
+                e
             )
 
     async def async_fetch_history_chunk(self, periph_id: str) -> list:
@@ -760,7 +792,60 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             )
 
         await self._save_history_progress()
+        # Create/update history progress sensor
+        await self._create_history_progress_sensor(periph_id)
         return chunk
+
+    async def _create_history_progress_sensor(self, periph_id: str) -> None:
+        """Crée un capteur de progression d'historique visible dans HA."""
+        if not hasattr(self.hass, "components.recorder"):
+            return
+        
+        try:
+            progress = self._history_progress.get(periph_id, {})
+            periph_name = (
+                self.data.get(periph_id, {}).get("name", "Unknown")
+                if self.data and periph_id in self.data
+                else "Unknown"
+            )
+            
+            # Calculate progress percentage
+            total_data_points = await self.client.get_device_history_count(periph_id)
+            retrieved_points = 0
+            
+            if progress.get("last_timestamp", 0) > 0:
+                # Estimate retrieved points based on timestamp
+                # This is an approximation - actual count would require API call
+                retrieved_points = max(0, min(10000, (progress["last_timestamp"] / 86400) * 100))
+            
+            progress_percent = min(100, (retrieved_points / max(1, total_data_points)) * 100) if total_data_points > 0 else 0
+            
+            entity_id = f"{DOMAIN}.history_progress_{periph_id}"
+            self.hass.states.async_set(
+                entity_id,
+                str(progress_percent),
+                {
+                    "completed": progress.get("completed", False),
+                    "periph_name": periph_name,
+                    "device_class": "progress",
+                    "state_class": "measurement",
+                    "unit_of_measurement": "%",
+                    "friendly_name": f"History Progress: {periph_name}",
+                    "icon": "mdi:progress-clock",
+                    "data_points_retrieved": retrieved_points,
+                    "estimated_total": total_data_points,
+                    "last_timestamp": progress.get("last_timestamp", 0),
+                },
+            )
+            _LOGGER.debug(
+                "Created history progress sensor for %s: %s%% (%d/%d points)",
+                periph_id,
+                progress_percent,
+                retrieved_points,
+                total_data_points
+            )
+        except Exception as e:
+            _LOGGER.error("Error creating history progress sensor: %s", e)
 
     async def async_import_history_chunk(self, periph_id: str, chunk: list) -> None:
         """Importe un chunk d'historique dans la base de données de HA."""
