@@ -156,7 +156,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER.error("Failed to setup eedomus services: %s", err)
         
         # Create history progress sensors if history is enabled
-        if coordinator and coordinator.config_entry.data.get(CONF_ENABLE_HISTORY, False):
+        # Check both config_entry.data and options
+        history_from_config = coordinator.config_entry.data.get(CONF_ENABLE_HISTORY, False)
+        history_from_options = coordinator.config_entry.options.get(CONF_ENABLE_HISTORY, False)
+        history_enabled = history_from_options if history_from_options else history_from_config
+        
+        if history_enabled:
             try:
                 await coordinator._create_virtual_history_sensors()
                 _LOGGER.info("✅ Virtual history sensors created successfully")
