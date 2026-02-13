@@ -661,23 +661,15 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         await self.async_request_refresh()
 
     async def _load_history_progress(self):
-        """Charge la progression depuis le stockage HA."""
+        """Charge la progression depuis le stockage HA.
+        
+        Cette méthode charge la progression depuis les states existants.
+        Elle fonctionne avec ou sans Recorder component.
+        """
         _LOGGER.debug("Starting to load history progress")
         
-        # Check if recorder component is available
-        recorder_available = (
-            hasattr(self.hass, "components.recorder") 
-            and self.hass.components.recorder is not None
-        )
-        
-        if not recorder_available:
-            _LOGGER.warning(
-                "Recorder component not available. Cannot load history progress. "
-                "Please ensure Home Assistant recorder is enabled in configuration.yaml"
-            )
-            return
-        
         try:
+            # Charger la progression depuis les states existants
             if progress := await self.hass.async_add_executor_job(
                 lambda: self.hass.states.async_all(f"{DOMAIN}.history_progress_*")
             ):
@@ -694,26 +686,17 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     )
         except Exception as e:
             _LOGGER.error(
-                "Error loading history progress: %s. Recorder may not be properly initialized.",
+                "Error loading history progress: %s",
                 e
             )
 
     async def _save_history_progress(self):
-        """Sauvegarde la progression dans le stockage HA."""
+        """Sauvegarde la progression dans le stockage HA.
+        
+        Cette méthode utilise les states de Home Assistant pour sauvegarder
+        la progression, sans dépendre du Recorder component.
+        """
         _LOGGER.debug("Saving history progress...")
-        
-        # Check if recorder component is available
-        recorder_available = (
-            hasattr(self.hass, "components.recorder") 
-            and self.hass.components.recorder is not None
-        )
-        
-        if not recorder_available:
-            _LOGGER.warning(
-                "Recorder component not available. History progress will not be saved. "
-                "Please ensure Home Assistant recorder is enabled in configuration.yaml"
-            )
-            return
         
         try:
             for periph_id, progress in self._history_progress.items():
@@ -734,10 +717,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 )
                 _LOGGER.debug("Saved progress for %s: %s", periph_id, progress)
         except Exception as e:
-            _LOGGER.error(
-                "Error saving history progress: %s. Recorder may not be properly initialized.",
-                e
-            )
+            _LOGGER.error("Error saving history progress: %s", e)
 
     async def async_fetch_history_chunk(self, periph_id: str) -> list:
         """Récupère un chunk de 10 000 points d'historique."""
@@ -792,66 +772,131 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             )
 
         await self._save_history_progress()
-        # Create/update history progress sensor
-        await self._create_history_progress_sensor(periph_id)
+        # Create/update virtual history sensors
+        await self._create_virtual_history_sensors()
         return chunk
 
-    async def _create_history_progress_sensor(self, periph_id: str) -> None:
-        """Crée un capteur de progression d'historique visible dans HA."""
-        if not hasattr(self.hass, "components.recorder"):
+    async def _create_virtual_history_sensors(self) -> None:
+        """Crée des capteurs virtuels pour suivre la progression de l'historique.
+        
+        Ces capteurs sont indépendants du Recorder component et utilisent
+        uniquement les states de Home Assistant pour le stockage.
+        """
+        if not self.hass:
             return
         
         try:
-            progress = self._history_progress.get(periph_id, {})
-            periph_name = (
-                self.data.get(periph_id, {}).get("name", "Unknown")
-                if self.data and periph_id in self.data
-                else "Unknown"
+            from datetime import datetime
+            
+            # 1. Créer des capteurs de progression par device
+            for periph_id, progress in self._history_progress.items():
+                periph_name = (
+                    self.data.get(periph_id, {}).get("name", "Unknown")
+                    if self.data and periph_id in self.data
+                    else "Unknown"
+                )
+                
+                # Estimer le nombre total de points
+                total_points = await self.client.get_device_history_count(periph_id)
+                retrieved_points = 0
+                
+                if progress.get("last_timestamp", 0) > 0:
+                    retrieved_points = max(0, min(10000, (progress["last_timestamp"] / 86400) * 100))
+                
+                progress_percent = min(100, (retrieved_points / max(1, total_points)) * 100) if total_points > 0 else 0
+                
+                # Créer le capteur de progression par device
+                entity_id = f"sensor.eedomus_history_progress_{periph_id}"
+                self.hass.states.async_set(
+                    entity_id,
+                    str(progress_percent),
+                    {
+                        "device_class": "progress",
+                        "state_class": "measurement",
+                        "unit_of_measurement": "%",
+                        "friendly_name": f"History Progress: {periph_name}",
+                        "icon": "mdi:progress-clock",
+                        "periph_id": periph_id,
+                        "periph_name": periph_name,
+                        "data_points_retrieved": retrieved_points,
+                        "data_points_estimated": total_points,
+                        "last_timestamp": progress.get("last_timestamp", 0),
+                        "completed": progress.get("completed", False),
+                        "last_updated": datetime.now().isoformat(),
+                    },
+                )
+            
+            # 2. Calculer la progression globale
+            total_devices = len(self._history_progress)
+            completed_devices = sum(1 for p in self._history_progress.values() if p.get("completed", False))
+            total_retrieved = sum(
+                max(0, min(10000, (p.get("last_timestamp", 0) / 86400) * 100))
+                for p in self._history_progress.values()
+            )
+            total_estimated = sum(
+                await self.client.get_device_history_count(periph_id)
+                for periph_id in self._history_progress.keys()
             )
             
-            # Calculate progress percentage
-            total_data_points = await self.client.get_device_history_count(periph_id)
-            retrieved_points = 0
+            global_progress = (total_retrieved / max(1, total_estimated)) * 100 if total_estimated > 0 else 0
             
-            if progress.get("last_timestamp", 0) > 0:
-                # Estimate retrieved points based on timestamp
-                # This is an approximation - actual count would require API call
-                retrieved_points = max(0, min(10000, (progress["last_timestamp"] / 86400) * 100))
-            
-            progress_percent = min(100, (retrieved_points / max(1, total_data_points)) * 100) if total_data_points > 0 else 0
-            
-            entity_id = f"{DOMAIN}.history_progress_{periph_id}"
+            # Créer le capteur de progression globale
             self.hass.states.async_set(
-                entity_id,
-                str(progress_percent),
+                "sensor.eedomus_history_progress",
+                str(global_progress),
                 {
-                    "completed": progress.get("completed", False),
-                    "periph_name": periph_name,
                     "device_class": "progress",
                     "state_class": "measurement",
                     "unit_of_measurement": "%",
-                    "friendly_name": f"History Progress: {periph_name}",
-                    "icon": "mdi:progress-clock",
-                    "data_points_retrieved": retrieved_points,
-                    "estimated_total": total_data_points,
-                    "last_timestamp": progress.get("last_timestamp", 0),
+                    "friendly_name": "Eedomus History Progress",
+                    "icon": "mdi:progress-wrench",
+                    "devices_total": total_devices,
+                    "devices_completed": completed_devices,
+                    "data_points_retrieved": total_retrieved,
+                    "data_points_estimated": total_estimated,
+                    "last_updated": datetime.now().isoformat(),
                 },
             )
-            _LOGGER.debug(
-                "Created history progress sensor for %s: %s%% (%d/%d points)",
-                periph_id,
-                progress_percent,
-                retrieved_points,
-                total_data_points
+            
+            # 3. Créer le capteur de statistiques
+            downloaded_mb = (total_retrieved * 100) / 1024  # Estimation en Mo
+            total_mb = (total_estimated * 100) / 1024  # Estimation en Mo
+            
+            self.hass.states.async_set(
+                "sensor.eedomus_history_stats",
+                str(downloaded_mb),
+                {
+                    "device_class": "data_size",
+                    "state_class": "measurement",
+                    "unit_of_measurement": "MB",
+                    "friendly_name": "Eedomus History Stats",
+                    "icon": "mdi:database-clock",
+                    "total_size": str(total_mb),
+                    "downloaded_size": str(downloaded_mb),
+                    "devices_with_history": completed_devices,
+                    "devices_without_history": total_devices - completed_devices,
+                    "last_updated": datetime.now().isoformat(),
+                },
             )
+            
+            _LOGGER.info(
+                "✅ Virtual history sensors created: %d device sensors, 1 global progress, 1 stats",
+                len(self._history_progress)
+            )
+            
         except Exception as e:
-            _LOGGER.error("Error creating history progress sensor: %s", e)
+            _LOGGER.error("Error creating virtual history sensors: %s", e)
 
     async def async_import_history_chunk(self, periph_id: str, chunk: list) -> None:
-        """Importe un chunk d'historique dans la base de données de HA."""
+        """Importe un chunk d'historique dans la base de données de HA.
+        
+        Note: Cette méthode est conservée pour compatibilité mais n'est plus
+        utilisée lorsque l'option des capteurs virtuels est activée.
+        """
+        # Vérifier si le recorder est disponible
         if not hasattr(self.hass, "components.recorder"):
-            _LOGGER.warning(
-                "Recorder component not available. History will not be imported."
+            _LOGGER.debug(
+                "Recorder component not available. History will not be imported to database."
             )
             return
 

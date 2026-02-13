@@ -158,11 +158,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # Create history progress sensors if history is enabled
         if coordinator and coordinator.config_entry.data.get(CONF_ENABLE_HISTORY, False):
             try:
-                for periph_id in coordinator.data.keys():
-                    await coordinator._create_history_progress_sensor(periph_id)
-                _LOGGER.info("✅ History progress sensors created for all devices")
+                await coordinator._create_virtual_history_sensors()
+                _LOGGER.info("✅ Virtual history sensors created successfully")
             except Exception as err:
-                _LOGGER.error("Failed to create history progress sensors: %s", err)
+                _LOGGER.error("Failed to create virtual history sensors: %s", err)
 
 
     # If neither mode is enabled, this shouldn't happen due to validation, but handle it anyway
