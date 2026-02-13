@@ -491,12 +491,14 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # Include all peripherals that have data, not just dynamic ones
         peripherals_for_history = []
         
-        _LOGGER.info(
-            "Performing partial refresh for %d peripherals (history retrieval: %s)",
-            len(peripherals_for_history) if history_retrieval else len(self._dynamic_peripherals),
-            history_retrieval,
-        )
         if hasattr(self, 'data') and self.data:
+            _LOGGER.info(
+                "Performing partial refresh for %d peripherals (history retrieval: %s)",
+                len(peripherals_for_history) if history_retrieval else len(self._dynamic_peripherals),
+                history_retrieval,
+            )
+        else:
+            _LOGGER.warning("No data available for partial refresh")
             for periph_id, periph_data in self.data.items():
                 if isinstance(periph_data, dict) and periph_data.get("periph_id"):
                     # Initialize history progress if not already done
@@ -508,15 +510,20 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     # Only include if not completed
                     if not self._history_progress.get(periph_id, {}).get("completed"):
                         peripherals_for_history.append(periph_id)
-        else:
-            peripherals_for_history = []
-        
         # Limit the number of peripherals to process per scan interval
         # This prevents overwhelming the system with too many API calls at once
         max_peripherals_per_scan = self.config_entry.options.get(
             "history_peripherals_per_scan",
             1  # Default: 1 peripheral per scan interval
         )
+        
+        if not peripherals_for_history:
+            _LOGGER.info("No peripherals need history retrieval, skipping")
+            # Return current data to preserve state
+            if hasattr(self, 'data') and self.data:
+                return self.data
+            else:
+                return {"success": 1, "body": []}
         
         if max_peripherals_per_scan > 0 and len(peripherals_for_history) > max_peripherals_per_scan:
             _LOGGER.info(
