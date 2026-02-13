@@ -11,11 +11,13 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .const import (
 
     CONF_ENABLE_HISTORY,
+    CONF_HISTORY_RETRY_DELAY,
     CONF_ENABLE_SET_VALUE_RETRY,
     CONF_PHP_FALLBACK_ENABLED,
     CONF_PHP_FALLBACK_SCRIPT_NAME,
     CONF_PHP_FALLBACK_TIMEOUT,
 
+    DEFAULT_HISTORY_RETRY_DELAY,
     DEFAULT_ENABLE_SET_VALUE_RETRY,
     DEFAULT_PHP_FALLBACK_ENABLED,
     DEFAULT_PHP_FALLBACK_SCRIPT_NAME,
@@ -49,6 +51,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         self._history_progress = (
             {}
         )  # Format: {periph_id: {"last_timestamp": int, "completed": bool}}
+        self._retry_queue = {}  # {periph_id: {"error_time": timestamp, "retry_after": timestamp, "error_message": str, "attempts": int}}
+        self._error_count = {}   # {periph_id: int}
         self._scan_interval = scan_interval
 
     async def async_config_entry_first_refresh(self):
@@ -535,6 +539,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                         await self.async_import_history_chunk(periph_id, chunk)
                     history_retrieval = False
 
+        # Create/update error sensors
+        await self._create_error_sensors()
+
         return self.data
 
     def _is_dynamic_peripheral(self, periph):
@@ -726,8 +733,65 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         except Exception as e:
             _LOGGER.error("Error saving history progress: %s", e)
 
+    def _validate_history_data(self, chunk: list) -> bool:
+        """Valider les données historiques reçues."""
+        if not isinstance(chunk, list):
+            return False
+
+        for entry in chunk:
+            if not isinstance(entry, dict):
+                return False
+            if "timestamp" not in entry or "value" not in entry:
+                return False
+            # Vérifier que le timestamp est valide
+            try:
+                datetime.fromisoformat(entry["timestamp"])
+            except ValueError:
+                return False
+
+        return True
+
+    def _handle_fetch_error(self, periph_id, error_message):
+        """Gérer les erreurs de récupération d'historique."""
+        now = datetime.now().timestamp()
+
+        # Initialiser si première erreur
+        if periph_id not in self._error_count:
+            self._error_count[periph_id] = 0
+
+        self._error_count[periph_id] += 1
+
+        # Si première erreur, mettre en pause pour la durée configurée
+        if self._error_count[periph_id] == 1:
+            # Obtenir la durée de réessai depuis la configuration
+            retry_delay_hours = self.config_entry.options.get(
+                CONF_HISTORY_RETRY_DELAY,
+                DEFAULT_HISTORY_RETRY_DELAY
+            )
+            retry_delay = retry_delay_hours * 3600
+            retry_after = now + retry_delay
+            self._retry_queue[periph_id] = {
+                "error_time": now,
+                "retry_after": retry_after,
+                "error_message": error_message,
+                "attempts": 1
+            }
+            _LOGGER.error(f"❌ Erreur lors de la récupération de l'historique pour {periph_id}: {error_message}")
+            _LOGGER.error(f"   Réessai dans {retry_delay_hours} heures")
+        else:
+            # Mettre à jour le compteur d'erreurs
+            if periph_id in self._retry_queue:
+                self._retry_queue[periph_id]["attempts"] += 1
+
     async def async_fetch_history_chunk(self, periph_id: str) -> list:
         """Récupère un chunk de 10 000 points d'historique."""
+        # Vérifier si le périphérique est en queue de réessai
+        if periph_id in self._retry_queue:
+            retry_info = self._retry_queue[periph_id]
+            if datetime.now().timestamp() < retry_info["retry_after"]:
+                _LOGGER.debug(f"Skipping {periph_id} - in retry queue until {retry_info['retry_after']}")
+                return []
+
         if periph_id not in self._history_progress:
             self._history_progress[periph_id] = {
                 "last_timestamp": 0,
@@ -749,39 +813,118 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             ),
         )
 
-        chunk = await self.client.get_device_history(
-            periph_id,
-            start_timestamp=progress["last_timestamp"],
-        )
+        try:
+            chunk = await self.client.get_device_history(
+                periph_id,
+                start_timestamp=progress["last_timestamp"],
+            )
 
-        if not chunk:
-            _LOGGER.error("No history data received for %s", periph_id)
+            if not chunk:
+                _LOGGER.error("No history data received for %s", periph_id)
+                self._handle_fetch_error(periph_id, "No data received")
+                return []
+
+            # Valider les données reçues
+            if not self._validate_history_data(chunk):
+                _LOGGER.error(f"❌ Données historiques invalides pour {periph_id}")
+                self._handle_fetch_error(periph_id, "Invalid data format")
+                return []
+
+            if len(chunk) < 10000:  # ⚠️ À adapter selon la réponse réelle de l'API eedomus
+                progress["completed"] = True
+                _LOGGER.info(
+                    "History fully fetched for %s (%s) (received %d entries)",
+                    periph_id,
+                    self.data[periph_id]["name"] if periph_id in self.data else "Unknown",
+                    len(chunk),
+                )
+
+            if chunk:
+                progress["last_timestamp"] = max(
+                    int(datetime.fromisoformat(entry["timestamp"]).timestamp())
+                    for entry in chunk
+                )
+                _LOGGER.debug(
+                    "Updated last_timestamp for %s to %s",
+                    periph_id,
+                    progress["last_timestamp"],
+                )
+
+            await self._save_history_progress()
+            # Create/update virtual history sensors
+            await self._create_virtual_history_sensors()
+            await self._create_error_sensors()
+            return chunk
+            
+        except Exception as e:
+            _LOGGER.error(f"❌ Erreur lors de la récupération de l'historique pour {periph_id}: {e}")
+            self._handle_fetch_error(periph_id, str(e))
             return []
 
-        if len(chunk) < 10000:  # ⚠️ À adapter selon la réponse réelle de l'API eedomus
-            progress["completed"] = True
+    async def _create_error_sensors(self):
+        """Créer des capteurs pour visualiser les erreurs et la queue de réessais."""
+        if not self.hass:
+            return
+        
+        try:
+            # Capteur pour le nombre total de périphériques en erreur
+            self.hass.states.async_set(
+                "sensor.eedomus_history_errors_total",
+                str(len(self._retry_queue)),
+                {
+                    "device_class": "problem",
+                    "state_class": "measurement",
+                    "unit_of_measurement": "devices",
+                    "friendly_name": "Eedomus History Errors Total",
+                    "icon": "mdi:alert-circle",
+                    "last_updated": datetime.now().isoformat(),
+                },
+            )
+
+            # Capteur pour le nombre de périphériques complétés
+            completed_count = sum(1 for p in self._history_progress.values() if p.get("completed", False))
+            self.hass.states.async_set(
+                "sensor.eedomus_history_completed",
+                str(completed_count),
+                {
+                    "device_class": "problem",
+                    "state_class": "measurement",
+                    "unit_of_measurement": "devices",
+                    "friendly_name": "Eedomus History Completed",
+                    "icon": "mdi:check-circle",
+                    "last_updated": datetime.now().isoformat(),
+                },
+            )
+
+            # Capteur pour chaque périphérique en erreur
+            for periph_id, error_info in self._retry_queue.items():
+                periph_name = self.data.get(periph_id, {}).get("name", "Unknown")
+                retry_in_hours = max(0, (error_info["retry_after"] - datetime.now().timestamp()) / 3600)
+
+                self.hass.states.async_set(
+                    f"sensor.eedomus_history_error_{periph_id}",
+                    str(retry_in_hours),
+                    {
+                        "device_class": "duration",
+                        "state_class": "measurement",
+                        "unit_of_measurement": "hours",
+                        "friendly_name": f"History Error: {periph_name}",
+                        "icon": "mdi:clock-alert",
+                        "periph_id": periph_id,
+                        "periph_name": periph_name,
+                        "error_message": error_info["error_message"],
+                        "attempts": error_info["attempts"],
+                        "last_updated": datetime.now().isoformat(),
+                    },
+                )
+
             _LOGGER.info(
-                "History fully fetched for %s (%s) (received %d entries)",
-                periph_id,
-                self.data[periph_id]["name"] if periph_id in self.data else "Unknown",
-                len(chunk),
+                "✅ Error sensors created: %d devices in retry queue",
+                len(self._retry_queue)
             )
-
-        if chunk:
-            progress["last_timestamp"] = max(
-                int(datetime.fromisoformat(entry["timestamp"]).timestamp())
-                for entry in chunk
-            )
-            _LOGGER.debug(
-                "Updated last_timestamp for %s to %s",
-                periph_id,
-                progress["last_timestamp"],
-            )
-
-        await self._save_history_progress()
-        # Create/update virtual history sensors
-        await self._create_virtual_history_sensors()
-        return chunk
+            
+        except Exception as e:
+            _LOGGER.error("Error creating error sensors: %s", e)
 
     async def _create_virtual_history_sensors(self) -> None:
         """Crée des capteurs virtuels pour suivre la progression de l'historique.
@@ -845,7 +988,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             for periph_id in self._history_progress.keys():
                 total_estimated += await self.client.get_device_history_count(periph_id)
             
-            global_progress = (total_retrieved / max(1, total_estimated)) * 100 if total_estimated > 0 else 0
+            # Corriger le calcul pour éviter de dépasser 100%
+            if total_estimated > 0:
+                global_progress = min(100, (total_retrieved / total_estimated) * 100)
+            else:
+                global_progress = 0
             
             # Créer le capteur de progression globale
             self.hass.states.async_set(
