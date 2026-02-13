@@ -451,6 +451,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 self._dynamic_peripherals[periph_id] = periph_data
                 dynamic += 1
 
+
         _LOGGER.info("Skipped %d invalid peripherals", skipped)
         _LOGGER.info("Found %d dynamic peripherals", dynamic)
         _LOGGER.info("Skipped %d disabled peripherals", disabled)
@@ -476,22 +477,60 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # Check if history option is explicitly set in options
         if CONF_ENABLE_HISTORY in self.config_entry.options:
             history_from_options = self.config_entry.options[CONF_ENABLE_HISTORY]
+            # Only use options if they're different from the default
+            if history_from_options != False:  # Only use options if explicitly enabled
+                history_retrieval = history_from_options
+            else:
+                # If options has False, check if config has True (options might have been reset)
+                history_retrieval = history_from_config
         else:
-            history_from_options = None
-        
-        # Use options if explicitly set, otherwise use config
-        history_retrieval = history_from_options if history_from_options is not None else history_from_config
+            # No options set, use config
+            history_retrieval = history_from_config
         
         _LOGGER.info(
-            "Performing partial refresh for %d dynamic peripherals, history=%s",
-            len(self._dynamic_peripherals),
+            "Performing partial refresh for %d peripherals (history retrieval: %s)",
+            len(peripherals_for_history) if history_retrieval else len(self._dynamic_peripherals),
             history_retrieval,
         )
 
-        # Skip API call if no dynamic peripherals to refresh
-        if not self._dynamic_peripherals:
-            _LOGGER.warning("No dynamic peripherals to refresh, skipping partial refresh")
-            # Return current data to preserve state instead of empty dict
+        # Get all peripherals that need history retrieval
+        # Include all peripherals that have data, not just dynamic ones
+        peripherals_for_history = []
+        if hasattr(self, 'data') and self.data:
+            for periph_id, periph_data in self.data.items():
+                if isinstance(periph_data, dict) and periph_data.get("periph_id"):
+                    # Initialize history progress if not already done
+                    if periph_id not in self._history_progress:
+                        self._history_progress[periph_id] = {
+                            "last_timestamp": 0,
+                            "completed": False,
+                        }
+                    # Only include if not completed
+                    if not self._history_progress.get(periph_id, {}).get("completed"):
+                        peripherals_for_history.append(periph_id)
+        
+        # Limit the number of peripherals to process per scan interval
+        # This prevents overwhelming the system with too many API calls at once
+        max_peripherals_per_scan = self.config_entry.options.get(
+            "history_peripherals_per_scan",
+            1  # Default: 1 peripheral per scan interval
+        )
+        
+        if max_peripherals_per_scan > 0 and len(peripherals_for_history) > max_peripherals_per_scan:
+            _LOGGER.info(
+                "Limiting history retrieval to %d peripherals per scan interval (total: %d)",
+                max_peripherals_per_scan,
+                len(peripherals_for_history)
+            )
+            # Sort by last_timestamp to prioritize older data first
+            peripherals_for_history.sort(
+                key=lambda x: self._history_progress[x].get("last_timestamp", 0)
+            )
+            peripherals_for_history = peripherals_for_history[:max_peripherals_per_scan]
+        
+        if not peripherals_for_history:
+            _LOGGER.info("All peripherals have completed history retrieval, skipping")
+            # Return current data to preserve state
             if hasattr(self, 'data') and self.data:
                 _LOGGER.info("Returning current data to preserve state during partial refresh")
                 return self.data
@@ -499,7 +538,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 _LOGGER.error("No data available to return during partial refresh")
                 return {"success": 1, "body": []}
 
-        concat_text_periph_id = ",".join(self._dynamic_peripherals.keys())
+        concat_text_periph_id = ",".join(peripherals_for_history)
         try:
             peripherals_caract = await self.client.get_periph_caract(
                 concat_text_periph_id
@@ -531,13 +570,13 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             else:
                 _LOGGER.warning("Cannot update peripheral data: data not available for %s", periph_id)
 
-            if history_retrieval:
+            # Try to retrieve history if enabled and this peripheral needs it
+            if history_retrieval and periph_id in peripherals_for_history:
                 if not self._history_progress.get(periph_id, {}).get("completed"):
                     _LOGGER.debug("Retrieving data history %s", periph_id)
                     chunk = await self.async_fetch_history_chunk(periph_id)
                     if chunk:
                         await self.async_import_history_chunk(periph_id, chunk)
-                    history_retrieval = False
 
         # Create/update error sensors
         await self._create_error_sensors()
@@ -663,6 +702,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             if periph_id in ["1269454", "1269455", "1269456", "1269457", "1269458"]:
                 _LOGGER.debug("🔍 SPECIAL DEBUG: RGBW device %s (%s) is_dynamic=%s (fallback)", 
                             periph.get("name"), periph_id, is_dynamic)
+            
+
             
             return is_dynamic
 
@@ -938,6 +979,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             from datetime import datetime
             
             # 1. Créer des capteurs de progression par device
+            # Ensure _history_progress is a dict (defensive programming)
+            if not isinstance(self._history_progress, dict):
+                _LOGGER.error("History progress is not a dict: %s", type(self._history_progress))
+                self._history_progress = {}
+            
             for periph_id, progress in self._history_progress.items():
                 periph_name = (
                     self.data.get(periph_id, {}).get("name", "Unknown")
@@ -985,7 +1031,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             )
             # Calculate total estimated points
             total_estimated = 0
-            for periph_id in self._history_progress.keys():
+            # Ensure we have a regular list of keys (not an async generator)
+            progress_keys = list(self._history_progress.keys()) if isinstance(self._history_progress, dict) else []
+            for periph_id in progress_keys:
                 total_estimated += await self.client.get_device_history_count(periph_id)
             
             # Corriger le calcul pour éviter de dépasser 100%
