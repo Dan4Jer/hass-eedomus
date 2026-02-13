@@ -803,11 +803,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 )
                 
                 # Estimer le nombre total de points
-                try:
-                    total_points = await self.client.get_device_history_count(periph_id)
-                except Exception as e:
-                    _LOGGER.warning("Error estimating history count for %s: %s", periph_id, e)
-                    total_points = 10000  # Valeur par défaut
+                total_points = await self.client.get_device_history_count(periph_id)
                 retrieved_points = 0
                 
                 if progress.get("last_timestamp", 0) > 0:
