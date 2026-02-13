@@ -426,18 +426,23 @@ class EedomusClient:
         _LOGGER.debug("Getting info for peripheral %s", periph_id)
         
         try:
-            # Use the existing fetch_data method instead of _api_request
+            # Use get_periph_list to get device info
+            # We'll filter by periph_id from the list
             params = {
-                "action": "getPeriphInfo",
-                "periph_id": periph_id,
+                "action": "list",
             }
             
             response = await self.fetch_data("peripherals", params)
             
             if response and response.get("success") == 1:
-                return response.get("body", {})
+                peripherals = response.get("body", [])
+                for periph in peripherals:
+                    if str(periph.get("periph_id")) == str(periph_id):
+                        return periph
+                _LOGGER.warning("Peripheral %s not found in list", periph_id)
+                return None
             else:
-                _LOGGER.warning("Failed to get info for peripheral %s: %s", periph_id, response.get("error", "Unknown error"))
+                _LOGGER.warning("Failed to get peripheral list")
                 return None
         except Exception as e:
             _LOGGER.warning("Error getting info for peripheral %s: %s", periph_id, e)
