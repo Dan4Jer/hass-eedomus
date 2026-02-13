@@ -839,10 +839,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 max(0, min(10000, (p.get("last_timestamp", 0) / 86400) * 100))
                 for p in self._history_progress.values()
             )
-            total_estimated = sum(
-                await self.client.get_device_history_count(periph_id)
-                for periph_id in self._history_progress.keys()
-            )
+            # Calculate total estimated points
+            total_estimated = 0
+            for periph_id in self._history_progress.keys():
+                total_estimated += await self.client.get_device_history_count(periph_id)
             
             global_progress = (total_retrieved / max(1, total_estimated)) * 100 if total_estimated > 0 else 0
             
