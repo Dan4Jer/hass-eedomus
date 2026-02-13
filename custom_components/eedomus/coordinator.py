@@ -813,6 +813,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 
                 # Créer le capteur de progression par device
                 entity_id = f"sensor.eedomus_history_progress_{periph_id}"
+                friendly_name = f"History Retrieval Progress: {periph_name}"
                 self.hass.states.async_set(
                     entity_id,
                     str(progress_percent),
@@ -820,7 +821,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                         "device_class": "progress",
                         "state_class": "measurement",
                         "unit_of_measurement": "%",
-                        "friendly_name": f"History Progress: {periph_name}",
+                        "friendly_name": friendly_name,
                         "icon": "mdi:progress-clock",
                         "periph_id": periph_id,
                         "periph_name": periph_name,
@@ -854,7 +855,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     "device_class": "progress",
                     "state_class": "measurement",
                     "unit_of_measurement": "%",
-                    "friendly_name": "Eedomus History Progress",
+                    "friendly_name": "Eedomus History Retrieval Progress",
                     "icon": "mdi:progress-wrench",
                     "devices_total": total_devices,
                     "devices_completed": completed_devices,
@@ -875,7 +876,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     "device_class": "data_size",
                     "state_class": "measurement",
                     "unit_of_measurement": "MB",
-                    "friendly_name": "Eedomus History Stats",
+                    "friendly_name": "Eedomus History Retrieval Stats",
                     "icon": "mdi:database-clock",
                     "total_size": str(total_mb),
                     "downloaded_size": str(downloaded_mb),
