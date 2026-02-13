@@ -414,6 +414,34 @@ class EedomusClient:
         """Authorization check."""
         return await self.fetch_data("auth.test")
 
+    async def get_periph_info(self, periph_id: str) -> Optional[Dict[str, Any]]:
+        """Get information about a specific peripheral.
+        
+        Args:
+            periph_id: The peripheral ID
+            
+        Returns:
+            Dictionary with peripheral information or None if error
+        """
+        _LOGGER.debug("Getting info for peripheral %s", periph_id)
+        
+        try:
+            params = {
+                "action": "getPeriphInfo",
+                "periph_id": periph_id,
+            }
+            
+            response = await self._api_request("post", "peripherals", params)
+            
+            if response and response.get("success") == 1:
+                return response.get("body", {})
+            else:
+                _LOGGER.warning("Failed to get info for peripheral %s: %s", periph_id, response.get("error", "Unknown error"))
+                return None
+        except Exception as e:
+            _LOGGER.warning("Error getting info for peripheral %s: %s", periph_id, e)
+            return None
+
     async def get_device_history_count(self, periph_id: str) -> int:
         """
         Estime le nombre total de points d'historique disponibles pour un périphérique.

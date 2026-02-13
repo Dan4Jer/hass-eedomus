@@ -673,7 +673,6 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         """Charge la progression depuis les states Home Assistant.
         
         Cette méthode charge la progression depuis les states existants.
-        Elle ne dépend pas du Recorder component.
         """
         _LOGGER.debug("Loading history progress from Home Assistant states")
         
@@ -694,8 +693,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                         self._history_progress[periph_id],
                     )
         except Exception as e:
-            _LOGGER.error(
-                "Error loading history progress: %s",
+            _LOGGER.warning(
+                "Warning loading history progress (this is normal if no history data exists): %s",
                 e
             )
 
@@ -703,7 +702,6 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         """Sauvegarde la progression dans les states Home Assistant.
         
         Cette méthode utilise uniquement les states de Home Assistant.
-        Aucune dépendance au Recorder component.
         """
         _LOGGER.debug("Saving history progress to Home Assistant states")
         
@@ -788,8 +786,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
     async def _create_virtual_history_sensors(self) -> None:
         """Crée des capteurs virtuels pour suivre la progression de l'historique.
         
-        Ces capteurs sont indépendants du Recorder component et utilisent
-        uniquement les states de Home Assistant pour le stockage.
+        Ces capteurs utilisent uniquement les states de Home Assistant pour le stockage.
         """
         if not self.hass:
             return
@@ -806,7 +803,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 )
                 
                 # Estimer le nombre total de points
-                total_points = await self.client.get_device_history_count(periph_id)
+                try:
+                    total_points = await self.client.get_device_history_count(periph_id)
+                except Exception as e:
+                    _LOGGER.warning("Error estimating history count for %s: %s", periph_id, e)
+                    total_points = 10000  # Valeur par défaut
                 retrieved_points = 0
                 
                 if progress.get("last_timestamp", 0) > 0:
@@ -901,7 +902,6 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         
         Note: Cette méthode est conservée pour compatibilité mais n'est plus
         utilisée lorsque l'option des capteurs virtuels est activée.
-        Elle n'a aucune dépendance au Recorder component.
         """
         # Cette méthode est maintenant un stub - elle ne fait plus rien
         # car nous utilisons les capteurs virtuels pour le suivi de progression
