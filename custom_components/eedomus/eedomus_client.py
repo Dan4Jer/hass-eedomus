@@ -426,12 +426,13 @@ class EedomusClient:
         _LOGGER.debug("Getting info for peripheral %s", periph_id)
         
         try:
+            # Use the existing fetch_data method instead of _api_request
             params = {
                 "action": "getPeriphInfo",
                 "periph_id": periph_id,
             }
             
-            response = await self._api_request("post", "peripherals", params)
+            response = await self.fetch_data("peripherals", params)
             
             if response and response.get("success") == 1:
                 return response.get("body", {})
