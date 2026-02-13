@@ -508,6 +508,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     # Only include if not completed
                     if not self._history_progress.get(periph_id, {}).get("completed"):
                         peripherals_for_history.append(periph_id)
+        else:
+            peripherals_for_history = []
         
         # Limit the number of peripherals to process per scan interval
         # This prevents overwhelming the system with too many API calls at once
