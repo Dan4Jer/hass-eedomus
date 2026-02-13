@@ -151,7 +151,18 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(CONF_ENABLE_API_PROXY, default=current_options.get(CONF_ENABLE_API_PROXY, False)): bool,
                 vol.Optional(CONF_ENABLE_HISTORY, default=current_options.get(CONF_ENABLE_HISTORY, False)): bool,
                 vol.Optional(CONF_HISTORY_RETRY_DELAY, default=current_options.get(CONF_HISTORY_RETRY_DELAY, DEFAULT_HISTORY_RETRY_DELAY)): int,
-                vol.Optional(CONF_HISTORY_PERIPHERALS_PER_SCAN, default=current_options.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, DEFAULT_HISTORY_PERIPHERALS_PER_SCAN)): int,
+                vol.Optional(
+                    CONF_HISTORY_PERIPHERALS_PER_SCAN, 
+                    default=current_options.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, DEFAULT_HISTORY_PERIPHERALS_PER_SCAN)
+                ): selector.int_selector(
+                    selector.IntSelectorConfig(
+                        min=0,
+                        max=20,
+                        step=1,
+                        mode=selector.IntSelectorMode.BOX
+                    ),
+                    description="Number of peripherals to process per scan interval (0 = unlimited)"
+                ),
                 vol.Optional(CONF_SCAN_INTERVAL, default=current_options.get(CONF_SCAN_INTERVAL, 300)): int,
                 vol.Optional(CONF_ENABLE_SET_VALUE_RETRY, default=current_options.get(CONF_ENABLE_SET_VALUE_RETRY, True)): bool,
                 vol.Optional(CONF_ENABLE_WEBHOOK, default=current_options.get(CONF_ENABLE_WEBHOOK, True)): bool,
@@ -231,7 +242,18 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(CONF_ENABLE_API_PROXY, default=current_options.get(CONF_ENABLE_API_PROXY, False)): bool,
                 vol.Optional(CONF_ENABLE_HISTORY, default=current_options.get(CONF_ENABLE_HISTORY, False)): bool,
                 vol.Optional(CONF_HISTORY_RETRY_DELAY, default=current_options.get(CONF_HISTORY_RETRY_DELAY, DEFAULT_HISTORY_RETRY_DELAY)): int,
-                vol.Optional(CONF_HISTORY_PERIPHERALS_PER_SCAN, default=current_options.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, DEFAULT_HISTORY_PERIPHERALS_PER_SCAN)): int,
+                vol.Optional(
+                    CONF_HISTORY_PERIPHERALS_PER_SCAN, 
+                    default=current_options.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, DEFAULT_HISTORY_PERIPHERALS_PER_SCAN)
+                ): selector.int_selector(
+                    selector.IntSelectorConfig(
+                        min=0,
+                        max=20,
+                        step=1,
+                        mode=selector.IntSelectorMode.BOX
+                    ),
+                    description="Number of peripherals to process per scan interval (0 = unlimited)"
+                ),
                 vol.Optional(CONF_SCAN_INTERVAL, default=current_options.get(CONF_SCAN_INTERVAL, 300)): int,
                 vol.Optional(CONF_ENABLE_SET_VALUE_RETRY, default=current_options.get(CONF_ENABLE_SET_VALUE_RETRY, True)): bool,
                 vol.Optional(CONF_ENABLE_WEBHOOK, default=current_options.get(CONF_ENABLE_WEBHOOK, True)): bool,

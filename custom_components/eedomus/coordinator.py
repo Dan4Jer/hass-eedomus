@@ -881,6 +881,32 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 )
 
             if chunk:
+                # Import the history data into Home Assistant states
+                _LOGGER.info(
+                    "Importing %d historical states for %s (%s)",
+                    len(chunk),
+                    self.data[periph_id]["name"] if periph_id in self.data else "Unknown",
+                    periph_id
+                )
+                
+                # Create states for each historical data point
+                for entry in chunk:
+                    timestamp = datetime.fromisoformat(entry["timestamp"])
+                    state_value = entry["value"]
+                    
+                    # Create a state with the historical data
+                    self.hass.states.async_set(
+                        f"sensor.eedomus_{periph_id}",
+                        str(state_value),
+                        {
+                            "last_updated": timestamp.isoformat(),
+                            "friendly_name": self.data[periph_id]["name"] if periph_id in self.data else "Unknown",
+                            "device_class": "timestamp",
+                            "state_class": "measurement",
+                        },
+                        timestamp
+                    )
+                
                 progress["last_timestamp"] = max(
                     int(datetime.fromisoformat(entry["timestamp"]).timestamp())
                     for entry in chunk
