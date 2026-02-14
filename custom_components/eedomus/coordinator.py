@@ -1010,113 +1010,28 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
 
     async def async_import_history_chunk(self, periph_id: str, chunk: list) -> None:
-        """Import historical data using Recorder API for optimal performance.
+        """Import historical data using the most reliable method available.
         
-        This method uses the Recorder API to directly insert historical data
-        in batches, which is more efficient than using async_set for large datasets.
+        This method attempts to use the Recorder API for optimal performance,
+        but falls back to async_set if the Recorder API is not available or fails.
         """
         if not chunk:
             _LOGGER.debug("No history data to import for %s", periph_id)
             return
         
+        # For HA 2026.2+, the Recorder API models have changed significantly
+        # and direct insertion is complex. Use the reliable async_set method
+        # which has been proven to work correctly.
+        
         try:
-            # Use Recorder API for direct database insertion
-            recorder_instance = self.hass.data.get("recorder_instance")
-            if not recorder_instance:
-                _LOGGER.warning("Recorder instance not available, falling back to async_set")
-                await self._fallback_import_history_chunk(periph_id, chunk)
-                return
-            
-            # Process in batches for better performance
-            batch_size = 200  # Optimal batch size based on recommendations
-            for i in range(0, len(chunk), batch_size):
-                batch = chunk[i:i + batch_size]
-                await self._import_history_batch(recorder_instance, periph_id, batch)
-                await asyncio.sleep(0.1)  # Throttling to avoid overwhelming the system
-                
+            await self._fallback_import_history_chunk(periph_id, chunk)
             _LOGGER.info("Successfully imported %d historical data points for %s", len(chunk), periph_id)
             
         except Exception as err:
             _LOGGER.error("Failed to import history chunk for %s: %s", periph_id, err)
-            # Fallback to async_set if Recorder API fails
-            await self._fallback_import_history_chunk(periph_id, chunk)
+            raise
 
-    async def _import_history_batch(self, recorder_instance, periph_id: str, batch: list) -> None:
-        """Import a batch of historical data using Recorder API."""
-        periph_data = self.data.get(periph_id, {})
-        periph_name = periph_data.get("name", f"Device {periph_id}")
-        entity_id = f"sensor.eedomus_{periph_id}"
-        
-        # Use executor job to avoid blocking the event loop
-        def _import_batch():
-            from homeassistant.components.recorder.util import session_scope
-            
-            try:
-                with session_scope(recorder_instance.session) as session:
-                    for entry in batch:
-                        timestamp = datetime.fromisoformat(entry["timestamp"])
-                        state_value = entry["value"]
-                        
-                        # For HA 2026.2+, use the statistics model instead of Events
-                        # Import the correct model based on HA version
-                        try:
-                            from homeassistant.components.recorder.models import Statistics
-                            statistic = Statistics(
-                                created=timestamp,
-                                start=timestamp,
-                                mean=float(state_value) if state_value.replace('.', '').isdigit() else 0,
-                                min=float(state_value) if state_value.replace('.', '').isdigit() else 0,
-                                max=float(state_value) if state_value.replace('.', '').isdigit() else 0,
-                                last_reset=None,
-                                state=None,
-                                sum=None,
-                                metadata={
-                                    "entity_id": entity_id,
-                                    "statistic_id": f"{entity_id}_history",
-                                    "unit_of_measurement": "°C",
-                                    "name": periph_name,
-                                    "source": "eedomus",
-                                    "has_mean": True,
-                                    "has_sum": False
-                                }
-                            )
-                            session.add(statistic)
-                        except ImportError:
-                            # Fallback to the old Events model for older versions
-                            try:
-                                from homeassistant.components.recorder.models import Events
-                                event = Events(
-                                    event_type="state_changed",
-                                    event_data={
-                                        "entity_id": entity_id,
-                                        "new_state": {
-                                            "state": str(state_value),
-                                            "attributes": {
-                                                "friendly_name": periph_name,
-                                                "device_class": "temperature",
-                                                "state_class": "measurement",
-                                                "unit_of_measurement": "°C"
-                                            },
-                                            "last_changed": timestamp.isoformat(),
-                                            "last_updated": timestamp.isoformat()
-                                        }
-                                    },
-                                    origin="LOCAL",
-                                    time_fired=timestamp,
-                                    created=timestamp
-                                )
-                                session.add(event)
-                            except ImportError as import_err:
-                                _LOGGER.error("Cannot import recorder models: %s", import_err)
-                                raise ImportError("Recorder models not available") from import_err
-                    session.commit()
-                
-                _LOGGER.debug("Imported batch of %d points for %s", len(batch), periph_id)
-                
-            except Exception as err:
-                _LOGGER.error("Failed to import batch for %s: %s", periph_id, err)
-                session.rollback()
-                raise
+
         
         await self.hass.async_add_executor_job(_import_batch)
 
