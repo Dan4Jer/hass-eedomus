@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import Any
 
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -87,12 +88,78 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
             _LOGGER.error("❌ Failed to reload eedomus integration: %s", err)
             raise err
 
+    async def handle_import_history(call: ServiceCall) -> dict:
+        """Handle history import service call."""
+        device_id = call.data.get("device_id")
+        start_time = call.data.get("start_time")
+        end_time = call.data.get("end_time")
+        batch_size = call.data.get("batch_size", 200)
+        
+        _LOGGER.info("📥 History import requested for device %s (from %s to %s)", 
+                    device_id, start_time, end_time)
+        
+        try:
+            if not coordinator:
+                _LOGGER.error("❌ No coordinator available - cannot import history")
+                raise ValueError("Coordinator not available")
+            
+            # Validate parameters
+            if not device_id:
+                raise ValueError("device_id is required")
+            
+            # Convert timestamps if needed
+            try:
+                if start_time:
+                    start_time = datetime.fromisoformat(start_time)
+                if end_time:
+                    end_time = datetime.fromisoformat(end_time)
+            except ValueError as err:
+                raise ValueError(f"Invalid timestamp format: {err}")
+            
+            # Fetch history data from eedomus
+            _LOGGER.info("🔍 Fetching history data from eedomus API...")
+            chunk = await coordinator.client.get_device_history(
+                device_id,
+                start_timestamp=int(start_time.timestamp()) if start_time else 0,
+                end_timestamp=int(end_time.timestamp()) if end_time else None
+            )
+            
+            if not chunk:
+                _LOGGER.warning("⚠️ No history data received from eedomus API")
+                return {"status": "no_data", "device_id": device_id, "imported": 0}
+            
+            _LOGGER.info("✅ Retrieved %d history data points from eedomus", len(chunk))
+            
+            # Import data using the optimized method
+            _LOGGER.info("💾 Importing data into Home Assistant...")
+            await coordinator.async_import_history_chunk(device_id, chunk)
+            
+            # Update progress
+            if device_id not in coordinator._history_progress:
+                coordinator._history_progress[device_id] = {}
+            
+            coordinator._history_progress[device_id]["last_timestamp"] = max(
+                int(datetime.fromisoformat(entry["timestamp"]).timestamp())
+                for entry in chunk
+            )
+            coordinator._history_progress[device_id]["completed"] = True
+            
+            await coordinator._save_history_progress()
+            
+            _LOGGER.info("✅ Successfully imported history for device %s", device_id)
+            return {"status": "success", "device_id": device_id, "imported": len(chunk)}
+            
+        except Exception as err:
+            _LOGGER.error("❌ Failed to import history for device %s: %s", device_id, err)
+            raise err
+
     # Register services
     try:
         hass.services.async_register("eedomus", "refresh", handle_refresh)
         hass.services.async_register("eedomus", "set_value", handle_set_value)
         hass.services.async_register("eedomus", "reload", handle_reload)
-        _LOGGER.info("🛠️  Eedomus services registered: refresh, set_value, reload")
+        hass.services.async_register("eedomus", "import_history", handle_import_history)
+        _LOGGER.info("🛠️  Eedomus services registered: refresh, set_value, reload, import_history")
     except Exception as err:
         _LOGGER.error("❌ Failed to register eedomus services: %s", err)
         raise err

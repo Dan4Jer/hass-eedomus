@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime, timedelta
 
@@ -475,14 +476,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         history_from_config = self.client.config_entry.data.get(CONF_ENABLE_HISTORY, False)
         
         # Check if history option is explicitly set in options
+        # Options should always take precedence over config
         if CONF_ENABLE_HISTORY in self.config_entry.options:
-            history_from_options = self.config_entry.options[CONF_ENABLE_HISTORY]
-            # Only use options if they're different from the default
-            if history_from_options != False:  # Only use options if explicitly enabled
-                history_retrieval = history_from_options
-            else:
-                # If options has False, check if config has True (options might have been reset)
-                history_retrieval = history_from_config
+            history_retrieval = self.config_entry.options[CONF_ENABLE_HISTORY]
         else:
             # No options set, use config
             history_retrieval = history_from_config
@@ -592,9 +588,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 if not self._history_progress.get(periph_id, {}).get("completed"):
                     _LOGGER.debug("Retrieving data history %s", periph_id)
                     chunk = await self.async_fetch_history_chunk(periph_id)
-                    # Note: async_import_history_chunk is now a stub, history is tracked via sensors
                     if chunk:
                         _LOGGER.debug("Retrieved %d history data points for %s", len(chunk), periph_id)
+                        # Import the historical data using the optimized Recorder API method
+                        await self.async_import_history_chunk(periph_id, chunk)
 
         # Create/update error sensors
         await self._create_error_sensors()
@@ -1013,16 +1010,112 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
 
     async def async_import_history_chunk(self, periph_id: str, chunk: list) -> None:
-        """Importe un chunk d'historique dans la base de données de HA.
+        """Import historical data using Recorder API for optimal performance.
         
-        Note: Cette méthode est conservée pour compatibilité mais n'est plus
-        utilisée lorsque l'option des capteurs virtuels est activée.
+        This method uses the Recorder API to directly insert historical data
+        in batches, which is more efficient than using async_set for large datasets.
         """
-        # Cette méthode est maintenant un stub - elle ne fait plus rien
-        # car nous utilisons les capteurs virtuels pour le suivi de progression
-        _LOGGER.debug(
-            "History chunk import skipped. Using proper sensor entities instead."
-        )
+        if not chunk:
+            _LOGGER.debug("No history data to import for %s", periph_id)
+            return
+        
+        try:
+            # Use Recorder API for direct database insertion
+            recorder_instance = self.hass.data.get("recorder_instance")
+            if not recorder_instance:
+                _LOGGER.warning("Recorder instance not available, falling back to async_set")
+                await self._fallback_import_history_chunk(periph_id, chunk)
+                return
+            
+            # Process in batches for better performance
+            batch_size = 200  # Optimal batch size based on recommendations
+            for i in range(0, len(chunk), batch_size):
+                batch = chunk[i:i + batch_size]
+                await self._import_history_batch(recorder_instance, periph_id, batch)
+                await asyncio.sleep(0.1)  # Throttling to avoid overwhelming the system
+                
+            _LOGGER.info("Successfully imported %d historical data points for %s", len(chunk), periph_id)
+            
+        except Exception as err:
+            _LOGGER.error("Failed to import history chunk for %s: %s", periph_id, err)
+            # Fallback to async_set if Recorder API fails
+            await self._fallback_import_history_chunk(periph_id, chunk)
+
+    async def _import_history_batch(self, recorder_instance, periph_id: str, batch: list) -> None:
+        """Import a batch of historical data using Recorder API."""
+        periph_data = self.data.get(periph_id, {})
+        periph_name = periph_data.get("name", f"Device {periph_id}")
+        entity_id = f"sensor.eedomus_{periph_id}"
+        
+        # Use executor job to avoid blocking the event loop
+        def _import_batch():
+            from homeassistant.components.recorder.models import Events
+            from homeassistant.components.recorder.util import session_scope
+            
+            try:
+                with session_scope(recorder_instance.session) as session:
+                    for entry in batch:
+                        timestamp = datetime.fromisoformat(entry["timestamp"])
+                        state_value = entry["value"]
+                        
+                        # Create event data for historical state
+                        event = Events(
+                            event_type="state_changed",
+                            event_data={
+                                "entity_id": entity_id,
+                                "new_state": {
+                                    "state": str(state_value),
+                                    "attributes": {
+                                        "friendly_name": periph_name,
+                                        "device_class": "temperature",
+                                        "state_class": "measurement",
+                                        "unit_of_measurement": "°C"
+                                    },
+                                    "last_changed": timestamp.isoformat(),
+                                    "last_updated": timestamp.isoformat()
+                                }
+                            },
+                            origin="LOCAL",
+                            time_fired=timestamp,
+                            created=timestamp
+                        )
+                        session.add(event)
+                    session.commit()
+                
+                _LOGGER.debug("Imported batch of %d points for %s", len(batch), periph_id)
+                
+            except Exception as err:
+                _LOGGER.error("Failed to import batch for %s: %s", periph_id, err)
+                session.rollback()
+                raise
+        
+        await self.hass.async_add_executor_job(_import_batch)
+
+    async def _fallback_import_history_chunk(self, periph_id: str, chunk: list) -> None:
+        """Fallback method using async_set when Recorder API is not available."""
+        periph_data = self.data.get(periph_id, {})
+        periph_name = periph_data.get("name", f"Device {periph_id}")
+        entity_id = f"sensor.eedomus_{periph_id}"
+        
+        _LOGGER.warning("Using fallback async_set method for history import")
+        
+        for entry in chunk:
+            timestamp = datetime.fromisoformat(entry["timestamp"])
+            state_value = entry["value"]
+            
+            # Create a state with the historical data
+            self.hass.states.async_set(
+                entity_id,
+                str(state_value),
+                {
+                    "last_updated": timestamp.isoformat(),
+                    "friendly_name": periph_name,
+                    "device_class": "temperature",
+                    "state_class": "measurement",
+                    "unit_of_measurement": "°C"
+                },
+                timestamp
+            )
 
     # Add method to set value for a specific peripheral
     async def async_set_periph_value(self, periph_id: str, value: str):

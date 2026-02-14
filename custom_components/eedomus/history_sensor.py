@@ -16,6 +16,51 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 
+class EedomusHistorySensor(CoordinatorEntity, SensorEntity):
+    """Represents historical data for a specific device.
+    
+    This is a dedicated entity for storing historical data with proper configuration
+    to avoid UI pollution while maintaining data accessibility.
+    """
+
+    def __init__(self, coordinator, periph_id: str, periph_name: str, device_info: DeviceInfo):
+        """Initialize the history sensor."""
+        super().__init__(coordinator)
+        self._periph_id = periph_id
+        self._periph_name = periph_name
+        self._attr_unique_id = f"eedomus_{periph_id}_history"
+        self._attr_device_info = device_info
+        self._attr_name = f"{periph_name} (History)"
+        self._attr_device_class = SensorDeviceClass.TEMPERATURE
+        self._attr_state_class = SensorStateClass.MEASUREMENT
+        self._attr_native_unit_of_measurement = "°C"
+        self._attr_icon = "mdi:history"
+        self._attr_entity_category = "diagnostic"
+        self._attr_has_entity_name = True
+
+    @property
+    def native_value(self):
+        """Return the current historical value."""
+        # Get the current value from coordinator data
+        periph_data = self.coordinator.data.get(self._periph_id, {})
+        return periph_data.get("last_value", "unknown")
+
+    @property
+    def extra_state_attributes(self):
+        """Return additional state attributes."""
+        periph_data = self.coordinator.data.get(self._periph_id, {})
+        progress = self.coordinator._history_progress.get(self._periph_id, {})
+        
+        return {
+            "device_id": self._periph_id,
+            "last_updated": periph_data.get("last_changed"),
+            "history_completed": progress.get("completed", False),
+            "last_timestamp": progress.get("last_timestamp", 0),
+            "data_points_retrieved": progress.get("retrieved_points", 0),
+            "data_points_estimated": progress.get("total_points", 0)
+        }
+
+
 class EedomusHistoryProgressSensor(CoordinatorEntity, SensorEntity):
     """Represents the history retrieval progress for a specific device."""
 
@@ -31,6 +76,7 @@ class EedomusHistoryProgressSensor(CoordinatorEntity, SensorEntity):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_native_unit_of_measurement = "%"
         self._attr_icon = "mdi:progress-clock"
+        self._attr_entity_category = "diagnostic"
 
     @property
     def native_value(self):
@@ -190,6 +236,9 @@ async def async_setup_history_sensors(hass: HomeAssistant, coordinator, device_r
     if hasattr(coordinator, '_history_progress') and coordinator._history_progress:
         for periph_id, progress in coordinator._history_progress.items():
             periph_name = coordinator.data.get(periph_id, {}).get("name", f"Device {periph_id}")
+            # Create dedicated history sensor for each device
+            sensors.append(EedomusHistorySensor(coordinator, periph_id, periph_name, device_info))
+            # Create progress sensor for each device
             sensors.append(EedomusHistoryProgressSensor(coordinator, periph_id, periph_name, device_info))
     
     return sensors
