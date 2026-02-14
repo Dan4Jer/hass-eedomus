@@ -267,7 +267,7 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                 )
                 return
 
-            result = await self._client.set_periph_value(
+            result = await self.coordinator.client.set_periph_value(
                 self._periph_id, str(eedomus_value)
             )
 
@@ -349,7 +349,7 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                 eedomus_value,
             )
 
-            result = await self._client.set_periph_value(
+            result = await self.coordinator.client.set_periph_value(
                 self._periph_id, str(eedomus_value)
             )
 
