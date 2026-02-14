@@ -1033,7 +1033,6 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
 
         
-        await self.hass.async_add_executor_job(_import_batch)
 
     async def _fallback_import_history_chunk(self, periph_id: str, chunk: list) -> None:
         """Fallback method using async_set when Recorder API is not available."""
