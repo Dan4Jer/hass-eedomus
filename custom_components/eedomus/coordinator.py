@@ -1035,31 +1035,90 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         
 
     async def _fallback_import_history_chunk(self, periph_id: str, chunk: list, main_entity_id: str = None) -> None:
-        """Fallback method using async_set when Recorder API is not available."""
+        """Import historical data using Statistics API for HA 2026.2+."""
         periph_data = self.data.get(periph_id, {})
         periph_name = periph_data.get("name", f"Device {periph_id}")
         # Use the provided main entity ID if available, otherwise use the default
         entity_id = main_entity_id if main_entity_id else f"sensor.eedomus_{periph_id}"
         
-        _LOGGER.warning("Using fallback async_set method for history import")
+        _LOGGER.info("Importing historical data using Statistics API for %s", entity_id)
         
-        for entry in chunk:
-            timestamp = datetime.fromisoformat(entry["timestamp"])
-            state_value = entry["value"]
+        try:
+            # Try the Statistics API approach first (HA 2026.2+ recommended method)
+            await self._import_via_statistics(entity_id, chunk, periph_name)
+            return
+        except Exception as err:
+            _LOGGER.warning("Statistics API import failed, falling back to async_set: %s", err)
             
-            # Create a state with the historical data
-            self.hass.states.async_set(
-                entity_id,
-                str(state_value),
-                {
-                    "last_updated": timestamp.isoformat(),
-                    "friendly_name": periph_name,
-                    "device_class": "temperature",
-                    "state_class": "measurement",
-                    "unit_of_measurement": "°C"
+            # Fallback to async_set if Statistics API fails
+            for entry in chunk:
+                timestamp = datetime.fromisoformat(entry["timestamp"])
+                state_value = entry["value"]
+                
+                # Create a state with the historical data
+                self.hass.states.async_set(
+                    entity_id,
+                    str(state_value),
+                    {
+                        "last_updated": timestamp.isoformat(),
+                        "friendly_name": periph_name,
+                        "device_class": "temperature",
+                        "state_class": "measurement",
+                        "unit_of_measurement": "°C"
+                    },
+                    timestamp
+                )
+
+    async def _import_via_statistics(self, entity_id: str, chunk: list, periph_name: str) -> None:
+        """Import historical data using the Statistics API (HA 2026.2+ recommended method)."""
+        try:
+            # Prepare statistics data in the format expected by Home Assistant
+            statistics_data = []
+            for entry in chunk:
+                try:
+                    timestamp = datetime.fromisoformat(entry["timestamp"])
+                    state_value = float(entry["value"])
+                    
+                    statistics_data.append({
+                        "statistic_id": entity_id,
+                        "start": timestamp.isoformat(),
+                        "mean": state_value,
+                        "min": state_value,
+                        "max": state_value,
+                        "state": state_value,
+                        "sum": None  # Not applicable for temperature
+                    })
+                except (ValueError, TypeError) as e:
+                    _LOGGER.warning("Skipping invalid data point: %s", e)
+                    continue
+            
+            if not statistics_data:
+                _LOGGER.warning("No valid statistics data to import for %s", entity_id)
+                return
+            
+            # Import using the Statistics API
+            _LOGGER.info("Calling recorder.import_statistics for %d data points", len(statistics_data))
+            
+            # Call the service to import statistics
+            await self.hass.services.async_call(
+                domain="recorder",
+                service="import_statistics",
+                service_data={
+                    "statistic_id": entity_id,
+                    "data": statistics_data
                 },
-                timestamp
+                blocking=True
             )
+            
+            _LOGGER.info("Successfully imported %d statistics points for %s using Statistics API", 
+                       len(statistics_data), entity_id)
+            
+        except service.ServiceNotFound as e:
+            _LOGGER.warning("recorder.import_statistics service not found: %s", e)
+            raise
+        except Exception as e:
+            _LOGGER.error("Failed to import statistics for %s: %s", entity_id, e)
+            raise
 
     # Add method to set value for a specific peripheral
     async def async_set_periph_value(self, periph_id: str, value: str):
