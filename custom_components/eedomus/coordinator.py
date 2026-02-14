@@ -1049,7 +1049,6 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         
         # Use executor job to avoid blocking the event loop
         def _import_batch():
-            from homeassistant.components.recorder.models import Events
             from homeassistant.components.recorder.util import session_scope
             
             try:
@@ -1058,28 +1057,58 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                         timestamp = datetime.fromisoformat(entry["timestamp"])
                         state_value = entry["value"]
                         
-                        # Create event data for historical state
-                        event = Events(
-                            event_type="state_changed",
-                            event_data={
-                                "entity_id": entity_id,
-                                "new_state": {
-                                    "state": str(state_value),
-                                    "attributes": {
-                                        "friendly_name": periph_name,
-                                        "device_class": "temperature",
-                                        "state_class": "measurement",
-                                        "unit_of_measurement": "°C"
-                                    },
-                                    "last_changed": timestamp.isoformat(),
-                                    "last_updated": timestamp.isoformat()
+                        # For HA 2026.2+, use the statistics model instead of Events
+                        # Import the correct model based on HA version
+                        try:
+                            from homeassistant.components.recorder.models import Statistics
+                            statistic = Statistics(
+                                created=timestamp,
+                                start=timestamp,
+                                mean=float(state_value) if state_value.replace('.', '').isdigit() else 0,
+                                min=float(state_value) if state_value.replace('.', '').isdigit() else 0,
+                                max=float(state_value) if state_value.replace('.', '').isdigit() else 0,
+                                last_reset=None,
+                                state=None,
+                                sum=None,
+                                metadata={
+                                    "entity_id": entity_id,
+                                    "statistic_id": f"{entity_id}_history",
+                                    "unit_of_measurement": "°C",
+                                    "name": periph_name,
+                                    "source": "eedomus",
+                                    "has_mean": True,
+                                    "has_sum": False
                                 }
-                            },
-                            origin="LOCAL",
-                            time_fired=timestamp,
-                            created=timestamp
-                        )
-                        session.add(event)
+                            )
+                            session.add(statistic)
+                        except ImportError:
+                            # Fallback to the old Events model for older versions
+                            try:
+                                from homeassistant.components.recorder.models import Events
+                                event = Events(
+                                    event_type="state_changed",
+                                    event_data={
+                                        "entity_id": entity_id,
+                                        "new_state": {
+                                            "state": str(state_value),
+                                            "attributes": {
+                                                "friendly_name": periph_name,
+                                                "device_class": "temperature",
+                                                "state_class": "measurement",
+                                                "unit_of_measurement": "°C"
+                                            },
+                                            "last_changed": timestamp.isoformat(),
+                                            "last_updated": timestamp.isoformat()
+                                        }
+                                    },
+                                    origin="LOCAL",
+                                    time_fired=timestamp,
+                                    created=timestamp
+                                )
+                                session.add(event)
+                            except ImportError as import_err:
+                                _LOGGER.error("Cannot import recorder models: %s", import_err)
+                                raise ImportError("Recorder models not available") from import_err
                     session.commit()
                 
                 _LOGGER.debug("Imported batch of %d points for %s", len(batch), periph_id)
