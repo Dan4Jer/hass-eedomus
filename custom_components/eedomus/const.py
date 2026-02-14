@@ -37,7 +37,7 @@ CONF_ENABLE_API_PROXY = "enable_api_proxy"
 CONF_API_PROXY_DISABLE_SECURITY = "api_proxy_disable_security"
 CONF_ENABLE_SET_VALUE_RETRY = "enable_set_value_retry"
 CONF_ENABLE_WEBHOOK = "enable_webhook"
-CONF_REMOVE_ENTITIES = "remove_entities"
+CONF_REMOVE_ENTITIES = "remove_entities_on_uninstall"
 
 
 CONF_PHP_FALLBACK_ENABLED = "php_fallback_enabled"
@@ -56,7 +56,7 @@ DEFAULT_HISTORY_RETRY_DELAY = 24  # 24 hours  # History retry delay in hours (24
 DEFAULT_HISTORY_PERIPHERALS_PER_SCAN = 1  # History: 1 peripheral per scan interval by default
 DEFAULT_ENABLE_SET_VALUE_RETRY = True  # Set value retry enabled by default
 DEFAULT_ENABLE_WEBHOOK = True  # Webhook enabled by default
-DEFAULT_REMOVE_ENTITIES = False  # Remove entities disabled by default
+DEFAULT_REMOVE_ENTITIES = False  # Remove entities on uninstall disabled by default
 
 
 DEFAULT_API_PROXY_DISABLE_SECURITY = False  # Security enabled by default
