@@ -159,9 +159,8 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                         min=0,
                         max=20,
                         step=1,
-                        mode=selector.NumberSelectorMode.BOX
+                        mode=selector.NumberSelectorMode.BOX,
                     ),
-                    description="Number of peripherals to process per scan interval (0 = unlimited)"
                 ),
                 vol.Optional(CONF_SCAN_INTERVAL, default=current_options.get(CONF_SCAN_INTERVAL, 300)): int,
                 vol.Optional(CONF_ENABLE_SET_VALUE_RETRY, default=current_options.get(CONF_ENABLE_SET_VALUE_RETRY, True)): bool,
@@ -250,9 +249,8 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                         min=0,
                         max=20,
                         step=1,
-                        mode=selector.NumberSelectorMode.BOX
+                        mode=selector.NumberSelectorMode.BOX,
                     ),
-                    description="Number of peripherals to process per scan interval (0 = unlimited)"
                 ),
                 vol.Optional(CONF_SCAN_INTERVAL, default=current_options.get(CONF_SCAN_INTERVAL, 300)): int,
                 vol.Optional(CONF_ENABLE_SET_VALUE_RETRY, default=current_options.get(CONF_ENABLE_SET_VALUE_RETRY, True)): bool,
