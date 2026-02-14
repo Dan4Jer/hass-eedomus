@@ -1,0 +1,86 @@
+{
+  "options": {
+    "api_host": {
+      "name": "Hôte API",
+      "description": "Adresse IP locale de votre box Eedomus"
+    },
+    "api_user": {
+      "name": "Nom d'utilisateur API"
+    },
+    "api_secret": {
+      "name": "Mot de passe API"
+    },
+    "enable_api_eedomus": {
+      "name": "Activer le mode API Eedomus",
+      "description": "Activer l'interrogation directe de l'API de la box Eedomus"
+    },
+    "enable_api_proxy": {
+      "name": "Activer le mode API Proxy",
+      "description": "Activer la communication basée sur les webhooks"
+    },
+    "scan_interval": {
+      "name": "Intervalle de scan (secondes)",
+      "description": "Temps entre chaque interrogation de l'API"
+    },
+    "enable_history": {
+      "name": "Activer la récupération d'historique",
+      "description": "Récupérer les données historiques des périphériques"
+    },
+    "history_retry_delay_hours": {
+      "name": "Délai de réessai (heures)",
+      "description": "Délai avant de réessayer la récupération d'historique échouée"
+    },
+    "history_peripherals_per_scan": {
+      "name": "Périphériques par scan",
+      "description": "Nombre de périphériques à traiter par intervalle de scan"
+    },
+    "enable_set_value_retry": {
+      "name": "Activer le réessai de mise à jour",
+      "description": "Réessayer automatiquement les mises à jour échouées"
+    },
+    "enable_webhook": {
+      "name": "Activer le webhook",
+      "description": "Activer les endpoints webhook pour Eedomus"
+    },
+    "api_proxy_disable_security": {
+      "name": "Désactiver la sécurité API Proxy",
+      "description": "Désactiver la validation IP pour l'API Proxy (débogage seulement)"
+    },
+    "php_fallback_enabled": {
+      "name": "Activer le fallback PHP",
+      "description": "Utiliser un script PHP pour contourner les limitations de l'API"
+    },
+    "php_fallback_script_name": {
+      "name": "Nom du script PHP de fallback"
+    },
+    "php_fallback_timeout": {
+      "name": "Timeout du fallback PHP (secondes)"
+    },
+    "remove_entities_on_uninstall": {
+      "name": "Supprimer les entités à la désinstallation",
+      "description": "Supprimer toutes les entités lors de la désinstallation"
+    }
+  },
+  "config": {
+    "connection_modes": "Modes de connexion",
+    "api_eedomus_mode": "Mode API Eedomus (Pull)",
+    "api_proxy_mode": "Mode API Proxy (Push)",
+    "security_warning": "Avertissement de sécurité",
+    "important_security": "Note de sécurité importante"
+  },
+  "errors": {
+    "connection_failed": "Échec de la connexion",
+    "invalid_credentials": "Identifiants API invalides",
+    "device_not_found": "Périphérique non trouvé",
+    "value_out_of_range": "Valeur hors plage"
+  },
+  "warnings": {
+    "missing_value": "Valeur manquante ou vide pour le capteur",
+    "history_disabled": "La récupération d'historique est désactivée"
+  },
+  "notifications": {
+    "integration_ready": "Intégration Eedomus initialisée avec succès",
+    "services_registered": "Services Eedomus enregistrés avec succès",
+    "history_sensors_created": "Capteurs d'historique créés et attachés à la box Eedomus"
+  }
+}
