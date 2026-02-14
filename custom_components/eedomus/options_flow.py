@@ -171,7 +171,8 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(CONF_PHP_FALLBACK_TIMEOUT, default=current_options.get(CONF_PHP_FALLBACK_TIMEOUT, 5)): int,
             }),
             description_placeholders={
-                "current_mode": "Custom Mapping" if self.use_yaml else "UI (DISABLED)"
+                "current_mode": "Custom Mapping" if self.use_yaml else "UI (DISABLED)",
+                "docs_link": "https://github.com/Dan4Jer/hass-eedomus/blob/main/docs/README.md"
             }
         )
 

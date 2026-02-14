@@ -72,6 +72,10 @@ CONNECTION_MODES_EXPLANATION = """
 
 🔒 IMPORTANT: All communications are in PLAIN TEXT.
    Never expose your Eedomus box or Home Assistant to the internet!
+
+📖 FOR MORE INFORMATION: Check the documentation in your language:
+   - English: https://github.com/Dan4Jer/hass-eedomus/blob/main/docs/configuration_documentation.md
+   - Français: https://github.com/Dan4Jer/hass-eedomus/blob/main/docs/configuration_documentation_fr.md
 """
 
 _LOGGER = logging.getLogger(__name__)
