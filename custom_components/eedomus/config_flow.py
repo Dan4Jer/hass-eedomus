@@ -53,39 +53,25 @@ CONNECTION_MODES_EXPLANATION = """
 🔄 CONNECTION MODES EXPLANATION 🔄
 
 📋 API Eedomus Mode (Direct Connection - Pull):
-      +----------------+     +----------------+
-      | Home Assistant +--->+ Eedomus        |
-      |                |     | (API)          |
-      +----------------+     +----------------+
    • Home Assistant pulls data from Eedomus API
    • Requires API credentials (user/secret)
    • Enables full functionality including history
-   • Uses coordinator for data synchronization
    • Recommended for most users
 
 🔄 API Proxy Mode (Webhook - Push):
-      +----------------+     +----------------+
-      | Home Assistant +<---+ Eedomus        |
-      |  (webhook)     |     | (HTTP)        |
-      +----------------+     +----------------+
    • Eedomus pushes data to Home Assistant via webhooks
    • Only requires API host for webhook registration
    • No credentials needed for basic functionality
    • Limited functionality (no history)
-   • Useful for restricted networks or real-time updates
+   • Useful for real-time updates
 
 💡 You can enable both modes for redundancy and optimal performance!
-   - API Eedomus for full data access and history
-   - API Proxy for real-time updates via webhooks
 
-⚠️ SECURITY NOTE: API Proxy mode includes IP validation by default for security.
-   This can be disabled in the configuration for debugging, but this is NOT RECOMMENDED
-   for production environments as it exposes your webhook endpoints to potential abuse.
+⚠️ SECURITY NOTE: API Proxy mode includes IP validation by default.
+   Disable only for debugging (NOT recommended for production).
 
-🔒 IMPORTANT SECURITY CONSIDERATION:
-   The Eedomus box does NOT support HTTPS for local communications.
-   All communications between Eedomus and Home Assistant are in PLAIN TEXT.
-   Never expose your Eedomus box or Home Assistant directly to the internet!
+🔒 IMPORTANT: All communications are in PLAIN TEXT.
+   Never expose your Eedomus box or Home Assistant to the internet!
 """
 
 _LOGGER = logging.getLogger(__name__)
