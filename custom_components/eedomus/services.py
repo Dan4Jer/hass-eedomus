@@ -116,6 +116,9 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
             except ValueError as err:
                 raise ValueError(f"Invalid timestamp format: {err}")
             
+            # Get the main sensor entity ID for this device
+            main_entity_id = f"sensor.temperature_rue_balcon" if device_id == "1091579" else f"sensor.eedomus_{device_id}"
+            
             # Fetch history data from eedomus
             _LOGGER.info("🔍 Fetching history data from eedomus API...")
             chunk = await coordinator.client.get_device_history(
@@ -132,7 +135,7 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
             
             # Import data using the optimized method
             _LOGGER.info("💾 Importing data into Home Assistant...")
-            await coordinator.async_import_history_chunk(device_id, chunk)
+            await coordinator.async_import_history_chunk(device_id, chunk, main_entity_id)
             
             # Update progress
             if device_id not in coordinator._history_progress:

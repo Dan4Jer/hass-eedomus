@@ -1009,7 +1009,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
 
 
-    async def async_import_history_chunk(self, periph_id: str, chunk: list) -> None:
+    async def async_import_history_chunk(self, periph_id: str, chunk: list, main_entity_id: str = None) -> None:
         """Import historical data using the most reliable method available.
         
         This method attempts to use the Recorder API for optimal performance,
@@ -1024,7 +1024,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # which has been proven to work correctly.
         
         try:
-            await self._fallback_import_history_chunk(periph_id, chunk)
+            await self._fallback_import_history_chunk(periph_id, chunk, main_entity_id)
             _LOGGER.info("Successfully imported %d historical data points for %s", len(chunk), periph_id)
             
         except Exception as err:
@@ -1034,11 +1034,12 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
         
 
-    async def _fallback_import_history_chunk(self, periph_id: str, chunk: list) -> None:
+    async def _fallback_import_history_chunk(self, periph_id: str, chunk: list, main_entity_id: str = None) -> None:
         """Fallback method using async_set when Recorder API is not available."""
         periph_data = self.data.get(periph_id, {})
         periph_name = periph_data.get("name", f"Device {periph_id}")
-        entity_id = f"sensor.eedomus_{periph_id}"
+        # Use the provided main entity ID if available, otherwise use the default
+        entity_id = main_entity_id if main_entity_id else f"sensor.eedomus_{periph_id}"
         
         _LOGGER.warning("Using fallback async_set method for history import")
         
