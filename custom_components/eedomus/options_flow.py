@@ -154,12 +154,12 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(
                     CONF_HISTORY_PERIPHERALS_PER_SCAN, 
                     default=current_options.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, DEFAULT_HISTORY_PERIPHERALS_PER_SCAN)
-                ): selector.int_selector(
-                    selector.IntSelectorConfig(
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
                         min=0,
                         max=20,
                         step=1,
-                        mode=selector.IntSelectorMode.BOX
+                        mode=selector.NumberSelectorMode.BOX
                     ),
                     description="Number of peripherals to process per scan interval (0 = unlimited)"
                 ),
@@ -245,12 +245,12 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(
                     CONF_HISTORY_PERIPHERALS_PER_SCAN, 
                     default=current_options.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, DEFAULT_HISTORY_PERIPHERALS_PER_SCAN)
-                ): selector.int_selector(
-                    selector.IntSelectorConfig(
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
                         min=0,
                         max=20,
                         step=1,
-                        mode=selector.IntSelectorMode.BOX
+                        mode=selector.NumberSelectorMode.BOX
                     ),
                     description="Number of peripherals to process per scan interval (0 = unlimited)"
                 ),

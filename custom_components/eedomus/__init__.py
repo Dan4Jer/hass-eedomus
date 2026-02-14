@@ -172,6 +172,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             # No options set, use config
             history_enabled = history_from_config
         
+        # Debug logging to understand the decision process
+        _LOGGER.debug(
+            "History option decision during init: config=%s, options=%s, final=%s",
+            history_from_config,
+            coordinator.config_entry.options.get(CONF_ENABLE_HISTORY, "not_set"),
+            history_enabled
+        )
+        
         if history_enabled:
             try:
                 await coordinator._create_virtual_history_sensors()

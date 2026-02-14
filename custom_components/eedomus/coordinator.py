@@ -487,6 +487,14 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             # No options set, use config
             history_retrieval = history_from_config
         
+        # Debug logging to understand the decision process
+        _LOGGER.debug(
+            "History option decision: config=%s, options=%s, final=%s",
+            history_from_config,
+            self.config_entry.options.get(CONF_ENABLE_HISTORY, "not_set"),
+            history_retrieval
+        )
+        
         # Get all peripherals that need history retrieval
         # Include all peripherals that have data, not just dynamic ones
         peripherals_for_history = []
@@ -704,7 +712,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 e
             )
             # Fallback to old logic
-            dynamic_types = ["light", "switch", "binary_sensor", "cover", "sensor"]
+            dynamic_types = ["light", "switch", "binary_sensor", "cover"]
             is_dynamic = ha_entity in dynamic_types
             
             # Special debug for RGBW devices
