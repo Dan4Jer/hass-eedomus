@@ -182,10 +182,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         
         if history_enabled:
             try:
-                await coordinator._create_virtual_history_sensors()
-                _LOGGER.info("✅ Virtual history sensors created successfully")
+                # Get device registry for proper device attachment
+                from homeassistant.helpers.device_registry import async_get as async_get_device_registry
+                device_registry = async_get_device_registry(hass)
+                
+                # Create proper history sensor entities
+                from .history_sensor import async_setup_history_sensors
+                sensors = await async_setup_history_sensors(hass, coordinator, device_registry)
+                
+                # Store sensors for cleanup
+                coordinator._history_sensors = sensors
+                _LOGGER.info("✅ History sensors created and attached to eedomus box device")
             except Exception as err:
-                _LOGGER.error("Failed to create virtual history sensors: %s", err)
+                _LOGGER.error("Failed to create history sensors: %s", err)
 
 
     # If neither mode is enabled, this shouldn't happen due to validation, but handle it anyway
