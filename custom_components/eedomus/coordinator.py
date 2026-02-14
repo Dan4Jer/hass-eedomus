@@ -1114,8 +1114,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.info("Successfully imported %d statistics points for %s using Statistics API", 
                        len(statistics_data), entity_id)
             
-        except service.ServiceNotFound as e:
-            _LOGGER.warning("recorder.import_statistics service not found: %s", e)
+        except Exception as e:
+            if "service not found" in str(e).lower() or "import_statistics" in str(e).lower():
+                _LOGGER.warning("recorder.import_statistics service not available: %s", e)
+            else:
+                _LOGGER.error("Failed to import statistics for %s: %s", entity_id, e)
             raise
         except Exception as e:
             _LOGGER.error("Failed to import statistics for %s: %s", entity_id, e)
