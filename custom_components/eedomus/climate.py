@@ -328,8 +328,8 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                         eedomus_value = acceptable_values[heat_variant]
                         break
             elif hvac_mode == HVACMode.OFF:
-                # Try different variations for off
-                for off_variant in ["off", "arrêt", "0", "stop"]:
+                # Try different variations for off, including French variants
+                for off_variant in ["off", "arrêt", "0", "stop", "désactiver", "pause"]:
                     if off_variant in acceptable_values:
                         eedomus_value = acceptable_values[off_variant]
                         break
