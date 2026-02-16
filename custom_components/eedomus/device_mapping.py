@@ -223,7 +223,7 @@ def merge_yaml_mappings(default_mapping: Dict[str, Any], custom_mapping: Dict[st
     # This is critical for the mapping system to work correctly
     advanced_rules_dict = {}
     if isinstance(advanced_rules, list):
-        _LOGGER.info("🔍 Converting advanced rules from list to dict format")
+        _LOGGER.debug("🔍 Converting advanced rules from list to dict format")
         for rule in advanced_rules:
             if isinstance(rule, dict) and 'name' in rule:
                 rule_name = rule['name']
@@ -241,7 +241,7 @@ def merge_yaml_mappings(default_mapping: Dict[str, Any], custom_mapping: Dict[st
     merged['advanced_rules_dict'] = advanced_rules_dict  # Add dict format for entity.py
     
     # Extract dynamic properties from advanced rules
-    _LOGGER.info("🔍 Extracting dynamic properties from advanced rules")
+    _LOGGER.debug("🔍 Extracting dynamic properties from advanced rules")
     dynamic_props = {}
     specific_overrides = {}
     
