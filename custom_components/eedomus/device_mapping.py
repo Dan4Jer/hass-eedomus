@@ -247,10 +247,12 @@ def merge_yaml_mappings(default_mapping: Dict[str, Any], custom_mapping: Dict[st
                     if ha_entity:
                         dynamic_props[ha_entity] = True
         
-        # Only override if we found properties in the list
+        # Merge extracted properties with existing properties (don't override)
         if dynamic_props:
             _LOGGER.info("✅ Extracted dynamic properties from rules: %s", dynamic_props)
-            merged['dynamic_entity_properties'] = dynamic_props
+            # Merge with existing dynamic properties, don't override
+            existing_props = merged.get('dynamic_entity_properties', {})
+            merged['dynamic_entity_properties'] = {**existing_props, **dynamic_props}
         else:
             _LOGGER.debug("⚠️  No dynamic properties found in advanced rules list")
     
