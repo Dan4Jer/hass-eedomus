@@ -219,40 +219,49 @@ def merge_yaml_mappings(default_mapping: Dict[str, Any], custom_mapping: Dict[st
         _LOGGER.error("Advanced rules is not a list: %s", type(advanced_rules))
         advanced_rules = []
     
-    merged['advanced_rules'] = advanced_rules
-    if 'custom_rules' in custom_mapping and isinstance(custom_mapping['custom_rules'], list):
-        merged['advanced_rules'].extend(custom_mapping['custom_rules'])
-    
-    # Extract dynamic properties from advanced rules if they are in list format
-    # This handles the case where YAML file has rules in list format
+    # Convert list format to dict format for compatibility with entity.py
+    # This is critical for the mapping system to work correctly
+    advanced_rules_dict = {}
     if isinstance(advanced_rules, list):
-        _LOGGER.info("🔍 Extracting dynamic properties from list of advanced rules")
-        dynamic_props = {}
-        specific_overrides = {}
-        
+        _LOGGER.info("🔍 Converting advanced rules from list to dict format")
         for rule in advanced_rules:
-            if isinstance(rule, dict) and 'mapping' in rule:
-                mapping = rule['mapping']
-                # Extract dynamic properties from child_mapping if present
-                if 'child_mapping' in rule:
-                    child_mapping = rule['child_mapping']
-                    for child_usage_id, child_config in child_mapping.items():
-                        if child_config.get('is_dynamic', False):
-                            # This rule defines dynamic children
-                            pass
-                
-                # Check if this rule defines dynamic properties
-                if mapping.get('is_dynamic', False):
-                    ha_entity = mapping.get('ha_entity')
-                    if ha_entity:
-                        dynamic_props[ha_entity] = True
-        
-        # Only override if we found properties in the list
-        if dynamic_props:
-            _LOGGER.info("✅ Extracted dynamic properties from rules: %s", dynamic_props)
-            merged['dynamic_entity_properties'] = dynamic_props
-        else:
-            _LOGGER.debug("⚠️  No dynamic properties found in advanced rules list")
+            if isinstance(rule, dict) and 'name' in rule:
+                rule_name = rule['name']
+                advanced_rules_dict[rule_name] = rule
+                _LOGGER.debug("✅ Converted rule '%s' to dict format", rule_name)
+            else:
+                _LOGGER.warning("⚠️  Invalid rule format in advanced_rules list: %s", rule)
+    else:
+        # If already in dict format, use as-is
+        advanced_rules_dict = advanced_rules
+        _LOGGER.debug("✅ Advanced rules already in dict format")
+    
+    # Store both formats for backward compatibility
+    merged['advanced_rules'] = advanced_rules  # Keep original list format
+    merged['advanced_rules_dict'] = advanced_rules_dict  # Add dict format for entity.py
+    
+    # Extract dynamic properties from advanced rules
+    _LOGGER.info("🔍 Extracting dynamic properties from advanced rules")
+    dynamic_props = {}
+    specific_overrides = {}
+    
+    for rule_name, rule_config in advanced_rules_dict.items():
+        if isinstance(rule_config, dict) and 'mapping' in rule_config:
+            mapping = rule_config['mapping']
+            
+            # Check if this rule defines dynamic properties
+            if mapping.get('is_dynamic', False):
+                ha_entity = mapping.get('ha_entity')
+                if ha_entity:
+                    dynamic_props[ha_entity] = True
+                    _LOGGER.debug("✅ Added dynamic property for entity type '%s' from rule '%s'", ha_entity, rule_name)
+    
+    # Only override if we found properties
+    if dynamic_props:
+        _LOGGER.info("✅ Extracted dynamic properties from rules: %s", dynamic_props)
+        merged['dynamic_entity_properties'] = dynamic_props
+    else:
+        _LOGGER.debug("⚠️  No dynamic properties found in advanced rules")
     
     # Merge usage ID mappings (custom overrides default)
     usage_id_mappings = default_mapping.get('usage_id_mappings', {})
