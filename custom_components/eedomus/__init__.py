@@ -366,8 +366,16 @@ async def async_load_mapping(hass, config_dir):
         _LOGGER.error("Unexpected error loading custom mapping: %s", e)
         raise
 
-    # Merge mappings (custom overrides default)
-    merged = {**default_mapping, **custom_mapping}
+    # Merge mappings using sophisticated approach (same as load_and_merge_yaml_mappings)
+    # This ensures proper handling of nested structures like lists and dictionaries
+    try:
+        from .device_mapping import merge_yaml_mappings
+        merged = merge_yaml_mappings(default_mapping, custom_mapping)
+        _LOGGER.debug("Mappings merged successfully using sophisticated merge")
+    except Exception as e:
+        _LOGGER.error("Sophisticated merge failed, falling back to simple merge: %s", e)
+        # Fallback to simple merge if sophisticated merge fails
+        merged = {**default_mapping, **custom_mapping}
 
     # Validate merged mapping
     try:
