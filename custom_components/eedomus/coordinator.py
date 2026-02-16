@@ -523,7 +523,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         )
         
         if not peripherals_for_history:
-            _LOGGER.info("No peripherals need history retrieval, skipping")
+            _LOGGER.debug("No peripherals need history retrieval, skipping")
             # Return current data to preserve state
             if hasattr(self, 'data') and self.data:
                 return self.data
