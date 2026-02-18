@@ -203,9 +203,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 self._dynamic_peripherals[periph_id] = periph_data
                 dynamic += 1
 
-        _LOGGER.info("Skipped %d invalid peripherals", skipped)
-        _LOGGER.info("Found %d dynamic peripherals", dynamic)
-        _LOGGER.info("Skipped %d disabled peripherals", disabled)
+        # Stats logging moved to synthesized log in _async_update_data
+        _LOGGER.debug("Skipped %d invalid peripherals", skipped)
+        _LOGGER.debug("Found %d dynamic peripherals", dynamic)
+        _LOGGER.debug("Skipped %d disabled peripherals", disabled)
 
         # Set the data for the coordinator
         self.data = aggregated_data
@@ -273,10 +274,21 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         self._last_update_start_time = start_time
         try:
             if self._full_refresh_needed:
-                ret = await self._async_full_refresh()
+                result = await self._async_full_refresh()
                 elapsed = (datetime.now() - start_time).total_seconds()
-                _LOGGER.info("Full refresh done in %.3f seconds", elapsed)
-                return ret
+                
+                # Handle both old and new return formats for compatibility
+                if isinstance(result, tuple) and len(result) == 2:
+                    aggregated_data, stats = result
+                    _LOGGER.info("ℹ️  Eedomus refresh: %d peripherals (%d dynamic), %d skipped, completed in %.3fs",
+                                 stats['total_peripherals'], stats['dynamic_peripherals'],
+                                 stats['skipped_peripherals'], elapsed)
+                else:
+                    # Fallback for old format
+                    aggregated_data = result
+                    _LOGGER.info("Full refresh done in %.3f seconds", elapsed)
+                
+                return aggregated_data
             else:
                 ret = await self._async_partial_refresh()
                 elapsed = (datetime.now() - start_time).total_seconds()
@@ -411,7 +423,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
 
         # Logs des tailles
-        _LOGGER.info(
+        _LOGGER.debug(
             "Data refresh summary - caract: %d, total: %d",
             len(peripherals_caract_dict),
             len(aggregated_data),
@@ -443,9 +455,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 self._dynamic_peripherals[periph_id] = periph_data
                 dynamic += 1
 
-        _LOGGER.info("Skipped %d invalid peripherals", skipped)
-        _LOGGER.info("Found %d dynamic peripherals", dynamic)
-        _LOGGER.info("Skipped %d disabled peripherals", disabled)
+        # Stats logging moved to synthesized log in _async_update_data
+        _LOGGER.debug("Skipped %d invalid peripherals", skipped)
+        _LOGGER.debug("Found %d dynamic peripherals", dynamic)
+        _LOGGER.debug("Skipped %d disabled peripherals", disabled)
 
         _LOGGER.debug(
             "Mapping Table %s",
@@ -459,7 +472,12 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             ),
         )
         self.data = aggregated_data
-        return aggregated_data
+        # Return both data and stats for synthesized logging
+        return aggregated_data, {
+            'total_peripherals': len(aggregated_data),
+            'dynamic_peripherals': dynamic,
+            'skipped_peripherals': skipped + disabled
+        }
 
     async def _async_partial_refresh(self):
         history_retrieval = self.client.config_entry.data.get(
