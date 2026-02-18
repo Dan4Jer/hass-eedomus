@@ -221,7 +221,7 @@ class EedomusSensor(EedomusEntity, SensorEntity):
 
         # Handle empty or invalid values
         if not value or value == "":
-            _LOGGER.info(
+            _LOGGER.debug(
                 "Missing or empty value for sensor %s (periph_id=%s)",
                 self.coordinator.data[self._periph_id].get("name", "unknown"),
                 self._periph_id,

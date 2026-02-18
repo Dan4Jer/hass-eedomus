@@ -213,11 +213,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # Afficher un résumé des devices
         _LOGGER.info("\n" + "="*120)
         _LOGGER.info("EEDOMUS INTEGRATION SUMMARY")
-        _LOGGER.info("="*120)
-        _LOGGER.info("Total peripherals from eedomus API: %d", len(aggregated_data))
-        _LOGGER.info("Total dynamic peripherals: %d", dynamic)
-        _LOGGER.info("Total skipped peripherals: %d (invalid: %d, disabled: %d)", skipped + disabled, skipped, disabled)
-        _LOGGER.info("="*120 + "\n")
+        _LOGGER.debug("EEDOMUS INTEGRATION SUMMARY")
+        _LOGGER.debug("Total peripherals from eedomus API: %d", len(aggregated_data))
+        _LOGGER.debug("Total dynamic peripherals: %d", dynamic)
+        _LOGGER.debug("Total skipped peripherals: %d (invalid: %d, disabled: %d)", skipped + disabled, skipped, disabled)
         
         # Afficher le tableau de mapping global après le premier rafraîchissement
         try:
@@ -231,29 +230,26 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             all_ids = {str(periph_data["periph_id"]) for periph_data in aggregated_data.values() if isinstance(periph_data, dict)}
             
             if len(mapped_ids) < len(all_ids):
-                _LOGGER.info("\n" + "="*120)
-                _LOGGER.info("ℹ️  INFO: Not all devices were mapped (this is normal)")
-                _LOGGER.info("="*120)
-                _LOGGER.info("Total devices from API: %d", len(all_ids))
-                _LOGGER.info("Total devices mapped: %d", len(mapped_ids))
-                _LOGGER.info("Devices not mapped: %d (virtual/system devices)", len(all_ids) - len(mapped_ids))
+                # Résumé condensé en INFO
+                _LOGGER.info("ℹ️  Eedomus mapping: %d/%d devices mapped (%d virtual/system devices not mapped)", 
+                             len(mapped_ids), len(all_ids), len(all_ids) - len(mapped_ids))
                 
-                # Afficher les devices non mappés
+                # Détails en DEBUG pour le débogage
                 missing_ids = all_ids - mapped_ids
-                _LOGGER.info("\nFirst 10 unmapped devices (example):")
-                for periph_id in sorted(missing_ids)[:10]:  # Afficher seulement les 10 premiers
+                _LOGGER.debug("Total devices from API: %d, mapped: %d, not mapped: %d", 
+                             len(all_ids), len(mapped_ids), len(missing_ids))
+                _LOGGER.debug("First 10 unmapped devices (example):")
+                for periph_id in sorted(missing_ids)[:10]:
                     periph_data = aggregated_data.get(periph_id)
                     if periph_data and isinstance(periph_data, dict):
-                        _LOGGER.info("  - %s (ID: %s, usage_id: %s)", 
+                        _LOGGER.debug("  - %s (ID: %s, usage_id: %s)", 
                                      periph_data.get("name", "Unknown"), periph_id, periph_data.get("usage_id", "Unknown"))
                     else:
-                        _LOGGER.info("  - Unknown device (ID: %s)", periph_id)
+                        _LOGGER.debug("  - Unknown device (ID: %s)", periph_id)
                 
                 if len(missing_ids) > 10:
-                    _LOGGER.info("  ... and %d more devices (mostly virtual/system)", len(missing_ids) - 10)
-                
-                _LOGGER.info("="*120 + "\n")
-                _LOGGER.info("ℹ️  This is normal behavior - virtual and system devices are intentionally not mapped")
+                    _LOGGER.debug("  ... and %d more devices (mostly virtual/system)", len(missing_ids) - 10)
+                _LOGGER.debug("This is normal behavior - virtual and system devices are intentionally not mapped")
                 
         except Exception as e:
             _LOGGER.warning("Failed to print global mapping table: %s", e)

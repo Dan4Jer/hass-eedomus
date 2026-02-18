@@ -60,25 +60,24 @@ def print_mapping_table() -> None:
 
 
 def print_mapping_summary() -> None:
-    """Affiche un résumé des mappings et vérifie si tous les devices sont mappés."""
+    """Affiche un résumé condensé des mappings."""
     if not _MAPPING_REGISTRY:
         _LOGGER.warning("⚠️  Mapping registry is empty - no devices were mapped!")
         return
 
-    _LOGGER.info("\n" + "="*120)
-    _LOGGER.info("MAPPING SUMMARY")
-    _LOGGER.info("="*120)
-    _LOGGER.info("Total devices mapped: %d", len(_MAPPING_REGISTRY))
-    _LOGGER.info("Total unique periph_ids: %d", len(set(m["periph_id"] for m in _MAPPING_REGISTRY)))
-    
-    # Compter par type
+    # Compter par type pour le résumé condensé
     entity_counts = {}
     for mapping in _MAPPING_REGISTRY:
         entity_type = f"{mapping['ha_entity']}:{mapping['ha_subtype']}"
         entity_counts[entity_type] = entity_counts.get(entity_type, 0) + 1
     
-    _LOGGER.info("\nBreakdown by type:")
-    for entity_type, count in sorted(entity_counts.items(), key=lambda x: x[1], reverse=True):
-        _LOGGER.info("  %s: %d", entity_type, count)
+    # Créer un résumé condensé sur une seule ligne
+    type_summary = ", ".join(f"{count} {entity_type}" for entity_type, count in sorted(entity_counts.items(), key=lambda x: x[1], reverse=True))
+    _LOGGER.info("ℹ️  Eedomus mapping: %d devices (%s) from %d API devices", 
+                 len(_MAPPING_REGISTRY), type_summary, len(set(m["periph_id"] for m in _MAPPING_REGISTRY)))
     
-    _LOGGER.info("="*120 + "\n")
+    # Détails en DEBUG pour ceux qui en ont besoin
+    _LOGGER.debug("Total unique periph_ids: %d", len(set(m["periph_id"] for m in _MAPPING_REGISTRY)))
+    _LOGGER.debug("Breakdown by type:")
+    for entity_type, count in sorted(entity_counts.items(), key=lambda x: x[1], reverse=True):
+        _LOGGER.debug("  %s: %d", entity_type, count)
