@@ -174,12 +174,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER.error("Failed to setup eedomus services in proxy-only mode: %s", err)
 
     # Create entities based on supported classes (only if API Eedomus mode is enabled)
-    # NOTE: History sensor creation is temporarily disabled due to refactoring
-    # This will be addressed in a separate branch: feature/history-refactor
+    # Setup history sensors if history feature is enabled
     if api_eedomus_enabled and entry.data.get(CONF_ENABLE_HISTORY, False):
-        _LOGGER.warning(
-            "History sensor creation is temporarily disabled - will be implemented in feature/history-refactor branch"
-        )
+        try:
+            from .history_sensor import async_setup_history_sensors
+            from homeassistant.helpers.device_registry import async_get as async_get_device_registry
+            device_registry = async_get_device_registry(hass)
+            await async_setup_history_sensors(hass, coordinator, device_registry)
+            _LOGGER.info("✅ History sensors registered successfully")
+        except Exception as err:
+            _LOGGER.error("Failed to setup history sensors: %s", err)
 
 
     # Stockage sécurisé
