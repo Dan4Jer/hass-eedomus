@@ -1,6 +1,7 @@
 """Climate entity for eedomus integration."""
 
 from __future__ import annotations
+from datetime import datetime
 
 import logging
 
@@ -79,6 +80,118 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
             "Initializing climate entity for %s (%s)", self._attr_name, periph_id
         )
         self._update_climate_state()
+
+    @property
+    def extra_state_attributes(self):
+        """Return device-specific state attributes for monitoring and diagnostics."""
+        attrs = {}
+        
+        try:
+            periph_data = self._get_periph_data()
+            if periph_data:
+                # Basic device information
+                attrs["usage_id"] = periph_data.get("usage_id", "unknown")
+                attrs["device_type"] = periph_data.get("usage_name", "unknown")
+                attrs["last_value"] = periph_data.get("last_value", "unknown")
+                attrs["last_updated"] = periph_data.get("last_updated", "unknown")
+                
+                # Temperature range information
+                attrs["temperature_range"] = f"{self._attr_min_temp}°C - {self._attr_max_temp}°C"
+                attrs["temperature_step"] = self._attr_target_temperature_step
+                
+                # Device health and status
+                attrs["device_health"] = self._get_device_health()
+                attrs["connection_status"] = self._get_connection_status()
+                
+                # Climate-specific attributes
+                usage_id = periph_data.get("usage_id", "")
+                if usage_id == "15":
+                    attrs["climate_type"] = "temperature_setpoint"
+                    attrs["control_method"] = "direct_temperature"
+                elif usage_id in ["19", "20", "38"]:
+                    attrs["climate_type"] = "fil_pilote"
+                    attrs["control_method"] = "mode_mapping"
+                    attrs["supported_modes"] = "Confort, Eco, Hors Gel, Arret"
+                
+                # Available values for troubleshooting
+                if "values" in periph_data and len(periph_data["values"]) > 0:
+                    attrs["available_values_count"] = len(periph_data["values"])
+                    # Show first few values as examples
+                    example_values = [v.get("value", "") for v in periph_data["values"][:3]]
+                    attrs["example_values"] = ", ".join(example_values)
+                
+        except Exception as e:
+            _LOGGER.debug("Failed to generate extra state attributes: %s", e)
+            attrs["error"] = "Failed to generate attributes"
+        
+        return attrs
+
+    def _get_device_health(self):
+        """Assess device health and return status."""
+        try:
+            periph_data = self._get_periph_data()
+            if not periph_data:
+                return "unavailable"
+            
+            last_value = periph_data.get("last_value", "")
+            last_updated = periph_data.get("last_updated")
+            
+            if not last_value or last_value == "":
+                return "no_data"
+            
+            if last_updated:
+                try:
+                    last_updated_dt = datetime.fromisoformat(last_updated)
+                    time_since_update = (datetime.now() - last_updated_dt).total_seconds()
+                    
+                    if time_since_update > 3600:  # 1 hour
+                        return "stale_data"
+                    elif time_since_update > 1800:  # 30 minutes
+                        return "delayed_update"
+                except:
+                    pass
+            
+            # Check if temperature is within expected range
+            if (self._attr_target_temperature < self._attr_min_temp or
+                self._attr_target_temperature > self._attr_max_temp):
+                return "invalid_temperature"
+            
+            return "healthy"
+            
+        except Exception as e:
+            _LOGGER.debug("Failed to assess device health: %s", e)
+            return "unknown"
+
+    def _get_connection_status(self):
+        """Assess connection status to eedomus API."""
+        try:
+            # Check if we have recent data
+            periph_data = self._get_periph_data()
+            if not periph_data:
+                return "disconnected"
+            
+            last_updated = periph_data.get("last_updated")
+            if last_updated:
+                try:
+                    last_updated_dt = datetime.fromisoformat(last_updated)
+                    time_since_update = (datetime.now() - last_updated_dt).total_seconds()
+                    
+                    if time_since_update < 60:
+                        return "real_time"
+                    elif time_since_update < 300:
+                        return "recent"
+                    elif time_since_update < 1800:
+                        return "normal"
+                    else:
+                        return "delayed"
+                except:
+                    return "unknown_timestamp"
+            
+            return "no_timestamp"
+            
+        except Exception as e:
+            _LOGGER.debug("Failed to assess connection status: %s", e)
+            return "error"
 
     def _update_climate_state(self):
         """Update the climate state from eedomus data."""
@@ -267,17 +380,59 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                 )
                 return
 
-            result = await self._client.set_periph_value(
-                self._periph_id, str(eedomus_value)
-            )
+            try:
+                result = await self._client.set_periph_value(
+                    self._periph_id, str(eedomus_value)
+                )
 
-            if result.get("success", 0) == 1:
-                _LOGGER.debug(
-                    "Successfully set temperature for %s to %.1f°C (eedomus value: %s)",
+                if result.get("success", 0) == 1:
+                    _LOGGER.info(
+                        "✅ Successfully set temperature for %s to %.1f°C",
+                        self._attr_name,
+                        temperature,
+                    )
+                    # Update local state to reflect the change immediately
+                    self._attr_target_temperature = temperature
+                    self.async_write_ha_state()
+                    
+                    # Force refresh to ensure coordinator has latest data
+                    await self.coordinator.async_request_refresh()
+                    
+                else:
+                    error_msg = result.get("error", "Unknown error")
+                    error_code = result.get("error_code", "unknown")
+                    _LOGGER.error(
+                        "❌ Failed to set temperature for %s: %s (code: %s)",
+                        self._attr_name,
+                        error_msg,
+                        error_code,
+                    )
+                    raise ValueError(f"Failed to set temperature: {error_msg}")
+                    
+            except Exception as err:
+                _LOGGER.error(
+                    "❌ Exception setting temperature for %s to %.1f°C: %s",
                     self._attr_name,
                     temperature,
-                    eedomus_value,
+                    str(err),
                 )
+                # Provide specific guidance for common errors
+                if "connection" in str(err).lower():
+                    _LOGGER.error(
+                        "💡 Check eedomus API connection and network connectivity"
+                    )
+                elif "timeout" in str(err).lower():
+                    _LOGGER.error(
+                        "💡 API request timed out - check eedomus box responsiveness"
+                    )
+                elif "value refused" in str(err).lower() or "error_code" in str(err).lower():
+                    _LOGGER.error(
+                        "💡 Temperature value may be outside device's acceptable range"
+                    )
+                    _LOGGER.error(
+                        "💡 Check device configuration in eedomus for valid temperature values"
+                    )
+                raise
                 # Update the target temperature immediately
                 self._attr_target_temperature = temperature
                 await self.coordinator.async_request_refresh()
