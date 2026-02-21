@@ -29,12 +29,20 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
-    """Eedomus data update coordinator with optimized refresh strategy."""
+    """Eedomus data update coordinator with optimized refresh strategy.
+    
+    This coordinator manages data updates from the eedomus API, implementing both
+    full and partial refresh strategies to optimize performance and reduce API calls.
+    """
 
     def __init__(
         self, hass: HomeAssistant, client, scan_interval=DEFAULT_SCAN_INTERVAL
     ):
-        """Initialize the coordinator."""
+        """Initialize the coordinator.
+        
+        Sets up the coordinator with the Home Assistant instance, client, and scan interval.
+        Initializes data structures for tracking peripherals and their update status.
+        """
         super().__init__(
             hass,
             _LOGGER,
@@ -52,7 +60,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         self._scan_interval = scan_interval
 
     async def async_config_entry_first_refresh(self):
-        """Effectue le premier rafraîchissement des données et charge la progression de l'historique."""
+        """Effectue le premier rafraîchissement des données et charge la progression de l'historique.
+        
+        Performs the initial data refresh when the integration is first set up.
+        Loads historical progress data and retrieves full device information from the eedomus API.
+        """
 
         await self._load_history_progress()
         
@@ -263,7 +275,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # No need to call super().async_config_entry_first_refresh() as we've already loaded the data
 
     async def _async_update_data(self):
-        """Fetch data from eedomus API with improved error handling."""
+        """Fetch data from eedomus API with improved error handling.
+        
+        Main update method that decides between full or partial refresh based on timing.
+        Implements error handling and fallback to last known good data.
+        """
         start_time = datetime.now()
 
         _LOGGER.info("Update eedomus data")
@@ -307,6 +323,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             raise UpdateFailed(f"Error updating data: {err}") from err
 
     async def _async_partial_data_retrieve(self, concat_text_periph_id: str):
+        """Retrieve partial data for specific peripherals.
+        
+        Fetches characteristics data for a subset of peripherals identified by their IDs.
+        Used during partial refresh cycles to update only dynamic devices.
+        """
         peripherals_caract_response = await self.client.get_periph_caract(
             concat_text_periph_id, False
         )
@@ -326,7 +347,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         return peripherals_caract
 
     async def _async_full_data_retrieve(self):
-        """Retrieve full data including peripherals list, value list, and characteristics."""
+        """Retrieve full data including peripherals list, value list, and characteristics.
+        
+        Performs comprehensive data retrieval from the eedomus API, including device lists,
+        current values, and detailed characteristics. Used during initial setup and full refreshes.
+        """
         peripherals_response = await self.client.get_periph_list()
         peripherals_value_list_response = await self.client.get_periph_value_list("all")
         peripherals_caract_response = await self.client.get_periph_caract("all", True)
@@ -370,7 +395,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         return (peripherals, peripherals_value_list, peripherals_caract)
 
     async def _async_full_refresh_data_retrieve(self):
-        """Retrieve only characteristics data for full refresh."""
+        """Retrieve only characteristics data for full refresh.
+        
+        Fetches updated characteristics for all peripherals during a full refresh cycle.
+        More efficient than full data retrieval as it assumes device list structure is unchanged.
+        """
         peripherals_caract_response = await self.client.get_periph_caract("all", True)
         if not isinstance(peripherals_caract_response, dict):
             _LOGGER.error("Invalid API response format: %s", peripherals_caract_response)
@@ -393,7 +422,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         return peripherals_caract
 
     async def _async_full_refresh(self):
-        """Perform a complete refresh of all peripherals."""
+        """Perform a complete refresh of all peripherals.
+        
+        Updates all peripheral data by fetching current characteristics from the API.
+        Rebuilds the device mapping and dynamic peripheral lists for the next refresh cycle.
+        """
         _LOGGER.debug("Performing full data refresh from eedomus API")
 
         # Récupération des données
@@ -480,6 +513,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         }
 
     async def _async_partial_refresh(self):
+        """Perform a partial refresh of dynamic peripherals only.
+        
+        Updates only devices marked as dynamic (lights, switches, sensors that change frequently).
+        More efficient than full refresh as it targets only devices that need frequent updates.
+        """
         history_retrieval = self.client.config_entry.data.get(
             CONF_ENABLE_HISTORY, False
         )
@@ -543,7 +581,12 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         return self.data
 
     def _is_dynamic_peripheral(self, periph):
-        """Determine if a peripheral needs regular updates based on mapping configuration."""
+        """Determine if a peripheral needs regular updates based on mapping configuration.
+        
+        Evaluates whether a device should be included in partial refresh cycles based on its
+        entity type, specific device overrides, and mapping rules. Dynamic devices are updated
+        more frequently than static devices like thermostats or text sensors.
+        """
         periph_id = periph.get("periph_id")
         ha_entity = periph.get("ha_entity")
         
@@ -665,17 +708,29 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             return is_dynamic
 
     def get_all_peripherals(self):
-        """Return all peripherals (for entity setup)."""
+        """Return all peripherals (for entity setup).
+        
+        Provides access to the complete list of peripherals for entity creation.
+        Used by platform setup methods to discover and create Home Assistant entities.
+        """
         return self._all_peripherals
 
     async def request_full_refresh(self):
-        """Request a full refresh of all peripherals."""
+        """Request a full refresh of all peripherals.
+        
+        Forces a complete data refresh on the next update cycle.
+        Used when device configuration changes or after manual intervention requires full resync.
+        """
         _LOGGER.debug("Requesting full data refresh")
         self._full_refresh_needed = True
         await self.async_request_refresh()
 
     async def _load_history_progress(self):
-        """Charge la progression depuis le stockage HA."""
+        """Load history retrieval progress from Home Assistant storage.
+        
+        Restores the state of historical data retrieval for each peripheral.
+        Allows resuming interrupted history imports and tracking completion status.
+        """
         _LOGGER.debug("Starting to load history progress")
         if hasattr(self.hass, "components.recorder"):
             if progress := await self.hass.async_add_executor_job(
@@ -698,7 +753,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             )
 
     async def _save_history_progress(self):
-        """Sauvegarde la progression dans le stockage HA."""
+        """Save history retrieval progress to Home Assistant storage.
+        
+        Persists the current state of historical data retrieval for each peripheral.
+        Ensures progress is maintained across Home Assistant restarts and updates.
+        """
         _LOGGER.debug("Saving history progress...")
         if hasattr(self.hass, "components.recorder"):
             for periph_id, progress in self._history_progress.items():
@@ -722,7 +781,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             )
 
     async def async_fetch_history_chunk(self, periph_id: str) -> list:
-        """Récupère un chunk de 10 000 points d'historique."""
+        """Fetch a chunk of historical data for a peripheral.
+        
+        Retrieves historical data points from the eedomus API for import into Home Assistant.
+        Manages progress tracking and completion status for each peripheral's history.
+        """
         if periph_id not in self._history_progress:
             self._history_progress[periph_id] = {
                 "last_timestamp": 0,
@@ -777,7 +840,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         return chunk
 
     async def async_import_history_chunk(self, periph_id: str, chunk: list) -> None:
-        """Importe un chunk d'historique dans la base de données de HA."""
+        """Import a chunk of historical data into Home Assistant database.
+        
+        Processes and stores historical data points in Home Assistant's recorder component.
+        Converts eedomus API format to Home Assistant state objects for proper storage.
+        """
         if not hasattr(self.hass, "components.recorder"):
             _LOGGER.warning(
                 "Recorder component not available. History will not be imported."
@@ -841,7 +908,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
     # Add method to set value for a specific peripheral
     async def async_set_periph_value(self, periph_id: str, value: str):
-        """Set the value of a specific peripheral."""
+        """Set the value of a specific peripheral.
+        
+        Sends a command to the eedomus API to update a device's state.
+        Implements retry logic and fallback mechanisms for unreliable API responses.
+        """
         _LOGGER.debug(
             "Setting value '%s' for peripheral '%s' (%s) ",
             value,
@@ -980,6 +1051,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # await self.async_request_refresh()
 
     def next_best_value(self, periph_id: str, value: str):
+        """Find the closest available value when exact value is rejected.
+        
+        Calculates the nearest acceptable value from the device's available values list.
+        Used as fallback when the eedomus API rejects a requested value.
+        """
         values_list = self.data.get(periph_id, {}).get("values", [])
         available_entries = []
         for item in values_list:

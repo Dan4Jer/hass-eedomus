@@ -103,10 +103,18 @@ except Exception as e:
 
 
 class EedomusEntity(CoordinatorEntity):
-    """Base class for eedomus entities."""
+    """Base class for eedomus entities.
+    
+    Provides common functionality for all eedomus device entities in Home Assistant.
+    Handles device information, state updates, and value setting operations.
+    """
 
     def __init__(self, coordinator, periph_id: str):
-        """Initialize the entity."""
+        """Initialize the entity.
+        
+        Sets up the entity with coordinator reference and peripheral ID.
+        Loads device data and sets up basic entity properties like name and unique ID.
+        """
         super().__init__(coordinator)
         self._periph_id = periph_id
         
@@ -123,7 +131,11 @@ class EedomusEntity(CoordinatorEntity):
             self._attr_unique_id = f"{periph_id}"
 
     def _get_periph_data(self, periph_id: str = None):
-        """Get peripheral data from coordinator."""
+        """Get peripheral data from coordinator.
+        
+        Safely retrieves device data from the coordinator's data store.
+        Returns None if data is not available or coordinator is not properly initialized.
+        """
         if not hasattr(self.coordinator, 'data') or not self.coordinator.data:
             return None
         # Use self._periph_id if no periph_id is provided
@@ -132,7 +144,11 @@ class EedomusEntity(CoordinatorEntity):
 
     @property
     def device_info(self) -> DeviceInfo:
-        """Return device information."""
+        """Return device information.
+        
+        Constructs device information for Home Assistant's device registry.
+        Handles parent-child relationships and provides proper device hierarchy information.
+        """
         periph_data = self._get_periph_data(self._periph_id)
         if not periph_data:
             return DeviceInfo(
@@ -167,11 +183,19 @@ class EedomusEntity(CoordinatorEntity):
         )
 
     async def async_update(self):
-        """Update the entity state."""
+        """Update the entity state.
+        
+        Triggers a refresh of the entity's state by requesting new data from the coordinator.
+        Ensures the entity reflects the current state from the eedomus API.
+        """
         await self.coordinator.async_request_refresh()
 
     async def async_added_to_hass(self):
-        """Call when the entity is added to Home Assistant."""
+        """Call when the entity is added to Home Assistant.
+        
+        Performs setup tasks when the entity is first added to Home Assistant.
+        Schedules initial state update to ensure the entity has current data.
+        """
         await super().async_added_to_hass()
         # Schedule a regular update to ensure consistency
         self.async_schedule_update_ha_state()
@@ -179,6 +203,9 @@ class EedomusEntity(CoordinatorEntity):
 
     async def async_set_value(self, value: str) -> dict | None:
         """Set the value of the peripheral using the eedomus service.
+        
+        Sends a command to change the device's state through the eedomus integration service.
+        Used by entity-specific implementations to control devices.
         
         Args:
             value: The value to set (string representation)
@@ -210,14 +237,25 @@ class EedomusEntity(CoordinatorEntity):
             return None
 
 def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: str = "sensor"):
-    """Mappe un périphérique eedomus vers une entité Home Assistant.
+    """Map an eedomus device to a Home Assistant entity.
     
-    Logique de mapping simplifiée et optimisée :
-    1. Règles avancées (relations parent-enfant)
-    2. Cas spécifiques prioritaires (usage_id)
-    3. Mapping basé sur usage_id
-    4. Détection par nom (dernier recours)
-    5. Mapping par défaut
+    Core device mapping function that determines how eedomus devices are represented
+    in Home Assistant. Uses a priority-based approach to find the best entity mapping.
+    
+    Priority order:
+    1. Advanced rules (parent-child relationships, RGBW detection)
+    2. Specific critical cases (usage_id-based)
+    3. Usage ID mapping
+    4. Name pattern matching
+    5. Default mapping
+    
+    Args:
+        device_data: Dictionary containing device information from eedomus API
+        all_devices: Dictionary of all devices for advanced rule evaluation
+        default_ha_entity: Fallback entity type if no mapping found
+        
+    Returns:
+        Dictionary with ha_entity, ha_subtype, and justification keys
     """
     periph_id = device_data["periph_id"]
     periph_name = device_data["name"]
@@ -548,7 +586,22 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
             return None
 
 def _create_mapping(mapping_config, periph_name, periph_id, context, emoji="🎯", device_data=None):
-    """Crée un mapping standardisé avec logging approprié."""
+    """Create a standardized mapping with appropriate logging.
+    
+    Helper function that processes mapping configuration and generates consistent
+    logging output for device mapping decisions. Tracks the reasoning behind each mapping.
+    
+    Args:
+        mapping_config: Mapping configuration (can be direct mapping or rule with mapping section)
+        periph_name: Device name for logging
+        periph_id: Device ID for logging
+        context: Context description for logging
+        emoji: Log level indicator
+        device_data: Optional device data for additional debugging
+        
+    Returns:
+        Dictionary with standardized mapping including justification
+    """
     # mapping_config peut être soit la section 'mapping' directement, soit la règle complète
     if isinstance(mapping_config, dict) and "mapping" in mapping_config:
         mapping = mapping_config["mapping"]

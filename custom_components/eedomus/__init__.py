@@ -72,7 +72,11 @@ except Exception as e:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up eedomus from a config entry."""
+    """Set up eedomus from a config entry.
+    
+    This function initializes the eedomus integration by creating the API client,
+    setting up the data coordinator, registering services, and forwarding setup to platforms.
+    """
     _LOGGER.info("🚀 Starting eedomus integration setup - Version %s", VERSION)
     _LOGGER.debug("Setting up eedomus integration with entry_id: %s", entry.entry_id)
 
@@ -266,7 +270,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 # Define update listener first
 async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Handle options update."""
+    """Handle options update.
+    
+    This function is called when configuration options are updated through the options flow.
+    It updates the coordinator scan interval and triggers a reload of the integration.
+    """
     _LOGGER.info("🔧 Eedomus configuration options updated - reloading integration")
     
     # Update coordinator scan interval if it exists and scan_interval option changed
@@ -282,7 +290,11 @@ async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload a config entry."""
+    """Unload a config entry.
+    
+    This function cleans up the integration by unloading platforms and removing
+    the entry data from the Home Assistant data store.
+    """
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         if entry.entry_id in hass.data[DOMAIN]:
             hass.data[DOMAIN].pop(entry.entry_id)
@@ -293,7 +305,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Remove a config entry."""
+    """Remove a config entry.
+    
+    This function handles the removal of a config entry, optionally removing all
+    associated entities from the entity registry based on user configuration.
+    """
     # Check if the remove_entities option is set
     remove_entities = entry.options.get(CONF_REMOVE_ENTITIES, DEFAULT_REMOVE_ENTITIES)
 
@@ -324,7 +340,11 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 # YAML Mapping Management Functions
 async def async_load_mapping(hass, config_dir):
-    """Load and merge device mappings from YAML files."""
+    """Load and merge device mappings from YAML files.
+    
+    This function loads default and custom device mappings from YAML files,
+    merges them using a sophisticated algorithm, and validates the result.
+    """
     import yaml
     from homeassistant.helpers import config_validation as cv
     from .const import YAML_MAPPING_SCHEMA, CONF_CUSTOM_DEVICES
@@ -388,7 +408,11 @@ async def async_load_mapping(hass, config_dir):
 
 
 async def async_save_custom_mapping(hass, config_dir, mapping_data):
-    """Save custom mapping to YAML file."""
+    """Save custom mapping to YAML file.
+    
+    This function saves custom device mapping data to a YAML file for persistent
+    storage across Home Assistant restarts.
+    """
     import yaml
     custom_path = os.path.join(config_dir, "custom_mapping.yaml")
 
@@ -406,7 +430,11 @@ async def async_save_custom_mapping(hass, config_dir, mapping_data):
 
 
 async def async_get_mapping_for_options(hass, config_dir):
-    """Get current mapping data for options flow."""
+    """Get current mapping data for options flow.
+    
+    This function retrieves the current device mapping data for use in the
+    configuration options flow interface.
+    """
     try:
         from .const import CONF_CUSTOM_DEVICES
         mapping = await async_load_mapping(hass, config_dir)
