@@ -1,5 +1,5 @@
 # Eedomus Device Mapping Configuration
-# Version: 1.0
+# Version: 1.3
 # 
 # This file defines how eedomus devices are mapped to Home Assistant entities.
 # Users can customize this mapping through the options flow interface.
@@ -10,6 +10,41 @@
 # 3. Usage ID mappings
 # 4. Name pattern matching
 # 5. Default mapping
+
+# 🌡️ CLIMATE ENTITY GUIDE
+# Eedomus supports several types of climate devices for heating control:
+#
+# 1. Temperature Setpoints (usage_id=15):
+#    - Direct temperature control for heating zones
+#    - Supports 7.0°C to 30.0°C range with 0.5°C precision
+#    - Best for: Room thermostats, zone heating control
+#
+# 2. Fil Pilote Standard (usage_id=19):
+#    - French electric heating protocol
+#    - Modes: Confort (~19°C), Eco (~17°C), Hors Gel (~8.5°C), Arret
+#    - Best for: Electric radiators, baseboard heaters
+#
+# 3. Fil Pilote Advanced (usage_id=20):
+#    - Enhanced Fil Pilote with extended features
+#    - May support additional protocols or precision
+#    - Best for: Newer Fil Pilote controllers
+#
+# 4. Multi-Zone Fil Pilote (usage_id=38):
+#    - Zone heating and energy management
+#    - Advanced scheduling and monitoring
+#    - Best for: Whole-home heating systems
+#
+# Climate entities automatically:
+# - Detect acceptable temperature ranges from device configuration
+# - Integrate with child temperature sensors (usage_id=7)
+# - Support HVAC modes: HEAT and OFF
+# - Provide current temperature reading when available
+#
+# Troubleshooting climate devices:
+# 1. Verify device has correct usage_id in eedomus
+# 2. Check acceptable values in eedomus device configuration
+# 3. Ensure child temperature sensors are properly mapped
+# 4. Confirm Fil Pilote wiring matches eedomus configuration
 
 version: 1.3
 
@@ -101,6 +136,16 @@ usage_id_mappings:
     ha_entity: "climate"
     ha_subtype: "temperature_setpoint"
     justification: "Virtual thermostat for heating setpoint control"
+    documentation: "Direct temperature setting for eedomus heating zones. Supports temperature range 7.0°C-30.0°C with 0.5°C precision. Automatically detects acceptable temperature values from device configuration."
+    example_devices: ["Consigne Salon", "Temperature Setpoint Chambre", "Chauffage Cuisine"]
+    features:
+      - Direct temperature control via eedomus API
+      - Automatic min/max temperature detection
+      - Child sensor integration for current temperature reading
+      - Fil Pilote protocol compatibility
+      - HVAC modes: HEAT and OFF
+    compatibility_notes: "Works with eedomus virtual thermostats and heating zone controllers. Requires usage_id=15 for direct temperature setting."
+    troubleshooting: "If temperature changes don't apply, check device's acceptable values in eedomus configuration."
     is_dynamic: false
   
   "18":
@@ -113,12 +158,39 @@ usage_id_mappings:
     ha_entity: "climate"
     ha_subtype: "fil_pilote"
     justification: "Fil pilote heating system control - usage_id=19"
+    documentation: "French standard Fil Pilote heating protocol. Supports multiple operating modes through temperature mapping: Confort (~19-21°C), Eco (~16-18°C), Hors Gel (~7-10°C), and Arret (off). Automatically maps eedomus values to Home Assistant temperature setpoints."
+    example_devices: ["Fil Pilote Salon", "Chauffage Chambre Parent", "Radiateur Salle de Bain"]
+    features:
+      - Fil Pilote protocol implementation
+      - Automatic mode-to-temperature mapping
+      - Child temperature sensor integration
+      - Energy-efficient mode switching
+      - Compatibility with French heating standards
+    fil_pilote_modes:
+      Confort: "19.0°C"
+      Eco: "17.0°C"
+      Hors Gel: "8.5°C"
+      Arret: "off"
+    compatibility_notes: "Requires eedomus Fil Pilote controller. Works with most French electric heating systems. Verify wire connections match Fil Pilote standard."
+    troubleshooting: "If modes don't change, check Fil Pilote wire connections and eedomus device configuration. Ensure device accepts the mapped temperature values."
+    advanced_configuration: "Temperature mappings can be customized in advanced YAML configuration if standard values don't match your specific Fil Pilote controller."
     is_dynamic: false
   
   "20":
     ha_entity: "climate"
     ha_subtype: "fil_pilote"
     justification: "Fil pilote heating system control - usage_id=20"
+    documentation: "Alternative Fil Pilote implementation for specific controller models. Similar to usage_id=19 but may use different temperature mappings or communication protocols. Check your specific device documentation for exact behavior."
+    example_devices: ["Fil Pilote Avancé", "Chauffage Intelligent", "Thermostat Connecté"]
+    features:
+      - Alternative Fil Pilote protocol variant
+      - Extended temperature range support
+      - Enhanced precision control
+      - Compatibility with newer controller models
+      - Automatic protocol detection
+    compatibility_notes: "Usage_id=20 typically found in newer eedomus Fil Pilote controllers. May support additional features beyond standard Fil Pilote. Verify controller specifications."
+    troubleshooting: "If device doesn't respond, check for firmware updates in eedomus interface. Some usage_id=20 devices require specific configuration profiles."
+    configuration_tips: "For optimal performance, pair with eedomus temperature sensors (usage_id=7) for accurate room temperature feedback."
     is_dynamic: false
   
   "22":
@@ -197,6 +269,18 @@ usage_id_mappings:
     ha_entity: "climate"
     ha_subtype: "fil_pilote"
     justification: "Fil pilote heating control - usage_id=38"
+    documentation: "Specialized Fil Pilote variant often used for zone heating or multi-room systems. May include advanced features like scheduling, energy monitoring, or integration with other smart home protocols."
+    example_devices: ["Fil Pilote Zones", "Chauffage Multi-Pièces", "Gestion Énergie"]
+    features:
+      - Multi-zone heating control
+      - Energy consumption monitoring
+      - Advanced scheduling capabilities
+      - Protocol extension support
+      - Integration with eedomus energy management
+    compatibility_notes: "Usage_id=38 devices often require additional configuration in eedomus interface. May support multiple virtual thermostats or heating zones from a single physical controller."
+    advanced_features: "Some usage_id=38 controllers support energy consumption reporting, predictive algorithms, or integration with weather forecasts for optimized heating."
+    troubleshooting: "For complex setups, verify zone assignments in eedomus configuration match physical wiring. Check energy monitoring calibration if readings seem incorrect."
+    performance_tips: "Enable energy monitoring in eedomus settings for detailed consumption analytics and cost optimization."
     is_dynamic: false
   
   "42":
