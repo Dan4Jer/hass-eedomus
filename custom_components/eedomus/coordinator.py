@@ -282,7 +282,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         """
         start_time = datetime.now()
 
-        _LOGGER.info("Update eedomus data")
+        _LOGGER.debug("Update eedomus data")
         if (
             start_time - self._last_update_start_time
         ).total_seconds() > self._scan_interval:
@@ -521,7 +521,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         history_retrieval = self.client.config_entry.data.get(
             CONF_ENABLE_HISTORY, False
         )
-        _LOGGER.info(
+        _LOGGER.debug(
             "Performing partial refresh for %d dynamic peripherals, history=%s",
             len(self._dynamic_peripherals),
             history_retrieval,
