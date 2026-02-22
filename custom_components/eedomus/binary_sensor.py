@@ -47,7 +47,7 @@ async def async_setup_entry(
     # First pass: ensure all peripherals have proper mapping
     for periph_id, periph in all_peripherals.items():
         if "ha_entity" not in coordinator.data[periph_id]:
-            eedomus_mapping = map_device_to_ha_entity(periph)
+            eedomus_mapping = map_device_to_ha_entity(periph, coordinator.data)
             coordinator.data[periph_id].update(eedomus_mapping)
             # S'assurer que le mapping est enregistré dans le registre global
             from .entity import _register_device_mapping
