@@ -23,7 +23,7 @@ from homeassistant.util.color import (  # color_rgb_to_kelvin,; color_rgb_to_xy,
     value_to_brightness,
 )
 
-from .const import DOMAIN
+from .const import DOMAIN, COORDINATOR
 from .entity import EedomusEntity, map_device_to_ha_entity
 
 _LOGGER = logging.getLogger(__name__)
