@@ -1,49 +1,41 @@
-# Custom Eedomus Device Mapping Configuration
-# This file is for user-customized mappings that override the default mappings.
-# It can be edited through the options flow interface in Home Assistant.
-#
-# To add custom mappings, follow the same structure as device_mapping.yaml
-# Example:
-#
-# custom_rules:
-#   - name: "My Custom Device"
-#     priority: 1
-#     conditions:
-#       - usage_id: "123"
-#       - name: ".*my device.*"
-#     mapping:
-#       ha_entity: "light"
-#       ha_subtype: "custom"
-#       device_class: null
-#       icon: "mdi:lightbulb"
+# Custom device mapping configuration
+# Specific mappings by periph_id for exceptional cases
+custom_device_mappings:
+  - periph_id: "1061603"
+    ha_entity: "sensor"
+    ha_subtype: "usage"
+    justification: "CPU Box - Specific mapping"
+    device_info:
+      identifiers:
+        - - eedomus
+          - eedomus_box_main
+      name: "Box eedomus"
+      manufacturer: "Eedomus"
+      model: "Eedomus Box"
+      sw_version: "Unknown"
 
-version: 1.0
+  - periph_id: "1061604"
+    ha_entity: "sensor"
+    ha_subtype: "usage"
+    justification: "Espace libre Box - Specific mapping"
+    device_info:
+      identifiers:
+        - - eedomus
+          - eedomus_box_main
+      name: "Box eedomus"
+      manufacturer: "Eedomus"
+      model: "Eedomus Box"
+      sw_version: "Unknown"
 
-# Custom rules for advanced device mapping
-# These override the default mapping rules
-custom_rules: []
-
-# Custom usage ID mappings
-# Override default mappings for specific usage_ids
-custom_usage_id_mappings: {}
-
-# Custom name patterns
-# Map devices based on name patterns (regex)
-custom_name_patterns: []
-
-# Custom dynamic entity properties
-# Override which entity types should be dynamic
-# Dynamic devices are those whose state can change unpredictably due to user actions
-# They are included in opportunistic refresh mechanisms
-custom_dynamic_entity_properties: {}
-  # Example: Make climate devices dynamic if they have physical controls
-  # climate: true
-
-# Custom specific device dynamic overrides
-# Override dynamic behavior for individual devices by periph_id
-# Use this for devices that don't fit the default entity type behavior
-custom_specific_device_dynamic_overrides: {}
-  # Example: Make a specific temperature sensor dynamic if it's critical
-  # "123456": true
-  # Example: Make a motion sensor static if it's in a low-traffic area
-  # "789012": false
+  - periph_id: "1061606"
+    ha_entity: "sensor"
+    ha_subtype: "usage"
+    justification: "Messages Box - Specific mapping"
+    device_info:
+      identifiers:
+        - - eedomus
+          - eedomus_box_main
+      name: "Box eedomus"
+      manufacturer: "Eedomus"
+      model: "Eedomus Box"
+      sw_version: "Unknown"
