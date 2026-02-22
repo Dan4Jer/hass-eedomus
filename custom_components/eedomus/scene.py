@@ -18,7 +18,7 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities
 ):
     """Set up eedomus scene entities."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+    coordinator = hass.data[DOMAIN][entry.entry_id][COORDINATOR]
     scenes = []
 
     all_peripherals = coordinator.get_all_peripherals()

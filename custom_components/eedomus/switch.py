@@ -17,7 +17,7 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities
 ):
-    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+    coordinator = hass.data[DOMAIN][entry.entry_id][COORDINATOR]
     switches = []
 
     all_peripherals = coordinator.get_all_peripherals()

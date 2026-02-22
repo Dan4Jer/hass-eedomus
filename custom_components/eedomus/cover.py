@@ -18,7 +18,7 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities
 ):
     """Set up eedomus cover entities from config entry."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+    coordinator = hass.data[DOMAIN][entry.entry_id][COORDINATOR]
     entities = []
 
     # Get all peripherals and build parent-to-children mapping

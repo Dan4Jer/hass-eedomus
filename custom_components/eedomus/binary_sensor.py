@@ -39,7 +39,7 @@ async def async_setup_entry(
     """Set up eedomus binary sensor entities."""
     from .entity import map_device_to_ha_entity
 
-    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+    coordinator = hass.data[DOMAIN][entry.entry_id][COORDINATOR]
     binary_sensors = []
 
     all_peripherals = coordinator.get_all_peripherals()

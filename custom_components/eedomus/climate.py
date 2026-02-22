@@ -24,7 +24,7 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     """Set up eedomus climate entities."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+    coordinator = hass.data[DOMAIN][entry.entry_id][COORDINATOR]
     climates = []
 
     all_peripherals = coordinator.get_all_peripherals()

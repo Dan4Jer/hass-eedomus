@@ -8,7 +8,7 @@ from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN, SENSOR_DEVICE_CLASSES
+from .const import DOMAIN, SENSOR_DEVICE_CLASSES, COORDINATOR
 from .entity import EedomusEntity, map_device_to_ha_entity
 
 _LOGGER = logging.getLogger(__name__)
@@ -29,7 +29,17 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities
 ):
     """Set up eedomus sensor entities from config entry."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+    # Check if coordinator exists in the new structure
+    if DOMAIN in hass.data and entry.entry_id in hass.data[DOMAIN]:
+        entry_data = hass.data[DOMAIN][entry.entry_id]
+        coordinator = entry_data.get(COORDINATOR) if COORDINATOR in entry_data else None
+    else:
+        coordinator = None
+    
+    if coordinator is None:
+        _LOGGER.error("Coordinator not found for entry %s", entry.entry_id)
+        return False
+    
     entities = []
 
     # Get all peripherals and build parent-to-children mapping similar to light.py
