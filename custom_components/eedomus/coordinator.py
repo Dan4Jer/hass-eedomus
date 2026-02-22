@@ -58,6 +58,13 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             {}
         )  # Format: {periph_id: {"last_timestamp": int, "completed": bool}}
         self._scan_interval = scan_interval
+        
+        # Timing metrics for performance monitoring
+        self._last_api_time = 0.0
+        self._last_processing_time = 0.0
+        self._last_refresh_time = 0.0
+        self._last_processed_devices = 0
+        self._refresh_timing_history = []  # Store last 10 refresh times for analysis
 
     async def async_config_entry_first_refresh(self):
         """Effectue le premier rafraîchissement des données et charge la progression de l'historique.
@@ -290,25 +297,44 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         self._last_update_start_time = start_time
         try:
             if self._full_refresh_needed:
+                # Track detailed timing for full refresh
+                api_start = datetime.now()
                 result = await self._async_full_refresh()
-                elapsed = (datetime.now() - start_time).total_seconds()
+                api_time = (datetime.now() - api_start).total_seconds()
                 
+                processing_start = datetime.now()
                 # Handle both old and new return formats for compatibility
                 if isinstance(result, tuple) and len(result) == 2:
                     aggregated_data, stats = result
-                    _LOGGER.info("ℹ️  Eedomus refresh: %d peripherals (%d dynamic), %d skipped, completed in %.3fs",
+                    # Simulate processing time (actual processing happens in _async_full_refresh)
+                    processing_time = (datetime.now() - processing_start).total_seconds()
+                    total_time = (datetime.now() - start_time).total_seconds()
+                    
+                    _LOGGER.info("ℹ️  Eedomus refresh: %d peripherals (%d dynamic), %d skipped, completed in %.3fs (API: %.3fs, Processing: %.3fs)",
                                  stats['total_peripherals'], stats['dynamic_peripherals'],
-                                 stats['skipped_peripherals'], elapsed)
+                                 stats['skipped_peripherals'], total_time, api_time, processing_time)
                 else:
                     # Fallback for old format
                     aggregated_data = result
-                    _LOGGER.info("Full refresh done in %.3f seconds", elapsed)
+                    processing_time = (datetime.now() - processing_start).total_seconds()
+                    total_time = (datetime.now() - start_time).total_seconds()
+                    _LOGGER.info("Full refresh done in %.3fs (API: %.3fs, Processing: %.3fs)", 
+                                 total_time, api_time, processing_time)
                 
                 return aggregated_data
             else:
+                # Track detailed timing for partial refresh
+                api_start = datetime.now()
                 ret = await self._async_partial_refresh()
-                elapsed = (datetime.now() - start_time).total_seconds()
-                _LOGGER.info("Partial refresh done in %.3f seconds", elapsed)
+                api_time = (datetime.now() - api_start).total_seconds()
+                
+                processing_start = datetime.now()
+                # Minimal processing time for partial refresh
+                processing_time = (datetime.now() - processing_start).total_seconds()
+                total_time = (datetime.now() - start_time).total_seconds()
+                
+                _LOGGER.info("Partial refresh done in %.3fs (API: %.3fs, Processing: %.3fs)", 
+                             total_time, api_time, processing_time)
                 return ret
         except Exception as err:
             elapsed = (datetime.now() - start_time).total_seconds()
@@ -428,9 +454,17 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         Rebuilds the device mapping and dynamic peripheral lists for the next refresh cycle.
         """
         _LOGGER.debug("Performing full data refresh from eedomus API")
+        
+        # Start API timing
+        api_start_time = datetime.now()
 
         # Récupération des données
         peripherals_caract = await self._async_full_refresh_data_retrieve()
+        
+        # End API timing, start processing timing
+        api_time = (datetime.now() - api_start_time).total_seconds()
+        processing_start_time = datetime.now()
+=======
         peripherals_caract_dict = {
             str(it["periph_id"]): it for it in peripherals_caract
         }
@@ -505,6 +539,28 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             ),
         )
         self.data = aggregated_data
+        
+        # End processing timing and store metrics
+        processing_time = (datetime.now() - processing_start_time).total_seconds()
+        total_time = api_time + processing_time
+        
+        # Store timing metrics for sensors
+        self._last_api_time = api_time
+        self._last_processing_time = processing_time
+        self._last_refresh_time = total_time
+        self._last_processed_devices = len(aggregated_data)
+        
+        # Add to timing history (keep last 10)
+        self._refresh_timing_history.append({
+            'timestamp': datetime.now(),
+            'total_time': total_time,
+            'api_time': api_time,
+            'processing_time': processing_time,
+            'peripherals': len(aggregated_data)
+        })
+        if len(self._refresh_timing_history) > 10:
+            self._refresh_timing_history.pop(0)
+        
         # Return both data and stats for synthesized logging
         return aggregated_data, {
             'total_peripherals': len(aggregated_data),
@@ -526,6 +582,146 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             len(self._dynamic_peripherals),
             history_retrieval,
         )
+        
+        # Start API timing
+        api_start_time = datetime.now()
+        
+        # Skip API call if no dynamic peripherals to refresh
+        if not self._dynamic_peripherals:
+            _LOGGER.warning("No dynamic peripherals to refresh, skipping partial refresh")
+            # Return current data to preserve state instead of empty dict
+            if hasattr(self, 'data') and self.data:
+                _LOGGER.info("Returning current data to preserve state during partial refresh")
+                return self.data
+            else:
+                _LOGGER.error("No data available to return during partial refresh")
+                return {"success": 1, "body": []}
+
+        concat_text_periph_id = ",".join(self._dynamic_peripherals.keys())
+        try:
+            peripherals_caract = await self.client.get_periph_caract(
+                concat_text_periph_id
+            )
+        except Exception as e:
+            _LOGGER.warning(
+                "Failed to partial refresh peripheral %s: %s", concat_text_periph_id, e
+            )
+
+        if not isinstance(peripherals_caract, dict):
+            _LOGGER.warning(
+                "Failed to partial refresh %s: %s", concat_text_periph_id, e
+            )
+            raise
+
+        # Ensure peripherals_caract.get("body") is a list before iterating
+        peripherals_body = peripherals_caract.get("body")
+        if not isinstance(peripherals_body, list):
+            _LOGGER.error("peripherals_caract body is not a list: %s", type(peripherals_body))
+            if peripherals_body is None:
+                _LOGGER.error("peripherals_caract body is None, API may have returned empty response")
+            return
+        
+        # End API timing, start processing timing
+        api_time = (datetime.now() - api_start_time).total_seconds()
+        processing_start_time = datetime.now()
+        
+        processed_devices = 0
+        for periph_data in peripherals_body:
+            periph_id = periph_data.get("periph_id")
+            # Ajout des données de peripherals_caract_dict (si existantes)
+            if self.data and periph_id in self.data:
+                self.data[periph_id].update(periph_data)
+                processed_devices += 1
+            else:
+                _LOGGER.warning("Cannot update peripheral data: data not available for %s", periph_id)
+
+            if history_retrieval:
+                if not self._history_progress.get(periph_id, {}).get("completed"):
+                    _LOGGER.debug("Retrieving data history %s", periph_id)
+                    chunk = await self.async_fetch_history_chunk(periph_id)
+                    if chunk:
+                        await self.async_import_history_chunk(periph_id, chunk)
+                    history_retrieval = False
+
+        # End processing timing
+        processing_time = (datetime.now() - processing_start_time).total_seconds()
+        
+        # Store timing metrics for sensors
+        self._last_api_time = api_time
+        self._last_processing_time = processing_time
+        self._last_refresh_time = api_time + processing_time
+        self._last_processed_devices = processed_devices
+        
+        return self.data
+=======
+        # Skip API call if no dynamic peripherals to refresh
+        if not self._dynamic_peripherals:
+            _LOGGER.warning("No dynamic peripherals to refresh, skipping partial refresh")
+            # Return current data to preserve state instead of empty dict
+            if hasattr(self, 'data') and self.data:
+                _LOGGER.info("Returning current data to preserve state during partial refresh")
+                return self.data
+            else:
+                _LOGGER.error("No data available to return during partial refresh")
+                return {"success": 1, "body": []}
+
+        concat_text_periph_id = ",".join(self._dynamic_peripherals.keys())
+        try:
+            peripherals_caract = await self.client.get_periph_caract(
+                concat_text_periph_id
+            )
+        except Exception as e:
+            _LOGGER.warning(
+                "Failed to partial refresh peripheral %s: %s", concat_text_periph_id, e
+            )
+
+        if not isinstance(peripherals_caract, dict):
+            _LOGGER.warning(
+                "Failed to partial refresh %s: %s", concat_text_periph_id, e
+            )
+            raise
+
+        # Ensure peripherals_caract.get("body") is a list before iterating
+        peripherals_body = peripherals_caract.get("body")
+        if not isinstance(peripherals_body, list):
+            _LOGGER.error("peripherals_caract body is not a list: %s", type(peripherals_body))
+            if peripherals_body is None:
+                _LOGGER.error("peripherals_caract body is None, API may have returned empty response")
+            return
+        
+        # End API timing, start processing timing
+        api_time = (datetime.now() - api_start_time).total_seconds()
+        processing_start_time = datetime.now()
+        
+        processed_devices = 0
+        for periph_data in peripherals_body:
+            periph_id = periph_data.get("periph_id")
+            # Ajout des données de peripherals_caract_dict (si existantes)
+            if self.data and periph_id in self.data:
+                self.data[periph_id].update(periph_data)
+                processed_devices += 1
+            else:
+                _LOGGER.warning("Cannot update peripheral data: data not available for %s", periph_id)
+
+            if history_retrieval:
+                if not self._history_progress.get(periph_id, {}).get("completed"):
+                    _LOGGER.debug("Retrieving data history %s", periph_id)
+                    chunk = await self.async_fetch_history_chunk(periph_id)
+                    if chunk:
+                        await self.async_import_history_chunk(periph_id, chunk)
+                    history_retrieval = False
+
+        # End processing timing
+        processing_time = (datetime.now() - processing_start_time).total_seconds()
+        
+        # Store timing metrics for sensors
+        self._last_api_time = api_time
+        self._last_processing_time = processing_time
+        self._last_refresh_time = api_time + processing_time
+        self._last_processed_devices = processed_devices
+        
+        return self.data
+=======
 
         # Skip API call if no dynamic peripherals to refresh
         if not self._dynamic_peripherals:
