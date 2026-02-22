@@ -154,6 +154,11 @@ async def async_setup_entry(
                     battery_level,
                 )
 
+    # Add timing sensors if they exist in the coordinator
+    if hasattr(coordinator, '_timing_sensors') and coordinator._timing_sensors:
+        entities.extend(coordinator._timing_sensors)
+        _LOGGER.info("📊 Added %d refresh timing sensors", len(coordinator._timing_sensors))
+    
     async_add_entities(entities)
 
 

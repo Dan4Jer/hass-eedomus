@@ -192,13 +192,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         device_registry = async_get_device_registry(hass)
         timing_sensors = await async_setup_refresh_timing_sensors(hass, coordinator, device_registry)
         
-        # Register the timing sensors with Home Assistant
+        # Note: Timing sensors will be registered with other sensors via PLATFORMS
+        # No need for separate registration to avoid double setup
         if timing_sensors:
-            try:
-                await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
-                _LOGGER.info("✅ Refresh timing sensors registered successfully")
-            except Exception as e:
-                _LOGGER.error("❌ Failed to setup refresh timing sensors: %s", e)
+            _LOGGER.info("✅ Refresh timing sensors ready (will be registered with other sensors)")
+            # Store timing sensors in coordinator for access by sensor setup
+            if coordinator:
+                coordinator._timing_sensors = timing_sensors
     except Exception as err:
         _LOGGER.error("Failed to setup refresh timing sensors: %s", err)
 
