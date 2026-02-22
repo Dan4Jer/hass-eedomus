@@ -453,13 +453,36 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         Updates all peripheral data by fetching current characteristics from the API.
         Rebuilds the device mapping and dynamic peripheral lists for the next refresh cycle.
         """
+        peripherals_caract_dict = {
+            str(it["periph_id"]): it for it in peripherals_caract
+        }
+
+        # Initialisation du dictionnaire agrégé
+=======
+        # Récupération des données
+        peripherals_caract = await self._async_full_refresh_data_retrieve()
+        
+        # End API timing, start processing timing
+        api_time = (datetime.now() - api_start_time).total_seconds()
+        processing_start_time = datetime.now()
+=======
         _LOGGER.debug("Performing full data refresh from eedomus API")
         
         # Start API timing
         api_start_time = datetime.now()
 
+        # Récupération des données
+        peripherals_caract = await self._async_full_refresh_data_retrieve()
+        
+        # End API timing, start processing timing
+        api_time = (datetime.now() - api_start_time).total_seconds()
         processing_start_time = datetime.now()
+        
         peripherals_caract_dict = {
+            str(it["periph_id"]): it for it in peripherals_caract
+        }
+
+        # Initialisation du dictionnaire agrégé
 =======
         peripherals_caract_dict = {
             str(it["periph_id"]): it for it in peripherals_caract
