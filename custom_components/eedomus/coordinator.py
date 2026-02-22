@@ -736,6 +736,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                         self.data[periph_id]["name"],
                         periph_id,
                     )
+                    # Return success response when PHP fallback succeeds
+                    return {"success": 1, "fallback_used": True}
                 else:
                     _LOGGER.warning(
                         "⚠️ PHP fallback failed for %s (%s): %s",
@@ -755,6 +757,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     await self.client.set_periph_value(
                         periph_id, next_value.get("value")
                     )
+                    # Return success response when next best value is used
+                    return {"success": 1, "fallback_used": True, "value_used": next_value.get("value")}
             else:
                 # Try next best value if PHP fallback is not enabled
                 next_value = self.next_best_value(periph_id, value)
@@ -789,6 +793,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             # Immediately update local state to reflect the change
             # This ensures UI updates instantly without waiting for coordinator refresh
             self.data[periph_id]["last_value"] = value
+            return ret
 
         # except Exception as e:
         #    _LOGGER.error(
