@@ -194,14 +194,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         
         # Register the timing sensors with Home Assistant
         if timing_sensors:
-            for sensor in timing_sensors:
-                hass.async_create_task(
-                    hass.config_entries.async_forward_entry_setup(
-                        entry, 
-                        "sensor"
-                    )
-                )
-            _LOGGER.info("✅ Refresh timing sensors registered successfully")
+            try:
+                await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
+                _LOGGER.info("✅ Refresh timing sensors registered successfully")
+            except Exception as e:
+                _LOGGER.error("❌ Failed to setup refresh timing sensors: %s", e)
     except Exception as err:
         _LOGGER.error("Failed to setup refresh timing sensors: %s", err)
 

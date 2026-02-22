@@ -188,20 +188,31 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 # Handle both old and new return formats for compatibility
                 if isinstance(result, tuple) and len(result) == 2:
                     aggregated_data, stats = result
-                    # Simulate processing time (actual processing happens in _async_full_refresh)
                     processing_time = (datetime.now() - processing_start).total_seconds()
                     total_time = (datetime.now() - start_time).total_seconds()
                     
-                    _LOGGER.info("ℹ️  Eedomus refresh: %d peripherals (%d dynamic), %d skipped, completed in %.3fs (API: %.3fs, Processing: %.3fs)",
-                                 stats['total_peripherals'], stats['dynamic_peripherals'],
-                                 stats['skipped_peripherals'], total_time, api_time, processing_time)
+                    # Store timing metrics for sensors
+                    self._last_api_time = api_time
+                    self._last_processing_time = processing_time
+                    self._last_refresh_time = total_time
+                    self._last_processed_devices = stats['total_peripherals']
+                    
+                    _LOGGER.info("🔄 FULL REFRESH: %d total, %d dynamic, %.3fs total (API: %.3fs, Processing: %.3fs)",
+                                 stats['total_peripherals'], stats['dynamic_peripherals'], total_time, api_time, processing_time)
                 else:
                     # Fallback for old format
                     aggregated_data = result
                     processing_time = (datetime.now() - processing_start).total_seconds()
                     total_time = (datetime.now() - start_time).total_seconds()
-                    _LOGGER.info("Full refresh done in %.3fs (API: %.3fs, Processing: %.3fs)", 
-                                 total_time, api_time, processing_time)
+                    
+                    # Store timing metrics for sensors
+                    self._last_api_time = api_time
+                    self._last_processing_time = processing_time
+                    self._last_refresh_time = total_time
+                    self._last_processed_devices = len(aggregated_data) if isinstance(aggregated_data, dict) else 0
+                    
+                    _LOGGER.info("🔄 FULL REFRESH: %d total, %.3fs total (API: %.3fs, Processing: %.3fs)",
+                                 len(aggregated_data), total_time, api_time, processing_time)
                 
                 return aggregated_data
             else:
@@ -215,8 +226,15 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 processing_time = (datetime.now() - processing_start).total_seconds()
                 total_time = (datetime.now() - start_time).total_seconds()
                 
-                _LOGGER.info("Partial refresh done in %.3fs (API: %.3fs, Processing: %.3fs)", 
-                             total_time, api_time, processing_time)
+                # Store timing metrics for sensors
+                self._last_api_time = api_time
+                self._last_processing_time = processing_time
+                self._last_refresh_time = total_time
+                # For partial refresh, processed devices is the number of dynamic peripherals
+                self._last_processed_devices = len(self._dynamic_peripherals) if hasattr(self, '_dynamic_peripherals') else 0
+                
+                _LOGGER.info("🔄 PARTIAL REFRESH: %d dynamic, %.3fs total (API: %.3fs, Processing: %.3fs)", 
+                             len(self._dynamic_peripherals), total_time, api_time, processing_time)
                 return ret
         except Exception as err:
             elapsed = (datetime.now() - start_time).total_seconds()
