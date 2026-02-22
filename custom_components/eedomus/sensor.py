@@ -163,10 +163,14 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-def is_system_sensor(periph):
+def is_system_sensor(periph, mapping=None):
     """Check if a peripheral is a system sensor that should be attached to eedomus box."""
     periph_id = periph.get("periph_id")  # Correction: periph_id au lieu de usage_id
     name = periph.get("name", "").lower()
+    
+    # First check if mapping explicitly marks this as internal box sensor
+    if mapping and mapping.get("internal_box_eedomus", False):
+        return True
     
     # System sensors by periph_id (d'après les logs)
     system_periph_ids = {"1061603", "1061604", "1061606"}  # CPU, Espace libre, Messages
@@ -178,7 +182,7 @@ def is_system_sensor(periph):
     # Check by name patterns
     if "box" in name or "eedomus" in name:
         return True
-    
+        
     return False
 
 
@@ -200,7 +204,13 @@ class EedomusSensor(EedomusEntity, SensorEntity):
         )
 
         # Check if this is a system sensor and should be attached to eedomus box
-        if is_system_sensor(self._get_periph_data()):
+        # Get the mapping for this device to check internal_box_eedomus parameter
+        from .entity import map_device_to_ha_entity
+        periph_data = self._get_periph_data()
+        all_devices = self.coordinator._all_peripherals if hasattr(self.coordinator, '_all_peripherals') else {}
+        device_mapping = map_device_to_ha_entity(periph_data, all_devices) if periph_data else {}
+        
+        if is_system_sensor(periph_data, device_mapping):
             self._attr_device_info = DeviceInfo(
                 identifiers={(DOMAIN, "eedomus_box_main")},
                 name="Box eedomus",

@@ -120,6 +120,7 @@ usage_id_mappings:
     ha_subtype: "cpu"
     justification: "CPU usage monitor - eedomus internal system monitoring"
     is_dynamic: false
+    internal_box_eedomus: true
   
   "24":
     ha_entity: "sensor"
