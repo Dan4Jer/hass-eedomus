@@ -165,14 +165,14 @@ async def async_setup_entry(
 
 def is_system_sensor(periph):
     """Check if a peripheral is a system sensor that should be attached to eedomus box."""
-    usage_id = periph.get("usage_id")
+    periph_id = periph.get("periph_id")  # Correction: periph_id au lieu de usage_id
     name = periph.get("name", "").lower()
     
-    # System sensors by usage_id
-    system_usage_ids = {"1061603", "1061604", "1061606"}  # CPU, Espace libre, Messages
+    # System sensors by periph_id (d'après les logs)
+    system_periph_ids = {"1061603", "1061604", "1061606"}  # CPU, Espace libre, Messages
     
-    # Check by usage_id
-    if usage_id in system_usage_ids:
+    # Check by periph_id
+    if periph_id in system_periph_ids:
         return True
     
     # Check by name patterns

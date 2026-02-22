@@ -1,7 +1,12 @@
-# Custom device mapping configuration
-# Specific mappings by periph_id for exceptional cases
-custom_device_mappings:
-  - periph_id: "1061603"
+# Custom device mapping configuration in new dict format
+# This format supports dynamic entity properties and advanced rules
+
+# Custom advanced rules (empty by default)
+custom_rules: []
+
+# Custom usage ID mappings (old custom_device_mappings converted to new format)
+custom_usage_id_mappings:
+  "1061603":
     ha_entity: "sensor"
     ha_subtype: "usage"
     justification: "CPU Box - Specific mapping"
@@ -13,8 +18,8 @@ custom_device_mappings:
       manufacturer: "Eedomus"
       model: "Eedomus Box"
       sw_version: "Unknown"
-
-  - periph_id: "1061604"
+  
+  "1061604":
     ha_entity: "sensor"
     ha_subtype: "usage"
     justification: "Espace libre Box - Specific mapping"
@@ -26,8 +31,8 @@ custom_device_mappings:
       manufacturer: "Eedomus"
       model: "Eedomus Box"
       sw_version: "Unknown"
-
-  - periph_id: "1061606"
+  
+  "1061606":
     ha_entity: "sensor"
     ha_subtype: "usage"
     justification: "Messages Box - Specific mapping"
@@ -39,3 +44,12 @@ custom_device_mappings:
       manufacturer: "Eedomus"
       model: "Eedomus Box"
       sw_version: "Unknown"
+
+# Custom dynamic entity properties (empty by default)
+custom_dynamic_entity_properties: {}
+
+# Custom specific device dynamic overrides (empty by default)
+custom_specific_device_dynamic_overrides: {}
+
+# Custom name patterns (empty by default)
+custom_name_patterns: []

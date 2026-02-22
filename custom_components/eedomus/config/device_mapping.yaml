@@ -1,7 +1,12 @@
-# Device mapping configuration
-# Generic system sensors mapping by usage_id
-device_mappings:
-  - usage_id: "23"
+# Device mapping configuration in new dict format
+# This format supports dynamic entity properties and advanced rules
+
+# Advanced rules for device mapping
+advanced_rules: []
+
+# Usage ID mappings (old device_mappings converted to new format)
+usage_id_mappings:
+  "23":
     ha_entity: "sensor"
     ha_subtype: "usage"
     justification: "System sensor - Box monitoring"
@@ -13,3 +18,18 @@ device_mappings:
       manufacturer: "Eedomus"
       model: "Eedomus Box"
       sw_version: "Unknown"
+
+# Dynamic entity properties - which entity types support partial refresh
+dynamic_entity_properties:
+  sensor: true
+  light: true
+  switch: true
+  cover: true
+  binary_sensor: true
+  climate: true
+
+# Specific device dynamic overrides (empty by default)
+specific_device_dynamic_overrides: {}
+
+# Name patterns for device matching (empty by default)
+name_patterns: []
