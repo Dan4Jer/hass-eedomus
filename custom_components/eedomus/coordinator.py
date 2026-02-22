@@ -55,6 +55,22 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         self._last_refresh_time = 0.0
         self._last_processed_devices = 0
         self._refresh_timing_history = []  # Store last 10 refresh times for analysis
+        
+        # Endpoint-specific timing metrics
+        self._endpoint_timings = {
+            'get_periph_list': 0.0,
+            'get_periph_value_list': 0.0,
+            'get_periph_caract': 0.0,
+            'set_periph_value': 0.0,
+            'partial_refresh': 0.0
+        }
+        self._endpoint_call_counts = {
+            'get_periph_list': 0,
+            'get_periph_value_list': 0,
+            'get_periph_caract': 0,
+            'set_periph_value': 0,
+            'partial_refresh': 0
+        }
 
     async def async_config_entry_first_refresh(self):
         """Effectue le premier rafraîchissement des données et charge la progression de l'historique.
@@ -267,9 +283,28 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_full_data_retreive(self):
         """Retrieve full data including peripherals list, value list, and characteristics."""
+        from datetime import datetime
+        
+        # Track timing for each endpoint
+        start_time = datetime.now()
         peripherals_response = await self.client.get_periph_list()
+        self._endpoint_timings['get_periph_list'] = (datetime.now() - start_time).total_seconds()
+        self._endpoint_call_counts['get_periph_list'] += 1
+        
+        start_time = datetime.now()
         peripherals_value_list_response = await self.client.get_periph_value_list("all")
+        self._endpoint_timings['get_periph_value_list'] = (datetime.now() - start_time).total_seconds()
+        self._endpoint_call_counts['get_periph_value_list'] += 1
+        
+        start_time = datetime.now()
         peripherals_caract_response = await self.client.get_periph_caract("all", True)
+        self._endpoint_timings['get_periph_caract'] = (datetime.now() - start_time).total_seconds()
+        self._endpoint_call_counts['get_periph_caract'] += 1
+        
+        _LOGGER.debug("📊 Endpoint timings - get_periph_list: %.3fs, get_periph_value_list: %.3fs, get_periph_caract: %.3fs",
+                     self._endpoint_timings['get_periph_list'],
+                     self._endpoint_timings['get_periph_value_list'],
+                     self._endpoint_timings['get_periph_caract'])
         # _LOGGER.debug("Raw API response: %s", peripherals_response)
         if (
             not isinstance(peripherals_response, dict)
@@ -433,9 +468,15 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
         concat_text_periph_id = ",".join(self._dynamic_peripherals.keys())
         try:
+            # Track timing for partial refresh endpoint
+            api_start_time = datetime.now()
             peripherals_caract = await self.client.get_periph_caract(
                 concat_text_periph_id
             )
+            self._endpoint_timings['partial_refresh'] = (datetime.now() - api_start_time).total_seconds()
+            self._endpoint_call_counts['partial_refresh'] += 1
+            
+            _LOGGER.debug("📊 Partial refresh endpoint timing: %.3fs", self._endpoint_timings['partial_refresh'])
         except Exception as e:
             _LOGGER.warning(
                 "Failed to partial refresh peripheral %s: %s", concat_text_periph_id, e

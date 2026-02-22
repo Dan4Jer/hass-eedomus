@@ -178,6 +178,66 @@ class EedomusProcessedDevicesSensor(EedomusRefreshTimingSensor):
         })
         return attrs
 
+
+class EedomusEndpointTimingSensor(EedomusRefreshTimingSensor):
+    """Base class for endpoint-specific timing sensors."""
+
+    def __init__(self, coordinator, endpoint_name: str, icon: str):
+        """Initialize the endpoint timing sensor."""
+        super().__init__(coordinator, f"{endpoint_name} Time", "s", icon)
+        self._endpoint_name = endpoint_name
+
+    @property
+    def native_value(self):
+        """Return the current timing for this endpoint."""
+        if hasattr(self.coordinator, '_endpoint_timings'):
+            return round(self.coordinator._endpoint_timings.get(self._endpoint_name, 0.0), 3)
+        return 0.0
+
+    @property
+    def extra_state_attributes(self):
+        """Return additional state attributes."""
+        attrs = super().extra_state_attributes
+        attrs.update({
+            "description": f"Time spent on {self._endpoint_name} API endpoint",
+            "endpoint": self._endpoint_name,
+            "unit": "seconds",
+            "call_count": self.coordinator._endpoint_call_counts.get(self._endpoint_name, 0) if hasattr(self.coordinator, '_endpoint_call_counts') else 0
+        })
+        return attrs
+
+
+class EedomusGetPeriphListSensor(EedomusEndpointTimingSensor):
+    """Sensor for tracking get_periph_list endpoint timing."""
+
+    def __init__(self, coordinator):
+        """Initialize the get_periph_list timing sensor."""
+        super().__init__(coordinator, "get_periph_list", "mdi:format-list-bulleted")
+
+
+class EedomusGetPeriphValueListSensor(EedomusEndpointTimingSensor):
+    """Sensor for tracking get_periph_value_list endpoint timing."""
+
+    def __init__(self, coordinator):
+        """Initialize the get_periph_value_list timing sensor."""
+        super().__init__(coordinator, "get_periph_value_list", "mdi:format-list-text")
+
+
+class EedomusGetPeriphCaractSensor(EedomusEndpointTimingSensor):
+    """Sensor for tracking get_periph_caract endpoint timing."""
+
+    def __init__(self, coordinator):
+        """Initialize the get_periph_caract timing sensor."""
+        super().__init__(coordinator, "get_periph_caract", "mdi:cog")
+
+
+class EedomusPartialRefreshSensor(EedomusEndpointTimingSensor):
+    """Sensor for tracking partial refresh endpoint timing."""
+
+    def __init__(self, coordinator):
+        """Initialize the partial refresh timing sensor."""
+        super().__init__(coordinator, "partial_refresh", "mdi:refresh")
+
 async def async_setup_refresh_timing_sensors(hass: HomeAssistant, coordinator, device_registry):
     """Set up refresh timing sensors and attach them to the eedomus box device."""
     
@@ -206,6 +266,11 @@ async def async_setup_refresh_timing_sensors(hass: HomeAssistant, coordinator, d
         EedomusProcessingTimeSensor(coordinator),
         EedomusTotalRefreshTimeSensor(coordinator),
         EedomusProcessedDevicesSensor(coordinator),
+        # Endpoint-specific sensors
+        EedomusGetPeriphListSensor(coordinator),
+        EedomusGetPeriphValueListSensor(coordinator),
+        EedomusGetPeriphCaractSensor(coordinator),
+        EedomusPartialRefreshSensor(coordinator),
     ]
 
     # Register sensors
