@@ -12,10 +12,31 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.helpers.device_registry import async_get as async_get_device_registry
 
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
+
+async def async_get_eedomus_box_device(hass: HomeAssistant, coordinator) -> DeviceInfo:
+    """Get or create the eedomus box device info."""
+    device_registry = async_get_device_registry(hass)
+    box_device = device_registry.async_get_or_create(
+        config_entry_id=coordinator.config_entry.entry_id,
+        identifiers={(DOMAIN, "eedomus_box_main")},
+        name="Box eedomus",
+        manufacturer="Eedomus",
+        model="Eedomus Box",
+        sw_version="Unknown",
+    )
+    
+    return DeviceInfo(
+        identifiers={(DOMAIN, "eedomus_box_main")},
+        name="Box eedomus",
+        manufacturer="Eedomus",
+        model="Eedomus Box",
+        sw_version="Unknown",
+    )
 
 class EedomusRefreshTimingSensor(CoordinatorEntity, SensorEntity):
     """Base class for refresh timing sensors."""
@@ -31,6 +52,15 @@ class EedomusRefreshTimingSensor(CoordinatorEntity, SensorEntity):
         from homeassistant.const import EntityCategory
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_has_entity_name = True
+        
+        # Set device info to attach to eedomus box
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, "eedomus_box_main")},
+            name="Box eedomus",
+            manufacturer="Eedomus",
+            model="Eedomus Box",
+            sw_version="Unknown",
+        )
 
     @property
     def name(self) -> str:

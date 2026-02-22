@@ -162,6 +162,25 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
+def is_system_sensor(periph):
+    """Check if a peripheral is a system sensor that should be attached to eedomus box."""
+    usage_id = periph.get("usage_id")
+    name = periph.get("name", "").lower()
+    
+    # System sensors by usage_id
+    system_usage_ids = {"1061603", "1061604", "1061606"}  # CPU, Espace libre, Messages
+    
+    # Check by usage_id
+    if usage_id in system_usage_ids:
+        return True
+    
+    # Check by name patterns
+    if "box" in name or "eedomus" in name:
+        return True
+    
+    return False
+
+
 class EedomusSensor(EedomusEntity, SensorEntity):
     """Representation of an eedomus sensor."""
 
@@ -178,6 +197,17 @@ class EedomusSensor(EedomusEntity, SensorEntity):
             periph_info.get("name", "unknown"),
             periph_id,
         )
+
+        # Check if this is a system sensor and should be attached to eedomus box
+        if is_system_sensor(self._get_periph_data()):
+            self._attr_device_info = DeviceInfo(
+                identifiers={(DOMAIN, "eedomus_box_main")},
+                name="Box eedomus",
+                manufacturer="Eedomus",
+                model="Eedomus Box",
+                sw_version="Unknown",
+            )
+            _LOGGER.info("🔗 Attached system sensor %s to Box eedomus", periph_info.get("name", "unknown"))
 
         # Set sensor-specific attributes based on ha_subtype
         periph_type = periph_info.get("ha_subtype")
