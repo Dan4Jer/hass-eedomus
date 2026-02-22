@@ -28,7 +28,8 @@ class EedomusRefreshTimingSensor(CoordinatorEntity, SensorEntity):
         self._attr_icon = icon
         self._attr_device_class = SensorDeviceClass.DURATION
         self._attr_state_class = SensorStateClass.MEASUREMENT
-        self._attr_entity_category = "diagnostic"
+        from homeassistant.const import EntityCategory
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_has_entity_name = True
 
     @property
