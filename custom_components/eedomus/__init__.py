@@ -185,6 +185,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         except Exception as err:
             _LOGGER.error("Failed to setup history sensors: %s", err)
 
+    # Always setup refresh timing sensors (they're lightweight and useful for monitoring)
+    try:
+        from .refresh_timing_sensor import async_setup_refresh_timing_sensors
+        from homeassistant.helpers.device_registry import async_get as async_get_device_registry
+        device_registry = async_get_device_registry(hass)
+        timing_sensors = await async_setup_refresh_timing_sensors(hass, coordinator, device_registry)
+        
+        # Register the timing sensors with Home Assistant
+        if timing_sensors:
+            for sensor in timing_sensors:
+                hass.async_create_task(
+                    hass.config_entries.async_forward_entry_setup(
+                        entry, 
+                        "sensor"
+                    )
+                )
+            _LOGGER.info("✅ Refresh timing sensors registered successfully")
+    except Exception as err:
+        _LOGGER.error("Failed to setup refresh timing sensors: %s", err)
+
 
     # Stockage sécurisé
     if DOMAIN not in hass.data:
