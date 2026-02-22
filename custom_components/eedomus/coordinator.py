@@ -143,7 +143,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 self._dynamic_peripherals[periph_id] = periph_data
                 dynamic += 1
 
-        _LOGGER.info("📊 Device processing summary: %d total peripherals, %d dynamic, %d skipped", len(aggregated_data), dynamic, skipped)
+        _LOGGER.info("📊 Device processing summary: %d total peripherals, %d dynamic, %d skipped, %d processed", len(aggregated_data), dynamic, skipped, len(aggregated_data))
 
         _LOGGER.debug(
             "Initial Mapping Table %s",
@@ -306,12 +306,12 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         if not isinstance(peripherals_caract, list):
             _LOGGER.error("Invalid peripherals list: %s", peripherals_caract)
             peripherals_caract = []
-        _LOGGER.info("Found %d peripherals characteristics in total", len(peripherals_caract))
+        _LOGGER.debug("Found %d peripherals characteristics in total", len(peripherals_caract))
         return peripherals_caract
 
     async def _async_full_refresh(self):
         """Perform a complete refresh of all peripherals."""
-        _LOGGER.info("Performing full data refresh from eedomus API")
+        _LOGGER.debug("Performing full data refresh from eedomus API")
 
         # Récupération des données
         peripherals_caract = await self._async_full_refresh_data_retreive()
@@ -336,7 +336,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
 
         # Logs des tailles
-        _LOGGER.info(
+        _LOGGER.debug(
             "Data refresh summary - caract: %d, total: %d",
             len(peripherals_caract_dict),
             len(aggregated_data),
@@ -367,7 +367,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 self._dynamic_peripherals[periph_id] = periph_data
                 dynamic += 1
 
-        _LOGGER.info("📊 Device processing summary: %d total peripherals, %d dynamic, %d skipped", len(aggregated_data), dynamic, skipped)
+        _LOGGER.info("📊 Device processing summary: %d total peripherals, %d dynamic, %d skipped, %d processed", len(aggregated_data), dynamic, skipped, len(aggregated_data))
 
         _LOGGER.debug(
             "Mapping Table %s",
