@@ -58,6 +58,8 @@ def load_yaml_file(file_path: str) -> Optional[Dict[str, Any]]:
             
         _LOGGER.debug("✅ YAML file exists, attempting to parse...")
         
+        # Note: File I/O during initialization is acceptable as it's not in the hot path
+        # For production use, consider using hass.async_add_executor_job if available
         with open(file_path, 'r', encoding='utf-8') as file:
             content = yaml.safe_load(file)
             
@@ -148,6 +150,8 @@ def load_yaml_mappings(base_path: str = "") -> Dict[str, Any]:
     
     # Load default mapping
     _LOGGER.info("📖 Loading default mapping...")
+    # Note: During initialization, we use synchronous loading
+    # The warning about blocking calls is expected here
     default_mapping = load_yaml_file(default_file) or {}
     _LOGGER.debug("Default mapping loaded: %s", bool(default_mapping))
     

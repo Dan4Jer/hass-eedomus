@@ -71,6 +71,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             'set_periph_value': 0,
             'partial_refresh': 0
         }
+        self._yaml_config_cache = None  # Cache for YAML configuration
 
     async def async_config_entry_first_refresh(self):
         """Effectue le premier rafraîchissement des données et charge la progression de l'historique.
@@ -294,6 +295,26 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.error("Invalid peripherals list: %s", peripherals_caract)
             peripherals_caract = []
         return peripherals_caract
+
+    async def _load_yaml_config_async(self):
+        """Load YAML configuration asynchronously using executor job."""
+        if self._yaml_config_cache is not None:
+            return self._yaml_config_cache
+        
+        try:
+            # Use executor job to avoid blocking the event loop
+            def _load_yaml_sync():
+                from .device_mapping import load_yaml_mappings
+                return load_yaml_mappings()
+            
+            self._yaml_config_cache = await self.hass.async_add_executor_job(_load_yaml_sync)
+            return self._yaml_config_cache
+        except Exception as e:
+            _LOGGER.error("❌ Failed to load YAML config asynchronously: %s", e)
+            # Fallback to direct loading if executor fails
+            from .device_mapping import load_yaml_mappings
+            self._yaml_config_cache = load_yaml_mappings()
+            return self._yaml_config_cache
 
     async def _async_full_data_retreive(self):
         """Retrieve full data including peripherals list, value list, and characteristics."""
