@@ -80,6 +80,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         Loads historical progress data and retrieves full device information from the eedomus API.
         """
 
+        # Pre-load YAML configuration asynchronously to cache it for later synchronous access
+        await self._load_yaml_config_async()
+        
         await self._load_history_progress()
         
         # Perform initial full data retrieval including peripherals list and value list
@@ -348,6 +351,20 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             from .device_mapping import load_yaml_mappings
             self._yaml_config_cache = load_yaml_mappings()
             return self._yaml_config_cache
+
+    def get_yaml_config_sync(self):
+        """Get cached YAML configuration synchronously.
+        
+        This method provides synchronous access to the YAML config cache
+        for use in synchronous contexts like map_device_to_ha_entity().
+        If the config hasn't been loaded yet, it falls back to synchronous loading.
+        """
+        if self._yaml_config_cache is not None:
+            return self._yaml_config_cache
+        
+        # Fallback to synchronous loading if not yet cached
+        from .device_mapping import load_yaml_mappings
+        return load_yaml_mappings()
 
     async def _async_full_data_retreive(self):
         """Retrieve full data including peripherals list, value list, and characteristics."""

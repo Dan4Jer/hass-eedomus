@@ -94,10 +94,9 @@ except Exception as e:
 
 # Load name patterns for device name matching
 try:
-    # Try async loading via coordinator if available (during runtime)
-    if 'coordinator' in locals() and hasattr(coordinator, '_load_yaml_config_async'):
-        import asyncio
-        yaml_config = asyncio.run(coordinator._load_yaml_config_async())
+    # Try to get YAML config via coordinator if available (uses cached async-loaded config)
+    if 'coordinator' in locals() and hasattr(coordinator, 'get_yaml_config_sync'):
+        yaml_config = coordinator.get_yaml_config_sync()
     else:
         # Fallback to synchronous loading (during initialization)
         yaml_config = load_yaml_mappings()
@@ -495,10 +494,9 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     
     # Priorité 5: Mapping par défaut (YAML fallback)
     try:
-        # Try async loading via coordinator if available (during runtime)
-        if coordinator is not None and hasattr(coordinator, '_load_yaml_config_async'):
-            import asyncio
-            yaml_config = asyncio.run(coordinator._load_yaml_config_async())
+        # Try to get YAML config via coordinator if available (uses cached async-loaded config)
+        if coordinator is not None and hasattr(coordinator, 'get_yaml_config_sync'):
+            yaml_config = coordinator.get_yaml_config_sync()
         else:
             # Fallback to synchronous loading (during initialization)
             yaml_config = load_yaml_mappings()
