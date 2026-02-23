@@ -420,6 +420,13 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
         # Récupération des données - CORRECTED: now calls full data retrieve with all endpoints
         peripherals_caract = await self._async_full_data_retreive()
+        
+        # DEBUG: Check if endpoint timings were set
+        _LOGGER.info("🔍 DEBUG: Endpoint timings after full data retrieve: list=%.3fs, values=%.3fs, caract=%.3fs",
+                     self._endpoint_timings.get('get_periph_list', 0.0),
+                     self._endpoint_timings.get('get_periph_value_list', 0.0),
+                     self._endpoint_timings.get('get_periph_caract', 0.0))
+        
         peripherals_caract_dict = {
             str(it["periph_id"]): it for it in peripherals_caract
         }
