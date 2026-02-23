@@ -194,6 +194,16 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         ).total_seconds() > self._scan_interval:
             self._full_refresh_needed = True
         self._last_update_start_time = start_time
+        
+        # Reset endpoint timings before each refresh to avoid cumulative errors
+        self._endpoint_timings = {
+            'get_periph_list': 0.0,
+            'get_periph_value_list': 0.0,
+            'get_periph_caract': 0.0,
+            'set_periph_value': 0.0,
+            'partial_refresh': 0.0
+        }
+        
         try:
             if self._full_refresh_needed:
                 # Track detailed timing for full refresh
@@ -208,8 +218,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     processing_time = (datetime.now() - processing_start).total_seconds()
                     total_time = (datetime.now() - start_time).total_seconds()
                     
+                    # Calculate actual API time as sum of all endpoint timings
+                    actual_api_time = sum(self._endpoint_timings.values())
+                    
                     # Store timing metrics for sensors
-                    self._last_api_time = api_time
+                    self._last_api_time = actual_api_time
                     self._last_processing_time = processing_time
                     self._last_refresh_time = total_time
                     self._last_processed_devices = stats['total_peripherals']
@@ -222,28 +235,32 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     endpoint_log = ", ".join(endpoint_details) if endpoint_details else "no endpoints"
                     
                     _LOGGER.info("🔄 FULL REFRESH: %d total, %d dynamic, %.3fs total (API: %.3fs, Processing: %.3fs, Endpoints: %s)",
-                                 stats['total_peripherals'], stats['dynamic_peripherals'], total_time, api_time, processing_time, endpoint_log)
+                                 stats['total_peripherals'], stats['dynamic_peripherals'], total_time, actual_api_time, processing_time, endpoint_log)
                 else:
                     # Fallback for old format
                     aggregated_data = result
                     processing_time = (datetime.now() - processing_start).total_seconds()
                     total_time = (datetime.now() - start_time).total_seconds()
                     
+                    # Calculate actual API time as sum of all endpoint timings
+                    actual_api_time = sum(self._endpoint_timings.values())
+                    
                     # Store timing metrics for sensors
-                    self._last_api_time = api_time
+                    self._last_api_time = actual_api_time
                     self._last_processing_time = processing_time
                     self._last_refresh_time = total_time
                     self._last_processed_devices = len(aggregated_data) if isinstance(aggregated_data, dict) else 0
                     
                     _LOGGER.info("🔄 FULL REFRESH: %d total, %.3fs total (API: %.3fs, Processing: %.3fs)",
-                                 len(aggregated_data), total_time, api_time, processing_time)
+                                 len(aggregated_data), total_time, actual_api_time, processing_time)
                 
                 return aggregated_data
             else:
                 # Track detailed timing for partial refresh
                 api_start = datetime.now()
                 ret = await self._async_partial_refresh()
-                api_time = (datetime.now() - api_start).total_seconds()
+                # Calculate actual API time as sum of relevant endpoint timings for partial refresh
+                actual_api_time = sum(time for endpoint, time in self._endpoint_timings.items() if endpoint in ['partial_refresh', 'set_periph_value'])
                 
                 processing_start = datetime.now()
                 # Minimal processing time for partial refresh
@@ -251,7 +268,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 total_time = (datetime.now() - start_time).total_seconds()
                 
                 # Store timing metrics for sensors
-                self._last_api_time = api_time
+                self._last_api_time = actual_api_time
                 self._last_processing_time = processing_time
                 self._last_refresh_time = total_time
                 # For partial refresh, processed devices is the number of dynamic peripherals
@@ -265,7 +282,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 endpoint_log = ", ".join(endpoint_details) if endpoint_details else "no endpoints"
                 
                 _LOGGER.info("🔄 PARTIAL REFRESH: %d dynamic, %.3fs total (API: %.3fs, Processing: %.3fs, Endpoints: %s)", 
-                             len(self._dynamic_peripherals), total_time, api_time, processing_time, endpoint_log)
+                             len(self._dynamic_peripherals), total_time, actual_api_time, processing_time, endpoint_log)
                 return ret
         except Exception as err:
             elapsed = (datetime.now() - start_time).total_seconds()
