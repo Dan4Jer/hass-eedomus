@@ -162,6 +162,15 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
         _LOGGER.info("📊 Device processing summary: %d total peripherals, %d dynamic, %d skipped, %d processed", len(aggregated_data), dynamic, skipped, len(aggregated_data))
 
+        # Log final timing summary for initial refresh (consistent with other refresh types)
+        endpoint_details = []
+        for endpoint, time in self._endpoint_timings.items():
+            if time > 0:
+                endpoint_details.append(f"{endpoint}: {time:.3f}s")
+        endpoint_log = ", ".join(endpoint_details) if endpoint_details else "no endpoints"
+        total_time = sum(self._endpoint_timings.values())
+        _LOGGER.info("🔄 INITIAL REFRESH: %d total, %.3fs total (Endpoints: %s)", len(aggregated_data), total_time, endpoint_log)
+
         _LOGGER.debug(
             "Initial Mapping Table %s",
             "\n".join(
