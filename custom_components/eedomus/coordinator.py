@@ -245,14 +245,21 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     # Calculate actual API time as sum of all endpoint timings
                     actual_api_time = sum(self._endpoint_timings.values())
                     
+                    # Log detailed endpoint timings
+                    endpoint_details = []
+                    for endpoint, time in self._endpoint_timings.items():
+                        if time > 0:
+                            endpoint_details.append(f"{endpoint}: {time:.3f}s")
+                    endpoint_log = ", ".join(endpoint_details) if endpoint_details else "no endpoints"
+                    
                     # Store timing metrics for sensors
                     self._last_api_time = actual_api_time
                     self._last_processing_time = processing_time
                     self._last_refresh_time = total_time
                     self._last_processed_devices = len(aggregated_data) if isinstance(aggregated_data, dict) else 0
                     
-                    _LOGGER.info("🔄 FULL REFRESH: %d total, %.3fs total (API: %.3fs, Processing: %.3fs)",
-                                 len(aggregated_data), total_time, actual_api_time, processing_time)
+                    _LOGGER.info("🔄 FULL REFRESH: %d total, %.3fs total (API: %.3fs, Endpoints: %s)",
+                                 len(aggregated_data), total_time, actual_api_time, endpoint_log)
                 
                 return aggregated_data
             else:
@@ -281,8 +288,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                         endpoint_details.append(f"{endpoint}: {time:.3f}s")
                 endpoint_log = ", ".join(endpoint_details) if endpoint_details else "no endpoints"
                 
-                _LOGGER.info("🔄 PARTIAL REFRESH: %d dynamic, %.3fs total (API: %.3fs, Processing: %.3fs, Endpoints: %s)", 
-                             len(self._dynamic_peripherals), total_time, actual_api_time, processing_time, endpoint_log)
+                _LOGGER.info("🔄 PARTIAL REFRESH: %d dynamic, %.3fs total (Endpoints: %s)", 
+                             len(self._dynamic_peripherals), total_time, endpoint_log)
                 return ret
         except Exception as err:
             elapsed = (datetime.now() - start_time).total_seconds()
