@@ -499,7 +499,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
             yaml_config = coordinator.get_yaml_config_sync()
         else:
             # Fallback to synchronous loading (during initialization)
-            yaml_config = load_yaml_mappings(hass=None)  # Explicitly no hass for sync loading
+            yaml_config = load_yaml_mappings()  # Sync loading
         if yaml_config and 'default_mapping' in yaml_config:
             default_config = yaml_config['default_mapping']
             mapping = {
