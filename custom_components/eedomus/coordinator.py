@@ -353,7 +353,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         self._endpoint_timings['get_periph_caract'] = (datetime.now() - start_time).total_seconds()
         self._endpoint_call_counts['get_periph_caract'] += 1
         
-        _LOGGER.debug("📊 Endpoint timings - get_periph_list: %.3fs, get_periph_value_list: %.3fs, get_periph_caract: %.3fs",
+        _LOGGER.info("📊 Endpoint timings - get_periph_list: %.3fs, get_periph_value_list: %.3fs, get_periph_caract: %.3fs",
                      self._endpoint_timings['get_periph_list'],
                      self._endpoint_timings['get_periph_value_list'],
                      self._endpoint_timings['get_periph_caract'])
@@ -528,7 +528,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             self._endpoint_timings['partial_refresh'] = (datetime.now() - api_start_time).total_seconds()
             self._endpoint_call_counts['partial_refresh'] += 1
             
-            _LOGGER.debug("📊 Partial refresh endpoint timing: %.3fs", self._endpoint_timings['partial_refresh'])
+            _LOGGER.info("📊 Partial refresh endpoint timing: %.3fs", self._endpoint_timings['partial_refresh'])
         except Exception as e:
             _LOGGER.warning(
                 "Failed to partial refresh peripheral %s: %s", concat_text_periph_id, e
