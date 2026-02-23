@@ -339,19 +339,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         
         try:
             # Use the new async function from device_mapping
-            from .device_mapping import load_yaml_file_async, get_absolute_path, DEFAULT_MAPPING_FILE, CUSTOM_MAPPING_FILE
+            from .device_mapping import load_yaml_mappings_async
             
-            # Load default mapping asynchronously
-            default_file = get_absolute_path(DEFAULT_MAPPING_FILE)
-            default_mapping = await load_yaml_file_async(self.hass, default_file) or {}
-            
-            # Load custom mapping asynchronously
-            custom_file = get_absolute_path(CUSTOM_MAPPING_FILE)
-            custom_mapping = await load_yaml_file_async(self.hass, custom_file) or {}
-            
-            # Merge mappings (custom overrides default)
-            from .device_mapping import merge_yaml_mappings
-            merged_config = merge_yaml_mappings(default_mapping, custom_mapping)
+            # Load and merge mappings asynchronously
+            merged_config = await load_yaml_mappings_async(self.hass)
             
             self._yaml_config_cache = merged_config
             return self._yaml_config_cache
@@ -359,7 +350,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.error("❌ Failed to load YAML config asynchronously: %s", e)
             # Fallback to direct loading if async fails
             from .device_mapping import load_yaml_mappings
-            self._yaml_config_cache = load_yaml_mappings()
+            self._yaml_config_cache = load_yaml_mappings(hass=self)
             return self._yaml_config_cache
 
     def get_yaml_config_sync(self):
