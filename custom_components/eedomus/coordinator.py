@@ -428,12 +428,13 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                      self._endpoint_timings.get('get_periph_caract', 0.0))
         
         # SAFE: Ensure peripherals_caract contains dictionaries with periph_id
+        # URGENT FIX FOR CRITICAL BUG - 2026-02-23 16:50
         peripherals_caract_dict = {}
         for it in peripherals_caract:
             if isinstance(it, dict) and 'periph_id' in it:
                 peripherals_caract_dict[str(it["periph_id"])] = it
             else:
-                _LOGGER.error("❌ Invalid peripheral data format: %s (type: %s)", it, type(it))
+                _LOGGER.error("❌ CRITICAL BUG FIXED: Invalid peripheral data format: %s (type: %s)", it, type(it))
 
         # Initialisation du dictionnaire agrégé
         aggregated_data = self.data
