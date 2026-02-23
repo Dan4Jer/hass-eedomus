@@ -333,21 +333,31 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         return peripherals_caract
 
     async def _load_yaml_config_async(self):
-        """Load YAML configuration asynchronously using executor job."""
+        """Load YAML configuration asynchronously using device_mapping async functions."""
         if self._yaml_config_cache is not None:
             return self._yaml_config_cache
         
         try:
-            # Use executor job to avoid blocking the event loop
-            def _load_yaml_sync():
-                from .device_mapping import load_yaml_mappings
-                return load_yaml_mappings()
+            # Use the new async function from device_mapping
+            from .device_mapping import load_yaml_file_async, get_absolute_path, DEFAULT_MAPPING_FILE, CUSTOM_MAPPING_FILE
             
-            self._yaml_config_cache = await self.hass.async_add_executor_job(_load_yaml_sync)
+            # Load default mapping asynchronously
+            default_file = get_absolute_path(DEFAULT_MAPPING_FILE)
+            default_mapping = await load_yaml_file_async(self.hass, default_file) or {}
+            
+            # Load custom mapping asynchronously
+            custom_file = get_absolute_path(CUSTOM_MAPPING_FILE)
+            custom_mapping = await load_yaml_file_async(self.hass, custom_file) or {}
+            
+            # Merge mappings (custom overrides default)
+            from .device_mapping import merge_yaml_mappings
+            merged_config = merge_yaml_mappings(default_mapping, custom_mapping)
+            
+            self._yaml_config_cache = merged_config
             return self._yaml_config_cache
         except Exception as e:
             _LOGGER.error("❌ Failed to load YAML config asynchronously: %s", e)
-            # Fallback to direct loading if executor fails
+            # Fallback to direct loading if async fails
             from .device_mapping import load_yaml_mappings
             self._yaml_config_cache = load_yaml_mappings()
             return self._yaml_config_cache

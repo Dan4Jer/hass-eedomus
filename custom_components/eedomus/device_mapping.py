@@ -40,6 +40,91 @@ def get_absolute_path(relative_path: str) -> str:
     module_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     return os.path.join(module_dir, relative_path)
 
+async def load_yaml_file_async(hass, file_path: str) -> Optional[Dict[str, Any]]:
+    """Load YAML configuration from file asynchronously using executor job.
+    
+    Args:
+        hass: Home Assistant instance for accessing async_add_executor_job
+        file_path: Path to YAML file
+        
+    Returns:
+        Dictionary with YAML content or None if file doesn't exist or is invalid
+    """
+    try:
+        _LOGGER.debug("📖 Attempting to load YAML file asynchronously: %s", file_path)
+        
+        if not os.path.exists(file_path):
+            _LOGGER.error("❌ YAML file not found: %s", file_path)
+            return None
+            
+        _LOGGER.debug("✅ YAML file exists, attempting to parse asynchronously...")
+        
+        # Use executor job to avoid blocking the event loop
+        def _load_yaml_sync():
+            try:
+                with open(file_path, 'r', encoding='utf-8') as file:
+                    content = yaml.safe_load(file)
+                    
+                    if content:
+                        _LOGGER.debug("✅ Successfully loaded YAML mapping from %s", file_path)
+                        
+                        # Convert list format to dict format if needed
+                        if isinstance(content, list):
+                            _LOGGER.debug("⚠️  YAML file is in list format, converting to dict format")
+                            # Convert list of rules to dict format
+                            converted_content = {
+                                'advanced_rules': content,
+                                'usage_id_mappings': {},
+                                'name_patterns': [],
+                                'dynamic_entity_properties': {},
+                                'specific_device_dynamic_overrides': {}
+                            }
+                            _LOGGER.debug("✅ Converted YAML to dict format")
+                            _LOGGER.debug("   YAML keys after conversion: %s", list(converted_content.keys()))
+                            content = converted_content
+                        else:
+                            _LOGGER.debug("   YAML keys: %s", list(content.keys()))
+                        
+                        # Critical check for dynamic properties
+                        if 'dynamic_entity_properties' in content:
+                            _LOGGER.debug("✅ Found dynamic_entity_properties in YAML")
+                        else:
+                            _LOGGER.debug("⚠️  dynamic_entity_properties section missing from YAML (will be extracted from advanced rules)")
+                            
+                        if 'specific_device_dynamic_overrides' in content:
+                            _LOGGER.debug("✅ Found specific_device_dynamic_overrides in YAML")
+                        else:
+                            _LOGGER.debug("⚠️  specific_device_dynamic_overrides section missing (normal if no overrides)")
+                        
+                        return content
+                    else:
+                        _LOGGER.warning("⚠️  YAML file is empty: %s", file_path)
+                        return content
+                        
+            except yaml.YAMLError as e:
+                _LOGGER.error("❌ CRITICAL: Failed to parse YAML file %s: %s", file_path, e)
+                _LOGGER.error("❌ This is likely a YAML syntax error - check file format")
+                import traceback
+                _LOGGER.error("YAML parsing error details: %s", traceback.format_exc())
+                return None
+            except Exception as e:
+                _LOGGER.error("❌ CRITICAL: Error in sync YAML loading %s: %s", file_path, e)
+                _LOGGER.error("❌ This prevented YAML loading - check file permissions and encoding")
+                import traceback
+                _LOGGER.error("Error details: %s", traceback.format_exc())
+                return None
+        
+        return await hass.async_add_executor_job(_load_yaml_sync)
+        
+    except Exception as e:
+        _LOGGER.error("❌ CRITICAL: Error in async YAML loading %s: %s", file_path, e)
+        _LOGGER.error("❌ Async executor job failed - falling back to sync loading")
+        import traceback
+        _LOGGER.error("Async error details: %s", traceback.format_exc())
+        # Fallback to synchronous loading if async fails
+        return load_yaml_file(file_path)
+
+
 def load_yaml_file(file_path: str) -> Optional[Dict[str, Any]]:
     """Load YAML configuration from file.
     
@@ -48,6 +133,10 @@ def load_yaml_file(file_path: str) -> Optional[Dict[str, Any]]:
         
     Returns:
         Dictionary with YAML content or None if file doesn't exist or is invalid
+        
+    Note:
+        This synchronous version may trigger blocking call warnings during initialization.
+        For async contexts, use load_yaml_file_async() instead.
     """
     try:
         _LOGGER.debug("📖 Attempting to load YAML file: %s", file_path)
