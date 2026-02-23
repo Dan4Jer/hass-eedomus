@@ -429,10 +429,21 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         
         # SAFE: Ensure peripherals_caract contains dictionaries with periph_id
         # URGENT FIX FOR CRITICAL BUG - 2026-02-23 16:50
+        # Handle both flat and nested list structures
         peripherals_caract_dict = {}
+        
         for it in peripherals_caract:
             if isinstance(it, dict) and 'periph_id' in it:
+                # Normal case: flat list of dicts
                 peripherals_caract_dict[str(it["periph_id"])] = it
+            elif isinstance(it, list):
+                # Nested case: list of lists - flatten it
+                _LOGGER.info("🔍 Found nested structure in peripherals_caract, flattening...")
+                for sub_item in it:
+                    if isinstance(sub_item, dict) and 'periph_id' in sub_item:
+                        peripherals_caract_dict[str(sub_item["periph_id"])] = sub_item
+                    else:
+                        _LOGGER.error("❌ Invalid sub-item in nested structure: %s (type: %s)", sub_item, type(sub_item))
             else:
                 _LOGGER.error("❌ CRITICAL BUG FIXED: Invalid peripheral data format: %s (type: %s)", it, type(it))
 
