@@ -47,7 +47,7 @@ async def async_setup_entry(
                 parent_to_children[parent_id] = []
             parent_to_children[parent_id].append(periph)
         if not "ha_entity" in coordinator.data[periph_id]:
-            eedomus_mapping = map_device_to_ha_entity(periph, coordinator.data)
+            eedomus_mapping = map_device_to_ha_entity(periph, coordinator.data, coordinator=coordinator)
             coordinator.data[periph_id].update(eedomus_mapping)
             # S'assurer que le mapping est enregistré dans le registre global
             _register_device_mapping(eedomus_mapping, periph["name"], periph_id, periph)

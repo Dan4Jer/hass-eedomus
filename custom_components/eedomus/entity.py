@@ -242,11 +242,14 @@ class EedomusEntity(CoordinatorEntity):
             )
             return None
 
-def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: str = "sensor"):
+def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: str = "sensor", coordinator=None):
     """Map an eedomus device to a Home Assistant entity.
     
     Core device mapping function that determines how eedomus devices are represented
     in Home Assistant. Uses a priority-based approach to find the best entity mapping.
+    
+    Args:
+        coordinator: Optional coordinator instance for async YAML loading
     
     Priority order:
     1. Advanced rules (parent-child relationships, RGBW detection)
@@ -493,7 +496,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     # Priorité 5: Mapping par défaut (YAML fallback)
     try:
         # Try async loading via coordinator if available (during runtime)
-        if 'coordinator' in locals() and hasattr(coordinator, '_load_yaml_config_async'):
+        if coordinator is not None and hasattr(coordinator, '_load_yaml_config_async'):
             import asyncio
             yaml_config = asyncio.run(coordinator._load_yaml_config_async())
         else:
