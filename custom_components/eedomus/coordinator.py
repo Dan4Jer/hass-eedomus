@@ -419,7 +419,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         _LOGGER.debug("Performing full data refresh from eedomus API")
 
         # Récupération des données
-        peripherals_caract = await self._async_full_refresh_data_retreive()
+        peripherals_caract = await self._async_full_data_retreive()
         peripherals_caract_dict = {
             str(it["periph_id"]): it for it in peripherals_caract
         }
