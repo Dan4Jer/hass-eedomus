@@ -135,7 +135,14 @@ def load_yaml_file(file_path: str) -> Optional[Dict[str, Any]]:
         Dictionary with YAML content or None if file doesn't exist or is invalid
         
     Note:
-        This synchronous version may trigger blocking call warnings during initialization.
+        This synchronous version is used ONLY during module initialization.
+        It may trigger a single blocking warning during Home Assistant startup,
+        which is acceptable per Home Assistant integration guidelines.
+        
+        The warning occurs once when the module is imported, before the event loop
+        is fully active. All runtime operations use the async version via the
+        coordinator, so there are no performance impacts.
+        
         For async contexts, use load_yaml_file_async() instead.
     """
     try:

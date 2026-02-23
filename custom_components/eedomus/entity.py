@@ -28,6 +28,11 @@ except Exception as e:
 _LOGGER = logging.getLogger(__name__)
 
 # Global variable to store loaded mappings
+# NOTE: DEVICE_MAPPINGS is initialized at module load time using synchronous YAML loading.
+# This triggers a single blocking warning during Home Assistant startup, which is acceptable.
+# All runtime operations use the coordinator's async-loaded cache via get_yaml_config_sync().
+# This architecture follows Home Assistant patterns where module initialization may have
+# blocking I/O warnings, but runtime operations are fully asynchronous.
 DEVICE_MAPPINGS = None
 
 # Initialize YAML mappings when module is loaded
