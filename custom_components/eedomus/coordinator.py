@@ -418,7 +418,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         """Perform a complete refresh of all peripherals."""
         _LOGGER.debug("Performing full data refresh from eedomus API")
 
-        # Récupération des données
+        # Récupération des données - CORRECTED: now calls full data retrieve with all endpoints
         peripherals_caract = await self._async_full_data_retreive()
         peripherals_caract_dict = {
             str(it["periph_id"]): it for it in peripherals_caract
