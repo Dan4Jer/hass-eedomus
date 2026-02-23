@@ -350,7 +350,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.error("❌ Failed to load YAML config asynchronously: %s", e)
             # Fallback to direct loading if async fails
             from .device_mapping import load_yaml_mappings
-            self._yaml_config_cache = load_yaml_mappings(hass=self)
+            self._yaml_config_cache = load_yaml_mappings()
             return self._yaml_config_cache
 
     def get_yaml_config_sync(self):

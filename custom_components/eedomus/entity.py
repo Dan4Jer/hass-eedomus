@@ -99,7 +99,7 @@ try:
         yaml_config = coordinator.get_yaml_config_sync()
     else:
         # Fallback to synchronous loading (during initialization)
-        yaml_config = load_yaml_mappings(hass=None)  # Explicitly no hass for sync loading
+        yaml_config = load_yaml_mappings()  # Sync loading
     NAME_PATTERNS = yaml_config.get('name_patterns', []) if yaml_config else []
     _LOGGER.info("Loaded %d name patterns from YAML configuration", len(NAME_PATTERNS))
 except Exception as e:

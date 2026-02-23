@@ -212,21 +212,63 @@ async def load_yaml_mappings_async(hass, base_path: str = "") -> Dict[str, Any]:
     Returns:
         Merged mapping configuration
     """
-    return await load_yaml_mappings(base_path, hass)
+    _LOGGER.info("🔍 Starting async YAML mappings load process")
+    
+    # Use absolute paths if no base_path provided
+    if base_path:
+        default_file = os.path.join(base_path, DEFAULT_MAPPING_FILE)
+        custom_file = os.path.join(base_path, CUSTOM_MAPPING_FILE)
+    else:
+        # Convert relative paths to absolute paths based on module location
+        default_file = get_absolute_path(DEFAULT_MAPPING_FILE)
+        custom_file = get_absolute_path(CUSTOM_MAPPING_FILE)
+    
+    _LOGGER.info("📁 Default mapping file path: %s", default_file)
+    _LOGGER.info("📁 Custom mapping file path: %s", custom_file)
+    
+    # Check if files exist before loading
+    if not os.path.exists(default_file):
+        _LOGGER.error("❌ CRITICAL: Default YAML file not found at: %s", default_file)
+        _LOGGER.error("❌ This will cause all dynamic properties to be empty!")
+    else:
+        _LOGGER.info("✅ Default YAML file found")
+    
+    if os.path.exists(custom_file):
+        _LOGGER.info("✅ Custom YAML file found")
+    else:
+        _LOGGER.debug("⚠️  Custom YAML file not found (this is normal): %s", custom_file)
+    
+    # Load mappings asynchronously to avoid blocking warnings
+    _LOGGER.info("📖 Loading default mapping asynchronously...")
+    default_mapping = await load_yaml_file_async(hass, default_file) or {}
+    _LOGGER.debug("Default mapping loaded: %s", bool(default_mapping))
+    
+    if not default_mapping:
+        _LOGGER.error("❌ CRITICAL: Default mapping could not be loaded!")
+        _LOGGER.error("❌ Check file permissions and YAML syntax")
+    
+    _LOGGER.info("📖 Loading custom mapping asynchronously...")
+    custom_mapping = await load_yaml_file_async(hass, custom_file) or {}
+    _LOGGER.debug("Custom mapping loaded: %s", bool(custom_mapping))
+    
+    # Merge mappings (custom overrides default)
+    _LOGGER.info("🔧 Merging mappings...")
+    merged = merge_yaml_mappings(default_mapping, custom_mapping)
+    
+    return merged
 
-def load_yaml_mappings(base_path: str = "", hass=None) -> Dict[str, Any]:
+def load_yaml_mappings(base_path: str = "") -> Dict[str, Any]:
     """Load and merge YAML mappings from default and custom files.
     
     Args:
         base_path: Base path where YAML files are located (optional)
-        hass: Optional Home Assistant instance for async operations
         
     Returns:
         Merged mapping configuration
         
     Note:
-        If hass is provided, uses async loading to avoid blocking calls.
-        Otherwise, falls back to synchronous loading (may trigger blocking warnings).
+        This function uses synchronous loading and may trigger blocking warnings during initialization.
+        For async contexts, use load_yaml_mappings_async() instead.
     """
     _LOGGER.info("🔍 Starting YAML mappings load process")
     
@@ -254,35 +296,20 @@ def load_yaml_mappings(base_path: str = "", hass=None) -> Dict[str, Any]:
     else:
         _LOGGER.debug("⚠️  Custom YAML file not found (this is normal): %s", custom_file)
     
-    # Load mappings using appropriate method based on context
-    if hass:
-        # Async context - use async loading to avoid blocking warnings
-        _LOGGER.info("📖 Loading default mapping asynchronously...")
-        default_mapping = await load_yaml_file_async(hass, default_file) or {}
-        _LOGGER.debug("Default mapping loaded: %s", bool(default_mapping))
-        
-        if not default_mapping:
-            _LOGGER.error("❌ CRITICAL: Default mapping could not be loaded!")
-            _LOGGER.error("❌ Check file permissions and YAML syntax")
-        
-        _LOGGER.info("📖 Loading custom mapping asynchronously...")
-        custom_mapping = await load_yaml_file_async(hass, custom_file) or {}
-        _LOGGER.debug("Custom mapping loaded: %s", bool(custom_mapping))
-    else:
-        # Sync context - use synchronous loading (may trigger warnings)
-        _LOGGER.info("📖 Loading default mapping...")
-        _LOGGER.debug("⚠️  Using synchronous loading - blocking warnings may appear")
-        default_mapping = load_yaml_file(default_file) or {}
-        _LOGGER.debug("Default mapping loaded: %s", bool(default_mapping))
-        
-        if not default_mapping:
-            _LOGGER.error("❌ CRITICAL: Default mapping could not be loaded!")
-            _LOGGER.error("❌ Check file permissions and YAML syntax")
-        
-        _LOGGER.info("📖 Loading custom mapping...")
-        _LOGGER.debug("⚠️  Using synchronous loading - blocking warnings may appear")
-        custom_mapping = load_yaml_file(custom_file) or {}
-        _LOGGER.debug("Custom mapping loaded: %s", bool(custom_mapping))
+    # Load mappings using synchronous method (async version is separate)
+    _LOGGER.info("📖 Loading default mapping...")
+    _LOGGER.debug("⚠️  Using synchronous loading - blocking warnings may appear during initialization")
+    default_mapping = load_yaml_file(default_file) or {}
+    _LOGGER.debug("Default mapping loaded: %s", bool(default_mapping))
+    
+    if not default_mapping:
+        _LOGGER.error("❌ CRITICAL: Default mapping could not be loaded!")
+        _LOGGER.error("❌ Check file permissions and YAML syntax")
+    
+    _LOGGER.info("📖 Loading custom mapping...")
+    _LOGGER.debug("⚠️  Using synchronous loading - blocking warnings may appear during initialization")
+    custom_mapping = load_yaml_file(custom_file) or {}
+    _LOGGER.debug("Custom mapping loaded: %s", bool(custom_mapping))
     
     # Merge mappings (custom overrides default)
     _LOGGER.info("🔧 Merging mappings...")
