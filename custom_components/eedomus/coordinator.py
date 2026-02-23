@@ -260,7 +260,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 api_start = datetime.now()
                 ret = await self._async_partial_refresh()
                 # Calculate actual API time as sum of relevant endpoint timings for partial refresh
-                actual_api_time = sum(time for endpoint, time in self._endpoint_timings.items() if endpoint in ['partial_refresh', 'set_periph_value'])
+                actual_api_time = sum(time for endpoint, time in self._endpoint_timings.items() if endpoint in ['get_periph_caract', 'set_periph_value'])
                 
                 processing_start = datetime.now()
                 # Minimal processing time for partial refresh
@@ -520,15 +520,15 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
         concat_text_periph_id = ",".join(self._dynamic_peripherals.keys())
         try:
-            # Track timing for partial refresh endpoint
+            # Track timing for get_periph_caract (partial refresh)
             api_start_time = datetime.now()
             peripherals_caract = await self.client.get_periph_caract(
                 concat_text_periph_id
             )
-            self._endpoint_timings['partial_refresh'] = (datetime.now() - api_start_time).total_seconds()
-            self._endpoint_call_counts['partial_refresh'] += 1
+            self._endpoint_timings['get_periph_caract'] = (datetime.now() - api_start_time).total_seconds()
+            self._endpoint_call_counts['get_periph_caract'] += 1
             
-            _LOGGER.info("📊 Partial refresh endpoint timing: %.3fs", self._endpoint_timings['partial_refresh'])
+            _LOGGER.info("📊 get_periph_caract timing (partial): %.3fs", self._endpoint_timings['get_periph_caract'])
         except Exception as e:
             _LOGGER.warning(
                 "Failed to partial refresh peripheral %s: %s", concat_text_periph_id, e
