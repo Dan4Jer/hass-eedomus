@@ -43,6 +43,7 @@ from .eedomus_client import EedomusClient
 # Note: For HA 2026.02+, we use the modern frontend API (www/config_panel.js)
 # The Lovelace card import is kept for backward compatibility but may fail in newer HA versions
 from .sensor import EedomusHistoryProgressSensor, EedomusSensor
+from .text_sensor import EedomusTextSensor
 from .webhook import EedomusWebhookView
 
 # Import service setup
