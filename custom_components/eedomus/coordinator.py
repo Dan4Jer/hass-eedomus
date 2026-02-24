@@ -348,24 +348,27 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             return self._yaml_config_cache
         except Exception as e:
             _LOGGER.error("❌ Failed to load YAML config asynchronously: %s", e)
-            # Fallback to direct loading if async fails
-            from .device_mapping import load_yaml_mappings
-            self._yaml_config_cache = load_yaml_mappings()
-            return self._yaml_config_cache
+            _LOGGER.error("❌ This is a critical error - YAML configuration could not be loaded")
+            # No fallback - we require async loading to avoid blocking warnings
+            raise e
 
     def get_yaml_config_sync(self):
         """Get cached YAML configuration synchronously.
         
         This method provides synchronous access to the YAML config cache
         for use in synchronous contexts like map_device_to_ha_entity().
-        If the config hasn't been loaded yet, it falls back to synchronous loading.
+        The config MUST have been pre-loaded during coordinator initialization.
+        
+        Raises:
+            Exception: If YAML config has not been loaded yet (this indicates a bug)
         """
         if self._yaml_config_cache is not None:
             return self._yaml_config_cache
         
-        # Fallback to synchronous loading if not yet cached
-        from .device_mapping import load_yaml_mappings
-        return load_yaml_mappings()
+        # This should never happen - YAML config should be pre-loaded during initialization
+        _LOGGER.error("❌ CRITICAL BUG: YAML config requested but not loaded!")
+        _LOGGER.error("❌ This indicates get_yaml_config_sync() was called before initialization completed")
+        raise Exception("YAML configuration not loaded - this is a bug in the initialization sequence")
 
     async def _async_full_data_retreive(self):
         """Retrieve full data including peripherals list, value list, and characteristics."""
