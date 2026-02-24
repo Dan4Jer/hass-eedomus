@@ -264,6 +264,14 @@ usage_id_mappings:
     ha_subtype: virtual
     justification: Virtual device - eedomus scene triggers and automation
     is_dynamic: false
+  '84':
+    ha_entity: sensor
+    ha_subtype: text
+    justification: Next day type selector - displays description from values structure
+    is_dynamic: false
+    entity_specifics:
+      entity_class: text_sensor
+      value_mapping: dynamic_from_values
 dynamic_entity_properties:
   sensor: true
   light: true
@@ -277,14 +285,6 @@ specific_device_dynamic_overrides: {}
   ha_subtype: heating
   justification: Heating device (Fil pilote) - usage_id=38 for French heating systems
   is_dynamic: false
-'84':
-  ha_entity: sensor
-  ha_subtype: text
-  justification: Next day type selector - displays description from values structure
-  is_dynamic: false
-  entity_specifics:
-    entity_class: text_sensor
-    value_mapping: dynamic_from_values
 '127':
   ha_entity: button
   ha_subtype: camera_trigger
