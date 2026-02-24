@@ -1,13 +1,15 @@
 # Device mapping configuration in new dict format
 # This format supports dynamic entity properties and advanced rules
-# 
-# VERSION: 1.3.1 - 2026-02-24
-# Changes in this version:
-# - Added usage_id 38 (heating) mapping for French Fil pilote systems
-# - Added usage_id 84 (text) mapping for day type selector with option mapping
-# - Added usage_id 127 (button) mapping for camera trigger commands
-# - Fixed YAML indentation issues
-# Last modified: 2026-02-24 by deploy script
+
+# Metadata section (will be loaded by YAML parser)
+metadata:
+  version: "1.3.1"
+  last_modified: "2026-02-24"
+  changes:
+    - "Added usage_id 38 (heating) mapping for French Fil pilote systems"
+    - "Added usage_id 84 (text) mapping for day type selector with option mapping"
+    - "Added usage_id 127 (button) mapping for camera trigger commands"
+    - "Fixed YAML indentation issues"
 
 # Advanced mapping rules for complex device detection
 advanced_rules:

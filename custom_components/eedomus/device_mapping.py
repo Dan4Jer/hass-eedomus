@@ -457,7 +457,19 @@ def merge_yaml_mappings(default_mapping: Dict[str, Any], custom_mapping: Dict[st
     merged['specific_device_dynamic_overrides'] = specific_device_dynamic_overrides
     if 'custom_specific_device_dynamic_overrides' in custom_mapping and isinstance(custom_mapping['custom_specific_device_dynamic_overrides'], dict):
         merged['specific_device_dynamic_overrides'].update(custom_mapping['custom_specific_device_dynamic_overrides'])
+
+    # Merge metadata (preserve metadata from default mapping)
+    if 'metadata' in default_mapping and isinstance(default_mapping['metadata'], dict):
+        merged['metadata'] = default_mapping['metadata']
+        _LOGGER.debug("✅ Preserved metadata from default mapping: %s", default_mapping['metadata'].get('version', 'unknown'))
     
+    if 'metadata' in custom_mapping and isinstance(custom_mapping['metadata'], dict):
+        # Custom metadata can override or supplement default metadata
+        if 'metadata' not in merged:
+            merged['metadata'] = {}
+        merged['metadata'].update(custom_mapping['metadata'])
+        _LOGGER.debug("✅ Merged custom metadata: %s", custom_mapping['metadata'].get('version', 'unknown'))
+
     return merged
 
 
