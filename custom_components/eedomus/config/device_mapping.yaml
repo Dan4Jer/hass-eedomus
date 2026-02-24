@@ -140,8 +140,11 @@ usage_id_mappings:
   '34':
     ha_entity: sensor
     ha_subtype: text
-    justification: Day phase information from eedomus
+    justification: Day phase selector - displays description from values structure
     is_dynamic: false
+    entity_specifics:
+      entity_class: text_sensor
+      value_mapping: dynamic_from_values
   '35':
     ha_entity: sensor
     ha_subtype: text
