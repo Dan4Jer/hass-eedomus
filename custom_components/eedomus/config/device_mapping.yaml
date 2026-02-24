@@ -86,8 +86,11 @@ usage_id_mappings:
   '18':
     ha_entity: sensor
     ha_subtype: text
-    justification: Current day information from eedomus
+    justification: Current day type selector - displays description from values structure
     is_dynamic: false
+    entity_specifics:
+      entity_class: text_sensor
+      value_mapping: dynamic_from_values
   '19':
     ha_entity: climate
     ha_subtype: fil_pilote
