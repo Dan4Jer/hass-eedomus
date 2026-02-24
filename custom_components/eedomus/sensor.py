@@ -11,6 +11,7 @@ from homeassistant.helpers.entity import DeviceInfo
 
 from .const import DOMAIN, SENSOR_DEVICE_CLASSES, COORDINATOR
 from .entity import EedomusEntity, map_device_to_ha_entity
+from .text_sensor import EedomusTextSensor
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -101,6 +102,14 @@ async def async_setup_entry(
             periph_id,
             coordinator.data[periph_id],
         )
+
+        # Check if this is a text sensor with dynamic value mapping
+        entity_specifics = coordinator.data[periph_id].get("entity_specifics", {})
+        if entity_specifics.get("value_mapping") == "dynamic_from_values":
+            _LOGGER.info("🆕 Creating dynamic text sensor for %s (%s)", 
+                        periph["name"], periph_id)
+            entities.append(EedomusTextSensor(coordinator, periph_id))
+            continue
 
         # Check if this sensor has children that should be aggregated
         if periph_id in parent_to_children and len(parent_to_children[periph_id]) > 0:
