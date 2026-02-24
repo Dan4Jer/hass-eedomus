@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import SensorEntity, SensorDeviceClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
@@ -107,18 +107,43 @@ class EedomusTextSensor(EedomusEntity, SensorEntity):
 
     @property
     def icon(self) -> str | None:
-        """Return the icon to use in the frontend."""
+        """Return the icon to use in the frontend.
+        
+        Uses YAML configuration for icons, with dynamic icon mapping based on values.
+        Falls back to default icon if no specific configuration found.
+        """
         periph_data = self._get_periph_data()
         if not periph_data:
             return None
             
-        # Try to get icon from device data
-        icon = periph_data.get("icon")
-        if icon:
-            return icon
+        # Get entity specifics from YAML mapping
+        entity_specifics = periph_data.get("entity_specifics", {})
+        
+        # Check for dynamic value-based icons
+        if "value_icons" in entity_specifics:
+            try:
+                last_value = str(periph_data.get("last_value", ""))
+                return entity_specifics["value_icons"].get(last_value, entity_specifics.get("icon", "mdi:text"))
+            except:
+                pass
+        
+        # Check for static icon in YAML
+        if "icon" in entity_specifics:
+            return entity_specifics["icon"]
+        
+        # Try to get icon from device data (fallback)
+        device_icon = periph_data.get("icon")
+        if device_icon and device_icon.startswith('/img/mdm/'):
+            return "mdi:calendar-text"
             
-        # Fallback to default text sensor icon
+        # Final fallback to default text sensor icon
         return "mdi:text"
+    
+    @property
+    def device_class(self) -> str | None:
+        """Return the device class of the sensor."""
+        # Text sensors with enumerated values should use ENUM device class
+        return "enum"
 
 
 async def async_setup_entry(

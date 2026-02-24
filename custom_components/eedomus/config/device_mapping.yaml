@@ -91,6 +91,8 @@ usage_id_mappings:
     entity_specifics:
       entity_class: text_sensor
       value_mapping: dynamic_from_values
+      icon: mdi:calendar-check
+      device_class: enum
   '19':
     ha_entity: climate
     ha_subtype: fil_pilote
@@ -145,6 +147,16 @@ usage_id_mappings:
     entity_specifics:
       entity_class: text_sensor
       value_mapping: dynamic_from_values
+      icon: mdi:weather-sunset-up
+      device_class: enum
+      value_icons:
+        '0': mdi:weather-sunrise
+        '1': mdi:weather-sunny
+        '3': mdi:home-import-outline
+        '4': mdi:weather-sunset
+        '5': mdi:weather-night
+        '6': mdi:home-remove
+        '7': mdi:weather-sunrise
   '35':
     ha_entity: sensor
     ha_subtype: text
@@ -278,6 +290,8 @@ usage_id_mappings:
     entity_specifics:
       entity_class: text_sensor
       value_mapping: dynamic_from_values
+      icon: mdi:calendar-today
+      device_class: enum
 dynamic_entity_properties:
   sensor: true
   light: true
