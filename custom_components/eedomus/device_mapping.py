@@ -490,6 +490,16 @@ def load_and_merge_yaml_mappings(base_path: str = "") -> Dict[str, Any]:
         if yaml_config:
             _LOGGER.info("✅ Successfully loaded YAML mappings")
             
+            # Log YAML metadata if present
+            if yaml_config and yaml_config.get(\'metadata\'):
+                metadata = yaml_config[\'metadata\']
+                _LOGGER.info("📋 YAML Metadata - Version: %s, Last Modified: %s",
+                           metadata.get(\'version\', \'unknown\'),
+                           metadata.get(\'last_modified\', \'unknown\'))
+                if metadata.get(\'changes\'):
+                    for change in metadata[\'changes\']:
+                        _LOGGER.info("  📝 %s", change)
+            
             # Debug: Log all the important sections
             dynamic_props = yaml_config.get('dynamic_entity_properties', {})
             specific_overrides = yaml_config.get('specific_device_dynamic_overrides', {})
