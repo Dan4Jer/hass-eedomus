@@ -1,5 +1,11 @@
 # Custom device mapping configuration in new dict format
 # This format supports dynamic entity properties and advanced rules
+# 
+# VERSION: 1.1.0 - 2026-02-24
+# Changes in this version:
+# - Initial custom mapping structure
+# - Ready for custom device overrides
+# Last modified: 2026-02-24 by deploy script
 
 # Custom advanced rules (empty by default)
 custom_rules: []
