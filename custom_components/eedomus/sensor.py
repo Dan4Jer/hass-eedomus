@@ -208,7 +208,7 @@ class EedomusSensor(EedomusEntity, SensorEntity):
         from .entity import map_device_to_ha_entity
         periph_data = self._get_periph_data()
         all_devices = self.coordinator._all_peripherals if hasattr(self.coordinator, '_all_peripherals') else {}
-        device_mapping = map_device_to_ha_entity(periph_data, all_devices) if periph_data else {}
+        device_mapping = map_device_to_ha_entity(periph_data, all_devices, coordinator=self.coordinator) if periph_data else {}
         
         if is_system_sensor(periph_data, device_mapping):
             self._attr_device_info = DeviceInfo(

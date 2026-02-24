@@ -435,7 +435,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                             parent_id, parent.get("name"), parent.get("usage_id"))
                 
                 # Check if parent is mapped as RGBW
-                parent_mapping = map_device_to_ha_entity(parent, all_devices)
+                parent_mapping = map_device_to_ha_entity(parent, all_devices, coordinator=coordinator)
                 _LOGGER.debug("🔍 Parent mapping: %s:%s", 
                             parent_mapping["ha_entity"], parent_mapping["ha_subtype"])
         
