@@ -40,15 +40,18 @@ async def async_setup_entry(
             _register_device_mapping(eedomus_mapping, periph["name"], periph_id, periph)
 
     # Second pass: create climate entities
+    climate_count = 0
     for periph_id, periph in all_peripherals.items():
         ha_entity = coordinator.data[periph_id].get("ha_entity")
 
         if ha_entity != "climate":
             continue
 
-        _LOGGER.debug("Creating climate entity for %s (%s)", periph["name"], periph_id)
+        climate_count += 1
+        _LOGGER.info("🌡️ Creating climate entity for %s (%s)", periph["name"], periph_id)
         climates.append(EedomusClimate(coordinator, periph_id))
 
+    _LOGGER.info("🌡️ Created %d climate entities", climate_count)
     async_add_entities(climates, True)
 
 
