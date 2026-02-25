@@ -125,9 +125,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 aggregated_data[periph_id].update(peripherals_caract_dict[periph_id])
 
             # Mapping des périphériques vers une entité HA : la bonne ? quid des enfants vis à vis de parent ?
-            if not "ha_entity" in aggregated_data[periph_id]:
-                eedomus_mapping = map_device_to_ha_entity(aggregated_data[periph_id], aggregated_data, coordinator=self)
-                aggregated_data[periph_id].update(eedomus_mapping)
+            # Toujours recalculer le mapping pour s'assurer que les changements de configuration sont appliqués
+            eedomus_mapping = map_device_to_ha_entity(aggregated_data[periph_id], aggregated_data, coordinator=self)
+            aggregated_data[periph_id].update(eedomus_mapping)
 
         # Logs des tailles
         _LOGGER.info(
