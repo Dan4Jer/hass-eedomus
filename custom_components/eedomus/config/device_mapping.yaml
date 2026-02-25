@@ -320,8 +320,8 @@ usage_id_mappings:
 # Format: setpoint_periph_id: sensor_periph_id
 temperature_setpoint_mappings:
   '1252440': '1235480'  # Consigne Salle de bain → Sonde température Salle de bain
-  '1252441': ''        # Consigne Salon → (sensor not yet mapped)
-  '1252442': ''        # Consigne Chambre enfant → (sensor not yet mapped)
+  '1252441': '1090996'  # Consigne Salon → Sonde température Salon
+  '1252442': '3387333'  # Consigne Chambre enfant → Sonde température Chambre enfant
   # Add more mappings as needed following this format
 dynamic_entity_properties:
   sensor: true
