@@ -16,8 +16,12 @@ custom_rules: []
 custom_usage_id_mappings:
   "1061603":
     ha_entity: "sensor"
-    ha_subtype: "usage"
-    justification: "CPU Box - Specific mapping"
+    ha_subtype: "cpu_usage"
+    justification: "CPU Box - eedomus box CPU usage percentage"
+    unit_of_measurement: "%"
+    device_class: "cpu"
+    icon: "mdi:cpu-64-bit"
+    entity_category: "diagnostic"
     device_info:
       identifiers:
         - - eedomus

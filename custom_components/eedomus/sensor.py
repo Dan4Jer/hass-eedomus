@@ -251,10 +251,20 @@ class EedomusSensor(EedomusEntity, SensorEntity):
         elif periph_type == "time":
             self._attr_device_class = "duration"
             self._attr_native_unit_of_measurement = "h"
+        elif periph_type == "cpu_usage" or periph_type == "cpu":
+            self._attr_device_class = "cpu"
+            self._attr_native_unit_of_measurement = "%"
         elif periph_type == "text":
             # Text sensors explicitly have no device class
             pass
         # Add more specific types as needed
+
+        # Set icon from entity_specifics if available
+        entity_specifics = periph_info.get("entity_specifics", {})
+        if "icon" in entity_specifics:
+            self._attr_icon = entity_specifics["icon"]
+        elif periph_type == "cpu_usage" or periph_type == "cpu":
+            self._attr_icon = "mdi:cpu-64-bit"
 
     @property
     def native_value(self):
