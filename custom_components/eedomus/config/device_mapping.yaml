@@ -1,11 +1,13 @@
 metadata:
-  version: 1.3.1
-  last_modified: '2026-02-24'
+  version: 1.3.2
+  last_modified: '2026-02-26'
   changes:
   - Added usage_id 38 (heating) mapping for French Fil pilote systems
   - Added usage_id 84 (text) mapping for day type selector with option mapping
   - Added usage_id 127 (button) mapping for camera trigger commands
   - Fixed YAML indentation issues
+  - Enhanced usage_id 23 (CPU) mapping with proper device_class, icon, and entity_category
+  - Removed specific device mapping for 1061603 in favor of generic usage_id 23 mapping
 advanced_rules:
 - name: rgbw_lamp_by_children
   priority: 1
