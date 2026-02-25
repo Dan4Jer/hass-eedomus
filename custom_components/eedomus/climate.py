@@ -466,8 +466,10 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                 return
 
             try:
+                # Ensure we send an integer value (no decimals)
+                final_value = str(int(float(eedomus_value))) if eedomus_value else eedomus_value
                 result = await self.coordinator.async_set_periph_value(
-                    self._periph_id, str(eedomus_value)
+                    self._periph_id, final_value
                 )
 
                 if result.get("success", 0) == 1:
