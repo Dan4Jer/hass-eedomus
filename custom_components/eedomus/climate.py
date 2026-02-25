@@ -24,6 +24,7 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     """Set up eedomus climate entities."""
+    _LOGGER.info("🌡️ Setting up eedomus climate entities...")
     coordinator = hass.data[DOMAIN][entry.entry_id][COORDINATOR]
     climates = []
 
@@ -41,10 +42,6 @@ async def async_setup_entry(
     # Second pass: create climate entities
     for periph_id, periph in all_peripherals.items():
         ha_entity = coordinator.data[periph_id].get("ha_entity")
-        
-        # Debug temporaire pour usage_id 38
-        if periph.get("usage_id") == "38":
-            _LOGGER.info("🎯 DEBUG: Periph %s (%s) has ha_entity=%s", periph["name"], periph_id, ha_entity)
 
         if ha_entity != "climate":
             continue
