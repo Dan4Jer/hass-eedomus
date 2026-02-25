@@ -606,8 +606,14 @@ def load_custom_yaml_mappings():
             _LOGGER.debug("Custom mapping file not found at %s", custom_mapping_path)
             return None
             
-        with open(custom_mapping_path, 'r') as f:
-            custom_mappings = yaml.safe_load(f) or {}
+        try:
+            import aiofiles
+            async with aiofiles.open(custom_mapping_path, 'r') as f:
+                content = await f.read()
+                custom_mappings = yaml.safe_load(content) or {}
+        except Exception as e:
+            _LOGGER.warning("Failed to load custom mappings: %s", e)
+            return None
             _LOGGER.debug("Loaded custom mappings from %s", custom_mapping_path)
             return custom_mappings
             
