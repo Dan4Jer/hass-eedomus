@@ -59,5 +59,14 @@ custom_dynamic_entity_properties: {}
 # Custom specific device dynamic overrides (empty by default)
 custom_specific_device_dynamic_overrides: {}
 
+# Custom temperature setpoint to sensor mappings
+# Maps climate entities (usage_id 15) to their corresponding temperature sensors
+# This is specific to your personal installation and should not be in the main device_mapping.yaml
+temperature_setpoint_mappings:
+  '1252440': '1235480'  # Consigne Salle de bain → Sonde température Salle de bain
+  '1252441': '1090996'  # Consigne Salon → Sonde température Salon
+  '1252442': '3387333'  # Consigne Chambre enfant → Sonde température Chambre enfant
+  # Add more mappings here as needed for your specific setup
+
 # Custom name patterns (empty by default)
 custom_name_patterns: []

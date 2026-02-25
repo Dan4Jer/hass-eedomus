@@ -90,12 +90,30 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
         
         # Load temperature sensor mapping if available
         self._linked_temperature_sensor = None
-        if 'temperature_setpoint_mappings' in yaml_config:
+        
+        # First try custom mappings (from custom_mapping.yaml)
+        custom_mappings = {}
+        try:
+            from .device_mapping import load_custom_yaml_mappings
+            custom_mappings = load_custom_yaml_mappings() or {}
+        except Exception as e:
+            _LOGGER.debug("No custom mappings found or error loading: %s", e)
+        
+        if 'temperature_setpoint_mappings' in custom_mappings:
+            sensor_id = custom_mappings['temperature_setpoint_mappings'].get(periph_id, '')
+            if sensor_id:
+                self._linked_temperature_sensor = sensor_id
+                _LOGGER.info(
+                    "🔗 Climate entity %s (%s) linked to temperature sensor %s (from custom config)",
+                    self._attr_name, periph_id, sensor_id
+                )
+        elif 'temperature_setpoint_mappings' in yaml_config:
+            # Fallback to device_mapping.yaml (for backward compatibility)
             sensor_id = yaml_config['temperature_setpoint_mappings'].get(periph_id, '')
             if sensor_id:
                 self._linked_temperature_sensor = sensor_id
                 _LOGGER.info(
-                    "🔗 Climate entity %s (%s) linked to temperature sensor %s",
+                    "🔗 Climate entity %s (%s) linked to temperature sensor %s (from device mapping)",
                     self._attr_name, periph_id, sensor_id
                 )
 

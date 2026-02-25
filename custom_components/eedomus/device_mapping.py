@@ -582,3 +582,35 @@ def load_and_merge_yaml_mappings(base_path: str = "") -> Dict[str, Any]:
         }
         
         return minimal_config
+
+
+def load_custom_yaml_mappings():
+    """Load custom mappings from custom_mapping.yaml file.
+    
+    This function loads user-specific mappings that should not be in the main
+    device_mapping.yaml file. This includes temperature sensor mappings and other
+    installation-specific configurations.
+    
+    Returns:
+        dict: Custom mappings or None if file doesn't exist or can't be loaded
+    """
+    import os
+    import yaml
+    
+    try:
+        # Get the directory where the current file is located
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        custom_mapping_path = os.path.join(current_dir, 'config', 'custom_mapping.yaml')
+        
+        if not os.path.exists(custom_mapping_path):
+            _LOGGER.debug("Custom mapping file not found at %s", custom_mapping_path)
+            return None
+            
+        with open(custom_mapping_path, 'r') as f:
+            custom_mappings = yaml.safe_load(f) or {}
+            _LOGGER.debug("Loaded custom mappings from %s", custom_mapping_path)
+            return custom_mappings
+            
+    except Exception as e:
+        _LOGGER.warning("Failed to load custom mappings: %s", e)
+        return None
