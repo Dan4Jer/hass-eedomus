@@ -172,6 +172,11 @@ usage_id_mappings:
     ha_subtype: motion
     justification: Motion detector - usage_id=37 for movement detection
     is_dynamic: true
+  '38':
+    ha_entity: climate
+    ha_subtype: heating
+    justification: Heating device (Fil pilote) - usage_id=38 for French heating systems
+    is_dynamic: false
   '42':
     ha_entity: select
     ha_subtype: shutter_group
@@ -292,6 +297,11 @@ usage_id_mappings:
       value_mapping: dynamic_from_values
       icon: mdi:calendar-today
       device_class: enum
+  '127':
+    ha_entity: button
+    ha_subtype: camera_trigger
+    justification: Camera image capture trigger - usage_id=127 for snapshot commands
+    is_dynamic: false
 dynamic_entity_properties:
   sensor: true
   light: true
@@ -300,14 +310,4 @@ dynamic_entity_properties:
   binary_sensor: true
   climate: true
 specific_device_dynamic_overrides: {}
-'38':
-  ha_entity: climate
-  ha_subtype: heating
-  justification: Heating device (Fil pilote) - usage_id=38 for French heating systems
-  is_dynamic: false
-'127':
-  ha_entity: button
-  ha_subtype: camera_trigger
-  justification: Camera image capture trigger - usage_id=127 for snapshot commands
-  is_dynamic: false
 name_patterns: []
