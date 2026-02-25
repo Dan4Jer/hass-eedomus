@@ -420,16 +420,18 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                 )
 
                 # Find the closest acceptable temperature value
-                # First try exact match
-                temp_str = str(int(temperature))  # Try as integer first
+                # For eedomus, we should always use integers for temperature setpoints
+                # First try exact match with integer
+                temp_int = int(round(temperature))  # Always use integer
+                temp_str = str(temp_int)
                 if temp_str in acceptable_values:
                     eedomus_value = acceptable_values[temp_str]
                 else:
-                    # Try to find the closest value
+                    # Try to find the closest integer value
                     numeric_values = []
                     for val in acceptable_values.values():
                         try:
-                            numeric_values.append(float(val))
+                            numeric_values.append(int(float(val)))
                         except ValueError:
                             pass
 
@@ -437,11 +439,7 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                         closest_value = min(
                             numeric_values, key=lambda x: abs(x - temperature)
                         )
-                        eedomus_value = (
-                            str(int(closest_value))
-                            if closest_value.is_integer()
-                            else str(closest_value)
-                        )
+                        eedomus_value = str(int(closest_value))  # Always use integer
 
                 if eedomus_value is None:
                     _LOGGER.error(
