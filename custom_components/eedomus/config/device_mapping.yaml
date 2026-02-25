@@ -126,6 +126,10 @@ usage_id_mappings:
     justification: CPU usage monitor - eedomus internal system monitoring
     is_dynamic: false
     internal_box_eedomus: true
+    device_class: cpu
+    unit_of_measurement: "%"
+    icon: "mdi:cpu-64-bit"
+    entity_category: diagnostic
   '24':
     ha_entity: sensor
     ha_subtype: illuminance
