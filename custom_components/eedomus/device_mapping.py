@@ -515,12 +515,15 @@ def load_and_merge_yaml_mappings(base_path: str = "") -> Dict[str, Any]:
             # Debug: Log all the important sections
             dynamic_props = yaml_config.get('dynamic_entity_properties', {})
             specific_overrides = yaml_config.get('specific_device_dynamic_overrides', {})
+            specific_mappings = yaml_config.get('specific_device_mappings', {})
             
             _LOGGER.debug("Advanced rules count: %d", len(yaml_config.get('advanced_rules', [])))
             _LOGGER.debug("Usage ID mappings count: %d", len(yaml_config.get('usage_id_mappings', {})))
+            _LOGGER.debug("Specific device mappings count: %d", len(specific_mappings))
             _LOGGER.debug("Name patterns count: %d", len(yaml_config.get('name_patterns', [])))
             _LOGGER.debug("Dynamic entity properties: %s", dynamic_props)
             _LOGGER.debug("Specific device dynamic overrides: %s", specific_overrides)
+            _LOGGER.debug("Specific device mappings: %s", specific_mappings)
             
             # Critical check: if dynamic properties are empty, this is a problem
             if not dynamic_props:
