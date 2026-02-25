@@ -130,6 +130,7 @@ usage_id_mappings:
     unit_of_measurement: "%"
     icon: "mdi:cpu-64-bit"
     entity_category: diagnostic
+    # Updated for proper CPU sensor display
   '24':
     ha_entity: sensor
     ha_subtype: illuminance
