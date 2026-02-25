@@ -162,6 +162,13 @@ DEVICE_SCHEMA = vol.Schema({
 
 # Schema for YAML files
 YAML_MAPPING_SCHEMA = vol.Schema({
+    vol.Optional("metadata"): dict,
+    vol.Optional("advanced_rules"): list,
+    vol.Optional("usage_id_mappings"): dict,
+    vol.Optional("dynamic_entity_properties"): dict,
+    vol.Optional("specific_device_dynamic_overrides"): dict,
+    vol.Optional("specific_device_mappings"): dict,
+    vol.Optional("name_patterns"): list,
     vol.Optional(CONF_CUSTOM_DEVICES): vol.All(cv.ensure_list, [DEVICE_SCHEMA]),
 })
 
