@@ -415,6 +415,9 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     # Priorité 3: Mapping basé sur usage_id
     if usage_id and DEVICE_MAPPINGS and usage_id in DEVICE_MAPPINGS['usage_id_mappings']:
         mapping = DEVICE_MAPPINGS['usage_id_mappings'][usage_id].copy()
+        # Debug temporaire pour usage_id 38
+        if usage_id == "38":
+            _LOGGER.info("🎯 DEBUG: usage_id 38 found in mappings! Mapping to %s:%s", mapping["ha_entity"], mapping["ha_subtype"])
         
         # Special debug for device 1269454
         if periph_id == "1269454":
