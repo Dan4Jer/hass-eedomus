@@ -11,11 +11,14 @@ from typing import Any, Dict, Optional
 
 import aiohttp
 from async_timeout import timeout as async_timeout
+from homeassistant.config_entries import ConfigEntry
 
 from .const import (
     DEFAULT_PHP_FALLBACK_ENABLED,
     DEFAULT_PHP_FALLBACK_SCRIPT_NAME,
     DEFAULT_PHP_FALLBACK_TIMEOUT,
+    DEFAULT_HTTP_REQUEST_TIMEOUT,
+    CONF_HTTP_REQUEST_TIMEOUT,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -77,6 +80,12 @@ class EedomusClient:
             config_entry.data.get("php_fallback_timeout", DEFAULT_PHP_FALLBACK_TIMEOUT),
         )
 
+        # Configuration du timeout HTTP
+        self.http_request_timeout = config_entry.options.get(
+            CONF_HTTP_REQUEST_TIMEOUT,
+            config_entry.data.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT),
+        )
+
     async def fetch_data(
         self,
         endpoint: str,
@@ -97,7 +106,7 @@ class EedomusClient:
         self.params = params
 
         try:
-            async with async_timeout(10):
+            async with async_timeout(self.http_request_timeout):
                 async with self.session.get(url, params=params) as resp:
                     # Lire les données brutes
                     raw_data = await resp.read()
