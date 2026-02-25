@@ -412,6 +412,15 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
             periph_name, periph_id, usage_id, emoji, device_data
         )
     
+    # Priorité 2.5: Mapping spécifique par periph_id (override usage_id mapping)
+    if periph_id and DEVICE_MAPPINGS and 'specific_device_mappings' in DEVICE_MAPPINGS and periph_id in DEVICE_MAPPINGS['specific_device_mappings']:
+        mapping = DEVICE_MAPPINGS['specific_device_mappings'][periph_id].copy()
+        _LOGGER.debug("🎯 Specific device mapping applied for %s (%s): %s:%s",
+                     periph_name, periph_id, mapping["ha_entity"], mapping["ha_subtype"])
+        return _create_mapping(
+            mapping, periph_name, periph_id, usage_id, f"🎯 Specific device mapping", device_data
+        )
+    
     # Priorité 3: Mapping basé sur usage_id
     if usage_id and DEVICE_MAPPINGS and usage_id in DEVICE_MAPPINGS['usage_id_mappings']:
         mapping = DEVICE_MAPPINGS['usage_id_mappings'][usage_id].copy()

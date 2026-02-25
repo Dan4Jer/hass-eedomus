@@ -332,4 +332,27 @@ dynamic_entity_properties:
   binary_sensor: true
   climate: true
 specific_device_dynamic_overrides: {}
+
+# Specific device mappings (periph_id based) for devices that need custom handling
+# These override the generic usage_id mappings
+specific_device_mappings:
+  "1061604":  # Espace libre Box - Disk space monitoring
+    ha_entity: "sensor"
+    ha_subtype: "disk_usage"
+    justification: "Eedomus box disk space sensor"
+    device_class: "disk_usage"
+    unit_of_measurement: "%"
+    icon: "mdi:harddisk"
+    entity_category: "diagnostic"
+    internal_box_eedomus: true
+    
+  "1061606":  # Messages Box - System messages/error monitoring
+    ha_entity: "sensor"
+    ha_subtype: "text"
+    justification: "Eedomus box system messages sensor"
+    device_class: "text"
+    icon: "mdi:message-text"
+    entity_category: "diagnostic"
+    internal_box_eedomus: true
+
 name_patterns: []
