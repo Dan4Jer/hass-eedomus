@@ -519,19 +519,11 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                     _LOGGER.error(
                         "💡 Check device configuration in eedomus for valid temperature values"
                     )
-                raise
-                # Update the target temperature immediately
+                # Update the target temperature immediately even on error
                 self._attr_target_temperature = temperature
                 await self.coordinator.async_request_refresh()
                 self.async_write_ha_state()
-            else:
-                _LOGGER.error(
-                    "Failed to set temperature for %s: %s (tried value: %s, requested: %.1f°C)",
-                    self._attr_name,
-                    result.get("error", "Unknown error"),
-                    eedomus_value,
-                    temperature,
-                )
+                raise
         except Exception as e:
             _LOGGER.error(
                 "Exception while setting temperature for %s: %s",
