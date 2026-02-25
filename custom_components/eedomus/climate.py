@@ -60,26 +60,50 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
         self._attr_name = self.coordinator.data[periph_id]["name"]
         self._attr_unique_id = f"{periph_id}_climate"
 
-        # Climate-specific attributes
-        self._attr_hvac_modes = [HVACMode.HEAT, HVACMode.OFF]
+        # Load YAML configuration for this device
+        yaml_config = coordinator.get_yaml_config_sync() if hasattr(coordinator, 'get_yaml_config_sync') else {}
+        usage_id = self.coordinator.data[periph_id].get("usage_id", "unknown")
+        
+        # Get entity-specific configuration from YAML
+        entity_specifics = {}
+        if 'usage_id_mappings' in yaml_config and usage_id in yaml_config['usage_id_mappings']:
+            entity_specifics = yaml_config['usage_id_mappings'][usage_id].get('entity_specifics', {})
+        
+        # Climate-specific attributes with YAML overrides
+        self._attr_hvac_modes = entity_specifics.get('hvac_modes', [HVACMode.HEAT, HVACMode.OFF])
         self._attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
-
+        
         # Temperature unit (required by Home Assistant)
-        self._attr_temperature_unit = "°C"  # Celsius
+        self._attr_temperature_unit = entity_specifics.get('temperature_unit', "°C")
 
-        # Default temperature range (can be adjusted based on device capabilities)
-        self._attr_min_temp = 7.0
-        self._attr_max_temp = 30.0
-        self._attr_target_temperature_step = 0.5
+        # Temperature range and precision from YAML (with defaults)
+        self._attr_min_temp = entity_specifics.get('min_temp', 7.0)
+        self._attr_max_temp = entity_specifics.get('max_temp', 30.0)
+        self._attr_target_temperature_step = entity_specifics.get('target_temp_step', 0.5)
+        
+        # Precision for temperature display
+        self._attr_precision = entity_specifics.get('precision', 0.5)
 
         # Initialize default values
         self._attr_target_temperature = 19.0  # Default target temperature
         self._attr_current_temperature = None  # Will be set if available
+        
+        # Load temperature sensor mapping if available
+        self._linked_temperature_sensor = None
+        if 'temperature_setpoint_mappings' in yaml_config:
+            sensor_id = yaml_config['temperature_setpoint_mappings'].get(periph_id, '')
+            if sensor_id:
+                self._linked_temperature_sensor = sensor_id
+                _LOGGER.info(
+                    "🔗 Climate entity %s (%s) linked to temperature sensor %s",
+                    self._attr_name, periph_id, sensor_id
+                )
 
         _LOGGER.debug(
             "Initializing climate entity for %s (%s)", self._attr_name, periph_id
         )
         self._update_climate_state()
+        self._update_current_temperature()
 
     @property
     def extra_state_attributes(self):
@@ -119,6 +143,12 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                     # Show first few values as examples
                     example_values = [v.get("value", "") for v in periph_data["values"][:3]]
                     attrs["example_values"] = ", ".join(example_values)
+                
+                # Temperature sensor mapping information
+                if self._linked_temperature_sensor:
+                    attrs["linked_temperature_sensor"] = self._linked_temperature_sensor
+                    if self._attr_current_temperature is not None:
+                        attrs["current_temperature"] = f"{self._attr_current_temperature}°C"
                 
         except Exception as e:
             _LOGGER.debug("Failed to generate extra state attributes: %s", e)
@@ -276,6 +306,43 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
             if numeric_values:
                 self._attr_min_temp = min(numeric_values)
                 self._attr_max_temp = max(numeric_values)
+
+    def _update_current_temperature(self):
+        """Update current temperature from linked sensor or child devices."""
+        if not self._linked_temperature_sensor:
+            # No linked sensor, try to find temperature from child devices
+            all_peripherals = self.coordinator.get_all_peripherals()
+            for child_periph_id, child_periph in all_peripherals.items():
+                if child_periph.get("parent_periph_id") == self._periph_id:
+                    if child_periph.get("usage_id") == "7":  # Temperature sensor
+                        child_value = child_periph.get("last_value", "")
+                        if (
+                            child_value
+                            and child_value.replace(".", "").replace("-", "").isdigit()
+                        ):
+                            self._attr_current_temperature = float(child_value)
+                            _LOGGER.debug(
+                                "🌡️ Updated current temperature from child sensor %s: %.1f°C",
+                                child_periph_id, self._attr_current_temperature
+                            )
+                            return
+        else:
+            # Get temperature from linked sensor
+            sensor_data = self.coordinator.data.get(self._linked_temperature_sensor)
+            if sensor_data and "last_value" in sensor_data:
+                try:
+                    temp_value = float(sensor_data["last_value"])
+                    self._attr_current_temperature = temp_value
+                    _LOGGER.debug(
+                        "🌡️ Updated current temperature from linked sensor %s: %.1f°C",
+                        self._linked_temperature_sensor, self._attr_current_temperature
+                    )
+                    return
+                except (ValueError, TypeError) as e:
+                    _LOGGER.warning(
+                        "⚠️ Failed to parse temperature from linked sensor %s: %s",
+                        self._linked_temperature_sensor, e
+                    )
 
     @property
     def available(self) -> bool:

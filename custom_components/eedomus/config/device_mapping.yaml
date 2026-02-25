@@ -83,6 +83,18 @@ usage_id_mappings:
     ha_subtype: temperature_setpoint
     justification: Virtual thermostat for heating setpoint control
     is_dynamic: false
+    entity_specifics:
+      temperature_unit: "°C"
+      precision: 1.0
+      min_temp: 5.0
+      max_temp: 29.0
+      target_temp_step: 1.0
+      hvac_modes:
+        - "heat"
+        - "off"
+      preset_modes: []
+      supported_features:
+        - "target_temperature"
   '18':
     ha_entity: sensor
     ha_subtype: text
@@ -302,6 +314,15 @@ usage_id_mappings:
     ha_subtype: camera_trigger
     justification: Camera image capture trigger - usage_id=127 for snapshot commands
     is_dynamic: false
+
+# Temperature setpoint to sensor mappings
+# Maps climate entities (usage_id 15) to their corresponding temperature sensors
+# Format: setpoint_periph_id: sensor_periph_id
+temperature_setpoint_mappings:
+  '1252440': '1235480'  # Consigne Salle de bain → Sonde température Salle de bain
+  '1252441': ''        # Consigne Salon → (sensor not yet mapped)
+  '1252442': ''        # Consigne Chambre enfant → (sensor not yet mapped)
+  # Add more mappings as needed following this format
 dynamic_entity_properties:
   sensor: true
   light: true
