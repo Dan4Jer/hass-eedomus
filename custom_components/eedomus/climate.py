@@ -450,10 +450,12 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                     return
 
                 _LOGGER.debug(
-                    "Setting %s temperature to eedomus value: %s (requested: %.1f°C)",
+                    "Setting %s temperature to eedomus value: %s (type: %s, requested: %.1f°C, acceptable: %s)",
                     self._attr_name,
                     eedomus_value,
+                    type(eedomus_value),
                     temperature,
+                    list(acceptable_values.keys())[:5] if acceptable_values else 'None',
                 )
 
             if eedomus_value is None:
