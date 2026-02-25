@@ -606,14 +606,11 @@ def load_custom_yaml_mappings():
             _LOGGER.debug("Custom mapping file not found at %s", custom_mapping_path)
             return None
             
-        try:
-            import aiofiles
-            async with aiofiles.open(custom_mapping_path, 'r') as f:
-                content = await f.read()
-                custom_mappings = yaml.safe_load(content) or {}
-        except Exception as e:
-            _LOGGER.warning("Failed to load custom mappings: %s", e)
-            return None
+        # Load custom mappings using synchronous file I/O
+        # Note: This is acceptable since it's only called during entity initialization
+        with open(custom_mapping_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+            custom_mappings = yaml.safe_load(content) or {}
             _LOGGER.debug("Loaded custom mappings from %s", custom_mapping_path)
             return custom_mappings
             
