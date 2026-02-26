@@ -307,9 +307,8 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     
     # Debug: Log if advanced_rules_dict is empty
     if not advanced_rules_dict:
-        _LOGGER.error("❌ CRITICAL: advanced_rules_dict is empty for device %s (%s)", 
+        _LOGGER.debug("🔍 advanced_rules_dict is empty for device %s (%s) - no advanced rules configured", 
                      periph_name, periph_id)
-        _LOGGER.error("❌ This means no advanced rules will be evaluated!")
     else:
         _LOGGER.debug("✅ advanced_rules_dict has %d rules for device %s (%s)", 
                      len(advanced_rules_dict), periph_name, periph_id)
