@@ -306,8 +306,14 @@ class EedomusLight(EedomusEntity, LightEntity):
         return round(percent * 255 / 100)
 
     def octal_to_percent(self, brightness: int) -> int:
-        """Convertit une valeur 0-255 en pourcentage (0-100)."""
-        return round(brightness * 100 / 255)
+        """Convertit une valeur 0-255 en pourcentage (0-100).
+        
+        Round to nearest 5% increment to avoid 'Unknown peripheral value' API errors
+        that occur with certain percentage values (e.g., 15, 49, 61).
+        """
+        percent = round(brightness * 100 / 255)
+        # Round to nearest 5% to avoid API validation issues
+        return round(percent / 5) * 5
 
 
 class EedomusRGBWLight(EedomusLight):

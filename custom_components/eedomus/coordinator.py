@@ -174,18 +174,18 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         total_time = sum(self._endpoint_timings.values())
         _LOGGER.info("🔄 INITIAL REFRESH: %d total, %.3fs total (Endpoints: %s)", len(aggregated_data), total_time, endpoint_log)
 
-        _LOGGER.debug(
-            "Initial Mapping Table %s",
-            "\n".join(
-                "Map: "
-                f"{aggregated_data[id].get('ha_entity', '?')}/"
-                f"{aggregated_data[id].get('ha_subtype', '?')} "
-                f"usage_id={aggregated_data[id].get('usage_id', '?')} "
-                f"PRODUCT_TYPE_ID={aggregated_data[id].get('PRODUCT_TYPE_ID', '?')} "
-                f"{aggregated_data[id].get('name', '?')}/{aggregated_data[id].get('usage_name', '?')}({id})"
-                for id in aggregated_data.keys()
-            ),
-        )
+        # Display mapping table on startup (INFO level for visibility)
+        _LOGGER.info("🗺️ Device Mapping Table:")
+        for periph_id in sorted(aggregated_data.keys(), key=lambda x: aggregated_data[x].get('name', '').lower()):
+            periph_data = aggregated_data[periph_id]
+            _LOGGER.info("  %s: %s/%s | usage_id=%s | PRODUCT_TYPE_ID=%s | %s/%s",
+                        periph_id,
+                        periph_data.get('ha_entity', '?'),
+                        periph_data.get('ha_subtype', '?'),
+                        periph_data.get('usage_id', '?'),
+                        periph_data.get('PRODUCT_TYPE_ID', '?'),
+                        periph_data.get('name', '?'),
+                        periph_data.get('usage_name', '?'))
         
         # Set the data for the coordinator
         self.data = aggregated_data
@@ -394,7 +394,6 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                      self._endpoint_timings['get_periph_list'],
                      self._endpoint_timings['get_periph_value_list'],
                      self._endpoint_timings['get_periph_caract'])
-        # _LOGGER.debug("Raw API response: %s", peripherals_response)
         if (
             not isinstance(peripherals_response, dict)
             or not isinstance(peripherals_value_list_response, dict)
@@ -458,16 +457,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # Récupération des données - CORRECTED: now calls full data retrieve with all endpoints
         peripherals_caract = await self._async_full_data_retreive()
         
-        # DEBUG: Check if endpoint timings were set
-        _LOGGER.debug("🔍 Endpoint timings after full data retrieve: list=%.3fs, values=%.3fs, caract=%.3fs",
-                     self._endpoint_timings.get('get_periph_list', 0.0),
-                     self._endpoint_timings.get('get_periph_value_list', 0.0),
-                     self._endpoint_timings.get('get_periph_caract', 0.0))
-        
         # SAFE: Ensure peripherals_caract contains dictionaries with periph_id
         # URGENT FIX FOR CRITICAL BUG - 2026-02-23 16:50
         # Handle both flat and nested list structures
         peripherals_caract_dict = {}
+        nested_structure_count = 0
         
         for it in peripherals_caract:
             if isinstance(it, dict) and 'periph_id' in it:
@@ -475,7 +469,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 peripherals_caract_dict[str(it["periph_id"])] = it
             elif isinstance(it, list):
                 # Nested case: list of lists - flatten it
-                _LOGGER.debug("🔍 Found nested structure in peripherals_caract, flattening...")
+                nested_structure_count += 1
                 for sub_item in it:
                     if isinstance(sub_item, dict) and 'periph_id' in sub_item:
                         peripherals_caract_dict[str(sub_item["periph_id"])] = sub_item
@@ -483,6 +477,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                         _LOGGER.error("❌ Invalid sub-item in nested structure: %s (type: %s)", sub_item, type(sub_item))
             else:
                 _LOGGER.error("❌ CRITICAL BUG FIXED: Invalid peripheral data format: %s (type: %s)", it, type(it))
+        
+        # Log nested structure count once instead of multiple times
+        if nested_structure_count > 0:
+            _LOGGER.debug("🔍 Found %d nested structure(s) in peripherals_caract, flattened successfully", nested_structure_count)
 
         # Initialisation du dictionnaire agrégé
         aggregated_data = self.data
@@ -534,18 +532,18 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
         _LOGGER.info("📊 Device processing summary: %d total peripherals, %d dynamic, %d skipped, %d processed", len(aggregated_data), dynamic, skipped, len(aggregated_data))
 
-        _LOGGER.debug(
-            "Mapping Table %s",
-            "\n".join(
-                "Map: "
-                f"{aggregated_data[id].get('ha_entity', '?')}/"
-                f"{aggregated_data[id].get('ha_subtype', '?')} "
-                f"usage_id={aggregated_data[id].get('usage_id', '?')} "
-                f"PRODUCT_TYPE_ID={aggregated_data[id].get('PRODUCT_TYPE_ID', '?')} "
-                f"{aggregated_data[id].get('name', '?')}/{aggregated_data[id].get('usage_name', '?')}({id})"
-                for id in aggregated_data.keys()
-            ),
-        )
+        # Display mapping table on each full refresh (INFO level for visibility)
+        _LOGGER.info("🗺️ Device Mapping Table:")
+        for periph_id in sorted(aggregated_data.keys(), key=lambda x: aggregated_data[x].get('name', '').lower()):
+            periph_data = aggregated_data[periph_id]
+            _LOGGER.info("  %s: %s/%s | usage_id=%s | PRODUCT_TYPE_ID=%s | %s/%s",
+                        periph_id,
+                        periph_data.get('ha_entity', '?'),
+                        periph_data.get('ha_subtype', '?'),
+                        periph_data.get('usage_id', '?'),
+                        periph_data.get('PRODUCT_TYPE_ID', '?'),
+                        periph_data.get('name', '?'),
+                        periph_data.get('usage_name', '?'))
         self.data = aggregated_data
         return aggregated_data
 
@@ -587,8 +585,6 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             )
             self._endpoint_timings['get_periph_caract'] = (datetime.now() - api_start_time).total_seconds()
             self._endpoint_call_counts['get_periph_caract'] += 1
-            
-            _LOGGER.info("📊 get_periph_caract timing (partial): %.3fs", self._endpoint_timings['get_periph_caract'])
         except Exception as e:
             _LOGGER.warning(
                 "Failed to partial refresh peripheral %s: %s", concat_text_periph_id, e
