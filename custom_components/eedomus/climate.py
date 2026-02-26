@@ -91,24 +91,11 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
         # Load temperature sensor mapping if available
         self._linked_temperature_sensor = None
         
-        # First try custom mappings (from custom_mapping.yaml)
-        custom_mappings = {}
-        try:
-            from .device_mapping import load_custom_yaml_mappings
-            custom_mappings = load_custom_yaml_mappings() or {}
-        except Exception as e:
-            _LOGGER.debug("No custom mappings found or error loading: %s", e)
+        # Temperature sensor mapping will be loaded asynchronously in async_added_to_hass
+        # to avoid blocking the event loop
         
-        if 'temperature_setpoint_mappings' in custom_mappings:
-            sensor_id = custom_mappings['temperature_setpoint_mappings'].get(periph_id, '')
-            if sensor_id:
-                self._linked_temperature_sensor = sensor_id
-                _LOGGER.info(
-                    "🔗 Climate entity %s (%s) linked to temperature sensor %s (from custom config)",
-                    self._attr_name, periph_id, sensor_id
-                )
-        elif 'temperature_setpoint_mappings' in yaml_config:
-            # Fallback to device_mapping.yaml (for backward compatibility)
+        # Fallback to device_mapping.yaml (for backward compatibility)
+        if 'temperature_setpoint_mappings' in yaml_config:
             sensor_id = yaml_config['temperature_setpoint_mappings'].get(periph_id, '')
             if sensor_id:
                 self._linked_temperature_sensor = sensor_id
@@ -122,6 +109,30 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
         )
         self._update_climate_state()
         self._update_current_temperature()
+
+    async def async_added_to_hass(self) -> None:
+        """Call when the entity is added to Home Assistant.
+        
+        Load custom temperature sensor mappings asynchronously to avoid blocking the event loop.
+        """
+        await super().async_added_to_hass()
+        
+        # Load custom mappings asynchronously
+        try:
+            from .device_mapping import load_custom_yaml_mappings_async
+            custom_mappings = await load_custom_yaml_mappings_async(self.hass) or {}
+            
+            if 'temperature_setpoint_mappings' in custom_mappings:
+                periph_id = self._periph_id
+                sensor_id = custom_mappings['temperature_setpoint_mappings'].get(periph_id, '')
+                if sensor_id and not self._linked_temperature_sensor:
+                    self._linked_temperature_sensor = sensor_id
+                    _LOGGER.info(
+                        "🔗 Climate entity %s (%s) linked to temperature sensor %s (from custom config)",
+                        self._attr_name, periph_id, sensor_id
+                    )
+        except Exception as e:
+            _LOGGER.debug("No custom mappings found or error loading: %s", e)
 
     @property
     def extra_state_attributes(self):

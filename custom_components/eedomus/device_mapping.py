@@ -607,6 +607,10 @@ def load_custom_yaml_mappings():
     
     Returns:
         dict: Custom mappings or None if file doesn't exist or can't be loaded
+        
+    Note:
+        This synchronous version may trigger blocking warnings during initialization.
+        For async contexts, use load_custom_yaml_mappings_async() instead.
     """
     import os
     import yaml
@@ -621,7 +625,6 @@ def load_custom_yaml_mappings():
             return None
             
         # Load custom mappings using synchronous file I/O
-        # Note: This is acceptable since it's only called during entity initialization
         with open(custom_mapping_path, 'r', encoding='utf-8') as f:
             content = f.read()
             custom_mappings = yaml.safe_load(content) or {}
@@ -631,3 +634,20 @@ def load_custom_yaml_mappings():
     except Exception as e:
         _LOGGER.warning("Failed to load custom mappings: %s", e)
         return None
+
+
+async def load_custom_yaml_mappings_async(hass):
+    """Load custom mappings from custom_mapping.yaml file asynchronously.
+    
+    This async version avoids blocking the event loop by using hass.async_add_executor_job.
+    
+    Args:
+        hass: Home Assistant instance for accessing async_add_executor_job
+        
+    Returns:
+        dict: Custom mappings or None if file doesn't exist or can't be loaded
+    """
+    def _load_sync():
+        return load_custom_yaml_mappings()
+    
+    return await hass.async_add_executor_job(_load_sync)
