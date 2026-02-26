@@ -1,7 +1,7 @@
 {
     "domain": "eedomus",
     "name": "Eedomus Integration",
-    "version": "0.13.28-unstable",
+    "version": "0.13.29-unstable",
     "documentation": "https://github.com/Dan4Jer/hass-eedomus/blob/main/README.md",
     "issue_tracker": "https://github.com/Dan4Jer/hass-eedomus/issues",
     "category": "Hub",
