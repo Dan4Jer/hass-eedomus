@@ -250,8 +250,8 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
             # Import device registry
             from homeassistant.helpers import device_registry as dr
             
-            # Get device registry
-            device_registry = await dr.async_get(hass)
+            # Get device registry (async_get returns DeviceRegistry directly, not a coroutine)
+            device_registry = dr.async_get(hass)
             
             # Find devices to remove: eedomus devices that are disabled or have no entities
             devices_to_remove = []
@@ -328,80 +328,6 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
             
         except Exception as err:
             _LOGGER.error("❌ Cleanup service failed: %s", err)
-            return {
-                "success": False,
-                "error": str(err)
-            }
-
-    async def handle_cleanup_unused_devices(call: ServiceCall) -> dict:
-        """Handle cleanup of unused eedomus devices."""
-        _LOGGER.info("🗑️  Cleanup unused devices service called via eedomus.cleanup_unused_devices")
-        
-        try:
-            # Import device registry
-            from homeassistant.helpers import device_registry as dr
-            
-            # Get device registry
-            device_registry = await dr.async_get(hass)
-            
-            # Find devices to remove: eedomus devices that are disabled or have no entities
-            devices_to_remove = []
-            devices_analyzed = 0
-            devices_considered = 0
-            
-            for device_entry in device_registry.devices.values():
-                devices_analyzed += 1
-                
-                # Check if this device has eedomus in its identifiers
-                is_eedomus_device = any(
-                    identifier[0] == "eedomus" 
-                    for identifier in device_entry.identifiers
-                )
-                
-                if is_eedomus_device:
-                    devices_considered += 1
-                    
-                    # Check if device is disabled OR has no entities
-                    is_disabled = device_entry.disabled_by
-                    has_no_entities = len(device_entry.config_entries) == 0
-                    
-                    if is_disabled or has_no_entities:
-                        devices_to_remove.append({
-                            'device_id': device_entry.id,
-                            'name': device_entry.name,
-                            'disabled': bool(is_disabled),
-                            'has_no_entities': has_no_entities,
-                            'reason': 'no_entities' if has_no_entities else 'disabled'
-                        })
-            
-            _LOGGER.info(f"Device cleanup analysis complete: {devices_analyzed} devices analyzed, "
-                       f"{devices_considered} eedomus devices considered, "
-                       f"{len(devices_to_remove)} devices to be removed")
-            
-            # Remove the devices
-            removed_count = 0
-            for device_info in devices_to_remove:
-                try:
-                    _LOGGER.info(f"Removing device {device_info['name']} (id: {device_info['device_id']}, "
-                               f"reason: {device_info['reason']})")
-                    device_registry.async_remove_device(device_info['device_id'])
-                    removed_count += 1
-                except Exception as e:
-                    _LOGGER.error(f"Failed to remove device {device_info['device_id']}: {e}")
-            
-            _LOGGER.info(f"Device cleanup completed: {removed_count} devices removed "
-                       f"out of {len(devices_to_remove)} identified")
-            
-            return {
-                "success": True,
-                "devices_analyzed": devices_analyzed,
-                "devices_considered": devices_considered,
-                "devices_identified": len(devices_to_remove),
-                "devices_removed": removed_count
-            }
-            
-        except Exception as err:
-            _LOGGER.error("❌ Device cleanup service failed: %s", err)
             return {
                 "success": False,
                 "error": str(err)
