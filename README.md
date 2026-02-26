@@ -29,6 +29,25 @@
 - **Changements immédiats** : Les modifications prennent effet immédiatement après sauvegarde
 - **Interface utilisateur intuitive** : Panneau d'options organisé dans l'interface Home Assistant
 
+### 🆕 Nouveau : Fonctionnalité de Nettoyage des Entités
+
+**Maintenez votre installation propre et performante !** 🧹
+
+- **Nettoyage sélectif** : Supprime les entités eedomus inutilisées (désactivées ou marquées comme obsolètes)
+- **Service dédié** : `eedomus.cleanup_unused_entities` accessible via l'interface ou les automatisations
+- **Journalisation complète** : Suivi détaillé de toutes les actions de nettoyage
+- **Sécurité** : N'affecte que les entités eedomus, sans risque pour les autres intégrations
+- **Compatibilité** : Fonctionne avec toutes les versions de Home Assistant
+
+**Utilisation simple** :
+```bash
+# Via l'interface : Developer Tools > Services > eedomus.cleanup_unused_entities
+# Via CLI : ha services call eedomus.cleanup_unused_entities
+# Via automatisation : créez une automatisation qui appelle ce service périodiquement
+```
+
+[📖 Documentation complète de la fonctionnalité de nettoyage](docs/CLEANUP_FEATURE.md)
+
 ### Fonctionnalités existantes
 
 - **Gestion complète** de vos 30+ périphériques Z-Wave et 4-5 Zigbee
@@ -578,6 +597,7 @@ custom_name_patterns:
 
 La documentation complète est disponible dans le dossier [docs/](docs/) :
 
+- **[CLEANUP_FEATURE.md](docs/CLEANUP_FEATURE.md)** - 🆕 Documentation complète de la fonctionnalité de nettoyage
 - **[RELEASE_NOTES.md](docs/RELEASE_NOTES.md)** - Détails complets de la version 0.12.0
 - **[RELEASE_NOTES_v0.12.0.md](RELEASE_NOTES_v0.12.0.md)** - Notes de release complètes
 - **[BATTERY_CHILD_ENTITY_IMPLEMENTATION.md](docs/BATTERY_CHILD_ENTITY_IMPLEMENTATION.md)** - Implémentation des entités batteries
