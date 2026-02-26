@@ -174,35 +174,37 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         total_time = sum(self._endpoint_timings.values())
         _LOGGER.info("🔄 INITIAL REFRESH: %d total, %.3fs total (Endpoints: %s)", len(aggregated_data), total_time, endpoint_log)
 
-        # Display enhanced mapping table on startup (INFO level for visibility)
-        _LOGGER.info("🗺️ Enhanced Device Mapping Table:")
-        for periph_id in sorted(aggregated_data.keys(), key=lambda x: aggregated_data[x].get('name', '').lower()):
-            periph_data = aggregated_data[periph_id]
-            parent_id = periph_data.get('parent_periph_id', 'None')
-            is_rgbw_parent = (periph_data.get('ha_entity') == 'light' and 
-                            periph_data.get('ha_subtype') == 'rgbw')
-            is_rgbw_child = (parent_id != 'None' and 
-                            aggregated_data.get(parent_id, {}).get('ha_subtype') == 'rgbw')
-            
-            # Detailed RGBW info
-            rgbw_info = ""
-            if is_rgbw_parent:
-                children = [child_id for child_id, child in aggregated_data.items() 
-                          if child.get('parent_periph_id') == periph_id]
-                rgbw_info = f" | 🎨 RGBW Parent ({len(children)} children)"
-            elif is_rgbw_child:
-                rgbw_info = f" | 🎨 RGBW Child of {parent_id}"
-            
-            _LOGGER.info("  %s: %s/%s | usage_id=%s | PRODUCT_TYPE_ID=%s | parent=%s | %s/%s%s",
-                        periph_id,
-                        periph_data.get('ha_entity', '?'),
-                        periph_data.get('ha_subtype', '?'),
-                        periph_data.get('usage_id', '?'),
-                        periph_data.get('PRODUCT_TYPE_ID', '?'),
-                        parent_id,
-                        periph_data.get('name', '?'),
-                        periph_data.get('usage_name', '?'),
-                        rgbw_info)
+        # Display enhanced mapping table only on initial startup (not on subsequent refreshes)
+        if not hasattr(self, '_mapping_table_displayed'):
+            _LOGGER.info("🗺️ Enhanced Device Mapping Table:")
+            for periph_id in sorted(aggregated_data.keys(), key=lambda x: aggregated_data[x].get('name', '').lower()):
+                periph_data = aggregated_data[periph_id]
+                parent_id = periph_data.get('parent_periph_id', 'None')
+                is_rgbw_parent = (periph_data.get('ha_entity') == 'light' and 
+                                periph_data.get('ha_subtype') == 'rgbw')
+                is_rgbw_child = (parent_id != 'None' and 
+                                aggregated_data.get(parent_id, {}).get('ha_subtype') == 'rgbw')
+                
+                # Detailed RGBW info
+                rgbw_info = ""
+                if is_rgbw_parent:
+                    children = [child_id for child_id, child in aggregated_data.items() 
+                              if child.get('parent_periph_id') == periph_id]
+                    rgbw_info = f" | 🎨 RGBW Parent ({len(children)} children)"
+                elif is_rgbw_child:
+                    rgbw_info = f" | 🎨 RGBW Child of {parent_id}"
+                
+                _LOGGER.info("  %s: %s/%s | usage_id=%s | PRODUCT_TYPE_ID=%s | parent=%s | %s/%s%s",
+                            periph_id,
+                            periph_data.get('ha_entity', '?'),
+                            periph_data.get('ha_subtype', '?'),
+                            periph_data.get('usage_id', '?'),
+                            periph_data.get('PRODUCT_TYPE_ID', '?'),
+                            parent_id,
+                            periph_data.get('name', '?'),
+                            periph_data.get('usage_name', '?'),
+                            rgbw_info)
+            self._mapping_table_displayed = True
         
         # Set the data for the coordinator
         self.data = aggregated_data
@@ -549,35 +551,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
         _LOGGER.info("📊 Device processing summary: %d total peripherals, %d dynamic, %d skipped, %d processed", len(aggregated_data), dynamic, skipped, len(aggregated_data))
 
-        # Display enhanced mapping table on each full refresh (INFO level for visibility)
-        _LOGGER.info("🗺️ Enhanced Device Mapping Table:")
-        for periph_id in sorted(aggregated_data.keys(), key=lambda x: aggregated_data[x].get('name', '').lower()):
-            periph_data = aggregated_data[periph_id]
-            parent_id = periph_data.get('parent_periph_id', 'None')
-            is_rgbw_parent = (periph_data.get('ha_entity') == 'light' and 
-                            periph_data.get('ha_subtype') == 'rgbw')
-            is_rgbw_child = (parent_id != 'None' and 
-                            aggregated_data.get(parent_id, {}).get('ha_subtype') == 'rgbw')
-            
-            # Detailed RGBW info
-            rgbw_info = ""
-            if is_rgbw_parent:
-                children = [child_id for child_id, child in aggregated_data.items() 
-                          if child.get('parent_periph_id') == periph_id]
-                rgbw_info = f" | 🎨 RGBW Parent ({len(children)} children)"
-            elif is_rgbw_child:
-                rgbw_info = f" | 🎨 RGBW Child of {parent_id}"
-            
-            _LOGGER.info("  %s: %s/%s | usage_id=%s | PRODUCT_TYPE_ID=%s | parent=%s | %s/%s%s",
-                        periph_id,
-                        periph_data.get('ha_entity', '?'),
-                        periph_data.get('ha_subtype', '?'),
-                        periph_data.get('usage_id', '?'),
-                        periph_data.get('PRODUCT_TYPE_ID', '?'),
-                        parent_id,
-                        periph_data.get('name', '?'),
-                        periph_data.get('usage_name', '?'),
-                        rgbw_info)
+        # Mapping table only displayed on initial startup, not on subsequent refreshes
+        # This reduces log volume while maintaining useful startup information
         self.data = aggregated_data
         return aggregated_data
 
