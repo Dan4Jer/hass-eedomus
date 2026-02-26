@@ -6,7 +6,7 @@ aiohttp>=3.8
 yarl>=1.8
 
 # Development dependencies
-black==23.12.1
+black==24.3.0
 flake8==6.1.0
 isort==5.13.2
 pytest==7.4.4
