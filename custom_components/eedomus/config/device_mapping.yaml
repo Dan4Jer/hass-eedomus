@@ -137,9 +137,9 @@ usage_id_mappings:
           unit: 'Ko'
         ha_subtype: disk_free_space
         device_class: data_size
-        unit_of_measurement: B
+        unit_of_measurement: kB
         icon: mdi:harddisk
-        justification: Disk free space - storage monitoring in bytes
+        justification: Disk free space - storage monitoring in kilobytes
     # Default fallback if no conditions match
     default:
       ha_subtype: cpu
