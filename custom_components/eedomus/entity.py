@@ -433,6 +433,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         # Debug: Log the mapping structure for usage_id 23
         if str(usage_id) == "23":
             _LOGGER.info("🔍 Usage_id 23 mapping structure: %s", list(mapping.keys()))
+            _LOGGER.info("🔍 Checking for subtype_mapping: %s", ("subtype_mapping" in mapping))
         
         # Check for dynamic subtype mapping based on device properties
         if "subtype_mapping" in mapping:
