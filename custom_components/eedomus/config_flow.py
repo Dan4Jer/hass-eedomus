@@ -1,4 +1,7 @@
-"""Config flow for eedomus integration."""
+"""Config flow for eedomus integration.
+
+Detailed parameter documentation is available in docs/OPTIONS_DOCUMENTATION.md
+"""
 
 from __future__ import annotations
 
