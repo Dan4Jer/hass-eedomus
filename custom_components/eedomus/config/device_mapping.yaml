@@ -344,7 +344,6 @@ specific_device_mappings:
     unit_of_measurement: "B"
     icon: "mdi:harddisk"
     entity_category: "diagnostic"
-    internal_box_eedomus: true
     
   "1061606":  # Messages Box - System messages/error monitoring
     ha_entity: "sensor"
