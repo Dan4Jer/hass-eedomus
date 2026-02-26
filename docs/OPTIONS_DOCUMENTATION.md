@@ -184,6 +184,74 @@ Temps maximum d'attente pour la réponse du script PHP de fallback.
 
 ---
 
+## 🧹 Fonctionnalité de Nettoyage (Nouveau)
+
+**Service**: `eedomus.cleanup_unused_entities`
+
+La fonctionnalité de nettoyage permet de supprimer automatiquement les entités eedomus inutilisées pour maintenir votre installation propre et performante.
+
+### 🎯 Ce que fait le nettoyage
+
+- **Supprime les entités désactivées**: Entités que vous avez manuellement désactivées dans Home Assistant
+- **Supprime les entités obsolètes**: Entités dont l'`unique_id` contient "deprecated" (insensible à la casse)
+- **Journalisation complète**: Suivi détaillé de toutes les actions de nettoyage
+- **Sécurité**: N'affecte que les entités eedomus, sans risque pour les autres intégrations
+
+### 🔧 Comment utiliser le nettoyage
+
+#### Méthode 1: Via l'interface utilisateur
+1. Allez dans **Paramètres** > **Outils de développement** > **Services**
+2. Sélectionnez le service `eedomus.cleanup_unused_entities`
+3. Cliquez sur **Appeler le service**
+
+#### Méthode 2: Via la ligne de commande
+```bash
+ha services call eedomus.cleanup_unused_entities
+```
+
+#### Méthode 3: Via une automatisation
+```yaml
+automation:
+  - alias: "Nettoyage mensuel Eedomus"
+    trigger:
+      - platform: time
+        at: "03:00:00"
+    action:
+      - service: eedomus.cleanup_unused_entities
+```
+
+#### Méthode 4: Via un bouton dans le tableau de bord
+```yaml
+type: button
+name: Nettoyer les entités Eedomus
+tap_action:
+  action: call-service
+  service: eedomus.cleanup_unused_entities
+```
+
+### 📊 Que faire après le nettoyage
+
+1. **Vérifiez les logs**: Consultez les logs Home Assistant pour voir le résumé du nettoyage
+2. **Testez votre installation**: Assurez-vous que toutes vos automatisations fonctionnent encore
+3. **Surveillez les performances**: Observez si le nettoyage a amélioré les performances
+4. **Planifiez des nettoyages réguliers**: Configurez une automatisation pour un nettoyage périodique
+
+### ⚠️ Précautions
+
+- **Faites une sauvegarde** avant un nettoyage majeur
+- **Évitez les heures de pointe** pour exécuter le nettoyage
+- **Vérifiez les entités** avant de nettoyer (liste des entités désactivées/obsolètes)
+- **Testez d'abord** sur un petit ensemble si vous êtes incertain
+
+### 💡 Cas d'utilisation recommandés
+
+- Après une mise à jour majeure de l'intégration
+- Lors de la résolution de problèmes de performance
+- Comme maintenance régulière (mensuelle/trimestrielle)
+- Avant de faire une sauvegarde complète
+
+---
+
 ## 🎯 Bonnes Pratiques
 
 1. **Commencez avec les valeurs par défaut** pour la plupart des paramètres
