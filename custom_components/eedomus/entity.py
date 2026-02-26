@@ -53,6 +53,7 @@ try:
         _LOGGER.debug("   📝 Name patterns: %d", len(DEVICE_MAPPINGS.get('name_patterns', [])))
         _LOGGER.debug("   ⚡ Dynamic entity properties: %s", dynamic_props)
         _LOGGER.debug("   🎛️ Specific device overrides: %s", specific_overrides)
+        _LOGGER.debug("   🎯 Specific device mappings: %d", len(DEVICE_MAPPINGS.get('specific_device_mappings', {})))
         
         # Critical error if dynamic properties are missing
         if not dynamic_props:
