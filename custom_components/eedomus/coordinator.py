@@ -336,8 +336,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                         endpoint_details.append(f"{endpoint}: {time:.3f}s")
                 endpoint_log = ", ".join(endpoint_details) if endpoint_details else "no endpoints"
                 
+                # Count dynamic peripherals using the same logic as full refresh for consistency
+                partial_dynamic_count = sum(1 for periph_data in self._dynamic_peripherals.values() 
+                                          if self._is_dynamic_peripheral(periph_data))
                 _LOGGER.info("🔄 PARTIAL REFRESH: %d dynamic, %.3fs total (Endpoints: %s)", 
-                             len(self._dynamic_peripherals), total_time, endpoint_log)
+                             partial_dynamic_count, total_time, endpoint_log)
                 return ret
         except Exception as err:
             elapsed = (datetime.now() - start_time).total_seconds()
