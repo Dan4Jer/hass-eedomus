@@ -127,8 +127,8 @@ usage_id_mappings:
     # Dynamic subtype based on device properties (unit, icon, name)
     subtype_mapping:
       - conditions:
-          unit: '%'
-          icon: '/img/mdm/01/graphe.png'
+          unit: 'Ko'
+          icon: 'mdi:cpu-64-bit'
         ha_subtype: cpu
         device_class: cpu
         unit_of_measurement: '%'
@@ -136,14 +136,15 @@ usage_id_mappings:
         justification: CPU usage monitor - percentage based
       - conditions:
           unit: 'Ko'
-          icon: '/img/mdm/01/harddisk.png'
+          icon: 'mdi:harddisk'
         ha_subtype: disk_free_space
         device_class: data_size
         unit_of_measurement: B
         icon: mdi:harddisk
         justification: Disk free space - storage monitoring in bytes
       - conditions:
-          icon: '/img/mdm/01/message.png'
+          unit: '%'
+          icon: 'mdi:message-text'
         ha_subtype: text
         device_class: text
         icon: mdi:message-text
