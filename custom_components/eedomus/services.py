@@ -169,13 +169,40 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
             _LOGGER.error("❌ Failed to set climate temperature for %s: %s", device_id, err)
             raise ValueError(f"Failed to set temperature: {str(err)}")
 
+    async def handle_cleanup_unused_entities(call: ServiceCall) -> dict:
+        """Handle cleanup of unused eedomus entities."""
+        _LOGGER.info("🧹 Cleanup service called via eedomus.cleanup_unused_entities")
+        
+        try:
+            # Import the cleanup function from __init__.py
+            from . import async_cleanup_unused_entities
+            
+            # Call the cleanup function
+            result = await async_cleanup_unused_entities(hass)
+            
+            if result.get("success"):
+                _LOGGER.info("✅ Cleanup completed successfully: %s entities removed", 
+                           result.get("entities_removed", 0))
+                return result
+            else:
+                _LOGGER.error("❌ Cleanup failed: %s", result.get("error", "Unknown error"))
+                return result
+                
+        except Exception as err:
+            _LOGGER.error("❌ Cleanup service failed: %s", err)
+            return {
+                "success": False,
+                "error": str(err)
+            }
+
     # Register services
     try:
         hass.services.async_register("eedomus", "refresh", handle_refresh)
         hass.services.async_register("eedomus", "set_value", handle_set_value)
         hass.services.async_register("eedomus", "reload", handle_reload)
         hass.services.async_register("eedomus", "set_climate_temperature", handle_set_climate_temperature)
-        _LOGGER.info("🛠️  Eedomus services registered: refresh, set_value, reload, set_climate_temperature")
+        hass.services.async_register("eedomus", "cleanup_unused_entities", handle_cleanup_unused_entities)
+        _LOGGER.info("🛠️  Eedomus services registered: refresh, set_value, reload, set_climate_temperature, cleanup_unused_entities")
     except Exception as err:
         _LOGGER.error("❌ Failed to register eedomus services: %s", err)
         raise err

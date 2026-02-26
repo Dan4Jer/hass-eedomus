@@ -13,7 +13,43 @@ The cleanup process identifies and removes eedomus entities that match either of
 
 ## How to Use the Cleanup Feature
 
-### Method 1: Through the Options Flow (Recommended)
+### Method 1: Using the Cleanup Service (Recommended for All Versions)
+
+Since the menu option requires a newer version of Home Assistant, we provide a service-based approach that works with all versions:
+
+1. **Through Developer Tools**:
+   - Go to **Settings** > **Developer Tools** > **Services**
+   - Find and select the service: `eedomus.cleanup_unused_entities`
+   - Click **Call Service**
+
+2. **Using Home Assistant CLI**:
+   ```bash
+   ha services call eedomus.cleanup_unused_entities
+   ```
+
+3. **Via Automation** (for scheduled cleanup):
+   ```yaml
+   automation:
+     - alias: "Monthly Eedomus Cleanup"
+       trigger:
+         - platform: time
+           at: "03:00:00"
+       action:
+         - service: eedomus.cleanup_unused_entities
+   ```
+
+4. **Dashboard Button** (for easy access):
+   ```yaml
+   type: button
+   name: Cleanup Eedomus Entities
+   tap_action:
+     action: call-service
+     service: eedomus.cleanup_unused_entities
+   ```
+
+### Method 2: Through the Options Flow (Newer HA Versions Only)
+
+If you're using a newer version of Home Assistant that supports menu options:
 
 1. **Navigate to the eedomus integration options**:
    - Go to **Settings** > **Devices & Services**
@@ -23,11 +59,6 @@ The cleanup process identifies and removes eedomus entities that match either of
 2. **Access the cleanup menu**:
    - In the options menu, you'll see a **Cleanup** option in the menu bar
    - Click on **Cleanup** to start the process
-
-3. **Review the results**:
-   - The system will analyze all entities and identify candidates for removal
-   - You'll see a summary showing how many entities were analyzed, considered, and removed
-   - Detailed logs will be available in the Home Assistant logs
 
 ### Method 2: Manual Cleanup (Advanced)
 

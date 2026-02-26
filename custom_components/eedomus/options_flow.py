@@ -161,8 +161,7 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
             }),
             description_placeholders={
                 "current_mode": "Custom Mapping" if self.use_yaml else "UI (DISABLED)"
-            },
-            menu_options=["cleanup"]
+            }
         )
 
     async def async_step_ui(self, user_input=None):
