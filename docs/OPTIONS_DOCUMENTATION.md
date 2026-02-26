@@ -1,0 +1,204 @@
+# 📖 Documentation des Options de Configuration
+
+Ce document explique chaque paramètre disponible dans l'interface de configuration de l'intégration eedomus.
+
+## 🔧 Paramètres Principaux
+
+### api_host
+**Type**: String (Adresse IP)
+**Exemple**: `192.168.1.100`
+
+L'adresse IP locale de votre box eedomus. Cette adresse permet à Home Assistant de communiquer directement avec votre box pour récupérer les états des périphériques et envoyer des commandes.
+
+**Où le trouver** :
+- Dans l'interface web de votre box eedomus
+- Section "Réseau" ou "Informations système"
+
+**Exemple de valeur**: `192.168.1.100`
+
+---
+
+### api_user
+**Type**: String (Identifiant)
+**Exemple**: `votre_email@example.com`
+
+L'identifiant API de votre compte eedomus. Cet identifiant est nécessaire pour authentifier les requêtes envoyées à la box eedomus.
+
+**Où le trouver** :
+1. Connectez-vous à l'interface web de votre box eedomus
+2. Allez dans "Mon compte" > "Identifiants pour l'API"
+3. Copiez l'identifiant API
+
+**Important**: Cet identifiant est différent de votre email de connexion habituel.
+
+---
+
+### api_secret
+**Type**: String (Mot de passe)
+**Exemple**: `votre_mot_de_passe_api`
+
+Le mot de passe API associé à votre compte eedomus. Ce champ est sécurisé et masqué dans l'interface.
+
+**Où le trouver** :
+- Dans la même section que l'identifiant API ("Mon compte" > "Identifiants pour l'API")
+
+**Important**: Ce mot de passe est différent de votre mot de passe de connexion habituel.
+
+---
+
+### enable_api_eedomus
+**Type**: Boolean
+**Valeur par défaut**: `True`
+
+Active ou désactive l'interrogation des API locales de votre box eedomus. Lorsque cette option est activée, Home Assistant peut:
+- Récupérer les états des périphériques (capteurs, actionneurs, etc.)
+- Envoyer des commandes aux périphériques
+- Synchroniser les états entre eedomus et Home Assistant
+
+**Recommandation**: Laissez cette option activée pour un fonctionnement normal de l'intégration.
+
+---
+
+### enable_api_proxy
+**Type**: Boolean
+**Valeur par défaut**: `False`
+
+Active le proxy API qui permet à votre box eedomus d'interroger Home Assistant et de manipuler directement des objets Home Assistant. Cette option permet:
+- De déclencher des automatisations Home Assistant depuis des scénarios eedomus
+- D'agir sur des entités Home Assistant depuis votre box eedomus
+- D'intégrer des devices Home Assistant dans des scénarios eedomus
+
+**Cas d'usage**:
+- Créer un scénario eedomus qui active une lumière Home Assistant
+- Déclencher une automatisation Home Assistant depuis un détecteur eedomus
+
+---
+
+### scan_interval
+**Type**: Integer (secondes)
+**Valeur par défaut**: `300` (5 minutes)
+**Plage recommandée**: `60-600`
+
+Détermine la fréquence à laquelle Home Assistant interroge votre box eedomus pour mettre à jour les états des périphériques.
+
+**Optimisation**:
+- **Intervalle court** (60-120s): Meilleure réactivité, mais charge plus la box
+- **Intervalle long** (300-600s): Moins de charge, mais mise à jour moins fréquente
+- **Équilibre recommandé**: 300 secondes (5 minutes) pour la plupart des installations
+
+**Note**: Certains périphériques (lumières, interrupteurs) utilisent des webhooks pour des mises à jour instantanées et ne dépendent pas de cet intervalle.
+
+---
+
+### http_request_timeout
+**Type**: Integer (secondes)
+**Valeur par défaut**: `10`
+**Plage recommandée**: `5-30`
+
+Détermine le temps maximum d'attente pour une réponse de l'API eedomus avant de considérer la requête comme échouée.
+
+**Quand l'ajuster**:
+- **Augmenter** (15-30s): Si votre réseau est lent ou instable
+- **Diminuer** (5-10s): Si vous voulez une détection plus rapide des échecs
+
+**Positionnement**: Ce paramètre est maintenant placé juste en dessous de `scan_interval` pour une meilleure organisation logique, car les deux sont liés aux requêtes API.
+
+---
+
+### enable_set_value_retry
+**Type**: Boolean
+**Valeur par défaut**: `True`
+
+Active la fonctionnalité de nouvelle tentative automatique lorsque l'envoi d'une valeur à un périphérique échoue (par exemple, valeur non autorisée).
+
+**Fonctionnement**:
+1. Première tentative avec la valeur demandée
+2. Si échoue, utilise la valeur la plus proche autorisée
+3. Nombre maximal de tentatives défini par `max_retries`
+
+**Recommandation**: Laissez activé pour une meilleure compatibilité avec les périphériques ayant des contraintes de valeurs.
+
+---
+
+### max_retries
+**Type**: Integer
+**Valeur par défaut**: `3`
+**Plage recommandée**: `1-5`
+
+Nombre maximal de tentatives pour envoyer une valeur à un périphérique en cas d'échec initial.
+
+**Exemple**: Si vous essayez de setter une luminosité à 45% mais que le périphérique n'accepte que 0%, 25%, 50%, 75%, 100%, l'intégration essaiera:
+1. 45% (échoue)
+2. 50% (valeur la plus proche autorisée)
+
+---
+
+### enable_webhook
+**Type**: Boolean
+**Valeur par défaut**: `True`
+
+Active les webhooks pour une communication bidirectionnelle entre eedomus et Home Assistant. Permet:
+- Rafraîchissement instantané des états
+- Déclenchement d'actions Home Assistant depuis eedomus
+- Intégration plus réactive
+
+---
+
+### api_proxy_disable_security
+**Type**: Boolean
+**Valeur par défaut**: `False`
+
+**⚠️ À utiliser avec prudence**
+
+Désactive la vérification de l'adresse IP source pour les requêtes API Proxy. Peut être utile pour:
+- Tests locaux
+- Autoriser d'autres machines du réseau local
+
+**Risque**: Désactiver cette sécurité peut exposer votre installation à des requêtes non autorisées.
+
+---
+
+### php_fallback_enabled
+**Type**: Boolean
+**Valeur par défaut**: `False`
+
+Active l'utilisation d'un script PHP pour contourner certaines limitations de l'API eedomus, notamment pour setter des valeurs non listées dans les options par défaut.
+
+**Requiert**: Un serveur web PHP fonctionnel sur le même hôte que Home Assistant.
+
+---
+
+### php_fallback_script_name
+**Type**: String
+**Valeur par défaut**: `"fallback.php"`
+
+Nom du script PHP utilisé pour le fallback. Doit être placé dans un répertoire accessible par votre serveur web.
+
+---
+
+### php_fallback_timeout
+**Type**: Integer (secondes)
+**Valeur par défaut**: `5`
+
+Temps maximum d'attente pour la réponse du script PHP de fallback.
+
+---
+
+## 🎯 Bonnes Pratiques
+
+1. **Commencez avec les valeurs par défaut** pour la plupart des paramètres
+2. **Ajustez scan_interval** en fonction de vos besoins de réactivité et de la charge de votre box
+3. **Activez les options avancées** (webhook, API proxy) seulement si vous en avez besoin
+4. **Surveillez les logs** après des changements pour détecter des problèmes
+5. **Testez les changements** un par un pour identifier les impacts
+
+## 📚 Documentation Complémentaire
+
+Pour plus d'informations sur l'intégration eedomus:
+- [Documentation officielle](https://github.com/Dan4Jer/hass-eedomus)
+- [Forum Home Assistant](https://community.home-assistant.io/)
+- [Issues GitHub](https://github.com/Dan4Jer/hass-eedomus/issues)
+
+---
+
+*Documentation générée automatiquement - Dernière mise à jour: 2026*
