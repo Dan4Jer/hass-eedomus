@@ -230,7 +230,8 @@ class EedomusSensor(EedomusEntity, SensorEntity):
             _LOGGER.info("🔗 Attached system sensor %s to Box eedomus", periph_info.get("name", "unknown"))
 
         # Set sensor-specific attributes based on ha_subtype
-        periph_type = periph_info.get("ha_subtype")
+        # Use ha_subtype from device_mapping if available (to apply specific mappings)
+        periph_type = device_mapping.get("ha_subtype") if device_mapping and "ha_subtype" in device_mapping else periph_info.get("ha_subtype")
 
         # Set default device class for all sensors
         self._attr_device_class = None
