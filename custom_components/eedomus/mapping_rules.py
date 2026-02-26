@@ -33,8 +33,8 @@ def evaluate_advanced_rules(device_data: dict, all_devices: dict, advanced_rules
     return None
 
 
-def evaluate_conditions(conditions: list, device_data: dict, all_devices: dict, periph_id: str, rule_name: str) -> bool:
-    """Évalue une liste de conditions."""
+def evaluate_conditions(conditions: list, device_data: dict, all_devices: dict, periph_id: str, rule_name: str, parent_child_relations=None) -> bool:
+    """Évalue une liste de conditions avec gestion optimisée des dépendances."""
     condition_result = True
 
     for condition in conditions:
@@ -47,10 +47,15 @@ def evaluate_conditions(conditions: list, device_data: dict, all_devices: dict, 
                 if not all_devices:
                     condition_result = False
                     break
-                children = [
-                    child for child_id, child in all_devices.items()
-                    if child.get("parent_periph_id") == periph_id
-                ]
+                # Utiliser les relations pré-calculées si disponibles pour éviter les scans coûteux
+                if parent_child_relations and periph_id in parent_child_relations:
+                    children = [all_devices[child_id] for child_id in parent_child_relations[periph_id]]
+                else:
+                    # Fallback à l'ancienne méthode si les relations ne sont pas disponibles
+                    children = [
+                        child for child_id, child in all_devices.items()
+                        if child.get("parent_periph_id") == periph_id
+                    ]
                 if len(children) < int(cond_value):
                     condition_result = False
                     break
@@ -88,10 +93,15 @@ def evaluate_conditions(conditions: list, device_data: dict, all_devices: dict, 
                     condition_result = False
                     break
                 parent_id = device_data.get("parent_periph_id")
-                parent_children = [
-                    child for child_id, child in all_devices.items()
-                    if child.get("parent_periph_id") == parent_id
-                ]
+                # Utiliser les relations pré-calculées si disponibles
+                if parent_child_relations and parent_id in parent_child_relations:
+                    parent_children = [all_devices[child_id] for child_id in parent_child_relations[parent_id]]
+                else:
+                    # Fallback à l'ancienne méthode
+                    parent_children = [
+                        child for child_id, child in all_devices.items()
+                        if child.get("parent_periph_id") == parent_id
+                    ]
                 if len(parent_children) < int(cond_value):
                     condition_result = False
                     break

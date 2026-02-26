@@ -247,7 +247,7 @@ class EedomusEntity(CoordinatorEntity):
             )
             return None
 
-def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: str = "sensor", coordinator=None):
+def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: str = "sensor", coordinator=None, parent_child_relations=None):
     """Map an eedomus device to a Home Assistant entity.
     
     Core device mapping function that determines how eedomus devices are represented
@@ -255,6 +255,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     
     Args:
         coordinator: Optional coordinator instance for async YAML loading
+        parent_child_relations: Pre-computed parent-child relationships to resolve timing issues
     
     Priority order:
     1. Advanced rules (parent-child relationships, RGBW detection)
@@ -267,6 +268,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         device_data: Dictionary containing device information from eedomus API
         all_devices: Dictionary of all devices for advanced rule evaluation
         default_ha_entity: Fallback entity type if no mapping found
+        parent_child_relations: Pre-computed parent-child relationships for efficient lookup
         
     Returns:
         Dictionary with ha_entity, ha_subtype, and justification keys
@@ -339,9 +341,9 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
             _LOGGER.debug("🔍 Using condition function for rule '%s'", rule_name)
             condition_result = rule_config["condition"](device_data, all_devices)
         elif "conditions" in rule_config:
-            # Evaluate conditions list from YAML
+            # Evaluate conditions list from YAML with parent-child relationships
             _LOGGER.debug("🔍 Using conditions list for rule '%s'", rule_name)
-            condition_result = evaluate_conditions(rule_config["conditions"], device_data, all_devices, periph_id, rule_name)
+            condition_result = evaluate_conditions(rule_config["conditions"], device_data, all_devices, periph_id, rule_name, parent_child_relations)
         else:
             _LOGGER.warning("No condition or conditions found in rule: %s", rule_name)
             condition_result = False

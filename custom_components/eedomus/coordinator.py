@@ -109,6 +109,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             | set(peripherals_caract_dict.keys())
         )
 
+        # Phase 1: Construction complète des données SANS mapping
+        # Cela résout le problème de temporalité où les enfants peuvent ne pas être encore dans aggregated_data
         for periph_id in all_periph_ids:
             aggregated_data[periph_id] = {}
 
@@ -124,9 +126,26 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             if periph_id in peripherals_caract_dict:
                 aggregated_data[periph_id].update(peripherals_caract_dict[periph_id])
 
-            # Mapping des périphériques vers une entité HA : la bonne ? quid des enfants vis à vis de parent ?
-            # Toujours recalculer le mapping pour s'assurer que les changements de configuration sont appliqués
-            eedomus_mapping = map_device_to_ha_entity(aggregated_data[periph_id], aggregated_data, coordinator=self)
+        # Phase 2: Détection des relations parent-enfant pour résoudre les dépendances circulaires
+        # Cela permet d'avoir une vue complète des relations avant d'appliquer le mapping
+        parent_child_relations = {}
+        for periph_id, device_data in aggregated_data.items():
+            parent_id = device_data.get("parent_periph_id")
+            if parent_id:
+                if parent_id not in parent_child_relations:
+                    parent_child_relations[parent_id] = []
+                parent_child_relations[parent_id].append(periph_id)
+
+        # Phase 3: Application du mapping avec gestion explicite des dépendances
+        # Maintenant que toutes les relations sont établies, nous pouvons appliquer le mapping de manière fiable
+        for periph_id, device_data in aggregated_data.items():
+            # Passer les relations parent-enfant complètes au mapping pour éviter les problèmes de timing
+            eedomus_mapping = map_device_to_ha_entity(
+                device_data, 
+                aggregated_data, 
+                coordinator=self,
+                parent_child_relations=parent_child_relations
+            )
             aggregated_data[periph_id].update(eedomus_mapping)
 
         # Logs des tailles
