@@ -273,7 +273,12 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
                     # Check if device is disabled OR has no entities
                     is_disabled = device_entry.disabled_by
                     # Check if device has no entities by looking at the device's entity associations
-                    has_no_entities = len(list(device_registry.entities.get_device_entities(device_entry.id))) == 0
+                    # We need to use the entity registry to find entities associated with this device
+                    from homeassistant.helpers import entity_registry as er
+                    entity_registry = er.async_get(hass)
+                    device_entities = [entity_id for entity_id, entity in entity_registry.entities.items() 
+                                     if entity.device_id == device_entry.id]
+                    has_no_entities = len(device_entities) == 0
                     
                     if is_disabled or has_no_entities:
                         devices_to_remove.append({
