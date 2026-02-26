@@ -1,10 +1,11 @@
 # Intégration eedomus pour Home Assistant
-
+[![HACS Validated](https://img.shields.io/badge/HACS-Validated-green.svg)](https://github.com/hacs/integration)
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/integration)
-[![Version](https://img.shields.io/badge/version-0.13.10-unstable-blue.svg)](https://github.com/Dan4Jer/hass-eedomus/releases/tag/v0.13.10-unstable)
+[![Version](https://img.shields.io/badge/version-0.13.10-blue.svg)](https://github.com/Dan4Jer/hass-eedomus/releases/tag/v0.13.10-unstable)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/Dan4Jer/hass-eedomus/blob/main/LICENSE)
 [![Release](https://img.shields.io/github/v/release/Dan4Jer/hass-eedomus?label=latest%20release)](https://github.com/Dan4Jer/hass-eedomus/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/Dan4Jer/hass-eedomus/total.svg)](https://github.com/Dan4Jer/hass-eedomus/releases)
+[![GitHub downloads (latest)](https://img.shields.io/github/downloads/Dan4Jer/hass-eedomus/latest/total)](https://github.com/Dan4Jer/hass-eedomus/releases/latest)
 
 **hass-eedomus** est une intégration personnalisée qui permet de connecter votre box domotique **eedomus** à **Home Assistant**, en suivant l'architecture standard des [custom integrations](https://developers.home-assistant.io/docs/creating_component_index).
 
@@ -58,6 +59,73 @@
 - **Architecture modulaire** suivant les bonnes pratiques Home Assistant
 - **Tests complets** pour toutes les entités (covers, switches, lights, sensors)
 - **Configuration YAML avancée** pour une personnalisation complète
+
+## 📦 Installation and Update
+
+### Via HACS
+1. In HACS config go in the 3 dots in top left then GitHub
+<img width="273" height="484" alt="3dots" src="https://github.com/user-attachments/assets/bac2ca18-463e-4e49-a57b-2d73bc8b219c" />
+
+2. Then add a custom repository
+<img width="318" height="469" alt="custom" src="https://github.com/user-attachments/assets/dbf5c1be-46b0-412d-8497-300b9ad9840a" />
+
+3.  click on add after set the right url https://github.com/Dan4Jer/hass-eedomus
+4. Go to **HACS** > **Integrations**
+5. Search for "Eedomus"
+6. Click **Install**
+
+### Manual
+1. Download the latest version from [GitHub Releases](https://github.com/Dan4Jer/hass-eedomus/releases)
+2. Extract the file to `custom_components/eedomus/`
+4. Restart Home Assistant
+
+### Configuration
+1. Go to **Settings** > **Devices & Services**
+2. Click **Add Integration**
+4. Search for "Eedomus"
+7. Configure options according to your needs
+
+## 🎯 YAML Mapping Configuration
+
+### File Locations
+- `custom_components/eedomus/config/device_mapping.yaml` : Default mappings
+- `custom_components/eedomus/config/custom_mapping.yaml` : Custom mappings
+
+### Custom Mapping Example
+```yaml
+# custom_mapping.yaml
+version: 1.0
+
+custom_rules:
+  - name: "My Custom RGBW Device"
+    priority: 1
+    conditions:
+      - usage_id: "1"
+      - name: ".*my rgbw.*"
+    mapping:
+      ha_entity: "light"
+      ha_subtype: "rgbw"
+      justification: "Custom RGBW device mapping"
+```
+
+### Mapping Priority
+1. Custom rules (custom_mapping.yaml)
+2. Advanced rules (RGBW detection, parent-child relationships)
+3. Usage_id mappings
+5. Name pattern mappings (regular expressions)
+8. Default mapping (fallback)
+
+## 🔧 Configuration via Interface
+
+1. **Access integration** : Settings > Devices & Services
+2. **Select Eedomus** and click **Options**
+3. **Configure settings** :
+   - Scan interval
+   - Fallback options
+   - Proxy security
+   - Logging
+5. **Save** to apply changes
+
 
 ## 🎛️ Configuration YAML et Interface Utilisateur
 

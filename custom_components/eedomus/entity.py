@@ -289,21 +289,30 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         all_devices = {}
     
     # Priorité 1: Règles avancées (nécessite all_devices)
-    # Handle both list and dict formats for advanced_rules
+    # Use the pre-converted dict format from device_mapping.py
     if periph_id == "1269454":
         _LOGGER.debug("SPECIAL DEBUG (v%s): Device 1269454 - advanced_rules type: %s", 
                      VERSION, type(DEVICE_MAPPINGS.get('advanced_rules')))
-        _LOGGER.debug("SPECIAL DEBUG (v%s): Device 1269454 - advanced_rules content: %s", 
-                     VERSION, DEVICE_MAPPINGS.get('advanced_rules'))
+        _LOGGER.debug("SPECIAL DEBUG (v%s): Device 1269454 - advanced_rules_dict type: %s", 
+                     VERSION, type(DEVICE_MAPPINGS.get('advanced_rules_dict')))
+        _LOGGER.debug("SPECIAL DEBUG (v%s): Device 1269454 - advanced_rules_dict content: %s", 
+                     VERSION, DEVICE_MAPPINGS.get('advanced_rules_dict'))
     
-    advanced_rules_dict = {}
-    if isinstance(DEVICE_MAPPINGS.get('advanced_rules'), list):
-        # Convert list of rules to dict format for compatibility
-        for rule in DEVICE_MAPPINGS.get('advanced_rules', []):
-            if isinstance(rule, dict) and 'name' in rule:
-                advanced_rules_dict[rule['name']] = rule
+    # Use the pre-converted dict format if available, otherwise fall back to old conversion
+    if 'advanced_rules_dict' in DEVICE_MAPPINGS and isinstance(DEVICE_MAPPINGS['advanced_rules_dict'], dict):
+        advanced_rules_dict = DEVICE_MAPPINGS['advanced_rules_dict']
+        _LOGGER.debug("✅ Using pre-converted advanced_rules_dict with %d rules", len(advanced_rules_dict))
     else:
-        advanced_rules_dict = DEVICE_MAPPINGS.get('advanced_rules', {})
+        # Fallback to old conversion method for backward compatibility
+        advanced_rules_dict = {}
+        if isinstance(DEVICE_MAPPINGS.get('advanced_rules'), list):
+            # Convert list of rules to dict format for compatibility
+            for rule in DEVICE_MAPPINGS.get('advanced_rules', []):
+                if isinstance(rule, dict) and 'name' in rule:
+                    advanced_rules_dict[rule['name']] = rule
+        else:
+            advanced_rules_dict = DEVICE_MAPPINGS.get('advanced_rules', {})
+        _LOGGER.debug("⚠️  Using fallback conversion method for advanced rules")
     
     # Debug: Log if advanced_rules_dict is empty
     if not advanced_rules_dict:

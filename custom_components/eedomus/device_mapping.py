@@ -380,17 +380,11 @@ def merge_yaml_mappings(default_mapping: Dict[str, Any], custom_mapping: Dict[st
         _LOGGER.error("Advanced rules is not a list: %s", type(advanced_rules))
         advanced_rules = []
     
-    merged['advanced_rules'] = advanced_rules
-    if 'custom_rules' in custom_mapping and isinstance(custom_mapping['custom_rules'], list):
-        merged['advanced_rules'].extend(custom_mapping['custom_rules'])
-    
-    # Extract dynamic properties from advanced rules if they are in list format
-    # This handles the case where YAML file has rules in list format
+    # Convert list format to dict format for compatibility with entity.py
+    # This is critical for the mapping system to work correctly
+    advanced_rules_dict = {}
     if isinstance(advanced_rules, list):
-        _LOGGER.info("🔍 Extracting dynamic properties from list of advanced rules")
-        dynamic_props = {}
-        specific_overrides = {}
-        
+        _LOGGER.debug("🔍 Converting advanced rules from list to dict format")
         for rule in advanced_rules:
             if isinstance(rule, dict) and 'mapping' in rule:
                 mapping = rule['mapping']

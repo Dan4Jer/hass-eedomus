@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 from typing import Any
 
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -191,10 +190,6 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
             entities_analyzed = 0
             entities_considered = 0
             
-            # Get current coordinator data to check for orphaned entities
-            coordinator_data = hass.data.get(DOMAIN, {}).get("coordinator", {}).get("data", {})
-            current_peripheral_ids = set(coordinator_data.keys()) if coordinator_data else set()
-            
             for entity_entry in entity_registry.entities.values():
                 entities_analyzed += 1
                 
@@ -202,40 +197,17 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
                 if entity_entry.platform == "eedomus":
                     entities_considered += 1
                     
-                    # Check if entity is disabled OR has "deprecated" in unique_id OR is orphaned OR has no unique_id
+                    # Check if entity is disabled OR has "deprecated" in unique_id
                     is_disabled = entity_entry.disabled
                     has_deprecated = entity_entry.unique_id and "deprecated" in entity_entry.unique_id.lower()
-                    has_no_unique_id = entity_entry.unique_id is None or entity_entry.unique_id == ""
                     
-                    # Check for orphaned entities (no longer provided by integration)
-                    is_orphaned = False
-                    if entity_entry.unique_id:
-                        # Extract peripheral_id from unique_id (format usually includes the peripheral_id)
-                        unique_id_parts = entity_entry.unique_id.split('_')
-                        for part in unique_id_parts:
-                            if part.isdigit() and part not in current_peripheral_ids:
-                                is_orphaned = True
-                                break
-                        
-                        # Also check if the entity has no device_id (completely orphaned)
-                        if not entity_entry.device_id:
-                            is_orphaned = True
-                    
-                    if is_disabled or has_deprecated or is_orphaned or has_no_unique_id:
-                        if has_no_unique_id:
-                            reason = 'no_unique_id'
-                        elif is_orphaned:
-                            reason = 'orphaned'
-                        else:
-                            reason = 'deprecated' if has_deprecated else 'disabled'
+                    if is_disabled or has_deprecated:
                         entities_to_remove.append({
                             'entity_id': entity_entry.entity_id,
                             'unique_id': entity_entry.unique_id,
                             'disabled': is_disabled,
                             'has_deprecated': has_deprecated,
-                            'is_orphaned': is_orphaned,
-                            'has_no_unique_id': has_no_unique_id,
-                            'reason': reason
+                            'reason': 'deprecated' if has_deprecated else 'disabled'
                         })
             
             _LOGGER.info(f"Cleanup analysis complete: {entities_analyzed} entities analyzed, "
@@ -246,14 +218,8 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
             removed_count = 0
             for entity_info in entities_to_remove:
                 try:
-                    log_details = f"reason: {entity_info['reason']}"
-                    if entity_info['unique_id']:
-                        log_details += f", unique_id: {entity_info['unique_id']}"
-                    if entity_info.get('is_orphaned'):
-                        log_details += " (orphaned - no longer provided by integration)"
-                    if entity_info.get('has_no_unique_id'):
-                        log_details += " (no unique_id - cannot be managed from UI)"
-                    _LOGGER.info(f"Removing entity {entity_info['entity_id']} ({log_details})")
+                    _LOGGER.info(f"Removing entity {entity_info['entity_id']} (reason: {entity_info['reason']}, "
+                               f"unique_id: {entity_info['unique_id']})")
                     entity_registry.async_remove(entity_info['entity_id'])
                     removed_count += 1
                 except Exception as e:
@@ -261,11 +227,12 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
             
             _LOGGER.info(f"Cleanup completed: {removed_count} entities removed out of {len(entities_to_remove)} identified")
             
+    # Register services
+=======
             return {
                 "success": True,
                 "entities_analyzed": entities_analyzed,
                 "entities_considered": entities_considered,
-                "entities_identified": len(entities_to_remove),
                 "entities_removed": removed_count
             }
             
@@ -284,8 +251,8 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
             # Import device registry
             from homeassistant.helpers import device_registry as dr
             
-            # Get device registry (async_get returns DeviceRegistry directly, not a coroutine)
-            device_registry = dr.async_get(hass)
+            # Get device registry
+            device_registry = await dr.async_get(hass)
             
             # Find devices to remove: eedomus devices that are disabled or have no entities
             devices_to_remove = []
@@ -306,13 +273,7 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
                     
                     # Check if device is disabled OR has no entities
                     is_disabled = device_entry.disabled_by
-                    # Check if device has no entities by looking at the device's entity associations
-                    # We need to use the entity registry to find entities associated with this device
-                    from homeassistant.helpers import entity_registry as er
-                    entity_registry = er.async_get(hass)
-                    device_entities = [entity_id for entity_id, entity in entity_registry.entities.items() 
-                                     if entity.device_id == device_entry.id]
-                    has_no_entities = len(device_entities) == 0
+                    has_no_entities = len(device_entry.config_entries) == 0
                     
                     if is_disabled or has_no_entities:
                         devices_to_remove.append({
@@ -356,8 +317,14 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
                 "error": str(err)
             }
 
+            return {
+                "success": True,
+                "entities_analyzed": entities_analyzed,
+                "entities_considered": entities_considered,
+                "entities_identified": len(entities_to_remove),
+=======
     # Register services
-
+=======
             return {
                 "success": True,
                 "entities_analyzed": entities_analyzed,
@@ -368,6 +335,80 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
             
         except Exception as err:
             _LOGGER.error("❌ Cleanup service failed: %s", err)
+            return {
+                "success": False,
+                "error": str(err)
+            }
+
+    async def handle_cleanup_unused_devices(call: ServiceCall) -> dict:
+        """Handle cleanup of unused eedomus devices."""
+        _LOGGER.info("🗑️  Cleanup unused devices service called via eedomus.cleanup_unused_devices")
+        
+        try:
+            # Import device registry
+            from homeassistant.helpers import device_registry as dr
+            
+            # Get device registry
+            device_registry = await dr.async_get(hass)
+            
+            # Find devices to remove: eedomus devices that are disabled or have no entities
+            devices_to_remove = []
+            devices_analyzed = 0
+            devices_considered = 0
+            
+            for device_entry in device_registry.devices.values():
+                devices_analyzed += 1
+                
+                # Check if this device has eedomus in its identifiers
+                is_eedomus_device = any(
+                    identifier[0] == "eedomus" 
+                    for identifier in device_entry.identifiers
+                )
+                
+                if is_eedomus_device:
+                    devices_considered += 1
+                    
+                    # Check if device is disabled OR has no entities
+                    is_disabled = device_entry.disabled_by
+                    has_no_entities = len(device_entry.config_entries) == 0
+                    
+                    if is_disabled or has_no_entities:
+                        devices_to_remove.append({
+                            'device_id': device_entry.id,
+                            'name': device_entry.name,
+                            'disabled': bool(is_disabled),
+                            'has_no_entities': has_no_entities,
+                            'reason': 'no_entities' if has_no_entities else 'disabled'
+                        })
+            
+            _LOGGER.info(f"Device cleanup analysis complete: {devices_analyzed} devices analyzed, "
+                       f"{devices_considered} eedomus devices considered, "
+                       f"{len(devices_to_remove)} devices to be removed")
+            
+            # Remove the devices
+            removed_count = 0
+            for device_info in devices_to_remove:
+                try:
+                    _LOGGER.info(f"Removing device {device_info['name']} (id: {device_info['device_id']}, "
+                               f"reason: {device_info['reason']})")
+                    device_registry.async_remove_device(device_info['device_id'])
+                    removed_count += 1
+                except Exception as e:
+                    _LOGGER.error(f"Failed to remove device {device_info['device_id']}: {e}")
+            
+            _LOGGER.info(f"Device cleanup completed: {removed_count} devices removed "
+                       f"out of {len(devices_to_remove)} identified")
+            
+            return {
+                "success": True,
+                "devices_analyzed": devices_analyzed,
+                "devices_considered": devices_considered,
+                "devices_identified": len(devices_to_remove),
+                "devices_removed": removed_count
+            }
+            
+        except Exception as err:
+            _LOGGER.error("❌ Device cleanup service failed: %s", err)
             return {
                 "success": False,
                 "error": str(err)

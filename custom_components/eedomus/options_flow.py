@@ -19,6 +19,8 @@ from .const import (
     CONF_ENABLE_API_EEDOMUS,
     CONF_ENABLE_API_PROXY,
     CONF_ENABLE_HISTORY,
+    CONF_HISTORY_RETRY_DELAY,
+    CONF_HISTORY_PERIPHERALS_PER_SCAN,
     CONF_SCAN_INTERVAL,
     CONF_ENABLE_SET_VALUE_RETRY,
     CONF_ENABLE_WEBHOOK,
@@ -68,6 +70,8 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
             options[CONF_ENABLE_API_PROXY] = config_data.get(CONF_ENABLE_API_PROXY, False)
         if CONF_ENABLE_HISTORY not in options:
             options[CONF_ENABLE_HISTORY] = config_data.get(CONF_ENABLE_HISTORY, False)
+        if CONF_HISTORY_PERIPHERALS_PER_SCAN not in options:
+            options[CONF_HISTORY_PERIPHERALS_PER_SCAN] = config_data.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, DEFAULT_HISTORY_PERIPHERALS_PER_SCAN)
         if CONF_SCAN_INTERVAL not in options:
             options[CONF_SCAN_INTERVAL] = config_data.get(CONF_SCAN_INTERVAL, 300)
         if CONF_ENABLE_SET_VALUE_RETRY not in options:
@@ -112,6 +116,8 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
             options[CONF_ENABLE_API_EEDOMUS] = user_input.get(CONF_ENABLE_API_EEDOMUS, True)
             options[CONF_ENABLE_API_PROXY] = user_input.get(CONF_ENABLE_API_PROXY, False)
             options[CONF_ENABLE_HISTORY] = user_input.get(CONF_ENABLE_HISTORY, False)
+            options[CONF_HISTORY_RETRY_DELAY] = user_input.get(CONF_HISTORY_RETRY_DELAY, DEFAULT_HISTORY_RETRY_DELAY)
+            options[CONF_HISTORY_PERIPHERALS_PER_SCAN] = user_input.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, DEFAULT_HISTORY_PERIPHERALS_PER_SCAN)
             options[CONF_SCAN_INTERVAL] = user_input.get(CONF_SCAN_INTERVAL, 300)
             options[CONF_ENABLE_SET_VALUE_RETRY] = user_input.get(CONF_ENABLE_SET_VALUE_RETRY, True)
             options[CONF_ENABLE_WEBHOOK] = user_input.get(CONF_ENABLE_WEBHOOK, True)
@@ -148,6 +154,7 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
             data_schema=vol.Schema({
                 vol.Required(CONF_USE_YAML, default=self.use_yaml): bool,
                 vol.Optional(CONF_ENABLE_API_EEDOMUS, default=current_options.get(CONF_ENABLE_API_EEDOMUS, True)): bool,
+                vol.Optional(CONF_SCAN_INTERVAL, default=current_options.get(CONF_SCAN_INTERVAL, 300)): int,
                 vol.Optional(CONF_ENABLE_API_PROXY, default=current_options.get(CONF_ENABLE_API_PROXY, False)): bool,
                 vol.Optional(CONF_ENABLE_HISTORY, default=current_options.get(CONF_ENABLE_HISTORY, False)): bool,
                 vol.Optional(CONF_SCAN_INTERVAL, default=current_options.get(CONF_SCAN_INTERVAL, 300)): int,
@@ -160,7 +167,8 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(CONF_PHP_FALLBACK_TIMEOUT, default=current_options.get(CONF_PHP_FALLBACK_TIMEOUT, 5)): int,
             }),
             description_placeholders={
-                "current_mode": "Custom Mapping" if self.use_yaml else "UI (DISABLED)"
+                "current_mode": "Custom Mapping" if self.use_yaml else "UI (DISABLED)",
+                "docs_link": "https://github.com/Dan4Jer/hass-eedomus/blob/main/docs/README.md"
             }
         )
 
@@ -191,6 +199,8 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                     CONF_ENABLE_API_EEDOMUS: current_options.get(CONF_ENABLE_API_EEDOMUS, True),
                     CONF_ENABLE_API_PROXY: current_options.get(CONF_ENABLE_API_PROXY, False),
                     CONF_ENABLE_HISTORY: current_options.get(CONF_ENABLE_HISTORY, False),
+                    CONF_HISTORY_RETRY_DELAY: current_options.get(CONF_HISTORY_RETRY_DELAY, DEFAULT_HISTORY_RETRY_DELAY),
+                    CONF_HISTORY_PERIPHERALS_PER_SCAN: current_options.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, DEFAULT_HISTORY_PERIPHERALS_PER_SCAN),
                     CONF_SCAN_INTERVAL: current_options.get(CONF_SCAN_INTERVAL, 300),
                     CONF_ENABLE_SET_VALUE_RETRY: current_options.get(CONF_ENABLE_SET_VALUE_RETRY, True),
                     CONF_ENABLE_WEBHOOK: current_options.get(CONF_ENABLE_WEBHOOK, True),
@@ -226,6 +236,7 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 vol.Required(CONF_USE_YAML, default=False): False,
                 vol.Optional(CONF_CUSTOM_DEVICES, default=current_devices): current_devices,
                 vol.Optional(CONF_ENABLE_API_EEDOMUS, default=current_options.get(CONF_ENABLE_API_EEDOMUS, True)): bool,
+                vol.Optional(CONF_SCAN_INTERVAL, default=current_options.get(CONF_SCAN_INTERVAL, 300)): int,
                 vol.Optional(CONF_ENABLE_API_PROXY, default=current_options.get(CONF_ENABLE_API_PROXY, False)): bool,
                 vol.Optional(CONF_ENABLE_HISTORY, default=current_options.get(CONF_ENABLE_HISTORY, False)): bool,
                 vol.Optional(CONF_SCAN_INTERVAL, default=current_options.get(CONF_SCAN_INTERVAL, 300)): int,
@@ -278,6 +289,8 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                         CONF_ENABLE_API_EEDOMUS: current_options.get(CONF_ENABLE_API_EEDOMUS, True),
                         CONF_ENABLE_API_PROXY: current_options.get(CONF_ENABLE_API_PROXY, False),
                         CONF_ENABLE_HISTORY: current_options.get(CONF_ENABLE_HISTORY, False),
+                        CONF_HISTORY_RETRY_DELAY: current_options.get(CONF_HISTORY_RETRY_DELAY, DEFAULT_HISTORY_RETRY_DELAY),
+                        CONF_HISTORY_PERIPHERALS_PER_SCAN: current_options.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, DEFAULT_HISTORY_PERIPHERALS_PER_SCAN),
                         CONF_SCAN_INTERVAL: current_options.get(CONF_SCAN_INTERVAL, 300),
                         CONF_ENABLE_SET_VALUE_RETRY: current_options.get(CONF_ENABLE_SET_VALUE_RETRY, True),
                         CONF_ENABLE_WEBHOOK: current_options.get(CONF_ENABLE_WEBHOOK, True),
