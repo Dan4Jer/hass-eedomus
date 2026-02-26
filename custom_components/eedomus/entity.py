@@ -449,7 +449,11 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                 # Check each condition
                 for cond_key, cond_value in conditions.items():
                     device_value = device_data.get(cond_key)
+                    _LOGGER.info("🔍 Checking condition %s=%s (device has %s)", 
+                                cond_key, cond_value, device_value)
                     if device_value != cond_value:
+                        _LOGGER.info("❌ Condition failed: %s=%s != %s", 
+                                    cond_key, device_value, cond_value)
                         match = False
                         break
                 
