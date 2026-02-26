@@ -484,7 +484,7 @@ async def async_cleanup_unused_entities(hass):
     
     try:
         # Get entity registry
-        entity_registry = await hass.helpers.entity_registry.async_get_registry()
+        entity_registry = await hass.helpers.entity_registry.async_get(hass)
         
         # Find entities to remove: eedomus domain, disabled, and have "deprecated" in unique_id
         entities_to_remove = []
