@@ -252,6 +252,136 @@ tap_action:
 
 ---
 
+## 🛠️ Services Eedomus Disponibles
+
+L'intégration eedomus fournit plusieurs services puissants pour interagir avec votre box eedomus directement depuis Home Assistant.
+
+### 🔄 Service: `eedomus.refresh`
+
+**Description**: Force un rafraîchissement manuel de tous les périphériques eedomus.
+
+**Utilisation**:
+```bash
+# Via Developer Tools
+ha services call eedomus.refresh
+
+# Via automatisation
+service: eedomus.refresh
+```
+
+**Cas d'utilisation**:
+- Après des changements manuels sur la box eedomus
+- Pour synchroniser immédiatement les états
+- Lors du débogage de problèmes de synchronisation
+
+**Précautions**:
+- Peut charger temporairement la box eedomus
+- Les rafraîchissements trop fréquents peuvent être bloqués
+
+---
+
+### 📤 Service: `eedomus.set_value`
+
+**Description**: Permet de définir la valeur d'un périphérique eedomus.
+
+**Paramètres requis**:
+- `device_id`: ID du périphérique eedomus
+- `value`: Valeur à définir
+
+**Exemple**:
+```bash
+ha services call eedomus.set_value \
+  --device_id 12345 \
+  --value 100
+
+# Via automatisation
+action:
+  service: eedomus.set_value
+  data:
+    device_id: "12345"
+    value: "100"
+```
+
+**Cas d'utilisation**:
+- Contrôler des périphériques spécifiques
+- Intégrer avec des scripts personnalisés
+- Automatisations avancées
+
+**Précautions**:
+- Vérifiez que le device_id existe
+- Utilisez des valeurs valides pour le type de périphérique
+- Gérez les erreurs dans les automatisations
+
+---
+
+### 🔄 Service: `eedomus.reload`
+
+**Description**: Recharge la configuration de l'intégration sans redémarrer Home Assistant.
+
+**Utilisation**:
+```bash
+ha services call eedomus.reload
+```
+
+**Cas d'utilisation**:
+- Après des changements dans les fichiers de configuration
+- Pour appliquer des modifications sans redémarrage complet
+- Lors du développement ou du débogage
+
+**Précautions**:
+- Peut interrompre brièvement la communication
+- Les changements majeurs peuvent nécessiter un redémarrage
+
+---
+
+### 🌡️ Service: `eedomus.set_climate_temperature`
+
+**Description**: Définit la température d'un périphérique climatisation eedomus.
+
+**Paramètres requis**:
+- `device_id`: ID du périphérique climatisation
+- `temperature`: Température cible (7.0°C - 30.0°C)
+
+**Exemple**:
+```bash
+ha services call eedomus.set_climate_temperature \
+  --device_id 67890 \
+  --temperature 21.5
+```
+
+**Cas d'utilisation**:
+- Contrôle précis de la température
+- Intégration avec des thermostats intelligents
+- Automatisations basées sur la température
+
+**Précautions**:
+- Le périphérique doit être un device climatisation valide
+- Température doit être entre 7.0°C et 30.0°C
+- Arrondie au 0.5°C près
+
+---
+
+### 🧹 Service: `eedomus.cleanup_unused_entities`
+
+**Description**: Nettoie les entités eedomus inutilisées (désactivées ou obsolètes).
+
+**Utilisation**:
+```bash
+ha services call eedomus.cleanup_unused_entities
+```
+
+**Cas d'utilisation**:
+- Maintenance régulière du système
+- Après des mises à jour majeures
+- Résolution de problèmes de performance
+
+**Précautions**:
+- Faites une sauvegarde avant un nettoyage majeur
+- Vérifiez les logs après exécution
+- Évitez les heures de pointe
+
+---
+
 ## 🎯 Bonnes Pratiques
 
 1. **Commencez avec les valeurs par défaut** pour la plupart des paramètres
