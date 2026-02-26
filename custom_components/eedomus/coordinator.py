@@ -174,18 +174,35 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         total_time = sum(self._endpoint_timings.values())
         _LOGGER.info("🔄 INITIAL REFRESH: %d total, %.3fs total (Endpoints: %s)", len(aggregated_data), total_time, endpoint_log)
 
-        # Display mapping table on startup (INFO level for visibility)
-        _LOGGER.info("🗺️ Device Mapping Table:")
+        # Display enhanced mapping table on startup (INFO level for visibility)
+        _LOGGER.info("🗺️ Enhanced Device Mapping Table:")
         for periph_id in sorted(aggregated_data.keys(), key=lambda x: aggregated_data[x].get('name', '').lower()):
             periph_data = aggregated_data[periph_id]
-            _LOGGER.info("  %s: %s/%s | usage_id=%s | PRODUCT_TYPE_ID=%s | %s/%s",
+            parent_id = periph_data.get('parent_periph_id', 'None')
+            is_rgbw_parent = (periph_data.get('ha_entity') == 'light' and 
+                            periph_data.get('ha_subtype') == 'rgbw')
+            is_rgbw_child = (parent_id != 'None' and 
+                            aggregated_data.get(parent_id, {}).get('ha_subtype') == 'rgbw')
+            
+            # Detailed RGBW info
+            rgbw_info = ""
+            if is_rgbw_parent:
+                children = [child_id for child_id, child in aggregated_data.items() 
+                          if child.get('parent_periph_id') == periph_id]
+                rgbw_info = f" | 🎨 RGBW Parent ({len(children)} children)"
+            elif is_rgbw_child:
+                rgbw_info = f" | 🎨 RGBW Child of {parent_id}"
+            
+            _LOGGER.info("  %s: %s/%s | usage_id=%s | PRODUCT_TYPE_ID=%s | parent=%s | %s/%s%s",
                         periph_id,
                         periph_data.get('ha_entity', '?'),
                         periph_data.get('ha_subtype', '?'),
                         periph_data.get('usage_id', '?'),
                         periph_data.get('PRODUCT_TYPE_ID', '?'),
+                        parent_id,
                         periph_data.get('name', '?'),
-                        periph_data.get('usage_name', '?'))
+                        periph_data.get('usage_name', '?'),
+                        rgbw_info)
         
         # Set the data for the coordinator
         self.data = aggregated_data
@@ -532,18 +549,35 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
         _LOGGER.info("📊 Device processing summary: %d total peripherals, %d dynamic, %d skipped, %d processed", len(aggregated_data), dynamic, skipped, len(aggregated_data))
 
-        # Display mapping table on each full refresh (INFO level for visibility)
-        _LOGGER.info("🗺️ Device Mapping Table:")
+        # Display enhanced mapping table on each full refresh (INFO level for visibility)
+        _LOGGER.info("🗺️ Enhanced Device Mapping Table:")
         for periph_id in sorted(aggregated_data.keys(), key=lambda x: aggregated_data[x].get('name', '').lower()):
             periph_data = aggregated_data[periph_id]
-            _LOGGER.info("  %s: %s/%s | usage_id=%s | PRODUCT_TYPE_ID=%s | %s/%s",
+            parent_id = periph_data.get('parent_periph_id', 'None')
+            is_rgbw_parent = (periph_data.get('ha_entity') == 'light' and 
+                            periph_data.get('ha_subtype') == 'rgbw')
+            is_rgbw_child = (parent_id != 'None' and 
+                            aggregated_data.get(parent_id, {}).get('ha_subtype') == 'rgbw')
+            
+            # Detailed RGBW info
+            rgbw_info = ""
+            if is_rgbw_parent:
+                children = [child_id for child_id, child in aggregated_data.items() 
+                          if child.get('parent_periph_id') == periph_id]
+                rgbw_info = f" | 🎨 RGBW Parent ({len(children)} children)"
+            elif is_rgbw_child:
+                rgbw_info = f" | 🎨 RGBW Child of {parent_id}"
+            
+            _LOGGER.info("  %s: %s/%s | usage_id=%s | PRODUCT_TYPE_ID=%s | parent=%s | %s/%s%s",
                         periph_id,
                         periph_data.get('ha_entity', '?'),
                         periph_data.get('ha_subtype', '?'),
                         periph_data.get('usage_id', '?'),
                         periph_data.get('PRODUCT_TYPE_ID', '?'),
+                        parent_id,
                         periph_data.get('name', '?'),
-                        periph_data.get('usage_name', '?'))
+                        periph_data.get('usage_name', '?'),
+                        rgbw_info)
         self.data = aggregated_data
         return aggregated_data
 
@@ -880,29 +914,41 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 "💡 If this fails, enable 'Set Value Retry' in advanced configuration options"
             )
 
+        # Store original value for tracking
+        original_value = value
+        _LOGGER.debug("📋 Original set_value call: %s (%s) = %s", 
+                     self.data[periph_id]["name"], periph_id, original_value)
+        
         # try:
         ret = await self.client.set_periph_value(periph_id, value)
+
+        # Log API response details
+        _LOGGER.debug("📋 API response for %s (%s): success=%s, error_code=%s",
+                     self.data[periph_id]["name"], periph_id, 
+                     ret.get("success"), ret.get("error_code"))
 
         # Only retry if enabled and we get error_code 6 (value refused)
         if enable_retry and ret.get("success") == 0 and ret.get("error_code") == "6":
             # Try PHP fallback first if enabled
             if php_fallback_enabled:
                 _LOGGER.info(
-                    "🔄 Trying PHP fallback for %s (%s)",
+                    "🔄 Trying PHP fallback for %s (%s) with original value: %s",
                     self.data[periph_id]["name"],
                     periph_id,
+                    value
                 )
                 fallback_result = await self.client.php_fallback_set_value(
                     periph_id, value
                 )
                 if fallback_result.get("success") == 1:
                     _LOGGER.info(
-                        "✅ PHP fallback succeeded for %s (%s)",
+                        "✅ PHP fallback succeeded for %s (%s) - original value %s preserved",
                         self.data[periph_id]["name"],
                         periph_id,
+                        value
                     )
                     # Return success response when PHP fallback succeeds
-                    return {"success": 1, "fallback_used": True}
+                    return {"success": 1, "fallback_used": True, "value_used": value}
                 else:
                     _LOGGER.warning(
                         "⚠️ PHP fallback failed for %s (%s): %s",
@@ -912,18 +958,27 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     )
                     # Try next best value if PHP fallback fails
                     next_value = self.next_best_value(periph_id, value)
-                    _LOGGER.warn(
+                    original_value = value
+                    modified_value = next_value.get("value")
+                    _LOGGER.warning(
+                        "🔄 VALUE MODIFICATION DETECTED: %s (%s) - original=%s, modified=%s",
+                        self.data[periph_id]["name"],
+                        periph_id,
+                        original_value,
+                        modified_value
+                    )
+                    _LOGGER.warning(
                         "🔄 Retry enabled - trying next best value (%s => %s) for %s (%s)",
-                        value,
-                        next_value,
+                        original_value,
+                        modified_value,
                         self.data[periph_id]["name"],
                         periph_id,
                     )
                     await self.client.set_periph_value(
-                        periph_id, next_value.get("value")
+                        periph_id, modified_value
                     )
                     # Return success response when next best value is used
-                    return {"success": 1, "fallback_used": True, "value_used": next_value.get("value")}
+                    return {"success": 1, "fallback_used": True, "value_used": modified_value, "original_value": original_value}
             else:
                 # Try next best value if PHP fallback is not enabled
                 next_value = self.next_best_value(periph_id, value)
@@ -950,15 +1005,16 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             )
         else:
             _LOGGER.info(
-                "✅ Set value successful for %s (%s)",
+                "✅ Set value successful for %s (%s) - value %s applied without modification",
                 self.data[periph_id]["name"],
                 periph_id,
+                value
             )
             
             # Immediately update local state to reflect the change
             # This ensures UI updates instantly without waiting for coordinator refresh
             self.data[periph_id]["last_value"] = value
-            return ret
+            return {"success": 1, "value_used": value, "original_value": value}
 
         # except Exception as e:
         #    _LOGGER.error(
