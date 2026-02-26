@@ -430,6 +430,44 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     if usage_id and DEVICE_MAPPINGS and usage_id in DEVICE_MAPPINGS['usage_id_mappings']:
         mapping = DEVICE_MAPPINGS['usage_id_mappings'][usage_id].copy()
         
+        # Check for dynamic subtype mapping based on device properties
+        if "subtype_mapping" in mapping:
+            _LOGGER.debug("🔍 Evaluating dynamic subtype mapping for %s (%s) with usage_id=%s", 
+                        periph_name, periph_id, usage_id)
+            
+            # Try to find matching conditions
+            matched = False
+            for subtype_rule in mapping["subtype_mapping"]:
+                conditions = subtype_rule.get("conditions", {})
+                match = True
+                
+                # Check each condition
+                for cond_key, cond_value in conditions.items():
+                    device_value = device_data.get(cond_key)
+                    if device_value != cond_value:
+                        match = False
+                        break
+                
+                if match:
+                    _LOGGER.debug("✅ Matched subtype rule for %s (%s): %s", 
+                                periph_name, periph_id, conditions)
+                    # Apply this subtype mapping
+                    for key, value in subtype_rule.items():
+                        if key != "conditions":
+                            mapping[key] = value
+                    matched = True
+                    break
+            
+            if not matched and "default" in mapping:
+                _LOGGER.debug("🔄 Using default mapping for %s (%s)", periph_name, periph_id)
+                # Apply default mapping
+                for key, value in mapping["default"].items():
+                    mapping[key] = value
+            
+            # Clean up the subtype_mapping and default keys as they're not needed anymore
+            mapping.pop("subtype_mapping", None)
+            mapping.pop("default", None)
+        
         # Special debug for device 1269454
         if periph_id == "1269454":
             _LOGGER.debug("SPECIAL DEBUG: Device 1269454 - final mapping: usage_id=%s, ha_entity=%s, ha_subtype=%s", 

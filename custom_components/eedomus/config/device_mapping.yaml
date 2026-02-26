@@ -86,17 +86,17 @@ usage_id_mappings:
     justification: Virtual thermostat for heating setpoint control
     is_dynamic: false
     entity_specifics:
-      temperature_unit: "°C"
+      temperature_unit: "\xB0C"
       precision: 1.0
       min_temp: 5.0
       max_temp: 29.0
       target_temp_step: 1.0
       hvac_modes:
-        - "heat"
-        - "off"
+      - heat
+      - 'off'
       preset_modes: []
       supported_features:
-        - "target_temperature"
+      - target_temperature
   '18':
     ha_entity: sensor
     ha_subtype: text
@@ -124,15 +124,40 @@ usage_id_mappings:
     is_dynamic: false
   '23':
     ha_entity: sensor
-    ha_subtype: cpu
-    justification: CPU usage monitor - eedomus internal system monitoring
+    # Dynamic subtype based on device properties (unit, icon, name)
+    subtype_mapping:
+      - conditions:
+          unit: '%'
+          icon: '/img/mdm/01/graphe.png'
+        ha_subtype: cpu
+        device_class: cpu
+        unit_of_measurement: '%'
+        icon: mdi:cpu-64-bit
+        justification: CPU usage monitor - percentage based
+      - conditions:
+          unit: 'Ko'
+          icon: '/img/mdm/01/harddisk.png'
+        ha_subtype: disk_free_space
+        device_class: data_size
+        unit_of_measurement: B
+        icon: mdi:harddisk
+        justification: Disk free space - storage monitoring in bytes
+      - conditions:
+          icon: '/img/mdm/01/message.png'
+        ha_subtype: text
+        device_class: text
+        icon: mdi:message-text
+        justification: System messages - text information
+    # Default fallback if no conditions match
+    default:
+      ha_subtype: cpu
+      device_class: cpu
+      unit_of_measurement: '%'
+      icon: mdi:cpu-64-bit
+      justification: CPU usage monitor - default for usage_id=23
     is_dynamic: false
     internal_box_eedomus: true
-    device_class: cpu
-    unit_of_measurement: "%"
-    icon: "mdi:cpu-64-bit"
     entity_category: diagnostic
-    # Updated for proper CPU sensor display
   '24':
     ha_entity: sensor
     ha_subtype: illuminance
@@ -321,9 +346,6 @@ usage_id_mappings:
     ha_subtype: camera_trigger
     justification: Camera image capture trigger - usage_id=127 for snapshot commands
     is_dynamic: false
-
-
-  # Add more mappings as needed following this format
 dynamic_entity_properties:
   sensor: true
   light: true
@@ -332,26 +354,5 @@ dynamic_entity_properties:
   binary_sensor: true
   climate: true
 specific_device_dynamic_overrides: {}
-
-# Specific device mappings (periph_id based) for devices that need custom handling
-# These override the generic usage_id mappings
-specific_device_mappings:
-  "1061604":  # Espace libre Box - Disk space monitoring
-    ha_entity: "sensor"
-    ha_subtype: "disk_free_space"
-    justification: "Eedomus box free disk space in bytes"
-    device_class: "data_size"
-    unit_of_measurement: "B"
-    icon: "mdi:harddisk"
-    entity_category: "diagnostic"
-    
-  "1061606":  # Messages Box - System messages/error monitoring
-    ha_entity: "sensor"
-    ha_subtype: "text"
-    justification: "Eedomus box system messages sensor"
-    device_class: "text"
-    icon: "mdi:message-text"
-    entity_category: "diagnostic"
-    internal_box_eedomus: true
-
+specific_device_mappings: {}
 name_patterns: []
