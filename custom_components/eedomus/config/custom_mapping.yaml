@@ -13,32 +13,7 @@ metadata:
 custom_rules: []
 
 # Custom usage ID mappings (old custom_device_mappings converted to new format)
-custom_usage_id_mappings:
-  "1061604":
-    ha_entity: "sensor"
-    ha_subtype: "usage"
-    justification: "Espace libre Box - Specific mapping"
-    device_info:
-      identifiers:
-        - - eedomus
-          - eedomus_box_main
-      name: "Box eedomus"
-      manufacturer: "Eedomus"
-      model: "Eedomus Box"
-      sw_version: "Unknown"
-  
-  "1061606":
-    ha_entity: "sensor"
-    ha_subtype: "usage"
-    justification: "Messages Box - Specific mapping"
-    device_info:
-      identifiers:
-        - - eedomus
-          - eedomus_box_main
-      name: "Box eedomus"
-      manufacturer: "Eedomus"
-      model: "Eedomus Box"
-      sw_version: "Unknown"
+custom_usage_id_mappings: {}
 
 # Custom dynamic entity properties (empty by default)
 custom_dynamic_entity_properties: {}

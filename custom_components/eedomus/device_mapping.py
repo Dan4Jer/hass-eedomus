@@ -458,6 +458,16 @@ def merge_yaml_mappings(default_mapping: Dict[str, Any], custom_mapping: Dict[st
     if 'custom_specific_device_dynamic_overrides' in custom_mapping and isinstance(custom_mapping['custom_specific_device_dynamic_overrides'], dict):
         merged['specific_device_dynamic_overrides'].update(custom_mapping['custom_specific_device_dynamic_overrides'])
 
+    # Merge specific device mappings (custom overrides default)
+    specific_device_mappings = default_mapping.get('specific_device_mappings', {})
+    if not isinstance(specific_device_mappings, dict):
+        _LOGGER.info("Specific device mappings is not a dictionary: %s", type(specific_device_mappings))
+        specific_device_mappings = {}
+
+    merged['specific_device_mappings'] = specific_device_mappings
+    if 'custom_specific_device_mappings' in custom_mapping and isinstance(custom_mapping['custom_specific_device_mappings'], dict):
+        merged['specific_device_mappings'].update(custom_mapping['custom_specific_device_mappings'])
+
     # Merge metadata (preserve metadata from default mapping)
     if 'metadata' in default_mapping and isinstance(default_mapping['metadata'], dict):
         merged['metadata'] = default_mapping['metadata']
@@ -520,6 +530,7 @@ def load_and_merge_yaml_mappings(base_path: str = "") -> Dict[str, Any]:
             _LOGGER.debug("Advanced rules count: %d", len(yaml_config.get('advanced_rules', [])))
             _LOGGER.debug("Usage ID mappings count: %d", len(yaml_config.get('usage_id_mappings', {})))
             _LOGGER.debug("Specific device mappings count: %d", len(specific_mappings))
+            _LOGGER.debug("Specific device mappings: %s", specific_mappings)
             _LOGGER.debug("Name patterns count: %d", len(yaml_config.get('name_patterns', [])))
             _LOGGER.debug("Dynamic entity properties: %s", dynamic_props)
             _LOGGER.debug("Specific device dynamic overrides: %s", specific_overrides)
