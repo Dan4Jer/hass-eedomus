@@ -146,6 +146,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         try:
             await coordinator.async_config_entry_first_refresh()
             _LOGGER.info("API Eedomus mode initialized successfully")
+            
+            # Display device mapping table after first successful refresh
+            try:
+                from .mapping_registry import print_mapping_table
+                print_mapping_table()
+            except Exception as e:
+                _LOGGER.debug("Failed to display mapping table: %s", e)
         except aiohttp.ClientError as err:
             _LOGGER.error("Failed to fetch data from eedomus: %s", err)
             return False

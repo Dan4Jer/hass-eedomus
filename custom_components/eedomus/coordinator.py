@@ -390,7 +390,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         self._endpoint_timings['get_periph_caract'] = (datetime.now() - start_time).total_seconds()
         self._endpoint_call_counts['get_periph_caract'] += 1
         
-        _LOGGER.info("📊 Endpoint timings - get_periph_list: %.3fs, get_periph_value_list: %.3fs, get_periph_caract: %.3fs",
+        _LOGGER.debug("📊 Endpoint timings - get_periph_list: %.3fs, get_periph_value_list: %.3fs, get_periph_caract: %.3fs",
                      self._endpoint_timings['get_periph_list'],
                      self._endpoint_timings['get_periph_value_list'],
                      self._endpoint_timings['get_periph_caract'])
@@ -421,14 +421,14 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         if not isinstance(peripherals, list):
             _LOGGER.error("Invalid peripherals list: %s", peripherals)
             peripherals = []
-        _LOGGER.info("Found %d peripherals in total", len(peripherals))
+        _LOGGER.debug("Found %d peripherals in total", len(peripherals))
         if not isinstance(peripherals_value_list, list):
             _LOGGER.error("Invalid peripherals list: %s", peripherals_value_list)
             peripherals_value_list = []
         if not isinstance(peripherals_caract, list):
             _LOGGER.error("Invalid peripherals list: %s", peripherals_caract)
             peripherals_caract = []
-        _LOGGER.info(
+        _LOGGER.debug(
             "Found %d peripherals value list in total", len(peripherals_caract)
         )
         return (peripherals, peripherals_value_list, peripherals_caract)
@@ -459,7 +459,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         peripherals_caract = await self._async_full_data_retreive()
         
         # DEBUG: Check if endpoint timings were set
-        _LOGGER.info("🔍 DEBUG: Endpoint timings after full data retrieve: list=%.3fs, values=%.3fs, caract=%.3fs",
+        _LOGGER.debug("🔍 Endpoint timings after full data retrieve: list=%.3fs, values=%.3fs, caract=%.3fs",
                      self._endpoint_timings.get('get_periph_list', 0.0),
                      self._endpoint_timings.get('get_periph_value_list', 0.0),
                      self._endpoint_timings.get('get_periph_caract', 0.0))
@@ -475,7 +475,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 peripherals_caract_dict[str(it["periph_id"])] = it
             elif isinstance(it, list):
                 # Nested case: list of lists - flatten it
-                _LOGGER.info("🔍 Found nested structure in peripherals_caract, flattening...")
+                _LOGGER.debug("🔍 Found nested structure in peripherals_caract, flattening...")
                 for sub_item in it:
                     if isinstance(sub_item, dict) and 'periph_id' in sub_item:
                         peripherals_caract_dict[str(sub_item["periph_id"])] = sub_item
