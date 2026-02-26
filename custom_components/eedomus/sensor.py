@@ -231,7 +231,12 @@ class EedomusSensor(EedomusEntity, SensorEntity):
 
         # Set sensor-specific attributes based on ha_subtype
         # Use ha_subtype from device_mapping if available (to apply specific mappings)
+        if device_mapping and periph_id == "1061604":  # Debug for Espace libre Box
+            _LOGGER.debug("DEBUG: device_mapping for 1061604: %s", device_mapping)
         periph_type = device_mapping.get("ha_subtype") if device_mapping and "ha_subtype" in device_mapping else periph_info.get("ha_subtype")
+        if periph_id == "1061604":  # Debug for Espace libre Box
+            _LOGGER.debug("DEBUG: periph_type for 1061604: %s (from device_mapping: %s, from periph_info: %s)", 
+                        periph_type, device_mapping.get("ha_subtype") if device_mapping else "None", periph_info.get("ha_subtype"))
 
         # Set default device class for all sensors
         self._attr_device_class = None
