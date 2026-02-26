@@ -190,6 +190,10 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
             entities_analyzed = 0
             entities_considered = 0
             
+            # Get current coordinator data to check for orphaned entities
+            coordinator_data = hass.data.get(DOMAIN, {}).get("coordinator", {}).get("data", {})
+            current_peripheral_ids = set(coordinator_data.keys()) if coordinator_data else set()
+            
             for entity_entry in entity_registry.entities.values():
                 entities_analyzed += 1
                 
@@ -197,17 +201,33 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
                 if entity_entry.platform == "eedomus":
                     entities_considered += 1
                     
-                    # Check if entity is disabled OR has "deprecated" in unique_id
+                    # Check if entity is disabled OR has "deprecated" in unique_id OR is orphaned
                     is_disabled = entity_entry.disabled
                     has_deprecated = entity_entry.unique_id and "deprecated" in entity_entry.unique_id.lower()
                     
-                    if is_disabled or has_deprecated:
+                    # Check for orphaned entities (no longer provided by integration)
+                    is_orphaned = False
+                    if entity_entry.unique_id:
+                        # Extract peripheral_id from unique_id (format usually includes the peripheral_id)
+                        unique_id_parts = entity_entry.unique_id.split('_')
+                        for part in unique_id_parts:
+                            if part.isdigit() and part not in current_peripheral_ids:
+                                is_orphaned = True
+                                break
+                        
+                        # Also check if the entity has no device_id (completely orphaned)
+                        if not entity_entry.device_id:
+                            is_orphaned = True
+                    
+                    if is_disabled or has_deprecated or is_orphaned:
+                        reason = 'orphaned' if is_orphaned else ('deprecated' if has_deprecated else 'disabled')
                         entities_to_remove.append({
                             'entity_id': entity_entry.entity_id,
                             'unique_id': entity_entry.unique_id,
                             'disabled': is_disabled,
                             'has_deprecated': has_deprecated,
-                            'reason': 'deprecated' if has_deprecated else 'disabled'
+                            'is_orphaned': is_orphaned,
+                            'reason': reason
                         })
             
             _LOGGER.info(f"Cleanup analysis complete: {entities_analyzed} entities analyzed, "
@@ -218,8 +238,10 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
             removed_count = 0
             for entity_info in entities_to_remove:
                 try:
-                    _LOGGER.info(f"Removing entity {entity_info['entity_id']} (reason: {entity_info['reason']}, "
-                               f"unique_id: {entity_info['unique_id']})")
+                    log_details = f"reason: {entity_info['reason']}, unique_id: {entity_info['unique_id']}"
+                    if entity_info.get('is_orphaned'):
+                        log_details += " (orphaned - no longer provided by integration)"
+                    _LOGGER.info(f"Removing entity {entity_info['entity_id']} ({log_details})")
                     entity_registry.async_remove(entity_info['entity_id'])
                     removed_count += 1
                 except Exception as e:

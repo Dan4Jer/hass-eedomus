@@ -483,13 +483,18 @@ async def async_cleanup_unused_entities(hass):
     _LOGGER.info("Starting cleanup of unused eedomus entities via service call")
     
     try:
-        # Get entity registry
-        entity_registry = await hass.helpers.entity_registry.async_get(hass)
+        # Get entity registry (async_get returns EntityRegistry directly, not a coroutine)
+        from homeassistant.helpers import entity_registry as er
+        entity_registry = er.async_get(hass)
         
-        # Find entities to remove: eedomus domain, disabled, and have "deprecated" in unique_id
+        # Find entities to remove: eedomus domain, disabled, deprecated, or orphaned
         entities_to_remove = []
         entities_analyzed = 0
         entities_considered = 0
+        
+        # Get current coordinator data to check for orphaned entities
+        coordinator_data = hass.data.get(DOMAIN, {}).get("coordinator", {}).get("data", {})
+        current_peripheral_ids = set(coordinator_data.keys()) if coordinator_data else set()
         
         for entity_entry in entity_registry.entities.values():
             entities_analyzed += 1
@@ -498,17 +503,34 @@ async def async_cleanup_unused_entities(hass):
             if entity_entry.platform == "eedomus":
                 entities_considered += 1
                 
-                # Check if entity is disabled OR has "deprecated" in unique_id
+                # Check if entity is disabled OR has "deprecated" in unique_id OR is orphaned
                 is_disabled = entity_entry.disabled
                 has_deprecated = entity_entry.unique_id and "deprecated" in entity_entry.unique_id.lower()
                 
-                if is_disabled or has_deprecated:
+                # Check for orphaned entities (no longer provided by integration)
+                is_orphaned = False
+                if entity_entry.unique_id:
+                    # Extract peripheral_id from unique_id (format usually includes the peripheral_id)
+                    # Try to find peripheral_id in the unique_id
+                    unique_id_parts = entity_entry.unique_id.split('_')
+                    for part in unique_id_parts:
+                        if part.isdigit() and part not in current_peripheral_ids:
+                            is_orphaned = True
+                            break
+                    
+                    # Also check if the entity has no device_id (completely orphaned)
+                    if not entity_entry.device_id:
+                        is_orphaned = True
+                
+                if is_disabled or has_deprecated or is_orphaned:
+                    reason = 'orphaned' if is_orphaned else ('deprecated' if has_deprecated else 'disabled')
                     entities_to_remove.append({
                         'entity_id': entity_entry.entity_id,
                         'unique_id': entity_entry.unique_id,
                         'disabled': is_disabled,
                         'has_deprecated': has_deprecated,
-                        'reason': 'deprecated' if has_deprecated else 'disabled'
+                        'is_orphaned': is_orphaned,
+                        'reason': reason
                     })
         
         _LOGGER.info(f"Cleanup analysis complete: {entities_analyzed} entities analyzed, "
