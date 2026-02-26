@@ -317,7 +317,7 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
             }
 
     # Register services
-=======
+
             return {
                 "success": True,
                 "entities_analyzed": entities_analyzed,
