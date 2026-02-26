@@ -666,6 +666,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
     def _is_dynamic_peripheral(self, periph):
         """Determine if a peripheral needs regular updates."""
         ha_entity = periph.get("ha_entity")
+        entity_specifics = periph.get("entity_specifics", {})
 
         dynamic_types = [
             "light",
@@ -676,6 +677,15 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         if ha_entity in dynamic_types:
             _LOGGER.debug(
                 "Peripheral is dynamic ! %s (%s)",
+                periph.get("name"),
+                periph.get("periph_id"),
+            )
+            return True
+
+        # Check if it's a sensor with dynamic value mapping
+        if ha_entity == "sensor" and entity_specifics.get("value_mapping") == "dynamic_from_values":
+            _LOGGER.debug(
+                "Sensor is dynamic (value_mapping) ! %s (%s)",
                 periph.get("name"),
                 periph.get("periph_id"),
             )
