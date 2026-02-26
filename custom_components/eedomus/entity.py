@@ -37,22 +37,22 @@ DEVICE_MAPPINGS = None
 
 # Initialize YAML mappings when module is loaded
 try:
-    _LOGGER.info("🚀 Starting DEVICE_MAPPINGS initialization...")
+    _LOGGER.debug("🚀 Starting DEVICE_MAPPINGS initialization...")
     DEVICE_MAPPINGS = load_and_merge_yaml_mappings()
     
     if DEVICE_MAPPINGS:
-        _LOGGER.info("✅ YAML device mappings initialized successfully")
+        _LOGGER.debug("✅ YAML device mappings initialized successfully")
         
         # Critical checks for dynamic properties
         dynamic_props = DEVICE_MAPPINGS.get('dynamic_entity_properties', {})
         specific_overrides = DEVICE_MAPPINGS.get('specific_device_dynamic_overrides', {})
         
-        _LOGGER.info("📊 DEVICE_MAPPINGS summary:")
-        _LOGGER.info("   📋 Usage ID mappings: %d", len(DEVICE_MAPPINGS.get('usage_id_mappings', {})))
-        _LOGGER.info("   🤖 Advanced rules: %d", len(DEVICE_MAPPINGS.get('advanced_rules', [])))
-        _LOGGER.info("   📝 Name patterns: %d", len(DEVICE_MAPPINGS.get('name_patterns', [])))
-        _LOGGER.info("   ⚡ Dynamic entity properties: %s", dynamic_props)
-        _LOGGER.info("   🎛️ Specific device overrides: %s", specific_overrides)
+        _LOGGER.debug("📊 DEVICE_MAPPINGS summary:")
+        _LOGGER.debug("   📋 Usage ID mappings: %d", len(DEVICE_MAPPINGS.get('usage_id_mappings', {})))
+        _LOGGER.debug("   🤖 Advanced rules: %d", len(DEVICE_MAPPINGS.get('advanced_rules', [])))
+        _LOGGER.debug("   📝 Name patterns: %d", len(DEVICE_MAPPINGS.get('name_patterns', [])))
+        _LOGGER.debug("   ⚡ Dynamic entity properties: %s", dynamic_props)
+        _LOGGER.debug("   🎛️ Specific device overrides: %s", specific_overrides)
         
         # Critical error if dynamic properties are missing
         if not dynamic_props:
@@ -61,12 +61,12 @@ try:
             _LOGGER.error("❌ No partial refresh will work - performance will be severely impacted!")
             _LOGGER.error("❌ Check YAML file and loading process immediately!")
         else:
-            _LOGGER.info("✅ Dynamic properties loaded: %s", dynamic_props)
+            _LOGGER.debug("✅ Dynamic properties loaded: %s", dynamic_props)
             
         if not specific_overrides:
             _LOGGER.debug("⚠️  No specific device overrides (this is normal)")
         else:
-            _LOGGER.info("✅ Specific device overrides loaded: %s", specific_overrides)
+            _LOGGER.debug("✅ Specific device overrides loaded: %s", specific_overrides)
             
     else:
         _LOGGER.error("❌ CRITICAL ERROR: DEVICE_MAPPINGS is None or empty!")
@@ -415,23 +415,13 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     # Priorité 2.5: Mapping spécifique par periph_id (override usage_id mapping)
     if periph_id and DEVICE_MAPPINGS and 'specific_device_mappings' in DEVICE_MAPPINGS and periph_id in DEVICE_MAPPINGS['specific_device_mappings']:
         mapping = DEVICE_MAPPINGS['specific_device_mappings'][periph_id].copy()
-        _LOGGER.info("🎯 Specific device mapping applied for %s (%s): %s:%s",
-                    periph_name, periph_id, mapping["ha_entity"], mapping["ha_subtype"])
+        _LOGGER.debug("🎯 Specific device mapping applied for %s (%s): %s:%s",
+                     periph_name, periph_id, mapping["ha_entity"], mapping["ha_subtype"])
         return _create_mapping(
             mapping, periph_name, periph_id, usage_id, f"🎯 Specific device mapping", device_data
         )
     
-    # Debug: Log if we have specific mappings but they're not being used
-    if periph_id in ["1061604", "1061606"]:
-        _LOGGER.debug("🔍 Checking specific mapping for %s (%s)", periph_name, periph_id)
-        if DEVICE_MAPPINGS:
-            _LOGGER.debug("🔍 DEVICE_MAPPINGS keys: %s", list(DEVICE_MAPPINGS.keys()))
-            if 'specific_device_mappings' in DEVICE_MAPPINGS:
-                _LOGGER.debug("🔍 specific_device_mappings keys: %s", list(DEVICE_MAPPINGS['specific_device_mappings'].keys()))
-            else:
-                _LOGGER.debug("❌ No specific_device_mappings in DEVICE_MAPPINGS")
-        else:
-            _LOGGER.debug("❌ DEVICE_MAPPINGS is None")
+
     
     # Priorité 3: Mapping basé sur usage_id
     if usage_id and DEVICE_MAPPINGS and usage_id in DEVICE_MAPPINGS['usage_id_mappings']:
