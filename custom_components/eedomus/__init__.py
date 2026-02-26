@@ -503,9 +503,10 @@ async def async_cleanup_unused_entities(hass):
             if entity_entry.platform == "eedomus":
                 entities_considered += 1
                 
-                # Check if entity is disabled OR has "deprecated" in unique_id OR is orphaned
+                # Check if entity is disabled OR has "deprecated" in unique_id OR is orphaned OR has no unique_id
                 is_disabled = entity_entry.disabled
                 has_deprecated = entity_entry.unique_id and "deprecated" in entity_entry.unique_id.lower()
+                has_no_unique_id = entity_entry.unique_id is None or entity_entry.unique_id == ""
                 
                 # Check for orphaned entities (no longer provided by integration)
                 is_orphaned = False
@@ -522,14 +523,20 @@ async def async_cleanup_unused_entities(hass):
                     if not entity_entry.device_id:
                         is_orphaned = True
                 
-                if is_disabled or has_deprecated or is_orphaned:
-                    reason = 'orphaned' if is_orphaned else ('deprecated' if has_deprecated else 'disabled')
+                if is_disabled or has_deprecated or is_orphaned or has_no_unique_id:
+                    if has_no_unique_id:
+                        reason = 'no_unique_id'
+                    elif is_orphaned:
+                        reason = 'orphaned'
+                    else:
+                        reason = 'deprecated' if has_deprecated else 'disabled'
                     entities_to_remove.append({
                         'entity_id': entity_entry.entity_id,
                         'unique_id': entity_entry.unique_id,
                         'disabled': is_disabled,
                         'has_deprecated': has_deprecated,
                         'is_orphaned': is_orphaned,
+                        'has_no_unique_id': has_no_unique_id,
                         'reason': reason
                     })
         
@@ -541,8 +548,14 @@ async def async_cleanup_unused_entities(hass):
         removed_count = 0
         for entity_info in entities_to_remove:
             try:
-                _LOGGER.info(f"Removing entity {entity_info['entity_id']} (reason: {entity_info['reason']}, "
-                           f"unique_id: {entity_info['unique_id']})")
+                log_details = f"reason: {entity_info['reason']}"
+                if entity_info['unique_id']:
+                    log_details += f", unique_id: {entity_info['unique_id']}"
+                if entity_info.get('is_orphaned'):
+                    log_details += " (orphaned - no longer provided by integration)"
+                if entity_info.get('has_no_unique_id'):
+                    log_details += " (no unique_id - cannot be managed from UI)"
+                _LOGGER.info(f"Removing entity {entity_info['entity_id']} ({log_details})")
                 entity_registry.async_remove(entity_info['entity_id'])
                 removed_count += 1
             except Exception as e:
