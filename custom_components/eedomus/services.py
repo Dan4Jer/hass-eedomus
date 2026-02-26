@@ -181,8 +181,8 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
             # Use direct import to avoid hass.helpers issue
             from homeassistant.helpers import entity_registry as er
             
-            # Get entity registry directly
-            entity_registry = await er.async_get_registry(hass)
+            # Get entity registry directly using the correct method
+            entity_registry = await er.async_get(hass)
             
             # Find entities to remove: eedomus domain, disabled, and have "deprecated" in unique_id
             entities_to_remove = []
