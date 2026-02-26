@@ -430,8 +430,13 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     if usage_id and DEVICE_MAPPINGS and usage_id in DEVICE_MAPPINGS['usage_id_mappings']:
         mapping = DEVICE_MAPPINGS['usage_id_mappings'][usage_id].copy()
         
+        # Debug: Log the mapping structure for usage_id 23
+        if usage_id == "23":
+            _LOGGER.info("🔍 Usage_id 23 mapping structure: %s", list(mapping.keys()))
+        
         # Check for dynamic subtype mapping based on device properties
         if "subtype_mapping" in mapping:
+            _LOGGER.info("✅ Found subtype_mapping in usage_id %s mapping", usage_id)
             _LOGGER.debug("🔍 Evaluating dynamic subtype mapping for %s (%s) with usage_id=%s", 
                         periph_name, periph_id, usage_id)
             
