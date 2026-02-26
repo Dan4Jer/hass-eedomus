@@ -254,6 +254,9 @@ class EedomusSensor(EedomusEntity, SensorEntity):
         elif periph_type == "cpu_usage" or periph_type == "cpu":
             self._attr_device_class = "cpu"
             self._attr_native_unit_of_measurement = "%"
+        elif periph_type == "disk_free_space":
+            self._attr_device_class = "data_size"
+            self._attr_native_unit_of_measurement = "B"
         elif periph_type == "text":
             # Text sensors explicitly have no device class
             pass
@@ -265,6 +268,8 @@ class EedomusSensor(EedomusEntity, SensorEntity):
             self._attr_icon = entity_specifics["icon"]
         elif periph_type == "cpu_usage" or periph_type == "cpu":
             self._attr_icon = "mdi:cpu-64-bit"
+        elif periph_type == "disk_free_space":
+            self._attr_icon = "mdi:harddisk"
 
     @property
     def native_value(self):
