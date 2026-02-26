@@ -67,6 +67,9 @@ async def load_yaml_file_async(hass, file_path: str) -> Optional[Dict[str, Any]]
                     
                     if content:
                         _LOGGER.debug("✅ Successfully loaded YAML mapping from %s", file_path)
+                        _LOGGER.debug("📋 YAML metadata: version=%s, last_modified=%s", 
+                                     content.get('metadata', {}).get('version', 'unknown'),
+                                     content.get('metadata', {}).get('last_modified', 'unknown'))
                         
                         # Convert list format to dict format if needed
                         if isinstance(content, list):
