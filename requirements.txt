@@ -14,7 +14,7 @@ pytest-asyncio==0.23.2
 mypy==1.8.0
 
 # Home Assistant development
-homeassistant==2024.6.0
+homeassistant==2025.10.2
 
 # Documentation
 mkdocs==1.5.3
