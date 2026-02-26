@@ -454,7 +454,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                         break
                 
                 if match:
-                    _LOGGER.debug("✅ Matched subtype rule for %s (%s): %s", 
+                    _LOGGER.info("✅ Matched subtype rule for %s (%s): %s", 
                                 periph_name, periph_id, conditions)
                     # Apply this subtype mapping
                     for key, value in subtype_rule.items():
@@ -464,7 +464,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                     break
             
             if not matched and "default" in mapping:
-                _LOGGER.debug("🔄 Using default mapping for %s (%s)", periph_name, periph_id)
+                _LOGGER.info("🔄 Using default mapping for %s (%s)", periph_name, periph_id)
                 # Apply default mapping
                 for key, value in mapping["default"].items():
                     mapping[key] = value
