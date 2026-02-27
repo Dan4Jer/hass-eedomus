@@ -37,7 +37,8 @@ CONF_ENABLE_API_PROXY = "enable_api_proxy"
 CONF_API_PROXY_DISABLE_SECURITY = "api_proxy_disable_security"
 CONF_ENABLE_SET_VALUE_RETRY = "enable_set_value_retry"
 CONF_ENABLE_WEBHOOK = "enable_webhook"
-CONF_REMOVE_ENTITIES = "remove_entities_on_uninstall"
+CONF_REMOVE_ENTITIES = "remove_entities"
+CONF_HTTP_REQUEST_TIMEOUT = "http_request_timeout"
 
 
 CONF_PHP_FALLBACK_ENABLED = "php_fallback_enabled"
@@ -64,6 +65,7 @@ DEFAULT_SCAN_INTERVAL = 300  # 5 minutes
 DEFAULT_PHP_FALLBACK_ENABLED = False  # PHP fallback disabled by default
 DEFAULT_PHP_FALLBACK_SCRIPT_NAME = "fallback.php"  # Default script name
 DEFAULT_PHP_FALLBACK_TIMEOUT = 5  # 5 seconds timeout for PHP fallback script
+DEFAULT_HTTP_REQUEST_TIMEOUT = 10  # 10 seconds timeout for HTTP requests to eedomus API
 
 # Platforms
 PLATFORMS = [
@@ -164,6 +166,13 @@ DEVICE_SCHEMA = vol.Schema({
 
 # Schema for YAML files
 YAML_MAPPING_SCHEMA = vol.Schema({
+    vol.Optional("metadata"): dict,
+    vol.Optional("advanced_rules"): list,
+    vol.Optional("usage_id_mappings"): dict,
+    vol.Optional("dynamic_entity_properties"): dict,
+    vol.Optional("specific_device_dynamic_overrides"): dict,
+    vol.Optional("specific_device_mappings"): dict,
+    vol.Optional("name_patterns"): list,
     vol.Optional(CONF_CUSTOM_DEVICES): vol.All(cv.ensure_list, [DEVICE_SCHEMA]),
 })
 

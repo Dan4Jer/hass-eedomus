@@ -1,4 +1,7 @@
-"""Options flow for eedomus integration with UI/YAML toggle."""
+"""Options flow for eedomus integration with UI/YAML toggle.
+
+Detailed parameter documentation is available in docs/OPTIONS_DOCUMENTATION.md
+"""
 
 import voluptuous as vol
 import logging
@@ -25,8 +28,8 @@ from .const import (
     CONF_PHP_FALLBACK_ENABLED,
     CONF_PHP_FALLBACK_SCRIPT_NAME,
     CONF_PHP_FALLBACK_TIMEOUT,
-    DEFAULT_HISTORY_RETRY_DELAY,
-    DEFAULT_HISTORY_PERIPHERALS_PER_SCAN,
+    CONF_HTTP_REQUEST_TIMEOUT,
+    DEFAULT_HTTP_REQUEST_TIMEOUT,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -83,6 +86,8 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
             options[CONF_PHP_FALLBACK_SCRIPT_NAME] = config_data.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")
         if CONF_PHP_FALLBACK_TIMEOUT not in options:
             options[CONF_PHP_FALLBACK_TIMEOUT] = config_data.get(CONF_PHP_FALLBACK_TIMEOUT, 5)
+        if CONF_HTTP_REQUEST_TIMEOUT not in options:
+            options[CONF_HTTP_REQUEST_TIMEOUT] = config_data.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)
         
         _LOGGER.debug("Copied config to options: %s", {k: v for k, v in options.items() if k not in ['api_user', 'api_secret']})
         return options
@@ -120,6 +125,7 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
             options[CONF_PHP_FALLBACK_ENABLED] = user_input.get(CONF_PHP_FALLBACK_ENABLED, False)
             options[CONF_PHP_FALLBACK_SCRIPT_NAME] = user_input.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")
             options[CONF_PHP_FALLBACK_TIMEOUT] = user_input.get(CONF_PHP_FALLBACK_TIMEOUT, 5)
+            options[CONF_HTTP_REQUEST_TIMEOUT] = user_input.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)
             
             # Store options for use in other steps
             # Convert mappingproxy to dict if needed
@@ -151,18 +157,8 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(CONF_SCAN_INTERVAL, default=current_options.get(CONF_SCAN_INTERVAL, 300)): int,
                 vol.Optional(CONF_ENABLE_API_PROXY, default=current_options.get(CONF_ENABLE_API_PROXY, False)): bool,
                 vol.Optional(CONF_ENABLE_HISTORY, default=current_options.get(CONF_ENABLE_HISTORY, False)): bool,
-                vol.Optional(CONF_HISTORY_RETRY_DELAY, default=current_options.get(CONF_HISTORY_RETRY_DELAY, DEFAULT_HISTORY_RETRY_DELAY)): int,
-                vol.Optional(
-                    CONF_HISTORY_PERIPHERALS_PER_SCAN, 
-                    default=current_options.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, DEFAULT_HISTORY_PERIPHERALS_PER_SCAN)
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=0,
-                        max=20,
-                        step=1,
-                        mode=selector.NumberSelectorMode.BOX,
-                    ),
-                ),
+                vol.Optional(CONF_SCAN_INTERVAL, default=current_options.get(CONF_SCAN_INTERVAL, 300)): int,
+                vol.Optional(CONF_HTTP_REQUEST_TIMEOUT, default=current_options.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)): int,
                 vol.Optional(CONF_ENABLE_SET_VALUE_RETRY, default=current_options.get(CONF_ENABLE_SET_VALUE_RETRY, True)): bool,
                 vol.Optional(CONF_ENABLE_WEBHOOK, default=current_options.get(CONF_ENABLE_WEBHOOK, True)): bool,
                 vol.Optional(CONF_API_PROXY_DISABLE_SECURITY, default=current_options.get(CONF_API_PROXY_DISABLE_SECURITY, False)): bool,
@@ -211,7 +207,8 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                     CONF_API_PROXY_DISABLE_SECURITY: current_options.get(CONF_API_PROXY_DISABLE_SECURITY, False),
                     CONF_PHP_FALLBACK_ENABLED: current_options.get(CONF_PHP_FALLBACK_ENABLED, False),
                     CONF_PHP_FALLBACK_SCRIPT_NAME: current_options.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php"),
-                    CONF_PHP_FALLBACK_TIMEOUT: current_options.get(CONF_PHP_FALLBACK_TIMEOUT, 5)
+                    CONF_PHP_FALLBACK_TIMEOUT: current_options.get(CONF_PHP_FALLBACK_TIMEOUT, 5),
+                    CONF_HTTP_REQUEST_TIMEOUT: current_options.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)
                 })
                 # Log the options being saved
                 _LOGGER.debug("Saving options in UI mode: %s", options)
@@ -242,18 +239,8 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(CONF_SCAN_INTERVAL, default=current_options.get(CONF_SCAN_INTERVAL, 300)): int,
                 vol.Optional(CONF_ENABLE_API_PROXY, default=current_options.get(CONF_ENABLE_API_PROXY, False)): bool,
                 vol.Optional(CONF_ENABLE_HISTORY, default=current_options.get(CONF_ENABLE_HISTORY, False)): bool,
-                vol.Optional(CONF_HISTORY_RETRY_DELAY, default=current_options.get(CONF_HISTORY_RETRY_DELAY, DEFAULT_HISTORY_RETRY_DELAY)): int,
-                vol.Optional(
-                    CONF_HISTORY_PERIPHERALS_PER_SCAN, 
-                    default=current_options.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, DEFAULT_HISTORY_PERIPHERALS_PER_SCAN)
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=0,
-                        max=20,
-                        step=1,
-                        mode=selector.NumberSelectorMode.BOX,
-                    ),
-                ),
+                vol.Optional(CONF_SCAN_INTERVAL, default=current_options.get(CONF_SCAN_INTERVAL, 300)): int,
+                vol.Optional(CONF_HTTP_REQUEST_TIMEOUT, default=current_options.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)): int,
                 vol.Optional(CONF_ENABLE_SET_VALUE_RETRY, default=current_options.get(CONF_ENABLE_SET_VALUE_RETRY, True)): bool,
                 vol.Optional(CONF_ENABLE_WEBHOOK, default=current_options.get(CONF_ENABLE_WEBHOOK, True)): bool,
                 vol.Optional(CONF_API_PROXY_DISABLE_SECURITY, default=current_options.get(CONF_API_PROXY_DISABLE_SECURITY, False)): bool,
@@ -310,7 +297,8 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                         CONF_API_PROXY_DISABLE_SECURITY: current_options.get(CONF_API_PROXY_DISABLE_SECURITY, False),
                         CONF_PHP_FALLBACK_ENABLED: current_options.get(CONF_PHP_FALLBACK_ENABLED, False),
                         CONF_PHP_FALLBACK_SCRIPT_NAME: current_options.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php"),
-                        CONF_PHP_FALLBACK_TIMEOUT: current_options.get(CONF_PHP_FALLBACK_TIMEOUT, 5)
+                        CONF_PHP_FALLBACK_TIMEOUT: current_options.get(CONF_PHP_FALLBACK_TIMEOUT, 5),
+                        CONF_HTTP_REQUEST_TIMEOUT: current_options.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)
                     })
                     # Log the options being saved
                     _LOGGER.debug("Saving options in YAML mode: %s", options)
@@ -364,5 +352,65 @@ custom_devices:
             errors=errors,
             description_placeholders={
                 "example": "Edit YAML directly for advanced configuration"
+            }
+        )
+
+    async def async_step_cleanup(self, user_input=None):
+        """Handle cleanup of unused eedomus entities."""
+        _LOGGER.info("Starting cleanup of unused eedomus entities")
+        
+        # Get entity registry
+        entity_registry = await self.hass.helpers.entity_registry.async_get_registry()
+        
+        # Find entities to remove: eedomus domain, disabled, and have "deprecated" in unique_id
+        entities_to_remove = []
+        entities_analyzed = 0
+        entities_considered = 0
+        
+        for entity_entry in entity_registry.entities.values():
+            entities_analyzed += 1
+            
+            # Check if this is an eedomus entity
+            if entity_entry.platform == "eedomus":
+                entities_considered += 1
+                
+                # Check if entity is disabled OR has "deprecated" in unique_id
+                is_disabled = entity_entry.disabled
+                has_deprecated = entity_entry.unique_id and "deprecated" in entity_entry.unique_id.lower()
+                
+                if is_disabled or has_deprecated:
+                    entities_to_remove.append({
+                        'entity_id': entity_entry.entity_id,
+                        'unique_id': entity_entry.unique_id,
+                        'disabled': is_disabled,
+                        'has_deprecated': has_deprecated,
+                        'reason': 'deprecated' if has_deprecated else 'disabled'
+                    })
+        
+        _LOGGER.info(f"Cleanup analysis complete: {entities_analyzed} entities analyzed, "
+                   f"{entities_considered} eedomus entities considered, "
+                   f"{len(entities_to_remove)} entities to be removed")
+        
+        # Remove the entities
+        removed_count = 0
+        for entity_info in entities_to_remove:
+            try:
+                _LOGGER.info(f"Removing entity {entity_info['entity_id']} (reason: {entity_info['reason']}, "
+                           f"unique_id: {entity_info['unique_id']})")
+                entity_registry.async_remove(entity_info['entity_id'])
+                removed_count += 1
+            except Exception as e:
+                _LOGGER.error(f"Failed to remove entity {entity_info['entity_id']}: {e}")
+        
+        _LOGGER.info(f"Cleanup completed: {removed_count} entities removed out of {len(entities_to_remove)} identified")
+        
+        return self.async_create_entry(
+            title="",
+            data={
+                "cleanup_completed": True,
+                "entities_analyzed": entities_analyzed,
+                "entities_considered": entities_considered,
+                "entities_identified": len(entities_to_remove),
+                "entities_removed": removed_count
             }
         )

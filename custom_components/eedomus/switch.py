@@ -8,7 +8,7 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN
+from .const import DOMAIN, COORDINATOR
 from .entity import EedomusEntity, map_device_to_ha_entity
 
 _LOGGER = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities
 ):
-    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+    coordinator = hass.data[DOMAIN][entry.entry_id][COORDINATOR]
     switches = []
 
     all_peripherals = coordinator.get_all_peripherals()
@@ -29,7 +29,7 @@ async def async_setup_entry(
                 parent_to_children[parent_id] = []
             parent_to_children[parent_id].append(periph)
             if not "ha_entity" in coordinator.data[periph_id]:
-                eedomus_mapping = map_device_to_ha_entity(periph)
+                eedomus_mapping = map_device_to_ha_entity(periph, coordinator.data, coordinator=coordinator)
                 coordinator.data[periph_id].update(eedomus_mapping)
                 # S'assurer que le mapping est enregistré dans le registre global
                 from .entity import _register_device_mapping
