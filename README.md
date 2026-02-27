@@ -8,9 +8,36 @@
 
 **hass-eedomus** est une intégration personnalisée qui permet de connecter votre box domotique **eedomus** à **Home Assistant**, en suivant l'architecture standard des [custom integrations](https://developers.home-assistant.io/docs/creating_component_index).
 
-## 🎯 Fonctionnalités principales
+## 📦 Installation and Update
 
-### 🆕 Nouveau dans la v0.13.10-unstable : Système de Mapping Révolutionnaire
+### Via HACS (Recommended)
+1. In HACS config go to the 3 dots in top left then GitHub
+2. Add a custom repository with URL: https://github.com/Dan4Jer/hass-eedomus
+3. Go to **HACS** > **Integrations**
+4. Search for "Eedomus"
+5. Click **Install**
+6. Restart Home Assistant
+
+### Manual Installation
+1. Download the latest version from [GitHub Releases](https://github.com/Dan4Jer/hass-eedomus/releases)
+2. Extract the file to `custom_components/eedomus/`
+3. Restart Home Assistant
+
+### Configuration
+1. Go to **Settings** > **Devices & Services**
+2. Click **Add Integration**
+3. Search for "Eedomus"
+4. Enter your eedomus API credentials
+5. Configure options according to your needs
+
+### Updating
+- **Via HACS**: Automatic update notification when new version available
+- **Manual**: Download new version and replace files in `custom_components/eedomus/`
+- **Always**: Check release notes for breaking changes
+
+## 🎯 Fonctionnalités de la v0.14.0
+
+### 🆕 Système de Mapping Révolutionnaire
 
 **Une approche entièrement configurable et flexible !** 🎨
 
@@ -20,7 +47,7 @@
 - **Architecture extensible** : Ajoutez facilement de nouveaux types de devices sans modifier le code
 - **Interface utilisateur complète** : Toutes les options accessibles depuis l'interface Home Assistant
 
-### 🆕 Nouveau dans la v0.12.0 : Options Flow avec Configuration Dynamique
+### 🆕 Options Flow avec Configuration Dynamique
 
 **La plus grosse nouveauté de cette version !** 🎛️
 
@@ -29,7 +56,7 @@
 - **Changements immédiats** : Les modifications prennent effet immédiatement après sauvegarde
 - **Interface utilisateur intuitive** : Panneau d'options organisé dans l'interface Home Assistant
 
-### 🆕 Nouveau : Fonctionnalité de Nettoyage des Entités
+### 🆕 Fonctionnalité de Nettoyage des Entités
 
 **Maintenez votre installation propre et performante !** 🧹
 
@@ -47,8 +74,6 @@
 ```
 
 [📖 Documentation complète de la fonctionnalité de nettoyage](docs/CLEANUP_FEATURE.md)
-
-## 📦 Installation and Update
 
 ### Via HACS (Recommended)
 1. In HACS config go to the 3 dots in top left then GitHub
