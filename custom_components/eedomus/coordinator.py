@@ -195,10 +195,39 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
         # Display enhanced mapping table only on initial startup (not on subsequent refreshes)
         if not hasattr(self, '_mapping_table_displayed'):
-            _LOGGER.info("🗺️ Enhanced Device Mapping Table:")
-            _LOGGER.info("=" * 150)
-            _LOGGER.info("| Periph ID   | Device Name                          | Parent ID     | Type       | Subtype         | usage_id | PRODUCT_TYPE_ID | Justification                                  |")
-            _LOGGER.info("=" * 150)
+            # Count device types for summary
+            device_types = {}
+            rgbw_lamps = 0
+            rgbw_children = 0
+            
+            for periph_id in aggregated_data.keys():
+                periph_data = aggregated_data[periph_id]
+                ha_entity = periph_data.get('ha_entity', '?')
+                ha_subtype = periph_data.get('ha_subtype', '?')
+                device_type = f"{ha_entity}:{ha_subtype}"
+                
+                # Count device types
+                device_types[device_type] = device_types.get(device_type, 0) + 1
+                
+                # Count RGBW devices
+                if ha_entity == 'light' and ha_subtype == 'rgbw':
+                    rgbw_lamps += 1
+                elif periph_data.get('parent_periph_id') and \
+                     aggregated_data.get(periph_data['parent_periph_id'], {}).get('ha_subtype') == 'rgbw':
+                    rgbw_children += 1
+            
+            # Display summary at INFO level (always visible)
+            _LOGGER.info("🗺️ Device Mapping Summary: %d total devices, %d unique types", 
+                        len(aggregated_data), len(device_types))
+            if rgbw_lamps > 0:
+                _LOGGER.info("🎨 RGBW Devices: %d lamps with %d brightness channels", 
+                           rgbw_lamps, rgbw_children)
+            
+            # Display detailed table at DEBUG level (for troubleshooting)
+            _LOGGER.debug("🔍 Detailed Device Mapping Table:")
+            _LOGGER.debug("=" * 150)
+            _LOGGER.debug("| Periph ID   | Device Name                          | Parent ID     | Type       | Subtype         | usage_id | PRODUCT_TYPE_ID | Justification                                  |")
+            _LOGGER.debug("=" * 150)
             
             for periph_id in sorted(aggregated_data.keys(), key=lambda x: aggregated_data[x].get('name', '').lower()):
                 periph_data = aggregated_data[periph_id]
@@ -208,7 +237,6 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 usage_id = periph_data.get('usage_id', '?')
                 product_type_id = periph_data.get('PRODUCT_TYPE_ID', '?')
                 device_name = periph_data.get('name', '?')
-                usage_name = periph_data.get('usage_name', '?')
                 
                 # Determine justification
                 is_rgbw_parent = (ha_entity == 'light' and ha_subtype == 'rgbw')
@@ -225,8 +253,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 else:
                     justification = f"{ha_entity}:{ha_subtype} mapping"
                 
-                # Format the table row
-                _LOGGER.info("| %-12s | %-35s | %-12s | %-10s | %-14s | %-8s | %-15s | %-45s |",
+                # Format the table row (DEBUG level)
+                _LOGGER.debug("| %-12s | %-35s | %-12s | %-10s | %-14s | %-8s | %-15s | %-45s |",
                             periph_id,
                             f"{device_name}",
                             parent_id,
@@ -236,10 +264,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                             product_type_id,
                             justification)
             
-            _LOGGER.info("=" * 150)
-            _LOGGER.info(f"Total devices mapped: {len(aggregated_data)}")
-            _LOGGER.info("⚠️  Note: This table shows all devices with complete coordinator data")
-            _LOGGER.info("")
+            _LOGGER.debug("=" * 150)
+            _LOGGER.debug("⚠️  Detailed mapping table available at DEBUG level for troubleshooting")
+            _LOGGER.debug("")
             self._mapping_table_displayed = True
         
         # Set the data for the coordinator
