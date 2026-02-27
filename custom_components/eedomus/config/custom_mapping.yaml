@@ -1,49 +1,34 @@
-# Custom Eedomus Device Mapping Configuration
-# This file is for user-customized mappings that override the default mappings.
-# It can be edited through the options flow interface in Home Assistant.
-#
-# To add custom mappings, follow the same structure as device_mapping.yaml
-# Example:
-#
-# custom_rules:
-#   - name: "My Custom Device"
-#     priority: 1
-#     conditions:
-#       - usage_id: "123"
-#       - name: ".*my device.*"
-#     mapping:
-#       ha_entity: "light"
-#       ha_subtype: "custom"
-#       device_class: null
-#       icon: "mdi:lightbulb"
+# Custom device mapping configuration in new dict format
+# This format supports dynamic entity properties and advanced rules
 
-version: 1.0
+# Metadata section (will be loaded by YAML parser)
+metadata:
+  version: "1.1.0"
+  last_modified: "2026-02-24"
+  changes:
+    - "Initial custom mapping structure"
+    - "Ready for custom device overrides"
 
-# Custom rules for advanced device mapping
-# These override the default mapping rules
+# Custom advanced rules (empty by default)
 custom_rules: []
 
-# Custom usage ID mappings
-# Override default mappings for specific usage_ids
+# Custom usage ID mappings (old custom_device_mappings converted to new format)
 custom_usage_id_mappings: {}
 
-# Custom name patterns
-# Map devices based on name patterns (regex)
-custom_name_patterns: []
-
-# Custom dynamic entity properties
-# Override which entity types should be dynamic
-# Dynamic devices are those whose state can change unpredictably due to user actions
-# They are included in opportunistic refresh mechanisms
+# Custom dynamic entity properties (empty by default)
 custom_dynamic_entity_properties: {}
-  # Example: Make climate devices dynamic if they have physical controls
-  # climate: true
 
-# Custom specific device dynamic overrides
-# Override dynamic behavior for individual devices by periph_id
-# Use this for devices that don't fit the default entity type behavior
+# Custom specific device dynamic overrides (empty by default)
 custom_specific_device_dynamic_overrides: {}
-  # Example: Make a specific temperature sensor dynamic if it's critical
-  # "123456": true
-  # Example: Make a motion sensor static if it's in a low-traffic area
-  # "789012": false
+
+# Custom temperature setpoint to sensor mappings
+# Maps climate entities (usage_id 15) to their corresponding temperature sensors
+# This is specific to your personal installation and should not be in the main device_mapping.yaml
+temperature_setpoint_mappings:
+  '1252440': '1235480'  # Consigne Salle de bain → Sonde température Salle de bain
+  '1252441': '1090996'  # Consigne Salon → Sonde température Salon
+  '1252442': '3387333'  # Consigne Chambre enfant → Sonde température Chambre enfant
+  # Add more mappings here as needed for your specific setup
+
+# Custom name patterns (empty by default)
+custom_name_patterns: []

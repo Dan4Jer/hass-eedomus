@@ -1,4 +1,7 @@
-"""Config flow for eedomus integration."""
+"""Config flow for eedomus integration.
+
+Detailed parameter documentation is available in docs/OPTIONS_DOCUMENTATION.md
+"""
 
 from __future__ import annotations
 
@@ -26,6 +29,7 @@ from .const import (
     CONF_ENABLE_HISTORY,
     CONF_ENABLE_SET_VALUE_RETRY,
     CONF_ENABLE_WEBHOOK,
+    CONF_HTTP_REQUEST_TIMEOUT,
     CONF_PHP_FALLBACK_ENABLED,
     CONF_PHP_FALLBACK_SCRIPT_NAME,
     CONF_PHP_FALLBACK_TIMEOUT,
@@ -42,6 +46,7 @@ from .const import (
     DEFAULT_PHP_FALLBACK_ENABLED,
     DEFAULT_PHP_FALLBACK_SCRIPT_NAME,
     DEFAULT_PHP_FALLBACK_TIMEOUT,
+    DEFAULT_HTTP_REQUEST_TIMEOUT,
     DEFAULT_REMOVE_ENTITIES,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
@@ -97,6 +102,7 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Optional(CONF_API_SECRET, default=DEFAULT_API_SECRET or ""): str,
         vol.Optional(CONF_ENABLE_HISTORY, default=False): bool,
         vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int,
+        vol.Optional(CONF_HTTP_REQUEST_TIMEOUT, default=DEFAULT_HTTP_REQUEST_TIMEOUT): int,
         vol.Optional(
             CONF_ENABLE_SET_VALUE_RETRY, default=DEFAULT_ENABLE_SET_VALUE_RETRY
         ): bool,
@@ -192,6 +198,11 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         scan_interval = data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
         if scan_interval < 30:
             raise vol.Invalid("Scan interval must be at least 30 seconds")
+
+        # Validate HTTP request timeout
+        http_request_timeout = data.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)
+        if http_request_timeout < 5 or http_request_timeout > 120:
+            raise vol.Invalid("HTTP request timeout must be between 5 and 120 seconds")
 
         # Check which modes are enabled
         api_eedomus_enabled = data.get(

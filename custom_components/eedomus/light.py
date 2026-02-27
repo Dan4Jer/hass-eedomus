@@ -23,7 +23,7 @@ from homeassistant.util.color import (  # color_rgb_to_kelvin,; color_rgb_to_xy,
     value_to_brightness,
 )
 
-from .const import DOMAIN
+from .const import DOMAIN, COORDINATOR
 from .entity import EedomusEntity, map_device_to_ha_entity
 
 _LOGGER = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities
 ):
     """Set up eedomus lights from config entry."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+    coordinator = hass.data[DOMAIN][entry.entry_id][COORDINATOR]
     entities = []
 
     # devices = coordinator.data.get("periph_list", {}).get("body", [])
@@ -47,7 +47,7 @@ async def async_setup_entry(
                 parent_to_children[parent_id] = []
             parent_to_children[parent_id].append(periph)
         if not "ha_entity" in coordinator.data[periph_id]:
-            eedomus_mapping = map_device_to_ha_entity(periph)
+            eedomus_mapping = map_device_to_ha_entity(periph, coordinator.data, coordinator=coordinator)
             coordinator.data[periph_id].update(eedomus_mapping)
             # S'assurer que le mapping est enregistré dans le registre global
             _register_device_mapping(eedomus_mapping, periph["name"], periph_id, periph)
@@ -306,8 +306,11 @@ class EedomusLight(EedomusEntity, LightEntity):
         return round(percent * 255 / 100)
 
     def octal_to_percent(self, brightness: int) -> int:
-        """Convertit une valeur 0-255 en pourcentage (0-100)."""
-        return round(brightness * 100 / 255)
+        """Convertit une valeur 0-255 en pourcentage (0-100).
+        
+        Conversion directe sans arrondi pour une précision maximale.
+        """
+        return int(brightness * 100 / 255)
 
 
 class EedomusRGBWLight(EedomusLight):

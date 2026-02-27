@@ -11,15 +11,12 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.helpers import service
 
 from .const import (
-
     CONF_ENABLE_HISTORY,
     CONF_HISTORY_RETRY_DELAY,
     CONF_ENABLE_SET_VALUE_RETRY,
     CONF_PHP_FALLBACK_ENABLED,
     CONF_PHP_FALLBACK_SCRIPT_NAME,
     CONF_PHP_FALLBACK_TIMEOUT,
-
-    DEFAULT_HISTORY_RETRY_DELAY,
     DEFAULT_ENABLE_SET_VALUE_RETRY,
     DEFAULT_PHP_FALLBACK_ENABLED,
     DEFAULT_PHP_FALLBACK_SCRIPT_NAME,
@@ -56,19 +53,47 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         self._retry_queue = {}  # {periph_id: {"error_time": timestamp, "retry_after": timestamp, "error_message": str, "attempts": int}}
         self._error_count = {}   # {periph_id: int}
         self._scan_interval = scan_interval
+        
+        # Timing metrics for performance monitoring
+        self._last_api_time = 0.0
+        self._last_processing_time = 0.0
+        self._last_refresh_time = 0.0
+        self._last_processed_devices = 0
+        self._refresh_timing_history = []  # Store last 10 refresh times for analysis
+        
+        # Endpoint-specific timing metrics
+        self._endpoint_timings = {
+            'get_periph_list': 0.0,
+            'get_periph_value_list': 0.0,
+            'get_periph_caract': 0.0,
+            'set_periph_value': 0.0,
+            'partial_refresh': 0.0
+        }
+        self._endpoint_call_counts = {
+            'get_periph_list': 0,
+            'get_periph_value_list': 0,
+            'get_periph_caract': 0,
+            'set_periph_value': 0,
+            'partial_refresh': 0
+        }
+        self._yaml_config_cache = None  # Cache for YAML configuration
 
     async def async_config_entry_first_refresh(self):
-        """Effectue le premier rafraîchissement des données et charge la progression de l'historique."""
+        """Effectue le premier rafraîchissement des données et charge la progression de l'historique.
+        
+        Performs the initial data refresh when the integration is first set up.
+        Loads historical progress data and retrieves full device information from the eedomus API.
+        """
 
+        # Pre-load YAML configuration asynchronously to cache it for later synchronous access
+        await self._load_yaml_config_async()
+        
         await self._load_history_progress()
         
         # Perform initial full data retrieval including peripherals list and value list
-        start_time = datetime.now()
         peripherals, peripherals_value_list, peripherals_caract = (
-            await self._async_full_data_retrieve()
+            await self._async_full_data_retreive()
         )
-        elapsed_time = (datetime.now() - start_time).total_seconds()
-        _LOGGER.debug("Initial data retrieval completed in %.3f seconds", elapsed_time)
         
         # Conversion des listes en dictionnaires
         peripherals_dict = {str(periph["periph_id"]): periph for periph in peripherals}
@@ -89,8 +114,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             | set(peripherals_caract_dict.keys())
         )
 
-        # Première passe : Ajouter tous les devices à aggregated_data
-        # Cela permet aux règles avancées d'avoir accès à tous les devices, y compris les enfants
+        # Phase 1: Construction complète des données SANS mapping
+        # Cela résout le problème de temporalité où les enfants peuvent ne pas être encore dans aggregated_data
         for periph_id in all_periph_ids:
             aggregated_data[periph_id] = {}
 
@@ -106,41 +131,27 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             if periph_id in peripherals_caract_dict:
                 aggregated_data[periph_id].update(peripherals_caract_dict[periph_id])
 
-        # Deuxième passe : Appliquer le mapping pour chaque device
-        # Maintenant tous les devices sont disponibles dans aggregated_data
-        for periph_id in all_periph_ids:
-            # Mapping des périphériques vers une entité HA : la bonne ? quid des enfants vis à vis de parent ?
-            if not "ha_entity" in aggregated_data[periph_id]:
-                eedomus_mapping = map_device_to_ha_entity(aggregated_data[periph_id], aggregated_data)
-                aggregated_data[periph_id].update(eedomus_mapping)
-                
-                # Add dynamic property based on entity type
-                try:
-                    from .entity import DEVICE_MAPPINGS
-                    ha_entity = aggregated_data[periph_id].get("ha_entity")
-                    if ha_entity and DEVICE_MAPPINGS:
-                        dynamic_properties = DEVICE_MAPPINGS.get('dynamic_entity_properties', {})
-                        aggregated_data[periph_id]["is_dynamic"] = dynamic_properties.get(ha_entity, False)
-                        _LOGGER.debug(
-                            "Set is_dynamic=%s for %s (%s) based on entity type %s",
-                            aggregated_data[periph_id]["is_dynamic"],
-                            aggregated_data[periph_id].get("name"),
-                            periph_id,
-                            ha_entity
-                        )
-                except Exception as e:
-                    _LOGGER.warning(
-                        "Failed to set dynamic property for %s (%s): %s",
-                        aggregated_data[periph_id].get("name"),
-                        periph_id,
-                        e
-                    )
-                    # Set default dynamic property
-                    ha_entity = aggregated_data[periph_id].get("ha_entity")
-                    if ha_entity in ["light", "switch", "binary_sensor"]:
-                        aggregated_data[periph_id]["is_dynamic"] = True
-                    else:
-                        aggregated_data[periph_id]["is_dynamic"] = False
+        # Phase 2: Détection des relations parent-enfant pour résoudre les dépendances circulaires
+        # Cela permet d'avoir une vue complète des relations avant d'appliquer le mapping
+        parent_child_relations = {}
+        for periph_id, device_data in aggregated_data.items():
+            parent_id = device_data.get("parent_periph_id")
+            if parent_id:
+                if parent_id not in parent_child_relations:
+                    parent_child_relations[parent_id] = []
+                parent_child_relations[parent_id].append(periph_id)
+
+        # Phase 3: Application du mapping avec gestion explicite des dépendances
+        # Maintenant que toutes les relations sont établies, nous pouvons appliquer le mapping de manière fiable
+        for periph_id, device_data in aggregated_data.items():
+            # Passer les relations parent-enfant complètes au mapping pour éviter les problèmes de timing
+            eedomus_mapping = map_device_to_ha_entity(
+                device_data, 
+                aggregated_data, 
+                coordinator=self,
+                parent_child_relations=parent_child_relations
+            )
+            aggregated_data[periph_id].update(eedomus_mapping)
 
         # Logs des tailles
         _LOGGER.info(
@@ -159,7 +170,6 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # Traitement des périphériques
         skipped = 0
         dynamic = 0
-        disabled = 0
         for periph_id, periph_data in aggregated_data.items():
             if not isinstance(periph_data, dict) or "periph_id" not in periph_data:
                 _LOGGER.warning(
@@ -171,126 +181,190 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 skipped += 1
                 continue
 
-            # Check if entity is disabled
-
-
             # _LOGGER.debug("Processing peripheral (ID: %s, data: %s)", periph_id, periph_data)
-
-            # Ensure is_dynamic property is set for all peripherals
-            if "ha_entity" in periph_data and "is_dynamic" not in periph_data:
-                try:
-                    from .entity import DEVICE_MAPPINGS
-                    ha_entity = periph_data.get("ha_entity")
-                    if ha_entity and DEVICE_MAPPINGS:
-                        dynamic_properties = DEVICE_MAPPINGS.get('dynamic_entity_properties', {})
-                        periph_data["is_dynamic"] = dynamic_properties.get(ha_entity, False)
-                        _LOGGER.debug(
-                            "Set is_dynamic=%s for %s (%s) based on entity type %s",
-                            periph_data["is_dynamic"],
-                            periph_data.get("name"),
-                            periph_id,
-                            ha_entity
-                        )
-                except Exception as e:
-                    _LOGGER.warning(
-                        "Failed to set dynamic property for %s (%s): %s",
-                        periph_data.get("name"),
-                        periph_id,
-                        e
-                    )
-                    # Set default dynamic property
-                    ha_entity = periph_data.get("ha_entity")
-                    if ha_entity in ["light", "switch", "binary_sensor"]:
-                        periph_data["is_dynamic"] = True
-                    else:
-                        periph_data["is_dynamic"] = False
 
             if self._is_dynamic_peripheral(periph_data):
                 self._dynamic_peripherals[periph_id] = periph_data
                 dynamic += 1
 
-        _LOGGER.info("Skipped %d invalid peripherals", skipped)
-        _LOGGER.info("Found %d dynamic peripherals", dynamic)
-        _LOGGER.info("Skipped %d disabled peripherals", disabled)
+        _LOGGER.info("📊 Device processing summary: %d total peripherals, %d dynamic, %d skipped, %d processed", len(aggregated_data), dynamic, skipped, len(aggregated_data))
 
+        # Log final timing summary for initial refresh (consistent with other refresh types)
+        endpoint_details = []
+        for endpoint, time in self._endpoint_timings.items():
+            if time > 0:
+                endpoint_details.append(f"{endpoint}: {time:.3f}s")
+        endpoint_log = ", ".join(endpoint_details) if endpoint_details else "no endpoints"
+        total_time = sum(self._endpoint_timings.values())
+        _LOGGER.info("🔄 INITIAL REFRESH: %d total, %.3fs total (Endpoints: %s)", len(aggregated_data), total_time, endpoint_log)
+
+        # Display enhanced mapping table only on initial startup (not on subsequent refreshes)
+        if not hasattr(self, '_mapping_table_displayed'):
+            _LOGGER.info("🗺️ Enhanced Device Mapping Table:")
+            _LOGGER.info("=" * 150)
+            _LOGGER.info("| Periph ID   | Device Name                          | Parent ID     | Type       | Subtype         | usage_id | PRODUCT_TYPE_ID | Justification                                  |")
+            _LOGGER.info("=" * 150)
+            
+            for periph_id in sorted(aggregated_data.keys(), key=lambda x: aggregated_data[x].get('name', '').lower()):
+                periph_data = aggregated_data[periph_id]
+                parent_id = periph_data.get('parent_periph_id', 'None')
+                ha_entity = periph_data.get('ha_entity', '?')
+                ha_subtype = periph_data.get('ha_subtype', '?')
+                usage_id = periph_data.get('usage_id', '?')
+                product_type_id = periph_data.get('PRODUCT_TYPE_ID', '?')
+                device_name = periph_data.get('name', '?')
+                usage_name = periph_data.get('usage_name', '?')
+                
+                # Determine justification
+                is_rgbw_parent = (ha_entity == 'light' and ha_subtype == 'rgbw')
+                is_rgbw_child = (parent_id != 'None' and 
+                                aggregated_data.get(parent_id, {}).get('ha_subtype') == 'rgbw')
+                
+                justification = ""
+                if is_rgbw_parent:
+                    children = [child_id for child_id, child in aggregated_data.items() 
+                              if child.get('parent_periph_id') == periph_id]
+                    justification = f"🎨 RGBW lamp detected ({len(children)} children)"
+                elif is_rgbw_child:
+                    justification = f"🎨 RGBW child brightness channel (parent: {parent_id})"
+                else:
+                    justification = f"{ha_entity}:{ha_subtype} mapping"
+                
+                # Format the table row
+                _LOGGER.info("| %-12s | %-35s | %-12s | %-10s | %-14s | %-8s | %-15s | %-45s |",
+                            periph_id,
+                            f"{device_name}",
+                            parent_id,
+                            ha_entity,
+                            ha_subtype,
+                            usage_id,
+                            product_type_id,
+                            justification)
+            
+            _LOGGER.info("=" * 150)
+            _LOGGER.info(f"Total devices mapped: {len(aggregated_data)}")
+            _LOGGER.info("⚠️  Note: This table shows all devices with complete coordinator data")
+            _LOGGER.info("")
+            self._mapping_table_displayed = True
+        
         # Set the data for the coordinator
         self.data = aggregated_data
-        
-        # Afficher un résumé des devices
-        _LOGGER.info("\n" + "="*120)
-        _LOGGER.info("EEDOMUS INTEGRATION SUMMARY")
-        _LOGGER.info("="*120)
-        _LOGGER.info("Total peripherals from eedomus API: %d", len(aggregated_data))
-        _LOGGER.info("Total dynamic peripherals: %d", dynamic)
-        _LOGGER.info("Total skipped peripherals: %d (invalid: %d, disabled: %d)", skipped + disabled, skipped, disabled)
-        _LOGGER.info("="*120 + "\n")
-        
-        # Afficher le tableau de mapping global après le premier rafraîchissement
-        try:
-            from .mapping_registry import print_mapping_table as _print_global_mapping_table, print_mapping_summary, get_mapping_registry
-            _print_global_mapping_table()
-            print_mapping_summary()
-            
-            # Vérifier si tous les devices sont mappés
-            mapped_ids = {m["periph_id"] for m in get_mapping_registry()}
-            # aggregated_data est un dictionnaire, donc nous devons itérer sur ses valeurs
-            all_ids = {str(periph_data["periph_id"]) for periph_data in aggregated_data.values() if isinstance(periph_data, dict)}
-            
-            if len(mapped_ids) < len(all_ids):
-                _LOGGER.info("\n" + "="*120)
-                _LOGGER.info("ℹ️  INFO: Not all devices were mapped (this is normal)")
-                _LOGGER.info("="*120)
-                _LOGGER.info("Total devices from API: %d", len(all_ids))
-                _LOGGER.info("Total devices mapped: %d", len(mapped_ids))
-                _LOGGER.info("Devices not mapped: %d (virtual/system devices)", len(all_ids) - len(mapped_ids))
-                
-                # Afficher les devices non mappés
-                missing_ids = all_ids - mapped_ids
-                _LOGGER.info("\nFirst 10 unmapped devices (example):")
-                for periph_id in sorted(missing_ids)[:10]:  # Afficher seulement les 10 premiers
-                    periph_data = aggregated_data.get(periph_id)
-                    if periph_data and isinstance(periph_data, dict):
-                        _LOGGER.info("  - %s (ID: %s, usage_id: %s)", 
-                                     periph_data.get("name", "Unknown"), periph_id, periph_data.get("usage_id", "Unknown"))
-                    else:
-                        _LOGGER.info("  - Unknown device (ID: %s)", periph_id)
-                
-                if len(missing_ids) > 10:
-                    _LOGGER.info("  ... and %d more devices (mostly virtual/system)", len(missing_ids) - 10)
-                
-                _LOGGER.info("="*120 + "\n")
-                _LOGGER.info("ℹ️  This is normal behavior - virtual and system devices are intentionally not mapped")
-                
-        except Exception as e:
-            _LOGGER.warning("Failed to print global mapping table: %s", e)
-            _LOGGER.warning("Exception type: %s", type(e).__name__)
-            _LOGGER.warning("Exception details: %s", str(e))
-            _LOGGER.warning("Traceback:")
-            import traceback
-            _LOGGER.warning(traceback.format_exc())
         
         # No need to call super().async_config_entry_first_refresh() as we've already loaded the data
 
     async def _async_update_data(self):
-        """Fetch data from eedomus API with improved error handling."""
+        """Fetch data from eedomus API with improved error handling.
+        
+        Main update method that decides between full or partial refresh based on timing.
+        Implements error handling and fallback to last known good data.
+        """
         start_time = datetime.now()
 
-        _LOGGER.info("Update eedomus data")
+        _LOGGER.debug("Update eedomus data")
         if (
             start_time - self._last_update_start_time
         ).total_seconds() > self._scan_interval:
             self._full_refresh_needed = True
         self._last_update_start_time = start_time
+        
+        # Reset endpoint timings before each refresh to avoid cumulative errors
+        self._endpoint_timings = {
+            'get_periph_list': 0.0,
+            'get_periph_value_list': 0.0,
+            'get_periph_caract': 0.0,
+            'set_periph_value': 0.0,
+            'partial_refresh': 0.0
+        }
+        
         try:
             if self._full_refresh_needed:
-                ret = await self._async_full_refresh()
-                elapsed = (datetime.now() - start_time).total_seconds()
-                _LOGGER.info("Full refresh done in %.3f seconds", elapsed)
-                return ret
+                # Track detailed timing for full refresh
+                api_start = datetime.now()
+                result = await self._async_full_refresh()
+                api_time = (datetime.now() - api_start).total_seconds()
+                
+                processing_start = datetime.now()
+                # Handle both old and new return formats for compatibility
+                if isinstance(result, tuple) and len(result) == 2:
+                    aggregated_data, stats = result
+                    processing_time = (datetime.now() - processing_start).total_seconds()
+                    total_time = (datetime.now() - start_time).total_seconds()
+                    
+                    # Calculate actual API time as sum of all endpoint timings
+                    actual_api_time = sum(self._endpoint_timings.values())
+                    
+                    # Store timing metrics for sensors
+                    self._last_api_time = actual_api_time
+                    self._last_processing_time = processing_time
+                    self._last_refresh_time = total_time
+                    self._last_processed_devices = stats['total_peripherals']
+                    
+                    # Log detailed endpoint timings
+                    endpoint_details = []
+                    for endpoint, time in self._endpoint_timings.items():
+                        if time > 0:
+                            endpoint_details.append(f"{endpoint}: {time:.3f}s")
+                    endpoint_log = ", ".join(endpoint_details) if endpoint_details else "no endpoints"
+                    
+                    _LOGGER.info("🔄 FULL REFRESH: %d total, %d dynamic, %.3fs total (API: %.3fs, Processing: %.3fs, Endpoints: %s)",
+                                 stats['total_peripherals'], stats['dynamic_peripherals'], total_time, actual_api_time, processing_time, endpoint_log)
+                else:
+                    # Fallback for old format
+                    aggregated_data = result
+                    processing_time = (datetime.now() - processing_start).total_seconds()
+                    total_time = (datetime.now() - start_time).total_seconds()
+                    
+                    # Calculate actual API time as sum of all endpoint timings
+                    actual_api_time = sum(self._endpoint_timings.values())
+                    
+                    # Log detailed endpoint timings
+                    endpoint_details = []
+                    for endpoint, time in self._endpoint_timings.items():
+                        if time > 0:
+                            endpoint_details.append(f"{endpoint}: {time:.3f}s")
+                    endpoint_log = ", ".join(endpoint_details) if endpoint_details else "no endpoints"
+                    
+                    # Store timing metrics for sensors
+                    self._last_api_time = actual_api_time
+                    self._last_processing_time = processing_time
+                    self._last_refresh_time = total_time
+                    self._last_processed_devices = len(aggregated_data) if isinstance(aggregated_data, dict) else 0
+                    
+                    _LOGGER.info("🔄 FULL REFRESH: %d total, %.3fs total (API: %.3fs, Endpoints: %s)",
+                                 len(aggregated_data), total_time, actual_api_time, endpoint_log)
+                
+                return aggregated_data
             else:
+                # Track detailed timing for partial refresh
+                api_start = datetime.now()
                 ret = await self._async_partial_refresh()
-                elapsed = (datetime.now() - start_time).total_seconds()
-                _LOGGER.info("Partial refresh done in %.3f seconds", elapsed)
+                # Calculate actual API time as sum of relevant endpoint timings for partial refresh
+                actual_api_time = sum(time for endpoint, time in self._endpoint_timings.items() if endpoint in ['get_periph_caract', 'set_periph_value'])
+                
+                processing_start = datetime.now()
+                # Minimal processing time for partial refresh
+                processing_time = (datetime.now() - processing_start).total_seconds()
+                total_time = (datetime.now() - start_time).total_seconds()
+                
+                # Store timing metrics for sensors
+                self._last_api_time = actual_api_time
+                self._last_processing_time = processing_time
+                self._last_refresh_time = total_time
+                # For partial refresh, processed devices is the number of dynamic peripherals
+                self._last_processed_devices = len(self._dynamic_peripherals) if hasattr(self, '_dynamic_peripherals') else 0
+                
+                # Log detailed endpoint timings for partial refresh
+                endpoint_details = []
+                for endpoint, time in self._endpoint_timings.items():
+                    if time > 0:
+                        endpoint_details.append(f"{endpoint}: {time:.3f}s")
+                endpoint_log = ", ".join(endpoint_details) if endpoint_details else "no endpoints"
+                
+                # Count dynamic peripherals using the same logic as full refresh for consistency
+                partial_dynamic_count = sum(1 for periph_data in self._dynamic_peripherals.values() 
+                                          if self._is_dynamic_peripheral(periph_data))
+                _LOGGER.info("🔄 PARTIAL REFRESH: %d dynamic, %.3fs total (Endpoints: %s)", 
+                             partial_dynamic_count, total_time, endpoint_log)
                 return ret
         except Exception as err:
             elapsed = (datetime.now() - start_time).total_seconds()
@@ -299,12 +373,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             )
             # Return last known good data if available
             if hasattr(self, "data") and self.data:
-                _LOGGER.warning("Returning last known good data after API error, data size: %d", len(self.data))
                 return self.data
-            _LOGGER.error("No last known good data available, coordinator.data is None or empty")
             raise UpdateFailed(f"Error updating data: {err}") from err
 
-    async def _async_partial_data_retrieve(self, concat_text_periph_id: str):
+    async def _async_partial_data_retreive(self, concat_text_periph_id: str):
         peripherals_caract_response = await self.client.get_periph_caract(
             concat_text_periph_id, False
         )
@@ -323,12 +395,68 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             peripherals_caract = []
         return peripherals_caract
 
-    async def _async_full_data_retrieve(self):
+    async def _load_yaml_config_async(self):
+        """Load YAML configuration asynchronously using device_mapping async functions."""
+        if self._yaml_config_cache is not None:
+            return self._yaml_config_cache
+        
+        try:
+            # Use the new async function from device_mapping
+            from .device_mapping import load_yaml_mappings_async
+            
+            # Load and merge mappings asynchronously
+            merged_config = await load_yaml_mappings_async(self.hass)
+            
+            self._yaml_config_cache = merged_config
+            return self._yaml_config_cache
+        except Exception as e:
+            _LOGGER.error("❌ Failed to load YAML config asynchronously: %s", e)
+            _LOGGER.error("❌ This is a critical error - YAML configuration could not be loaded")
+            # No fallback - we require async loading to avoid blocking warnings
+            raise e
+
+    def get_yaml_config_sync(self):
+        """Get cached YAML configuration synchronously.
+        
+        This method provides synchronous access to the YAML config cache
+        for use in synchronous contexts like map_device_to_ha_entity().
+        The config MUST have been pre-loaded during coordinator initialization.
+        
+        Raises:
+            Exception: If YAML config has not been loaded yet (this indicates a bug)
+        """
+        if self._yaml_config_cache is not None:
+            return self._yaml_config_cache
+        
+        # This should never happen - YAML config should be pre-loaded during initialization
+        _LOGGER.error("❌ CRITICAL BUG: YAML config requested but not loaded!")
+        _LOGGER.error("❌ This indicates get_yaml_config_sync() was called before initialization completed")
+        raise Exception("YAML configuration not loaded - this is a bug in the initialization sequence")
+
+    async def _async_full_data_retreive(self):
         """Retrieve full data including peripherals list, value list, and characteristics."""
+        from datetime import datetime
+        
+        # Track timing for each endpoint
+        start_time = datetime.now()
         peripherals_response = await self.client.get_periph_list()
+        self._endpoint_timings['get_periph_list'] = (datetime.now() - start_time).total_seconds()
+        self._endpoint_call_counts['get_periph_list'] += 1
+        
+        start_time = datetime.now()
         peripherals_value_list_response = await self.client.get_periph_value_list("all")
+        self._endpoint_timings['get_periph_value_list'] = (datetime.now() - start_time).total_seconds()
+        self._endpoint_call_counts['get_periph_value_list'] += 1
+        
+        start_time = datetime.now()
         peripherals_caract_response = await self.client.get_periph_caract("all", True)
-        # _LOGGER.debug("Raw API response: %s", peripherals_response)
+        self._endpoint_timings['get_periph_caract'] = (datetime.now() - start_time).total_seconds()
+        self._endpoint_call_counts['get_periph_caract'] += 1
+        
+        _LOGGER.debug("📊 Endpoint timings - get_periph_list: %.3fs, get_periph_value_list: %.3fs, get_periph_caract: %.3fs",
+                     self._endpoint_timings['get_periph_list'],
+                     self._endpoint_timings['get_periph_value_list'],
+                     self._endpoint_timings['get_periph_caract'])
         if (
             not isinstance(peripherals_response, dict)
             or not isinstance(peripherals_value_list_response, dict)
@@ -362,22 +490,17 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         if not isinstance(peripherals_caract, list):
             _LOGGER.error("Invalid peripherals list: %s", peripherals_caract)
             peripherals_caract = []
-        _LOGGER.info(
+        _LOGGER.debug(
             "Found %d peripherals value list in total", len(peripherals_caract)
         )
         return (peripherals, peripherals_value_list, peripherals_caract)
 
-    async def _async_full_refresh_data_retrieve(self):
+    async def _async_full_refresh_data_retreive(self):
         """Retrieve only characteristics data for full refresh."""
         peripherals_caract_response = await self.client.get_periph_caract("all", True)
         if not isinstance(peripherals_caract_response, dict):
             _LOGGER.error("Invalid API response format: %s", peripherals_caract_response)
             raise UpdateFailed("Invalid API response format")
-        if peripherals_caract_response.get("success", 0) != 1:
-            error = peripherals_caract_response.get("error", "Unknown API error")
-            _LOGGER.error("API request failed: %s", error)
-            _LOGGER.debug("API peripherals_response %s", peripherals_caract_response)
-            raise UpdateFailed(f"API request failed: {error}")
         if peripherals_caract_response.get("success", 0) != 1:
             error = peripherals_caract_response.get("error", "Unknown API error")
             _LOGGER.error("API request failed: %s", error)
@@ -394,11 +517,33 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         """Perform a complete refresh of all peripherals."""
         _LOGGER.debug("Performing full data refresh from eedomus API")
 
-        # Récupération des données
-        peripherals_caract = await self._async_full_refresh_data_retrieve()
-        peripherals_caract_dict = {
-            str(it["periph_id"]): it for it in peripherals_caract
-        }
+        # Récupération des données - CORRECTED: now calls full data retrieve with all endpoints
+        peripherals_caract = await self._async_full_data_retreive()
+        
+        # SAFE: Ensure peripherals_caract contains dictionaries with periph_id
+        # URGENT FIX FOR CRITICAL BUG - 2026-02-23 16:50
+        # Handle both flat and nested list structures
+        peripherals_caract_dict = {}
+        nested_structure_count = 0
+        
+        for it in peripherals_caract:
+            if isinstance(it, dict) and 'periph_id' in it:
+                # Normal case: flat list of dicts
+                peripherals_caract_dict[str(it["periph_id"])] = it
+            elif isinstance(it, list):
+                # Nested case: list of lists - flatten it
+                nested_structure_count += 1
+                for sub_item in it:
+                    if isinstance(sub_item, dict) and 'periph_id' in sub_item:
+                        peripherals_caract_dict[str(sub_item["periph_id"])] = sub_item
+                    else:
+                        _LOGGER.error("❌ Invalid sub-item in nested structure: %s (type: %s)", sub_item, type(sub_item))
+            else:
+                _LOGGER.error("❌ CRITICAL BUG FIXED: Invalid peripheral data format: %s (type: %s)", it, type(it))
+        
+        # Log nested structure count once instead of multiple times
+        if nested_structure_count > 0:
+            _LOGGER.debug("🔍 Found %d nested structure(s) in peripherals_caract, flattened successfully", nested_structure_count)
 
         # Initialisation du dictionnaire agrégé
         aggregated_data = self.data
@@ -407,12 +552,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         all_periph_ids = set(peripherals_caract_dict.keys())
 
         for periph_id in all_periph_ids:
-            if aggregated_data is None:
-                _LOGGER.error("aggregated_data is None, cannot process peripheral data")
-                continue
-                
             if not periph_id in aggregated_data:
-                _LOGGER.warning("This periph_id is unknown %d, please do a reload", periph_id)
+                _LOGGER.warn("This periph_id is unknown %d, please do a reload", periph_id)
                 aggregated_data[periph_id] = {}
 
             # Ajout des données de peripherals_caract_dict (si existantes)
@@ -421,7 +562,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
 
         # Logs des tailles
-        _LOGGER.info(
+        _LOGGER.debug(
             "Data refresh summary - caract: %d, total: %d",
             len(peripherals_caract_dict),
             len(aggregated_data),
@@ -435,7 +576,6 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # Traitement des périphériques
         skipped = 0
         dynamic = 0
-        disabled = 0
         for periph_id, periph_data in aggregated_data.items():
             if not isinstance(periph_data, dict) or "periph_id" not in periph_data:
                 _LOGGER.warning(
@@ -453,98 +593,35 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 self._dynamic_peripherals[periph_id] = periph_data
                 dynamic += 1
 
+        _LOGGER.info("📊 Device processing summary: %d total peripherals, %d dynamic, %d skipped, %d processed", len(aggregated_data), dynamic, skipped, len(aggregated_data))
 
-        _LOGGER.info("Skipped %d invalid peripherals", skipped)
-        _LOGGER.info("Found %d dynamic peripherals", dynamic)
-        _LOGGER.info("Skipped %d disabled peripherals", disabled)
-
-        _LOGGER.debug(
-            "Mapping Table %s",
-            "\n".join(
-                f"{aggregated_data[id].get('ha_entity', '?')}/"
-                f"{aggregated_data[id].get('ha_subtype', '?')} "
-                f"usage_id={aggregated_data[id].get('usage_id', '?')} "
-                f"PRODUCT_TYPE_ID={aggregated_data[id].get('PRODUCT_TYPE_ID', '?')} "
-                f"{aggregated_data[id].get('name', '?')}/{aggregated_data[id].get('usage_name', '?')}({id})"
-                for id in aggregated_data.keys()
-            ),
-        )
+        # Mapping table only displayed on initial startup, not on subsequent refreshes
+        # This reduces log volume while maintaining useful startup information
         self.data = aggregated_data
         return aggregated_data
 
     async def _async_partial_refresh(self):
-        # Check history option from both config_entry.data and options
-        history_from_config = self.client.config_entry.data.get(CONF_ENABLE_HISTORY, False)
+        """Perform a partial refresh of dynamic peripherals only.
         
-        # Check if history option is explicitly set in options
-        # Options should always take precedence over config
-        if CONF_ENABLE_HISTORY in self.config_entry.options:
-            history_retrieval = self.config_entry.options[CONF_ENABLE_HISTORY]
-        else:
-            # No options set, use config
-            history_retrieval = history_from_config
-        
-        # Debug logging to understand the decision process
+        Updates only devices marked as dynamic (lights, switches, sensors that change frequently).
+        More efficient than full refresh as it targets only devices that need frequent updates.
+        """
+        history_retrieval = self.client.config_entry.data.get(
+            CONF_ENABLE_HISTORY, False
+        )
         _LOGGER.debug(
-            "History option decision: config=%s, options=%s, final=%s",
-            history_from_config,
-            self.config_entry.options.get(CONF_ENABLE_HISTORY, "not_set"),
-            history_retrieval
+            "Performing partial refresh for %d dynamic peripherals, history=%s",
+            len(self._dynamic_peripherals),
+            history_retrieval,
         )
         
-        # Get all peripherals that need history retrieval
-        # Include all peripherals that have data, not just dynamic ones
-        peripherals_for_history = []
+        # Start API timing
+        api_start_time = datetime.now()
         
-        if hasattr(self, 'data') and self.data:
-            _LOGGER.info(
-                "Performing partial refresh for %d peripherals (history retrieval: %s)",
-                len(peripherals_for_history) if history_retrieval else len(self._dynamic_peripherals),
-                history_retrieval,
-            )
-        else:
-            _LOGGER.warning("No data available for partial refresh")
-            for periph_id, periph_data in self.data.items():
-                if isinstance(periph_data, dict) and periph_data.get("periph_id"):
-                    # Initialize history progress if not already done
-                    if periph_id not in self._history_progress:
-                        self._history_progress[periph_id] = {
-                            "last_timestamp": 0,
-                            "completed": False,
-                        }
-                    # Only include if not completed
-                    if not self._history_progress.get(periph_id, {}).get("completed"):
-                        peripherals_for_history.append(periph_id)
-        # Limit the number of peripherals to process per scan interval
-        # This prevents overwhelming the system with too many API calls at once
-        max_peripherals_per_scan = self.config_entry.options.get(
-            "history_peripherals_per_scan",
-            1  # Default: 1 peripheral per scan interval
-        )
-        
-        if not peripherals_for_history:
-            _LOGGER.debug("No peripherals need history retrieval, skipping")
-            # Return current data to preserve state
-            if hasattr(self, 'data') and self.data:
-                return self.data
-            else:
-                return {"success": 1, "body": []}
-        
-        if max_peripherals_per_scan > 0 and len(peripherals_for_history) > max_peripherals_per_scan:
-            _LOGGER.info(
-                "Limiting history retrieval to %d peripherals per scan interval (total: %d)",
-                max_peripherals_per_scan,
-                len(peripherals_for_history)
-            )
-            # Sort by last_timestamp to prioritize older data first
-            peripherals_for_history.sort(
-                key=lambda x: self._history_progress[x].get("last_timestamp", 0)
-            )
-            peripherals_for_history = peripherals_for_history[:max_peripherals_per_scan]
-        
-        if not peripherals_for_history:
-            _LOGGER.info("All peripherals have completed history retrieval, skipping")
-            # Return current data to preserve state
+        # Skip API call if no dynamic peripherals to refresh
+        if not self._dynamic_peripherals:
+            _LOGGER.warning("No dynamic peripherals to refresh, skipping partial refresh")
+            # Return current data to preserve state instead of empty dict
             if hasattr(self, 'data') and self.data:
                 _LOGGER.info("Returning current data to preserve state during partial refresh")
                 return self.data
@@ -554,9 +631,13 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
         concat_text_periph_id = ",".join(peripherals_for_history)
         try:
+            # Track timing for get_periph_caract (partial refresh)
+            api_start_time = datetime.now()
             peripherals_caract = await self.client.get_periph_caract(
                 concat_text_periph_id
             )
+            self._endpoint_timings['get_periph_caract'] = (datetime.now() - api_start_time).total_seconds()
+            self._endpoint_call_counts['get_periph_caract'] += 1
         except Exception as e:
             _LOGGER.warning(
                 "Failed to partial refresh peripheral %s: %s", concat_text_periph_id, e
@@ -576,11 +657,17 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 _LOGGER.error("peripherals_caract body is None, API may have returned empty response")
             return
         
+        # End API timing, start processing timing
+        api_time = (datetime.now() - api_start_time).total_seconds()
+        processing_start_time = datetime.now()
+        
+        processed_devices = 0
         for periph_data in peripherals_body:
             periph_id = periph_data.get("periph_id")
             # Ajout des données de peripherals_caract_dict (si existantes)
             if self.data and periph_id in self.data:
                 self.data[periph_id].update(periph_data)
+                processed_devices += 1
             else:
                 _LOGGER.warning("Cannot update peripheral data: data not available for %s", periph_id)
 
@@ -597,131 +684,51 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # Create/update error sensors
         await self._create_error_sensors()
 
+        # End processing timing
+        processing_time = (datetime.now() - processing_start_time).total_seconds()
+        
+        # Store timing metrics for sensors
+        self._last_api_time = api_time
+        self._last_processing_time = processing_time
+        self._last_refresh_time = api_time + processing_time
+        self._last_processed_devices = processed_devices
+        
         return self.data
 
     def _is_dynamic_peripheral(self, periph):
-        """Determine if a peripheral needs regular updates based on mapping configuration."""
-        periph_id = periph.get("periph_id")
+        """Determine if a peripheral needs regular updates."""
         ha_entity = periph.get("ha_entity")
-        
-        # Debug: Log the peripheral being checked
-        _LOGGER.debug("Checking dynamic status for peripheral %s (%s) with ha_entity=%s", 
-                    periph.get("name"), periph_id, ha_entity)
-        
-        # Special debug for RGBW devices
-        if periph_id in ["1269454", "1269455", "1269456", "1269457", "1269458"]:
-            _LOGGER.debug("🔍 SPECIAL DEBUG: Checking dynamic status for RGBW device %s (%s)", 
-                        periph.get("name"), periph_id)
-        
-        # Debug: Log DEVICE_MAPPINGS content
-        try:
-            from .entity import DEVICE_MAPPINGS
-            _LOGGER.debug("DEVICE_MAPPINGS loaded: %s", bool(DEVICE_MAPPINGS))
-            if DEVICE_MAPPINGS:
-                _LOGGER.debug("DEVICE_MAPPINGS keys: %s", list(DEVICE_MAPPINGS.keys()))
-                _LOGGER.debug("dynamic_entity_properties: %s", DEVICE_MAPPINGS.get('dynamic_entity_properties', {}))
-                _LOGGER.debug("specific_device_dynamic_overrides: %s", DEVICE_MAPPINGS.get('specific_device_dynamic_overrides', {}))
-            else:
-                _LOGGER.error("DEVICE_MAPPINGS is None or empty!")
-        except Exception as e:
-            _LOGGER.error("Failed to import DEVICE_MAPPINGS: %s", e)
-            DEVICE_MAPPINGS = None
-        
-        # Check for specific device overrides first (highest priority)
-        try:
-            if periph_id and DEVICE_MAPPINGS and str(periph_id) in DEVICE_MAPPINGS.get('specific_device_dynamic_overrides', {}):
-                is_dynamic = DEVICE_MAPPINGS['specific_device_dynamic_overrides'][str(periph_id)]
-                _LOGGER.debug(
-                    "Peripheral is %s (specific override) ! %s (%s)",
-                    "dynamic" if is_dynamic else "NOT dynamic",
-                    periph.get("name"),
-                    periph_id,
-                )
-                return is_dynamic
-        except Exception as e:
-            _LOGGER.warning(
-                "Failed to check specific device overrides for %s (%s): %s",
-                periph.get("name"),
-                periph_id,
-                e
-            )
-        
-        # Check if the peripheral has explicit is_dynamic property from mapping
-        if "is_dynamic" in periph:
-            is_dynamic = periph.get("is_dynamic", False)
-            if is_dynamic:
-                _LOGGER.debug(
-                    "Peripheral is dynamic (explicit) ! %s (%s)",
-                    periph.get("name"),
-                    periph_id,
-                )
-            else:
-                _LOGGER.debug(
-                    "Peripheral is NOT dynamic (explicit) ! %s (%s)",
-                    periph.get("name"),
-                    periph_id,
-                )
-            return is_dynamic
-        
-        # Fallback to entity type-based dynamic properties
-        try:
-            from .entity import DEVICE_MAPPINGS
-            dynamic_properties = DEVICE_MAPPINGS.get('dynamic_entity_properties', {}) if DEVICE_MAPPINGS else {}
-            is_dynamic = dynamic_properties.get(ha_entity, False)
-            
-            _LOGGER.debug(
-                "Peripheral dynamic check (entity type) ! %s (%s) - entity: %s, is_dynamic: %s, properties: %s",
-                periph.get("name"),
-                periph_id,
-                ha_entity,
-                is_dynamic,
-                dynamic_properties,
-            )
-            
-            if is_dynamic:
-                _LOGGER.debug(
-                    "Peripheral is dynamic (entity type) ! %s (%s) - entity: %s",
-                    periph.get("name"),
-                    periph_id,
-                    ha_entity,
-                )
-                
-                # Special debug for RGBW devices
-                if periph_id in ["1269454", "1269455", "1269456", "1269457", "1269458"]:
-                    _LOGGER.debug("🔍 SPECIAL DEBUG: RGBW device %s (%s) is_dynamic=%s (entity type)", 
-                                periph.get("name"), periph_id, is_dynamic)
-            else:
-                _LOGGER.debug(
-                    "Peripheral is NOT dynamic (entity type) ! %s (%s) - entity: %s",
-                    periph.get("name"),
-                    periph_id,
-                    ha_entity,
-                )
-                
-                # Special debug for RGBW devices
-                if periph_id in ["1269454", "1269455", "1269456", "1269457", "1269458"]:
-                    _LOGGER.debug("🔍 SPECIAL DEBUG: RGBW device %s (%s) is_dynamic=%s (entity type)", 
-                                periph.get("name"), periph_id, is_dynamic)
-            return is_dynamic
-        except Exception as e:
-            _LOGGER.warning(
-                "Failed to determine dynamic status for %s (%s): %s. Falling back to default logic.",
-                periph.get("name"),
-                periph_id,
-                e
-            )
-            # Fallback to old logic
-            dynamic_types = ["light", "switch", "binary_sensor", "cover"]
-            is_dynamic = ha_entity in dynamic_types
-            
-            # Special debug for RGBW devices
-            if periph_id in ["1269454", "1269455", "1269456", "1269457", "1269458"]:
-                _LOGGER.debug("🔍 SPECIAL DEBUG: RGBW device %s (%s) is_dynamic=%s (fallback)", 
-                            periph.get("name"), periph_id, is_dynamic)
-            
+        entity_specifics = periph.get("entity_specifics", {})
 
-            
-            return is_dynamic
+        dynamic_types = [
+            "light",
+            "switch",
+            "binary_sensor",
+        ]
+
+        if ha_entity in dynamic_types:
+            _LOGGER.debug(
+                "Peripheral is dynamic ! %s (%s)",
+                periph.get("name"),
+                periph.get("periph_id"),
+            )
+            return True
+
+        # Check if it's a sensor with dynamic value mapping
+        if ha_entity == "sensor" and entity_specifics.get("value_mapping") == "dynamic_from_values":
+            _LOGGER.debug(
+                "Sensor is dynamic (value_mapping) ! %s (%s)",
+                periph.get("name"),
+                periph.get("periph_id"),
+            )
+            return True
+
+        _LOGGER.debug(
+            "Peripheral is NOT dynamic ! %s (%s)",
+            periph.get("name"),
+            periph.get("periph_id"),
+        )
+        return False
 
     def get_all_peripherals(self):
         """Return all peripherals (for entity setup)."""
@@ -778,8 +785,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     {
                         "completed": progress["completed"],
                         "periph_name": (
-                            self.data.get(periph_id, {}).get("name", "Unknown")
-                            if self.data and periph_id in self.data
+                            self.data[periph_id]["name"]
+                            if periph_id in self.data
                             else "Unknown"
                         ),
                         "device_class": "timestamp",
@@ -1131,7 +1138,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             "Setting value '%s' for peripheral '%s' (%s) ",
             value,
             periph_id,
-            self.data.get(periph_id, {}).get("name", "unknown") if self.data else "unknown",
+            self.data[periph_id]["name"],
         )
 
         # Check if retry is enabled in config
@@ -1160,61 +1167,82 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         if not enable_retry:
             _LOGGER.info(
                 "⏭️ Set value retry disabled - attempting single set_value for %s (%s)",
-                self.data.get(periph_id, {}).get("name", "unknown") if self.data else "unknown",
+                self.data[periph_id]["name"],
                 periph_id,
             )
             _LOGGER.info(
                 "💡 If this fails, enable 'Set Value Retry' in advanced configuration options"
             )
 
+        # Store original value for tracking
+        original_value = value
+        _LOGGER.debug("📋 Original set_value call: %s (%s) = %s", 
+                     self.data[periph_id]["name"], periph_id, original_value)
+        
         # try:
         ret = await self.client.set_periph_value(periph_id, value)
+
+        # Log API response details
+        _LOGGER.debug("📋 API response for %s (%s): success=%s, error_code=%s",
+                     self.data[periph_id]["name"], periph_id, 
+                     ret.get("success"), ret.get("error_code"))
 
         # Only retry if enabled and we get error_code 6 (value refused)
         if enable_retry and ret.get("success") == 0 and ret.get("error_code") == "6":
             # Try PHP fallback first if enabled
             if php_fallback_enabled:
                 _LOGGER.info(
-                    "🔄 Trying PHP fallback for %s (%s)",
-                    self.data.get(periph_id, {}).get("name", "unknown") if self.data else "unknown",
+                    "🔄 Trying PHP fallback for %s (%s) with original value: %s",
+                    self.data[periph_id]["name"],
                     periph_id,
+                    value
                 )
                 fallback_result = await self.client.php_fallback_set_value(
                     periph_id, value
                 )
                 if fallback_result.get("success") == 1:
                     _LOGGER.info(
-                        "✅ PHP fallback succeeded for %s (%s)",
-                        self.data.get(periph_id, {}).get("name", "unknown") if self.data else "unknown",
+                        "✅ PHP fallback succeeded for %s (%s) - original value %s preserved",
+                        self.data[periph_id]["name"],
                         periph_id,
+                        value
                     )
                     # Return success response when PHP fallback succeeds
-                    return {"success": 1, "fallback_used": True}
+                    return {"success": 1, "fallback_used": True, "value_used": value}
                 else:
                     _LOGGER.warning(
                         "⚠️ PHP fallback failed for %s (%s): %s",
-                        self.data.get(periph_id, {}).get("name", "unknown") if self.data else "unknown",
+                        self.data[periph_id]["name"],
                         periph_id,
                         fallback_result.get("error", "Unknown error"),
                     )
                     # Try next best value if PHP fallback fails
                     next_value = self.next_best_value(periph_id, value)
+                    original_value = value
+                    modified_value = next_value.get("value")
+                    _LOGGER.warning(
+                        "🔄 VALUE MODIFICATION DETECTED: %s (%s) - original=%s, modified=%s",
+                        self.data[periph_id]["name"],
+                        periph_id,
+                        original_value,
+                        modified_value
+                    )
                     _LOGGER.warning(
                         "🔄 Retry enabled - trying next best value (%s => %s) for %s (%s)",
-                        value,
-                        next_value,
+                        original_value,
+                        modified_value,
                         self.data[periph_id]["name"],
                         periph_id,
                     )
                     await self.client.set_periph_value(
-                        periph_id, next_value.get("value")
+                        periph_id, modified_value
                     )
                     # Return success response when next best value is used
-                    return {"success": 1, "fallback_used": True, "value_used": next_value.get("value")}
+                    return {"success": 1, "fallback_used": True, "value_used": modified_value, "original_value": original_value}
             else:
                 # Try next best value if PHP fallback is not enabled
                 next_value = self.next_best_value(periph_id, value)
-                _LOGGER.warning(
+                _LOGGER.warn(
                     "🔄 Retry enabled - trying next best value (%s => %s) for %s (%s)",
                     value,
                     next_value,
@@ -1222,8 +1250,6 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     periph_id,
                 )
                 await self.client.set_periph_value(periph_id, next_value.get("value"))
-                # Return success response when next best value is used
-                return {"success": 1, "fallback_used": True, "value_used": next_value.get("value")}
         elif ret.get("success") == 0:
             _LOGGER.error(
                 "❌ Set value failed for %s (%s): %s - retry disabled or not applicable",
@@ -1239,20 +1265,17 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             )
         else:
             _LOGGER.info(
-                "✅ Set value successful for %s (%s)",
-                self.data.get(periph_id, {}).get("name", "unknown") if self.data else "unknown",
+                "✅ Set value successful for %s (%s) - value %s applied without modification",
+                self.data[periph_id]["name"],
                 periph_id,
+                value
             )
             
             # Immediately update local state to reflect the change
             # This ensures UI updates instantly without waiting for coordinator refresh
-            if self.data and periph_id in self.data:
-                self.data[periph_id]["last_value"] = value
-                self.data[periph_id]["last_updated"] = datetime.now().isoformat()
-            else:
-                _LOGGER.warning("Cannot update local state: data not available for %s", periph_id)
-            # Return success response for normal successful case
-            return ret
+            self.data[periph_id]["last_value"] = value
+            return {"success": 1, "value_used": value, "original_value": value}
+
         # except Exception as e:
         #    _LOGGER.error(
         #        "Failed to set value for peripheral '%s': %s\ndata=%s\n\nalldata=%s",
