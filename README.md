@@ -8,7 +8,85 @@
 
 **hass-eedomus** est une intégration personnalisée qui permet de connecter votre box domotique **eedomus** à **Home Assistant**, en suivant l'architecture standard des [custom integrations](https://developers.home-assistant.io/docs/creating_component_index).
 
-## 📦 Installation and Update
+## 📥 Installation (Français)
+
+### Prérequis: Installation de HACS
+Si vous n'avez pas encore HACS installé, suivez ces étapes:
+1. **Méthode recommandée**: Via le [script automatique HACS](https://hacs.xyz/docs/setup/download)
+2. **Méthode manuelle**: Suivez le [guide officiel HACS](https://hacs.xyz/docs/setup/prerequisites)
+3. Redémarrez Home Assistant après l'installation
+
+### Via HACS (Méthode recommandée)
+1. Dans HACS, allez dans les 3 points en haut à gauche puis "GitHub"
+2. Ajoutez un dépôt personnalisé avec l'URL: `https://github.com/Dan4Jer/hass-eedomus`
+3. Allez dans **HACS** > **Intégrations**
+4. Recherchez "Eedomus"
+5. Cliquez sur **Installer**
+6. Redémarrez Home Assistant
+
+### Installation manuelle
+1. Téléchargez la dernière version depuis [GitHub Releases](https://github.com/Dan4Jer/hass-eedomus/releases)
+2. Extrayez le fichier dans `custom_components/eedomus/`
+3. Redémarrez Home Assistant
+
+### Configuration
+1. Allez dans **Réglages** > **Appareils et Services**
+2. Cliquez sur **Ajouter une intégration**
+3. Recherchez "Eedomus"
+4. Entrez vos identifiants API eedomus
+5. Configurez les options selon vos besoins
+
+### Mise à jour
+- **Via HACS**: Notification automatique des nouvelles versions
+- **Manuelle**: Téléchargez la nouvelle version et remplacez les fichiers dans `custom_components/eedomus/`
+- **Conseil**: Consultez toujours les notes de version pour les changements importants
+
+## 📦 Installation and Update (English)
+=======
+# Intégration eedomus pour Home Assistant
+
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/integration)
+[![Version](https://img.shields.io/badge/version-0.14.0-blue.svg)](https://github.com/Dan4Jer/hass-eedomus/releases/tag/v0.14.0)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/Dan4Jer/hass-eedomus/blob/main/LICENSE)
+[![Release](https://img.shields.io/github/v/release/Dan4Jer/hass-eedomus?label=latest%20release)](https://github.com/Dan4Jer/hass-eedomus/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/Dan4Jer/hass-eedomus/total.svg)](https://github.com/Dan4Jer/hass-eedomus/releases)
+
+**hass-eedomus** est une intégration personnalisée qui permet de connecter votre box domotique **eedomus** à **Home Assistant**, en suivant l'architecture standard des [custom integrations](https://developers.home-assistant.io/docs/creating_component_index).
+
+## 📥 Installation (Français)
+
+### Prérequis: Installation de HACS
+Si vous n'avez pas encore HACS installé, suivez ces étapes:
+1. **Méthode recommandée**: Via le [script automatique HACS](https://hacs.xyz/docs/setup/download)
+2. **Méthode manuelle**: Suivez le [guide officiel HACS](https://hacs.xyz/docs/setup/prerequisites)
+3. Redémarrez Home Assistant après l'installation
+
+### Via HACS (Méthode recommandée)
+1. Dans HACS, allez dans les 3 points en haut à gauche puis "GitHub"
+2. Ajoutez un dépôt personnalisé avec l'URL: `https://github.com/Dan4Jer/hass-eedomus`
+3. Allez dans **HACS** > **Intégrations**
+4. Recherchez "Eedomus"
+5. Cliquez sur **Installer**
+6. Redémarrez Home Assistant
+
+### Installation manuelle
+1. Téléchargez la dernière version depuis [GitHub Releases](https://github.com/Dan4Jer/hass-eedomus/releases)
+2. Extrayez le fichier dans `custom_components/eedomus/`
+3. Redémarrez Home Assistant
+
+### Configuration
+1. Allez dans **Réglages** > **Appareils et Services**
+2. Cliquez sur **Ajouter une intégration**
+3. Recherchez "Eedomus"
+4. Entrez vos identifiants API eedomus
+5. Configurez les options selon vos besoins
+
+### Mise à jour
+- **Via HACS**: Notification automatique des nouvelles versions
+- **Manuelle**: Téléchargez la nouvelle version et remplacez les fichiers dans `custom_components/eedomus/`
+- **Conseil**: Consultez toujours les notes de version pour les changements importants
+
+## 📦 Installation and Update (English)
 
 ### Via HACS (Recommended)
 1. In HACS config go to the 3 dots in top left then GitHub
