@@ -134,8 +134,7 @@ Si vous n'avez pas encore HACS installé, suivez ces étapes:
 
 **Utilisation simple** :
 ```bash
-# Via l'interface : Developer Tools > Services > eedomus.cleanup_unused_entities
-# Via CLI : ha services call eedomus.cleanup_unused_entities
+# Via l'interface : Developer Tools > Actions > Call Service > eedomus.cleanup_unused_entities
 # Via automatisation : créez une automatisation qui appelle ce service périodiquement
 ```
 
