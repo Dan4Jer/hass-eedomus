@@ -48,7 +48,34 @@
 
 [📖 Documentation complète de la fonctionnalité de nettoyage](docs/CLEANUP_FEATURE.md)
 
-### Fonctionnalités existantes
+## 📦 Installation and Update
+
+### Via HACS (Recommended)
+1. In HACS config go to the 3 dots in top left then GitHub
+2. Add a custom repository with URL: https://github.com/Dan4Jer/hass-eedomus
+3. Go to **HACS** > **Integrations**
+4. Search for "Eedomus"
+5. Click **Install**
+6. Restart Home Assistant
+
+### Manual Installation
+1. Download the latest version from [GitHub Releases](https://github.com/Dan4Jer/hass-eedomus/releases)
+2. Extract the file to `custom_components/eedomus/`
+3. Restart Home Assistant
+
+### Configuration
+1. Go to **Settings** > **Devices & Services**
+2. Click **Add Integration**
+3. Search for "Eedomus"
+4. Enter your eedomus API credentials
+5. Configure options according to your needs
+
+### Updating
+- **Via HACS**: Automatic update notification when new version available
+- **Manual**: Download new version and replace files in `custom_components/eedomus/`
+- **Always**: Check release notes for breaking changes
+
+## 🎯 Fonctionnalités principales
 
 - **Gestion complète** de vos 30+ périphériques Z-Wave et 4-5 Zigbee
 - **Détection automatique** des types d'entités (Issue #9 résolue)
