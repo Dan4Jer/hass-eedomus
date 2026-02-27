@@ -8,7 +8,7 @@
 
 **hass-eedomus** est une intégration personnalisée qui permet de connecter votre box domotique **eedomus** à **Home Assistant**, en suivant l'architecture standard des [custom integrations](https://developers.home-assistant.io/docs/creating_component_index).
 
-## 📥 Installation (Français)
+## 📥 Installation
 
 ### Prérequis: Installation de HACS
 Si vous n'avez pas encore HACS installé, suivez ces étapes:
@@ -40,8 +40,6 @@ Si vous n'avez pas encore HACS installé, suivez ces étapes:
 - **Via HACS**: Notification automatique des nouvelles versions
 - **Manuelle**: Téléchargez la nouvelle version et remplacez les fichiers dans `custom_components/eedomus/`
 - **Conseil**: Consultez toujours les notes de version pour les changements importants
-
-## 📦 Installation and Update (English)
 =======
 # Intégration eedomus pour Home Assistant
 
@@ -85,16 +83,6 @@ Si vous n'avez pas encore HACS installé, suivez ces étapes:
 - **Via HACS**: Notification automatique des nouvelles versions
 - **Manuelle**: Téléchargez la nouvelle version et remplacez les fichiers dans `custom_components/eedomus/`
 - **Conseil**: Consultez toujours les notes de version pour les changements importants
-
-## 📦 Installation and Update (English)
-
-### Via HACS (Recommended)
-1. In HACS config go to the 3 dots in top left then GitHub
-2. Add a custom repository with URL: https://github.com/Dan4Jer/hass-eedomus
-3. Go to **HACS** > **Integrations**
-4. Search for "Eedomus"
-5. Click **Install**
-6. Restart Home Assistant
 
 ### Manual Installation
 1. Download the latest version from [GitHub Releases](https://github.com/Dan4Jer/hass-eedomus/releases)
