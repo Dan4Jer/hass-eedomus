@@ -1,7 +1,7 @@
 {
     "domain": "eedomus",
     "name": "Eedomus Integration",
-    "version": "0.13.30",
+    "version": "0.14.0",
     "documentation": "https://github.com/Dan4Jer/hass-eedomus/blob/main/docs/OPTIONS_DOCUMENTATION.md",
     "issue_tracker": "https://github.com/Dan4Jer/hass-eedomus/issues",
     "category": "Hub",
