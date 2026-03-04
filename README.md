@@ -4,7 +4,7 @@
 [![Version](https://img.shields.io/badge/version-0.14.0-blue.svg)](https://github.com/Dan4Jer/hass-eedomus/releases/tag/v0.14.0)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/Dan4Jer/hass-eedomus/blob/main/LICENSE)
 [![Release](https://img.shields.io/github/v/release/Dan4Jer/hass-eedomus?label=latest)](https://github.com/Dan4Jer/hass-eedomus/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/Dan4Jer/hass-eedomus/total?logo=github&style=flat-square)](https://github.com/Dan4Jer/hass-eedomus/releases)
+[![Downloads](https://img.shields.io/github/downloads/Dan4Jer/hass-eedomus/total?logo=github&style=flat-square)](https://github.com/Dan4Jer/hass-eedomus/releases/latest)
 
 **hass-eedomus** : synchronise la box **eedomus** avec **Home Assistant**, simplement et sans compromis.
 
