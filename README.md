@@ -8,7 +8,7 @@
 
 **hass-eedomus** : synchronise la box **eedomus** avec **Home Assistant**, simplement et sans compromis.
 
-Cette intégration permet de remonter tes périphériques eedomus (Z-Wave, Zigbee, etc.) dans Home Assistant comme des entités natives (sensors, lights, covers…), sans remplacer ta box. Pas de magie : elle utilise l’API eedomus pour synchroniser les états et commandes, avec un système de mapping YAML pour adapter chaque périphérique à tes besoins.
+Cette intégration permet de remonter tes périphériques eedomus (Z-Wave, Zigbee, etc.) dans Home Assistant comme des entités natives (sensors, lights, covers…), sans remplacer la box. Pas de magie : elle utilise l’API eedomus pour synchroniser les états et commandes, avec un système de mapping YAML pour adapter chaque périphérique à tes besoins.
 
 C'est la bonne solution pour compléter eedomus avec les automatisations et le dashboard de Home Assistant, sans tout migrer.
 
