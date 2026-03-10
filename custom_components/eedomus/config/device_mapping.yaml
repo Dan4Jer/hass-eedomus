@@ -8,18 +8,18 @@ metadata:
   - Fixed YAML indentation issues
   - Enhanced usage_id 23 (CPU) mapping with proper device_class, icon, and entity_category
   - Removed specific device mapping for 1061603 in favor of generic usage_id 23 mapping
-  - FIX: Changed RGBW detection from min_children 4 to min_children 3 to support RGBW devices with 3 children
-  - FIX: Updated parent_has_min_children from 4 to 3 to match RGBW parent requirement
+  - FIX: Reverted RGBW detection back to min_children 4 (was incorrectly changed to 3)
+  - FIX: Updated parent_has_min_children back to 4 to match RGBW parent requirement
 advanced_rules:
 - name: rgbw_lamp_by_children
   priority: 1
   conditions:
   - usage_id: '1'
-  - min_children: 3  # Changed from 4 to 3 to support RGBW devices with 3 children
+  - min_children: 4
   mapping:
     ha_entity: light
     ha_subtype: rgbw
-    justification: RGBW lamp detected by having at least 3 children with usage_id=1
+    justification: RGBW lamp detected by having at least 4 children with usage_id=1
     is_dynamic: true
 - name: rgbw_child_brightness
   priority: 1
@@ -27,7 +27,7 @@ advanced_rules:
   - usage_id: '1'
   - has_parent: true
   - parent_usage_id: '1'
-  - parent_has_min_children: 3  # Changed from 4 to 3 to match RGBW parent requirement
+  - parent_has_min_children: 4
   mapping:
     ha_entity: light
     ha_subtype: brightness
