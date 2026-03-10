@@ -181,6 +181,28 @@ class EedomusClient:
         # Si tout échoue, utiliser un remplacement de caractères
         return raw_data.decode("utf-8", errors="replace")
 
+    def _get_safe_url_for_logging(self) -> str:
+        """Return a version of self.url safe to log (no secrets in query string)."""
+        url = getattr(self, "url", "")
+        # Strip query parameters entirely to avoid logging api_user/api_secret.
+        if "?" in url:
+            return url.split("?", 1)[0]
+        return url
+
+    def _get_safe_params_for_logging(self) -> Dict[str, Any]:
+        """Return a copy of self.params with sensitive fields redacted."""
+        params = getattr(self, "params", {})
+        if not isinstance(params, dict):
+            return {}
+        redacted = {}
+        sensitive_keys = {"api_secret", "api_user"}
+        for key, value in params.items():
+            if key in sensitive_keys:
+                redacted[key] = "***redacted***"
+            else:
+                redacted[key] = value
+        return redacted
+
     def _format_error_response(
         self,
         error: str,
@@ -217,7 +239,9 @@ class EedomusClient:
         )
 
         _LOGGER.debug(
-            "Eedomus API error request url %s params %s", self.url, self.params
+            "Eedomus API error request url %s params %s",
+            self._get_safe_url_for_logging(),
+            self._get_safe_params_for_logging(),
         )
         return {
             "success": 0,
