@@ -385,6 +385,7 @@ def merge_yaml_mappings(default_mapping: Dict[str, Any], custom_mapping: Dict[st
     advanced_rules_dict = {}
     if isinstance(advanced_rules, list):
         _LOGGER.debug("🔍 Converting advanced rules from list to dict format")
+        dynamic_props = {}
         for rule in advanced_rules:
             if isinstance(rule, dict) and 'mapping' in rule:
                 mapping = rule['mapping']
