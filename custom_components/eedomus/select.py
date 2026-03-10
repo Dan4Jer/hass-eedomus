@@ -178,8 +178,10 @@ class EedomusSelect(EedomusEntity, SelectEntity):
     @property
     def available(self) -> bool:
         """Return True if entity is available."""
+        if self.coordinator.data is None:
+            return False
         return (
-            self.coordinator.data[self._periph_id].get("last_value", "") != ""
+            self.coordinator.data.get(self._periph_id, {}).get("last_value", "") != ""
             and len(self.options) > 0
         )
 
