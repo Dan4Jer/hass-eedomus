@@ -1,17 +1,61 @@
 # Intégration eedomus pour Home Assistant
 [![HACS Validated](https://img.shields.io/badge/HACS-Validated-green.svg)](https://github.com/hacs/integration)
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/integration)
+<<<<<<< dependabot/pip/black-24.3.0
 [![Version](https://img.shields.io/badge/version-0.13.10-blue.svg)](https://github.com/Dan4Jer/hass-eedomus/releases/tag/v0.13.10-unstable)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/Dan4Jer/hass-eedomus/blob/main/LICENSE)
 [![Release](https://img.shields.io/github/v/release/Dan4Jer/hass-eedomus?label=latest%20release)](https://github.com/Dan4Jer/hass-eedomus/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/Dan4Jer/hass-eedomus/total.svg)](https://github.com/Dan4Jer/hass-eedomus/releases)
 [![GitHub downloads (latest)](https://img.shields.io/github/downloads/Dan4Jer/hass-eedomus/latest/total)](https://github.com/Dan4Jer/hass-eedomus/releases/latest)
+=======
+[![Version](https://img.shields.io/badge/version-0.14.0-blue.svg)](https://github.com/Dan4Jer/hass-eedomus/releases/tag/v0.14.0)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/Dan4Jer/hass-eedomus/blob/main/LICENSE)
+[![Release](https://img.shields.io/github/v/release/Dan4Jer/hass-eedomus?label=latest)](https://github.com/Dan4Jer/hass-eedomus/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/Dan4Jer/hass-eedomus/total?logo=github&style=flat-square)](https://github.com/Dan4Jer/hass-eedomus/releases/latest)
+>>>>>>> main
 
-**hass-eedomus** est une intégration personnalisée qui permet de connecter votre box domotique **eedomus** à **Home Assistant**, en suivant l'architecture standard des [custom integrations](https://developers.home-assistant.io/docs/creating_component_index).
+**hass-eedomus** : synchronise la box **eedomus** avec **Home Assistant**, simplement et sans compromis.
 
-## 🎯 Fonctionnalités principales
+Cette intégration permet de remonter tes périphériques eedomus (Z-Wave, Zigbee, etc.) dans Home Assistant comme des entités natives (sensors, lights, covers…), sans remplacer la box. Pas de magie : elle utilise l’API eedomus pour synchroniser les états et commandes, avec un système de mapping YAML pour adapter chaque périphérique à tes besoins.
 
-### 🆕 Nouveau dans la v0.13.10-unstable : Système de Mapping Révolutionnaire
+C'est la bonne solution pour compléter eedomus avec les automatisations et le dashboard de Home Assistant, sans tout migrer.
+
+## 📥 Installation
+
+### Prérequis: Installation de HACS
+Si vous n'avez pas encore HACS installé, suivez ces étapes:
+1. **Méthode recommandée**: Via le [script automatique HACS](https://hacs.xyz/docs/setup/download)
+2. **Méthode manuelle**: Suivez le [guide officiel HACS](https://hacs.xyz/docs/setup/prerequisites)
+3. Redémarrez Home Assistant après l'installation
+
+### Via HACS (Méthode recommandée)
+1. Dans HACS, allez dans les 3 points en haut à gauche puis "GitHub"
+2. Ajoutez un dépôt personnalisé avec l'URL: `https://github.com/Dan4Jer/hass-eedomus`
+3. Allez dans **HACS** > **Intégrations**
+4. Recherchez "Eedomus"
+5. Cliquez sur **Installer**
+6. Redémarrez Home Assistant
+
+### Installation manuelle
+1. Téléchargez la dernière version depuis [GitHub Releases](https://github.com/Dan4Jer/hass-eedomus/releases)
+2. Extrayez le fichier dans `custom_components/eedomus/`
+3. Redémarrez Home Assistant
+
+### Configuration
+1. Allez dans **Réglages** > **Appareils et Services**
+2. Cliquez sur **Ajouter une intégration**
+3. Recherchez "Eedomus"
+4. Entrez vos identifiants API eedomus
+5. Configurez les options selon vos besoins
+
+### Mise à jour
+- **Via HACS**: Notification automatique des nouvelles versions
+- **Manuelle**: Téléchargez la nouvelle version et remplacez les fichiers dans `custom_components/eedomus/`
+- **Conseil**: Consultez toujours les notes de version pour les changements importants
+
+## 🎯 Fonctionnalités de la v0.14.0
+
+### 🆕 Système de Mapping Révolutionnaire
 
 **Une approche entièrement configurable et flexible !** 🎨
 
@@ -21,7 +65,7 @@
 - **Architecture extensible** : Ajoutez facilement de nouveaux types de devices sans modifier le code
 - **Interface utilisateur complète** : Toutes les options accessibles depuis l'interface Home Assistant
 
-### 🆕 Nouveau dans la v0.12.0 : Options Flow avec Configuration Dynamique
+### 🆕 Options Flow avec Configuration Dynamique
 
 **La plus grosse nouveauté de cette version !** 🎛️
 
@@ -30,7 +74,7 @@
 - **Changements immédiats** : Les modifications prennent effet immédiatement après sauvegarde
 - **Interface utilisateur intuitive** : Panneau d'options organisé dans l'interface Home Assistant
 
-### 🆕 Nouveau : Fonctionnalité de Nettoyage des Entités
+### 🆕 Fonctionnalité de Nettoyage des Entités
 
 **Maintenez votre installation propre et performante !** 🧹
 
@@ -42,14 +86,38 @@
 
 **Utilisation simple** :
 ```bash
-# Via l'interface : Developer Tools > Services > eedomus.cleanup_unused_entities
-# Via CLI : ha services call eedomus.cleanup_unused_entities
+# Via l'interface : Developer Tools > Actions > Call Service > eedomus.cleanup_unused_entities
 # Via automatisation : créez une automatisation qui appelle ce service périodiquement
 ```
 
 [📖 Documentation complète de la fonctionnalité de nettoyage](docs/CLEANUP_FEATURE.md)
 
-### Fonctionnalités existantes
+### Via HACS (Recommended)
+1. In HACS config go to the 3 dots in top left then GitHub
+2. Add a custom repository with URL: https://github.com/Dan4Jer/hass-eedomus
+3. Go to **HACS** > **Integrations**
+4. Search for "Eedomus"
+5. Click **Install**
+6. Restart Home Assistant
+
+### Manual Installation
+1. Download the latest version from [GitHub Releases](https://github.com/Dan4Jer/hass-eedomus/releases)
+2. Extract the file to `custom_components/eedomus/`
+3. Restart Home Assistant
+
+### Configuration
+1. Go to **Settings** > **Devices & Services**
+2. Click **Add Integration**
+3. Search for "Eedomus"
+4. Enter your eedomus API credentials
+5. Configure options according to your needs
+
+### Updating
+- **Via HACS**: Automatic update notification when new version available
+- **Manual**: Download new version and replace files in `custom_components/eedomus/`
+- **Always**: Check release notes for breaking changes
+
+## 🎯 Fonctionnalités principales
 
 - **Gestion complète** de vos 30+ périphériques Z-Wave et 4-5 Zigbee
 - **Détection automatique** des types d'entités (Issue #9 résolue)
@@ -2500,3 +2568,299 @@ Un grand merci à tous les contributeurs et utilisateurs qui font vivre ce proje
 ---
 
 *"Ensemble, nous rendons la domotique plus intelligente, plus rapide et plus accessible."* 🚀
+
+## 📦 Version 0.14.0 - Major Architecture Upgrade
+
+### 🎯 Key Features
+
+#### Configurable API Timeout
+
+
+#### Dynamic Device Mapping
+Automatic support for new devices with similar properties:
+- CPU sensors (unit: %)
+- Disk space sensors (unit: Ko)
+- RGBW lamps and brightness channels
+- Message boxes
+
+#### Performance Monitoring
+8 new sensors for API performance tracking:
+- 
+- 
+- 
+- 
+- Individual endpoint timings
+
+### 📊 Changelog
+
+#### v0.14.0 (2026-02-27)
+- ✨ **New**: Configurable HTTP request timeout (Issue #22)
+- ✨ **New**: Dynamic property-based mapping grammar
+- ✨ **New**: API performance metrics sensors
+- ✨ **New**: Enhanced RGBW device detection (5 lamps, 30 channels)
+- ✨ **New**: System sensor improvements (CPU, disk, messages)
+- 🚀 **Improved**: 30% faster refresh performance
+- 🚀 **Improved**: 70% log noise reduction
+- 🚀 **Improved**: Stabilized dynamic device counting
+- 🐛 **Fixed**: Unknown peripheral value errors
+- 🐛 **Fixed**: RGBW mapping instability
+
+#### v0.13.30 (2026-02-26)
+- 🚀 Enhanced entity and device cleanup services
+- 🚀 Improved async/await handling in services
+- 🚀 Better error handling and logging
+- 🚀 Performance optimizations
+
+### 📖 Documentation
+
+#### Configuration Options
+
+
+#### Dynamic Mapping Example
+
+
+### 🔧 Services
+
+#### Cleanup Services
+
+
+#### Value Setting
+
+
+### 📈 Performance
+
+#### Refresh Timings
+- **Partial Refresh**: ~0.5s (67 dynamic devices)
+- **Full Refresh**: ~4.5s (165 total devices)
+- **API Calls**: Optimized with configurable timeout
+
+#### Memory Usage
+- **Dynamic Devices**: 67 tracked efficiently
+- **Total Devices**: 165 mapped with smart caching
+- **Log Volume**: Reduced by 70% (cleaner logs)
+
+### 🛠️ Troubleshooting
+
+#### Log Levels
+
+
+#### Common Issues
+1. **Timeout Errors**: Increase  in options
+2. **Mapping Issues**: Check DEBUG logs for property-based rules
+3. **Performance**: Monitor timing sensors for slow API calls
+
+### 🤝 Community
+
+#### Contributing
+- Report issues on GitHub
+- Submit pull requests
+- Join discussions
+
+#### Support
+- Documentation: 
+- Issue Tracker: GitHub Issues
+- Discussions: GitHub Discussions
+
+## 🎉 Getting Started
+
+1. **Install**: Via HACS or manual installation
+2. **Configure**: Set up API credentials
+3. **Enjoy**: Automatic device discovery and mapping
+4. **Optimize**: Adjust timeout and other options as needed
+
+## 📚 Advanced Features
+
+#### Custom Mapping
+Extend device_mapping.yaml with your own rules:
+
+
+#### Performance Tuning
+Monitor and optimize API performance:
+
+
+## 🔮 Future Roadmap
+
+- ✅ v0.14.0: Dynamic mapping & performance metrics
+- 🔄 v0.15.0: Enhanced automation triggers
+- 🎨 v0.16.0: Custom dashboard integration
+- 📊 v0.17.0: Historical data analysis
+
+---
+
+**📌 Note**: This update provides comprehensive documentation for v0.14.0 while maintaining compatibility with previous versions.
+
+## 📦 Version 0.14.0 - Major Architecture Upgrade
+
+### 🎯 Key Features
+
+#### Configurable API Timeout
+```yaml
+# Configuration.yaml
+eedomus:
+  http_request_timeout: 30  # Optional: 5-120 seconds (default: 10)
+```
+
+#### Dynamic Device Mapping
+Automatic support for new devices with similar properties:
+- CPU sensors (unit: %)
+- Disk space sensors (unit: Ko)
+- RGBW lamps and brightness channels
+- Message boxes
+
+#### Performance Monitoring
+8 new sensors for API performance tracking:
+- sensor.eedomus_api_time
+- sensor.eedomus_processing_time
+- sensor.eedomus_total_refresh_time
+- sensor.eedomus_processed_devices
+- Individual endpoint timings
+
+### 📊 Changelog
+
+#### v0.14.0 (2026-02-27)
+- New: Configurable HTTP request timeout (Issue #22)
+- New: Dynamic property-based mapping grammar
+- New: API performance metrics sensors
+- New: Enhanced RGBW device detection (5 lamps, 30 channels)
+- New: System sensor improvements (CPU, disk, messages)
+- Improved: 30% faster refresh performance
+- Improved: 70% log noise reduction
+- Improved: Stabilized dynamic device counting
+- Fixed: Unknown peripheral value errors
+- Fixed: RGBW mapping instability
+
+#### v0.13.30 (2026-02-26)
+- Enhanced entity and device cleanup services
+- Improved async/await handling in services
+- Better error handling and logging
+- Performance optimizations
+
+### 📖 Documentation
+
+#### Configuration Options
+```yaml
+# options_flow.yaml
+http_request_timeout:
+  name: HTTP Request Timeout
+  description: API request timeout in seconds (5-120)
+  default: 10
+  required: false
+```
+
+#### Dynamic Mapping Example
+```yaml
+# device_mapping.yaml
+usage_id_mappings:
+  23:
+    ha_entity: sensor
+    default:
+      ha_subtype: text
+      icon: message.png
+    subtype_mapping:
+      - conditions:
+          unit: '%'
+        ha_subtype: cpu
+        icon: graphe.png
+      - conditions:
+          unit: 'Ko'
+        ha_subtype: disk_free_space
+        icon: harddisk.png
+```
+
+### 🔧 Services
+
+#### Cleanup Services
+```yaml
+# Call cleanup services
+service: eedomus.cleanup_unused_entities
+service: eedomus.cleanup_unused_devices
+```
+
+#### Value Setting
+```yaml
+# Set device value
+service: eedomus.set_value
+data:
+  periph_id: "123456"
+  value: 50
+```
+
+### 📈 Performance
+
+#### Refresh Timings
+- Partial Refresh: ~0.5s (67 dynamic devices)
+- Full Refresh: ~4.5s (165 total devices)
+- API Calls: Optimized with configurable timeout
+
+#### Memory Usage
+- Dynamic Devices: 67 tracked efficiently
+- Total Devices: 165 mapped with smart caching
+- Log Volume: Reduced by 70% (cleaner logs)
+
+### 🛠️ Troubleshooting
+
+#### Log Levels
+```yaml
+# Enable debug logging for troubleshooting
+logger:
+  logs:
+    custom_components.eedomus: debug
+```
+
+#### Common Issues
+1. Timeout Errors: Increase http_request_timeout in options
+2. Mapping Issues: Check DEBUG logs for property-based rules
+3. Performance: Monitor timing sensors for slow API calls
+
+### 🤝 Community
+
+#### Contributing
+- Report issues on GitHub
+- Submit pull requests
+- Join discussions
+
+#### Support
+- Documentation: /docs/
+- Issue Tracker: GitHub Issues
+- Discussions: GitHub Discussions
+
+## 🎉 Getting Started
+
+1. Install: Via HACS or manual installation
+2. Configure: Set up API credentials
+3. Enjoy: Automatic device discovery and mapping
+4. Optimize: Adjust timeout and other options as needed
+
+## 📚 Advanced Features
+
+#### Custom Mapping
+Extend device_mapping.yaml with your own rules:
+```yaml
+custom_usage_id_mappings:
+  99:
+    ha_entity: sensor
+    ha_subtype: custom
+    icon: mdi:custom-icon
+```
+
+#### Performance Tuning
+Monitor and optimize API performance:
+```yaml
+# Lovelace card example
+type: entities
+entities:
+  - sensor.eedomus_api_time
+  - sensor.eedomus_processing_time
+  - sensor.eedomus_total_refresh_time
+```
+
+## 🔮 Future Roadmap
+
+- v0.14.0: Dynamic mapping & performance metrics
+- v0.15.0: Enhanced automation triggers
+- v0.16.0: Custom dashboard integration
+- v0.17.0: Historical data analysis
+
+---
+
+Note: This update provides comprehensive documentation for v0.14.0 while maintaining compatibility with previous versions.
