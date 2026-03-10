@@ -636,6 +636,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         history_retrieval = self.client.config_entry.data.get(
             CONF_ENABLE_HISTORY, False
         )
+        
+        # Get all peripherals that need history retrieval
+        # Include all peripherals that have data, not just dynamic ones
+        peripherals_for_history = []
+        
         _LOGGER.debug(
             "Performing partial refresh for %d dynamic peripherals, history=%s",
             len(self._dynamic_peripherals),
