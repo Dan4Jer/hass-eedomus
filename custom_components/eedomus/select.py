@@ -94,7 +94,9 @@ class EedomusSelect(EedomusEntity, SelectEntity):
     def options(self) -> list[str]:
         """Return a list of available options."""
         # eedomus uses "values" field which contains list of {value, description} items
-        values_data = self.coordinator.data[self._periph_id].get("values", [])
+        if self.coordinator.data is None:
+            return []
+        values_data = self.coordinator.data.get(self._periph_id, {}).get("values", [])
 
         if not values_data:
             return []
