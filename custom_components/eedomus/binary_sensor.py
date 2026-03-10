@@ -187,7 +187,10 @@ class EedomusBinarySensor(EedomusEntity, BinarySensorEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return the state attributes."""
         attrs = {}
-        periph_data = self.coordinator.data.get(self._periph_id, {})
+        if self.coordinator.data is not None:
+            periph_data = self.coordinator.data.get(self._periph_id, {})
+        else:
+            periph_data = {}
 
         if "history" in periph_data:
             attrs["history"] = periph_data["history"]
