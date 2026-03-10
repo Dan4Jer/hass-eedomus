@@ -641,6 +641,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # Include all peripherals that have data, not just dynamic ones
         peripherals_for_history = []
         
+        # Populate peripherals_for_history with dynamic peripheral IDs
+        for periph_id in self._dynamic_peripherals:
+            peripherals_for_history.append(periph_id)
+        
         _LOGGER.debug(
             "Performing partial refresh for %d dynamic peripherals, history=%s",
             len(self._dynamic_peripherals),
