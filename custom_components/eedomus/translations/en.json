@@ -1,0 +1,86 @@
+{
+  "options": {
+    "api_host": {
+      "name": "API Host",
+      "description": "Local IP address of your Eedomus box"
+    },
+    "api_user": {
+      "name": "API Username"
+    },
+    "api_secret": {
+      "name": "API Password"
+    },
+    "enable_api_eedomus": {
+      "name": "Enable API Eedomus Mode",
+      "description": "Enable direct API polling from Eedomus box"
+    },
+    "enable_api_proxy": {
+      "name": "Enable API Proxy Mode",
+      "description": "Enable webhook-based communication"
+    },
+    "scan_interval": {
+      "name": "Scan Interval (seconds)",
+      "description": "Time between API polls"
+    },
+    "enable_history": {
+      "name": "Enable History Retrieval",
+      "description": "Retrieve historical data from devices"
+    },
+    "history_retry_delay_hours": {
+      "name": "History Retry Delay (hours)",
+      "description": "Delay before retrying failed history retrieval"
+    },
+    "history_peripherals_per_scan": {
+      "name": "Peripherals per Scan",
+      "description": "Number of peripherals to process per scan interval"
+    },
+    "enable_set_value_retry": {
+      "name": "Enable Set Value Retry",
+      "description": "Automatically retry failed value sets"
+    },
+    "enable_webhook": {
+      "name": "Enable Webhook",
+      "description": "Enable webhook endpoints for Eedomus"
+    },
+    "api_proxy_disable_security": {
+      "name": "Disable API Proxy Security",
+      "description": "Disable IP validation for API Proxy (debug only)"
+    },
+    "php_fallback_enabled": {
+      "name": "Enable PHP Fallback",
+      "description": "Use PHP script to bypass API limitations"
+    },
+    "php_fallback_script_name": {
+      "name": "PHP Fallback Script Name"
+    },
+    "php_fallback_timeout": {
+      "name": "PHP Fallback Timeout (seconds)"
+    },
+    "remove_entities_on_uninstall": {
+      "name": "Remove Entities on Uninstall",
+      "description": "Remove all entities when uninstalling"
+    }
+  },
+  "config": {
+    "connection_modes": "Connection Modes",
+    "api_eedomus_mode": "API Eedomus Mode (Pull)",
+    "api_proxy_mode": "API Proxy Mode (Push)",
+    "security_warning": "Security Warning",
+    "important_security": "Important Security Note"
+  },
+  "errors": {
+    "connection_failed": "Connection failed",
+    "invalid_credentials": "Invalid API credentials",
+    "device_not_found": "Device not found",
+    "value_out_of_range": "Value out of range"
+  },
+  "warnings": {
+    "missing_value": "Missing or empty value for sensor",
+    "history_disabled": "History retrieval is disabled"
+  },
+  "notifications": {
+    "integration_ready": "Eedomus integration initialized successfully",
+    "services_registered": "Eedomus services registered successfully",
+    "history_sensors_created": "History sensors created and attached to eedomus box device"
+  }
+}
