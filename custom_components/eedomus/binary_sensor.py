@@ -153,7 +153,9 @@ class EedomusBinarySensor(EedomusEntity, BinarySensorEntity):
     @property
     def device_class(self) -> BinarySensorDeviceClass | None:
         """Return the device class of the binary sensor."""
-        periph_info = self.coordinator.data[self._periph_id]
+        if self.coordinator.data is None:
+            return None
+        periph_info = self.coordinator.data.get(self._periph_id, {})
         ha_subtype = periph_info.get("ha_subtype", "")
         usage_name = periph_info.get("usage_name", "").lower()
 
