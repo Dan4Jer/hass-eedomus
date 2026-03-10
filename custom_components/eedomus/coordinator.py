@@ -687,7 +687,13 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.error("peripherals_caract body is not a list: %s", type(peripherals_body))
             if peripherals_body is None:
                 _LOGGER.error("peripherals_caract body is None, API may have returned empty response")
-            return
+            # Return current data to preserve state instead of None
+            if hasattr(self, 'data') and self.data:
+                _LOGGER.info("Returning current data to preserve state during partial refresh")
+                return self.data
+            else:
+                _LOGGER.error("No data available to return during partial refresh")
+                return {"success": 1, "body": []}
         
         # End API timing, start processing timing
         api_time = (datetime.now() - api_start_time).total_seconds()
