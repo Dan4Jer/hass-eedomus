@@ -82,11 +82,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.debug("Setting up eedomus integration with entry_id: %s", entry.entry_id)
 
     # Check which modes are enabled
-    api_eedomus_enabled = entry.data.get(
-        CONF_ENABLE_API_EEDOMUS, DEFAULT_CONF_ENABLE_API_EEDOMUS
+    # First check options (updated via options flow), then data (initial config), then defaults
+    api_eedomus_enabled = entry.options.get(
+        CONF_ENABLE_API_EEDOMUS,
+        entry.data.get(CONF_ENABLE_API_EEDOMUS, DEFAULT_CONF_ENABLE_API_EEDOMUS)
     )
-    api_proxy_enabled = entry.data.get(
-        CONF_ENABLE_API_PROXY, DEFAULT_CONF_ENABLE_API_PROXY
+    api_proxy_enabled = entry.options.get(
+        CONF_ENABLE_API_PROXY,
+        entry.data.get(CONF_ENABLE_API_PROXY, DEFAULT_CONF_ENABLE_API_PROXY)
     )
 
     _LOGGER.info(
