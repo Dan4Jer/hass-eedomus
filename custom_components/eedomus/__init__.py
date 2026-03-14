@@ -404,7 +404,7 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
         new_options = {**config_entry.options}
         
         # Add new options with default values
-        new_options.setdefault(CONF_ENABLE_HISTORY, DEFAULT_CONF_ENABLE_HISTORY)
+        new_options.setdefault(CONF_ENABLE_HISTORY, DEFAULT_ENABLE_HISTORY)
         new_options.setdefault(CONF_REMOVE_ENTITIES, DEFAULT_REMOVE_ENTITIES)
         
         config_entry.version = 2
