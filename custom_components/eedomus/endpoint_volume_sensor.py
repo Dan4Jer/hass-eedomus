@@ -54,32 +54,33 @@ class EedomusEndpointVolumeSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def native_value(self):
-        """Return the current volume for this endpoint in bytes."""
+        """Return the current volume for this endpoint in KB."""
         if hasattr(self.coordinator, '_endpoint_data_sizes'):
-            return int(self.coordinator._endpoint_data_sizes.get(self._endpoint_name, 0))
+            bytes_value = int(self.coordinator._endpoint_data_sizes.get(self._endpoint_name, 0))
+            return round(bytes_value / 1024, 2)
         return 0
 
     @property
     def native_unit_of_measurement(self):
         """Return the unit of measurement."""
-        return "B"
+        return "KB"
 
     @property
     def extra_state_attributes(self):
         """Return additional state attributes."""
-        bytes_value = self.native_value
-        kb_value = bytes_value / 1024
-        mb_value = kb_value / 1024
+        bytes_value = int(self.coordinator._endpoint_data_sizes.get(self._endpoint_name, 0)) if hasattr(self.coordinator, '_endpoint_data_sizes') else 0
+        kb_value = round(bytes_value / 1024, 2)
+        mb_value = round(kb_value / 1024, 2)
         
         return {
             "last_updated": datetime.now().isoformat(),
             "endpoint": self._endpoint_name,
             "description": f"Data size returned by {self._endpoint_name} endpoint",
-            "unit": "bytes",
+            "unit": "kilobytes",
             "call_count": self.coordinator._endpoint_call_counts.get(self._endpoint_name, 0) if hasattr(self.coordinator, '_endpoint_call_counts') else 0,
             "bytes": bytes_value,
-            "kilobytes": round(kb_value, 2),
-            "megabytes": round(mb_value, 2)
+            "kilobytes": kb_value,
+            "megabytes": mb_value
         }
 
 
@@ -124,9 +125,10 @@ class EedomusTotalDataVolumeSensor(EedomusEndpointVolumeSensor):
 
     @property
     def native_value(self):
-        """Return the total volume across all endpoints in bytes."""
+        """Return the total volume across all endpoints in KB."""
         if hasattr(self.coordinator, '_endpoint_data_sizes'):
-            return sum(int(size) for size in self.coordinator._endpoint_data_sizes.values())
+            total_bytes = sum(int(size) for size in self.coordinator._endpoint_data_sizes.values())
+            return round(total_bytes / 1024, 2)
         return 0
 
     @property

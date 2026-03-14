@@ -341,7 +341,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     self._last_refresh_time = total_time
                     self._last_processed_devices = stats['total_peripherals']
                     
-                    # Log detailed endpoint metrics (timings + data sizes)
+                    # Log detailed endpoint metrics (timings + data sizes in KB)
                     endpoint_details = []
                     for endpoint, time in self._endpoint_timings.items():
                         if time > 0:
@@ -519,10 +519,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         self._endpoint_data_sizes['get_periph_caract'] = peripherals_caract_response.get('_raw_data_size_bytes', 0)
         self._endpoint_call_counts['get_periph_caract'] += 1
         
-        _LOGGER.debug("📊 Endpoint metrics - get_periph_list: %.3fs (%d bytes), get_periph_value_list: %.3fs (%d bytes), get_periph_caract: %.3fs (%d bytes)",
-                     self._endpoint_timings['get_periph_list'], self._endpoint_data_sizes['get_periph_list'],
-                     self._endpoint_timings['get_periph_value_list'], self._endpoint_data_sizes['get_periph_value_list'],
-                     self._endpoint_timings['get_periph_caract'], self._endpoint_data_sizes['get_periph_caract'])
+        _LOGGER.debug("📊 Endpoint metrics - get_periph_list: %.3fs (%.1f KB), get_periph_value_list: %.3fs (%.1f KB), get_periph_caract: %.3fs (%.1f KB)",
+                     self._endpoint_timings['get_periph_list'], self._endpoint_data_sizes['get_periph_list'] / 1024,
+                     self._endpoint_timings['get_periph_value_list'], self._endpoint_data_sizes['get_periph_value_list'] / 1024,
+                     self._endpoint_timings['get_periph_caract'], self._endpoint_data_sizes['get_periph_caract'] / 1024)
         if (
             not isinstance(peripherals_response, dict)
             or not isinstance(peripherals_value_list_response, dict)
