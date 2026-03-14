@@ -44,7 +44,7 @@ async def async_setup_entry(
             ha_entity = coordinator.data[periph_id]["ha_entity"]
 
         parent_id = periph.get("parent_periph_id", None)
-        if parent_id and coordinator.data[parent_id]["ha_entity"] == "cover":
+        if parent_id and parent_id in coordinator.data and coordinator.data[parent_id]["ha_entity"] == "cover":
             # Children are managed by parent... similar to light logic
             eedomus_mapping = None
             if periph.get("usage_id") == "26":  # Energy meter
