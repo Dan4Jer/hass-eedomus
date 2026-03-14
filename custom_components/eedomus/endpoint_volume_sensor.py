@@ -137,6 +137,10 @@ class EedomusTotalDataVolumeSensor(EedomusEndpointVolumeSensor):
         attrs = super().extra_state_attributes
         if hasattr(self.coordinator, '_endpoint_data_sizes'):
             endpoint_details = {}
+            total_bytes = 0
+            total_kb = 0
+            total_mb = 0
+            
             for endpoint, size in self.coordinator._endpoint_data_sizes.items():
                 if size > 0:
                     endpoint_details[endpoint] = {
@@ -144,7 +148,14 @@ class EedomusTotalDataVolumeSensor(EedomusEndpointVolumeSensor):
                         "kilobytes": round(size / 1024, 2),
                         "megabytes": round(size / 1024 / 1024, 2)
                     }
+                    total_bytes += size
+                    total_kb += size / 1024
+                    total_mb += size / 1024 / 1024
+            
             attrs["endpoint_breakdown"] = endpoint_details
+            attrs["bytes"] = total_bytes
+            attrs["kilobytes"] = round(total_kb, 2)
+            attrs["megabytes"] = round(total_mb, 2)
         return attrs
 
 
