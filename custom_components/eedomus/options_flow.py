@@ -75,6 +75,8 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
             options[CONF_HISTORY_PERIPHERALS_PER_SCAN] = config_data.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, DEFAULT_HISTORY_PERIPHERALS_PER_SCAN)
         if CONF_SCAN_INTERVAL not in options:
             options[CONF_SCAN_INTERVAL] = config_data.get(CONF_SCAN_INTERVAL, 300)
+        if CONF_HTTP_REQUEST_TIMEOUT not in options:
+            options[CONF_HTTP_REQUEST_TIMEOUT] = config_data.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)
         if CONF_ENABLE_SET_VALUE_RETRY not in options:
             options[CONF_ENABLE_SET_VALUE_RETRY] = config_data.get(CONF_ENABLE_SET_VALUE_RETRY, True)
         if CONF_ENABLE_WEBHOOK not in options:
@@ -87,8 +89,6 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
             options[CONF_PHP_FALLBACK_SCRIPT_NAME] = config_data.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")
         if CONF_PHP_FALLBACK_TIMEOUT not in options:
             options[CONF_PHP_FALLBACK_TIMEOUT] = config_data.get(CONF_PHP_FALLBACK_TIMEOUT, 5)
-        if CONF_HTTP_REQUEST_TIMEOUT not in options:
-            options[CONF_HTTP_REQUEST_TIMEOUT] = config_data.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)
         
         _LOGGER.debug("Copied config to options: %s", {k: v for k, v in options.items() if k not in ['api_user', 'api_secret']})
         return options
