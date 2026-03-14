@@ -82,11 +82,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.debug("Setting up eedomus integration with entry_id: %s", entry.entry_id)
 
     # Check which modes are enabled
-    api_eedomus_enabled = entry.data.get(
-        CONF_ENABLE_API_EEDOMUS, DEFAULT_CONF_ENABLE_API_EEDOMUS
+    # First check options (updated via options flow), then data (initial config), then defaults
+    api_eedomus_enabled = entry.options.get(
+        CONF_ENABLE_API_EEDOMUS,
+        entry.data.get(CONF_ENABLE_API_EEDOMUS, DEFAULT_CONF_ENABLE_API_EEDOMUS)
     )
-    api_proxy_enabled = entry.data.get(
-        CONF_ENABLE_API_PROXY, DEFAULT_CONF_ENABLE_API_PROXY
+    api_proxy_enabled = entry.options.get(
+        CONF_ENABLE_API_PROXY,
+        entry.data.get(CONF_ENABLE_API_PROXY, DEFAULT_CONF_ENABLE_API_PROXY)
     )
 
     _LOGGER.info(
@@ -166,6 +169,47 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER.info("✅ Eedomus services registered successfully")
         except Exception as err:
             _LOGGER.error("Failed to setup eedomus services: %s", err)
+        
+        # Create history progress sensors if history is enabled
+        # Check both config_entry.data and options
+        history_from_config = coordinator.config_entry.data.get(CONF_ENABLE_HISTORY, False)
+        
+        # Check if history option is explicitly set in options
+        if CONF_ENABLE_HISTORY in coordinator.config_entry.options:
+            history_from_options = coordinator.config_entry.options[CONF_ENABLE_HISTORY]
+            # Only use options if they're different from the default
+            if history_from_options != False:  # Only use options if explicitly enabled
+                history_enabled = history_from_options
+            else:
+                # If options has False, check if config has True (options might have been reset)
+                history_enabled = history_from_config
+        else:
+            # No options set, use config
+            history_enabled = history_from_config
+        
+        # Debug logging to understand the decision process
+        _LOGGER.debug(
+            "History option decision during init: config=%s, options=%s, final=%s",
+            history_from_config,
+            coordinator.config_entry.options.get(CONF_ENABLE_HISTORY, "not_set"),
+            history_enabled
+        )
+        
+        if history_enabled:
+            try:
+                # Get device registry for proper device attachment
+                from homeassistant.helpers.device_registry import async_get as async_get_device_registry
+                device_registry = async_get_device_registry(hass)
+                
+                # Create proper history sensor entities
+                from .history_sensor import async_setup_history_sensors
+                sensors = await async_setup_history_sensors(hass, coordinator, device_registry)
+                
+                # Store sensors for cleanup
+                coordinator._history_sensors = sensors
+                _LOGGER.info("✅ History sensors created and attached to eedomus box device")
+            except Exception as err:
+                _LOGGER.error("Failed to create history sensors: %s", err)
 
 
     # If neither mode is enabled, this shouldn't happen due to validation, but handle it anyway

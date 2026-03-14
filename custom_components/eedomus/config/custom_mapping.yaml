@@ -3,11 +3,17 @@
 
 # Metadata section (will be loaded by YAML parser)
 metadata:
-  version: "1.1.0"
-  last_modified: "2026-02-24"
+  version: "1.3.4"
+  last_modified: "2026-03-11"
   changes:
-    - "Initial custom mapping structure"
-    - "Ready for custom device overrides"
+    - "Added usage_id 38 (heating) mapping for French Fil pilote systems"
+    - "Added usage_id 84 (text) mapping for day type selector with option mapping"
+    - "Added usage_id 127 (button) mapping for camera trigger commands"
+    - "Fixed YAML indentation issues"
+    - "Enhanced usage_id 23 (CPU) mapping with proper device_class, icon, and entity_category"
+    - "Removed specific device mapping for 1061603 in favor of generic usage_id 23 mapping"
+    - "REVERT: Reverted RGBW detection back to min_children: 4 (was incorrectly changed to 3)"
+    - "FIX: Fix YAML syntax error in changelog - remove colon in list item"
 
 # Custom advanced rules (empty by default)
 custom_rules: []

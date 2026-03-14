@@ -181,6 +181,28 @@ class EedomusClient:
         # Si tout échoue, utiliser un remplacement de caractères
         return raw_data.decode("utf-8", errors="replace")
 
+    def _get_safe_url_for_logging(self) -> str:
+        """Return a version of self.url safe to log (no secrets in query string)."""
+        url = getattr(self, "url", "")
+        # Strip query parameters entirely to avoid logging api_user/api_secret.
+        if "?" in url:
+            return url.split("?", 1)[0]
+        return url
+
+    def _get_safe_params_for_logging(self) -> Dict[str, Any]:
+        """Return a copy of self.params with sensitive fields redacted."""
+        params = getattr(self, "params", {})
+        if not isinstance(params, dict):
+            return {}
+        redacted = {}
+        sensitive_keys = {"api_secret", "api_user"}
+        for key, value in params.items():
+            if key in sensitive_keys:
+                redacted[key] = "***redacted***"
+            else:
+                redacted[key] = value
+        return redacted
+
     def _format_error_response(
         self,
         error: str,
@@ -217,7 +239,9 @@ class EedomusClient:
         )
 
         _LOGGER.debug(
-            "Eedomus API error request url %s params %s", self.url, self.params
+            "Eedomus API error request url %s params %s",
+            self._get_safe_url_for_logging(),
+            self._get_safe_params_for_logging(),
         )
         return {
             "success": 0,
@@ -422,6 +446,59 @@ class EedomusClient:
     async def auth_test(self) -> Dict:
         """Authorization check."""
         return await self.fetch_data("auth.test")
+
+    async def get_periph_info(self, periph_id: str) -> Optional[Dict[str, Any]]:
+        """Get information about a specific peripheral.
+        
+        Args:
+            periph_id: The peripheral ID
+            
+        Returns:
+            Dictionary with peripheral information or None if error
+        """
+        _LOGGER.debug("Getting info for peripheral %s", periph_id)
+        
+        try:
+            # Use getPeriphList to get device info
+            # We'll filter by periph_id from the list
+            params = {
+                "action": "getPeriphList",
+            }
+            
+            response = await self.fetch_data("peripherals", params)
+            
+            if response and response.get("success") == 1:
+                peripherals = response.get("body", [])
+                for periph in peripherals:
+                    if str(periph.get("periph_id")) == str(periph_id):
+                        return periph
+                _LOGGER.warning("Peripheral %s not found in list", periph_id)
+                return None
+            else:
+                _LOGGER.warning("Failed to get peripheral list")
+                return None
+        except Exception as e:
+            _LOGGER.warning("Error getting info for peripheral %s: %s", periph_id, e)
+            return None
+
+    async def get_device_history_count(self, periph_id: str) -> int:
+        """
+        Estime le nombre total de points d'historique disponibles pour un périphérique.
+        
+        Args:
+            periph_id (str): ID du périphérique.
+            
+        Returns:
+            int: Estimation du nombre total de points d'historique.
+        """
+        # Use a simple default estimation since we can't reliably get device info
+        # The API doesn't provide a method to get individual device info
+        # or the full list of devices with their details
+        
+        _LOGGER.debug("Using default history count estimation for %s", periph_id)
+        
+        # Default estimation: 1 year of data at 1 point per hour
+        return 8760  # 365 days * 24 hours
 
     async def get_device_history(
         self,
