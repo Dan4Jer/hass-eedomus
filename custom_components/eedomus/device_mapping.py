@@ -403,6 +403,16 @@ def merge_yaml_mappings(default_mapping: Dict[str, Any], custom_mapping: Dict[st
                     if ha_entity:
                         dynamic_props[ha_entity] = True
         
+        # Convert advanced rules list to dict format for entity.py
+        # This is the actual conversion that was missing!
+        for rule in advanced_rules:
+            if isinstance(rule, dict) and 'name' in rule:
+                rule_name = rule['name']
+                advanced_rules_dict[rule_name] = rule
+                _LOGGER.debug("✅ Added rule '%s' to advanced_rules_dict", rule_name)
+        
+        _LOGGER.debug("🔍 Converted %d advanced rules to dict format", len(advanced_rules_dict))
+        
         # Merge extracted properties with existing properties (don't override)
         if dynamic_props:
             _LOGGER.info("✅ Extracted dynamic properties from rules: %s", dynamic_props)
