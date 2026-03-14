@@ -80,6 +80,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """
     _LOGGER.info("🚀 Starting eedomus integration setup - Version %s", VERSION)
     _LOGGER.debug("Setting up eedomus integration with entry_id: %s", entry.entry_id)
+    
+    # Perform migration if needed
+    if entry.version < 4:
+        try:
+            await async_migrate_entry(hass, entry)
+            # Reload the entry to apply migration changes
+            await hass.config_entries.async_reload(entry.entry_id)
+            return False  # Setup will be retried after reload
+        except Exception as e:
+            _LOGGER.error("Migration failed: %s", e)
+            return False
 
     # Check which modes are enabled
     # First check options (updated via options flow), then data (initial config), then defaults
@@ -381,6 +392,61 @@ async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None
     
     await hass.config_entries.async_reload(entry.entry_id)
 
+
+
+async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+    """Migrate old entry."""
+    _LOGGER.debug("Migrating from version %s", config_entry.version)
+    
+    # Migration from version 1 to 2: Add new options
+    if config_entry.version == 1:
+        new_data = {**config_entry.data}
+        new_options = {**config_entry.options}
+        
+        # Add new options with default values
+        new_options.setdefault(CONF_ENABLE_HISTORY, DEFAULT_CONF_ENABLE_HISTORY)
+        new_options.setdefault(CONF_REMOVE_ENTITIES, DEFAULT_REMOVE_ENTITIES)
+        
+        config_entry.version = 2
+        hass.config_entries.async_update_entry(config_entry, data=new_data, options=new_options)
+        _LOGGER.info("Migration to version 2 completed")
+    
+    # Migration from version 2 to 3: Add API proxy settings
+    if config_entry.version == 2:
+        new_data = {**config_entry.data}
+        new_options = {**config_entry.options}
+        
+        # Add API proxy settings
+        new_options.setdefault(CONF_ENABLE_API_PROXY, DEFAULT_CONF_ENABLE_API_PROXY)
+        new_options.setdefault(CONF_API_PROXY_DISABLE_SECURITY, DEFAULT_API_PROXY_DISABLE_SECURITY)
+        
+        config_entry.version = 3
+        hass.config_entries.async_update_entry(config_entry, data=new_data, options=new_options)
+        _LOGGER.info("Migration to version 3 completed")
+    
+    # Migration from version 3 to 4: Preserve custom_mapping.yaml
+    if config_entry.version == 3:
+        new_data = {**config_entry.data}
+        new_options = {**config_entry.options}
+        
+        # Preserve custom mapping file during migration
+        try:
+            custom_mapping_path = os.path.join(os.path.dirname(__file__), "config", "custom_mapping.yaml")
+            if os.path.exists(custom_mapping_path):
+                # Backup the custom mapping file
+                backup_path = f"{custom_mapping_path}.backup_v{config_entry.version}"
+                import shutil
+                shutil.copy2(custom_mapping_path, backup_path)
+                _LOGGER.info("Backed up custom_mapping.yaml to %s", backup_path)
+        except Exception as e:
+            _LOGGER.error("Failed to backup custom_mapping.yaml: %s", e)
+        
+        config_entry.version = 4
+        hass.config_entries.async_update_entry(config_entry, data=new_data, options=new_options)
+        _LOGGER.info("Migration to version 4 completed - custom_mapping.yaml preserved")
+    
+    _LOGGER.info("Migration completed successfully")
+    return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
