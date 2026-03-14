@@ -248,9 +248,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # No need for separate registration to avoid double setup
         if timing_sensors:
             _LOGGER.info("✅ Refresh timing sensors ready (will be registered with other sensors)")
-            # Store timing sensors in coordinator for access by sensor setup
-            if coordinator:
-                coordinator._timing_sensors = timing_sensors
     except Exception as err:
         _LOGGER.error("Failed to setup refresh timing sensors: %s", err)
 
@@ -268,6 +265,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 coordinator._volume_sensors = volume_sensors
     except Exception as err:
         _LOGGER.error("Failed to setup endpoint volume sensors: %s", err)
+
+    # Store timing sensors in coordinator for access by sensor setup
+    if coordinator and 'timing_sensors' in locals():
+        coordinator._timing_sensors = timing_sensors
+
 
 
     # Stockage sécurisé
