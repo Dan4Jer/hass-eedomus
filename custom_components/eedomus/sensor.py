@@ -169,6 +169,11 @@ async def async_setup_entry(
         entities.extend(coordinator._timing_sensors)
         _LOGGER.info("📊 Added %d refresh timing sensors", len(coordinator._timing_sensors))
     
+    # Add volume sensors if they exist in the coordinator
+    if hasattr(coordinator, '_volume_sensors') and coordinator._volume_sensors:
+        entities.extend(coordinator._volume_sensors)
+        _LOGGER.info("📊 Added %d endpoint volume sensors", len(coordinator._volume_sensors))
+    
     async_add_entities(entities)
 
 
@@ -638,52 +643,4 @@ try:
 except Exception as e:
     _LOGGER.error("Failed to add endpoint volume sensors: %s", e)
 
-# Add endpoint volume sensors to the sensor platform
-try:
-    from .endpoint_volume_sensor import (
-        EedomusGetPeriphListVolumeSensor,
-        EedomusGetPeriphValueListVolumeSensor,
-        EedomusGetPeriphCaractVolumeSensor,
-        EedomusPartialRefreshVolumeSensor,
-        EedomusTotalDataVolumeSensor
-    )
-    
-    # Add volume sensors to entities list
-    entities.extend([
-        EedomusGetPeriphListVolumeSensor(coordinator),
-        EedomusGetPeriphValueListVolumeSensor(coordinator),
-        EedomusGetPeriphCaractVolumeSensor(coordinator),
-        EedomusPartialRefreshVolumeSensor(coordinator),
-        EedomusTotalDataVolumeSensor(coordinator)
-    ])
-    _LOGGER.info("📊 Added endpoint volume sensors to sensor platform")
-except Exception as e:
-    _LOGGER.error("Failed to add endpoint volume sensors: %s", e)
 
-# Add refresh timing sensors to the sensor platform
-try:
-    from .refresh_timing_sensor import (
-        EedomusAPITimeSensor,
-        EedomusProcessingTimeSensor,
-        EedomusTotalRefreshTimeSensor,
-        EedomusProcessedDevicesSensor,
-        EedomusGetPeriphListSensor,
-        EedomusGetPeriphValueListSensor,
-        EedomusGetPeriphCaractSensor,
-        EedomusPartialRefreshSensor
-    )
-    
-    # Add timing sensors to entities list
-    entities.extend([
-        EedomusAPITimeSensor(coordinator),
-        EedomusProcessingTimeSensor(coordinator),
-        EedomusTotalRefreshTimeSensor(coordinator),
-        EedomusProcessedDevicesSensor(coordinator),
-        EedomusGetPeriphListSensor(coordinator),
-        EedomusGetPeriphValueListSensor(coordinator),
-        EedomusGetPeriphCaractSensor(coordinator),
-        EedomusPartialRefreshSensor(coordinator)
-    ])
-    _LOGGER.info("⏱️ Added refresh timing sensors to sensor platform")
-except Exception as err:
-    _LOGGER.error("Failed to add refresh timing sensors: %s", err)
