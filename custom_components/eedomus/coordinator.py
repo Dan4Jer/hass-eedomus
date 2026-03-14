@@ -346,7 +346,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     for endpoint, time in self._endpoint_timings.items():
                         if time > 0:
                             data_size = self._endpoint_data_sizes.get(endpoint, 0)
-                            endpoint_details.append(f"{endpoint}: {time:.3f}s ({data_size} items)")
+                            # Convert bytes to KB for better readability
+                            data_size_kb = round(data_size / 1024, 1) if data_size > 0 else 0
+                            endpoint_details.append(f"{endpoint}: {time:.3f}s ({data_size_kb} KB)")
                     endpoint_log = ", ".join(endpoint_details) if endpoint_details else "no endpoints"
                     
                     _LOGGER.info("🔄 FULL REFRESH: %d total, %d dynamic, %.3fs total (API: %.3fs, Processing: %.3fs, Endpoints: %s)",
@@ -499,22 +501,28 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         start_time = datetime.now()
         peripherals_response = await self.client.get_periph_list()
         self._endpoint_timings['get_periph_list'] = (datetime.now() - start_time).total_seconds()
-        self._endpoint_data_sizes['get_periph_list'] = len(peripherals_response.get("body", []))
+        # Store data size in bytes (raw response size)
+        response_text = str(peripherals_response)
+        self._endpoint_data_sizes['get_periph_list'] = len(response_text.encode('utf-8'))
         self._endpoint_call_counts['get_periph_list'] += 1
         
         start_time = datetime.now()
         peripherals_value_list_response = await self.client.get_periph_value_list("all")
         self._endpoint_timings['get_periph_value_list'] = (datetime.now() - start_time).total_seconds()
-        self._endpoint_data_sizes['get_periph_value_list'] = len(peripherals_value_list_response.get("body", []))
+        # Store data size in bytes (raw response size)
+        response_text = str(peripherals_value_list_response)
+        self._endpoint_data_sizes['get_periph_value_list'] = len(response_text.encode('utf-8'))
         self._endpoint_call_counts['get_periph_value_list'] += 1
         
         start_time = datetime.now()
         peripherals_caract_response = await self.client.get_periph_caract("all", True)
         self._endpoint_timings['get_periph_caract'] = (datetime.now() - start_time).total_seconds()
-        self._endpoint_data_sizes['get_periph_caract'] = len(peripherals_caract_response.get("body", []))
+        # Store data size in bytes (raw response size)
+        response_text = str(peripherals_caract_response)
+        self._endpoint_data_sizes['get_periph_caract'] = len(response_text.encode('utf-8'))
         self._endpoint_call_counts['get_periph_caract'] += 1
         
-        _LOGGER.debug("📊 Endpoint metrics - get_periph_list: %.3fs (%d items), get_periph_value_list: %.3fs (%d items), get_periph_caract: %.3fs (%d items)",
+        _LOGGER.debug("📊 Endpoint metrics - get_periph_list: %.3fs (%d bytes), get_periph_value_list: %.3fs (%d bytes), get_periph_caract: %.3fs (%d bytes)",
                      self._endpoint_timings['get_periph_list'], self._endpoint_data_sizes['get_periph_list'],
                      self._endpoint_timings['get_periph_value_list'], self._endpoint_data_sizes['get_periph_value_list'],
                      self._endpoint_timings['get_periph_caract'], self._endpoint_data_sizes['get_periph_caract'])
@@ -710,7 +718,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             self._endpoint_data_sizes['get_periph_caract'] = len(peripherals_caract.get("body", []))
             self._endpoint_call_counts['get_periph_caract'] += 1
             
-            _LOGGER.debug("📊 Partial refresh metrics - get_periph_caract: %.3fs (%d items)",
+            _LOGGER.debug("📊 Partial refresh metrics - get_periph_caract: %.3fs (%d bytes)",
                         self._endpoint_timings['get_periph_caract'], self._endpoint_data_sizes['get_periph_caract'])
         except Exception as e:
             _LOGGER.warning(
