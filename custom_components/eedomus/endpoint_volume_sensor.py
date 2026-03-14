@@ -45,12 +45,12 @@ class EedomusEndpointVolumeSensor(CoordinatorEntity, SensorEntity):
     @property
     def name(self) -> str:
         """Return the name of the sensor."""
-        return f"Eedomus {self._endpoint_name} Volume"
+        return f"Eedomus {self._endpoint_name} Volume KB"
 
     @property
     def unique_id(self) -> str:
         """Return the unique ID of the sensor."""
-        return f"eedomus_{self._endpoint_name.lower()}_volume"
+        return f"eedomus_{self._endpoint_name.lower()}_volume_kb"
 
     @property
     def native_value(self):
