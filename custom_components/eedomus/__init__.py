@@ -256,6 +256,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         from .endpoint_volume_sensor import async_setup_endpoint_volume_sensors
         volume_sensors = await async_setup_endpoint_volume_sensors(hass, coordinator, device_registry)
         
+        # Debug: Log the number of volume sensors created
+        _LOGGER.info("📊 Created %d endpoint volume sensors", len(volume_sensors) if volume_sensors else 0)
+        
         # Note: Volume sensors will be registered with other sensors via PLATFORMS
         # No need for separate registration to avoid double setup
         if volume_sensors:
@@ -263,6 +266,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             # Store volume sensors in coordinator for access by sensor setup
             if coordinator:
                 coordinator._volume_sensors = volume_sensors
+                _LOGGER.debug("📊 Stored %d volume sensors in coordinator", len(volume_sensors))
     except Exception as err:
         _LOGGER.error("Failed to setup endpoint volume sensors: %s", err)
 

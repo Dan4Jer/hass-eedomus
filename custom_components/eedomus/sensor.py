@@ -171,8 +171,13 @@ async def async_setup_entry(
     
     # Add volume sensors if they exist in the coordinator
     if hasattr(coordinator, '_volume_sensors') and coordinator._volume_sensors:
+        _LOGGER.debug("📊 Found %d volume sensors in coordinator, adding to entities", len(coordinator._volume_sensors))
         entities.extend(coordinator._volume_sensors)
         _LOGGER.info("📊 Added %d endpoint volume sensors", len(coordinator._volume_sensors))
+    else:
+        _LOGGER.warning("⚠️  No volume sensors found in coordinator (hasattr: %s, value: %s)", 
+                       hasattr(coordinator, '_volume_sensors'), 
+                       getattr(coordinator, '_volume_sensors', 'N/A'))
     
     async_add_entities(entities)
 
