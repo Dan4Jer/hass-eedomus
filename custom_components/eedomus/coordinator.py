@@ -396,13 +396,27 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 return ret
         except Exception as err:
             elapsed = (datetime.now() - start_time).total_seconds()
-            _LOGGER.exception(
-                "Error updating eedomus after %.3f seconds data: %s", elapsed, err
-            )
-            # Return last known good data if available
-            if hasattr(self, "data") and self.data:
-                return self.data
-            raise UpdateFailed(f"Error updating data: {err}") from err
+            
+            # Handle timeout specifically - don't raise UpdateFailed for timeouts
+            if "Request timed out" in str(err):
+                _LOGGER.warning(
+                    "⏳ Timeout occurred after %.3f seconds - using last known good data (size: %d)",
+                    elapsed,
+                    len(self.data) if hasattr(self, "data") and self.data else 0
+                )
+                # Return last known good data if available
+                if hasattr(self, "data") and self.data:
+                    return self.data
+                # If no data available, return empty success response
+                return {"success": 1, "body": []}
+            else:
+                _LOGGER.exception(
+                    "Error updating eedomus after %.3f seconds data: %s", elapsed, err
+                )
+                # Return last known good data if available
+                if hasattr(self, "data") and self.data:
+                    return self.data
+                raise UpdateFailed(f"Error updating data: {err}") from err
 
     async def _async_partial_data_retreive(self, concat_text_periph_id: str):
         peripherals_caract_response = await self.client.get_periph_caract(

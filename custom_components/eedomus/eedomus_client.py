@@ -158,8 +158,8 @@ class EedomusClient:
                         )
 
         except asyncio.TimeoutError:
-            _LOGGER.error("Request timed out for %s", endpoint)
-            return self._format_error_response("Request timed out")
+            _LOGGER.warning("⏳ Request timed out for %s - will retry on next refresh cycle", endpoint)
+            return self._format_error_response("Request timed out", http_status=408)
 
         except aiohttp.ClientError as e:
             _LOGGER.error("Client error for %s: %s", endpoint, str(e))
