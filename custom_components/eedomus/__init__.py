@@ -266,8 +266,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     except Exception as err:
         _LOGGER.error("Failed to setup endpoint volume sensors: %s", err)
 
+        coordinator._timing_sensors = timing_sensors
+
+
+    # Stockage sécurisé
+=======
     # Store timing sensors in coordinator for access by sensor setup
     if coordinator and 'timing_sensors' in locals():
+        coordinator._timing_sensors = timing_sensors
 
 
     # Stockage sécurisé
