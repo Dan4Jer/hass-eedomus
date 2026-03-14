@@ -432,11 +432,17 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
         try:
             custom_mapping_path = os.path.join(os.path.dirname(__file__), "config", "custom_mapping.yaml")
             if os.path.exists(custom_mapping_path):
-                # Backup the custom mapping file
+                # Backup the custom mapping file using async executor to avoid blocking
                 backup_path = f"{custom_mapping_path}.backup_v{config_entry.version}"
-                import shutil
-                shutil.copy2(custom_mapping_path, backup_path)
-                _LOGGER.info("Backed up custom_mapping.yaml to %s", backup_path)
+                
+                async def async_backup_file():
+                    import shutil
+                    await hass.async_add_executor_job(
+                        shutil.copy2, custom_mapping_path, backup_path
+                    )
+                    _LOGGER.info("Backed up custom_mapping.yaml to %s", backup_path)
+                
+                await async_backup_file()
         except Exception as e:
             _LOGGER.error("Failed to backup custom_mapping.yaml: %s", e)
         
