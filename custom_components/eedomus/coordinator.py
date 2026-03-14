@@ -69,6 +69,13 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             'set_periph_value': 0.0,
             'partial_refresh': 0.0
         }
+        self._endpoint_data_sizes = {
+            'get_periph_list': 0,
+            'get_periph_value_list': 0,
+            'get_periph_caract': 0,
+            'set_periph_value': 0,
+            'partial_refresh': 0
+        }
         self._endpoint_call_counts = {
             'get_periph_list': 0,
             'get_periph_value_list': 0,
