@@ -478,6 +478,15 @@ def merge_yaml_mappings(default_mapping: Dict[str, Any], custom_mapping: Dict[st
         merged['metadata'].update(custom_mapping['metadata'])
         _LOGGER.debug("✅ Merged custom metadata: %s", custom_mapping['metadata'].get('version', 'unknown'))
 
+    # Add advanced_rules (list format) to merged for backward compatibility
+    merged['advanced_rules'] = advanced_rules
+    _LOGGER.debug("✅ Added advanced_rules (list format) with %d rules to merged configuration", len(advanced_rules))
+
+    # CRITICAL: Add advanced_rules_dict to merged result
+    # This was missing and caused RGBW mapping to fail
+    merged['advanced_rules_dict'] = advanced_rules_dict
+    _LOGGER.debug("✅ Added advanced_rules_dict with %d rules to merged configuration", len(advanced_rules_dict))
+
     return merged
 
 
