@@ -269,6 +269,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         coordinator._timing_sensors = timing_sensors
 
 
+    # Store timing sensors in coordinator for access by sensor setup
+    if coordinator and 'timing_sensors' in locals():
+        coordinator._timing_sensors = timing_sensors
+
+
+    # Stockage sécurisé
+=======
+    # Stockage sécurisé
+=======
+    # Store timing sensors in coordinator for access by sensor setup
+    if coordinator and 'timing_sensors' in locals():
+        coordinator._timing_sensors = timing_sensors
+
+
     # Stockage sécurisé
 =======
     # Store timing sensors in coordinator for access by sensor setup
