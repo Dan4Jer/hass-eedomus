@@ -254,6 +254,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     except Exception as err:
         _LOGGER.error("Failed to setup refresh timing sensors: %s", err)
 
+    # Setup endpoint volume sensors (data volume monitoring)
+    try:
+        from .endpoint_volume_sensor import async_setup_endpoint_volume_sensors
+        volume_sensors = await async_setup_endpoint_volume_sensors(hass, coordinator, device_registry)
+        
+        # Note: Volume sensors will be registered with other sensors via PLATFORMS
+        # No need for separate registration to avoid double setup
+        if volume_sensors:
+            _LOGGER.info("✅ Endpoint volume sensors ready (will be registered with other sensors)")
+            # Store volume sensors in coordinator for access by sensor setup
+            if coordinator:
+                coordinator._volume_sensors = volume_sensors
+    except Exception as err:
+        _LOGGER.error("Failed to setup endpoint volume sensors: %s", err)
+
 
     # Stockage sécurisé
     if DOMAIN not in hass.data:

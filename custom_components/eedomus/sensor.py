@@ -614,3 +614,54 @@ class EedomusBatterySensor(EedomusEntity, SensorEntity):
         _LOGGER.debug(
             "🔋 Updated battery sensor %s: %s%%", self._attr_name, battery_level
         )
+
+
+# Add endpoint volume sensors to the sensor platform
+try:
+    from .endpoint_volume_sensor import (
+        EedomusGetPeriphListVolumeSensor,
+        EedomusGetPeriphValueListVolumeSensor,
+        EedomusGetPeriphCaractVolumeSensor,
+        EedomusPartialRefreshVolumeSensor,
+        EedomusTotalDataVolumeSensor
+    )
+    
+    # Add volume sensors to entities list
+    entities.extend([
+        EedomusGetPeriphListVolumeSensor(coordinator),
+        EedomusGetPeriphValueListVolumeSensor(coordinator),
+        EedomusGetPeriphCaractVolumeSensor(coordinator),
+        EedomusPartialRefreshVolumeSensor(coordinator),
+        EedomusTotalDataVolumeSensor(coordinator)
+    ])
+    _LOGGER.info("📊 Added endpoint volume sensors to sensor platform")
+except Exception as e:
+    _LOGGER.error("Failed to add endpoint volume sensors: %s", e)
+
+# Add refresh timing sensors to the sensor platform
+try:
+    from .refresh_timing_sensor import (
+        EedomusAPITimeSensor,
+        EedomusProcessingTimeSensor,
+        EedomusTotalRefreshTimeSensor,
+        EedomusProcessedDevicesSensor,
+        EedomusGetPeriphListSensor,
+        EedomusGetPeriphValueListSensor,
+        EedomusGetPeriphCaractSensor,
+        EedomusPartialRefreshSensor
+    )
+    
+    # Add timing sensors to entities list
+    entities.extend([
+        EedomusAPITimeSensor(coordinator),
+        EedomusProcessingTimeSensor(coordinator),
+        EedomusTotalRefreshTimeSensor(coordinator),
+        EedomusProcessedDevicesSensor(coordinator),
+        EedomusGetPeriphListSensor(coordinator),
+        EedomusGetPeriphValueListSensor(coordinator),
+        EedomusGetPeriphCaractSensor(coordinator),
+        EedomusPartialRefreshSensor(coordinator)
+    ])
+    _LOGGER.info("⏱️ Added refresh timing sensors to sensor platform")
+except Exception as err:
+    _LOGGER.error("Failed to add refresh timing sensors: %s", err)
