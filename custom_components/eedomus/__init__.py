@@ -408,8 +408,7 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
         new_options.setdefault(CONF_ENABLE_HISTORY, DEFAULT_ENABLE_HISTORY)
         new_options.setdefault(CONF_REMOVE_ENTITIES, DEFAULT_REMOVE_ENTITIES)
         
-        config_entry.version = 2
-        hass.config_entries.async_update_entry(config_entry, data=new_data, options=new_options)
+        hass.config_entries.async_update_entry(config_entry, data=new_data, options=new_options, version=2)
         _LOGGER.info("Migration to version 2 completed")
     
     # Migration from version 2 to 3: Add API proxy settings
@@ -421,8 +420,7 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
         new_options.setdefault(CONF_ENABLE_API_PROXY, DEFAULT_CONF_ENABLE_API_PROXY)
         new_options.setdefault(CONF_API_PROXY_DISABLE_SECURITY, DEFAULT_API_PROXY_DISABLE_SECURITY)
         
-        config_entry.version = 3
-        hass.config_entries.async_update_entry(config_entry, data=new_data, options=new_options)
+        hass.config_entries.async_update_entry(config_entry, data=new_data, options=new_options, version=3)
         _LOGGER.info("Migration to version 3 completed")
     
     # Migration from version 3 to 4: Preserve custom_mapping.yaml
@@ -442,8 +440,7 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
         except Exception as e:
             _LOGGER.error("Failed to backup custom_mapping.yaml: %s", e)
         
-        config_entry.version = 4
-        hass.config_entries.async_update_entry(config_entry, data=new_data, options=new_options)
+        hass.config_entries.async_update_entry(config_entry, data=new_data, options=new_options, version=4)
         _LOGGER.info("Migration to version 4 completed - custom_mapping.yaml preserved")
     
     _LOGGER.info("Migration completed successfully")
