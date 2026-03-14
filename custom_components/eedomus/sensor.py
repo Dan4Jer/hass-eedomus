@@ -172,12 +172,8 @@ async def async_setup_entry(
     # Add volume sensors if they exist in the coordinator
     if hasattr(coordinator, '_volume_sensors') and coordinator._volume_sensors:
         _LOGGER.debug("📊 Found %d volume sensors in coordinator, adding to entities", len(coordinator._volume_sensors))
-        if 'entities' in locals():
-            entities.extend(coordinator._volume_sensors)
-            _LOGGER.info("📊 Added %d endpoint volume sensors", len(coordinator._volume_sensors))
-        else:
-            _LOGGER.error("❌ Critical error: 'entities' variable is not defined!")
-            return False
+        entities.extend(coordinator._volume_sensors)
+        _LOGGER.info("📊 Added %d endpoint volume sensors", len(coordinator._volume_sensors))
     else:
         _LOGGER.warning("⚠️  No volume sensors found in coordinator (hasattr: %s, value: %s)", 
                        hasattr(coordinator, '_volume_sensors'), 
@@ -630,26 +626,6 @@ class EedomusBatterySensor(EedomusEntity, SensorEntity):
         )
 
 
-# Add endpoint volume sensors to the sensor platform
-try:
-    from .endpoint_volume_sensor import (
-        EedomusGetPeriphListVolumeSensor,
-        EedomusGetPeriphValueListVolumeSensor,
-        EedomusGetPeriphCaractVolumeSensor,
-        EedomusPartialRefreshVolumeSensor,
-        EedomusTotalDataVolumeSensor
-    )
-    
-    # Add volume sensors to entities list
-    entities.extend([
-        EedomusGetPeriphListVolumeSensor(coordinator),
-        EedomusGetPeriphValueListVolumeSensor(coordinator),
-        EedomusGetPeriphCaractVolumeSensor(coordinator),
-        EedomusPartialRefreshVolumeSensor(coordinator),
-        EedomusTotalDataVolumeSensor(coordinator)
-    ])
-    _LOGGER.info("📊 Added endpoint volume sensors to sensor platform")
-except Exception as e:
-    _LOGGER.error("Failed to add endpoint volume sensors: %s", e)
+
 
 
