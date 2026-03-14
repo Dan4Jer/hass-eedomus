@@ -501,25 +501,22 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         start_time = datetime.now()
         peripherals_response = await self.client.get_periph_list()
         self._endpoint_timings['get_periph_list'] = (datetime.now() - start_time).total_seconds()
-        # Store data size in bytes (raw response size)
-        response_text = str(peripherals_response)
-        self._endpoint_data_sizes['get_periph_list'] = len(response_text.encode('utf-8'))
+        # Store data size in bytes (raw response size from client)
+        self._endpoint_data_sizes['get_periph_list'] = peripherals_response.get('_raw_data_size_bytes', 0)
         self._endpoint_call_counts['get_periph_list'] += 1
         
         start_time = datetime.now()
         peripherals_value_list_response = await self.client.get_periph_value_list("all")
         self._endpoint_timings['get_periph_value_list'] = (datetime.now() - start_time).total_seconds()
-        # Store data size in bytes (raw response size)
-        response_text = str(peripherals_value_list_response)
-        self._endpoint_data_sizes['get_periph_value_list'] = len(response_text.encode('utf-8'))
+        # Store data size in bytes (raw response size from client)
+        self._endpoint_data_sizes['get_periph_value_list'] = peripherals_value_list_response.get('_raw_data_size_bytes', 0)
         self._endpoint_call_counts['get_periph_value_list'] += 1
         
         start_time = datetime.now()
         peripherals_caract_response = await self.client.get_periph_caract("all", True)
         self._endpoint_timings['get_periph_caract'] = (datetime.now() - start_time).total_seconds()
-        # Store data size in bytes (raw response size)
-        response_text = str(peripherals_caract_response)
-        self._endpoint_data_sizes['get_periph_caract'] = len(response_text.encode('utf-8'))
+        # Store data size in bytes (raw response size from client)
+        self._endpoint_data_sizes['get_periph_caract'] = peripherals_caract_response.get('_raw_data_size_bytes', 0)
         self._endpoint_call_counts['get_periph_caract'] += 1
         
         _LOGGER.debug("📊 Endpoint metrics - get_periph_list: %.3fs (%d bytes), get_periph_value_list: %.3fs (%d bytes), get_periph_caract: %.3fs (%d bytes)",
@@ -715,7 +712,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 concat_text_periph_id
             )
             self._endpoint_timings['get_periph_caract'] = (datetime.now() - api_start_time).total_seconds()
-            self._endpoint_data_sizes['get_periph_caract'] = len(peripherals_caract.get("body", []))
+            # Store data size in bytes (raw response size from client)
+            self._endpoint_data_sizes['get_periph_caract'] = peripherals_caract.get('_raw_data_size_bytes', 0)
             self._endpoint_call_counts['get_periph_caract'] += 1
             
             _LOGGER.debug("📊 Partial refresh metrics - get_periph_caract: %.3fs (%d bytes)",

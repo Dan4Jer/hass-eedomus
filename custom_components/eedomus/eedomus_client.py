@@ -147,6 +147,8 @@ class EedomusClient:
 
                         # Normalisation du champ success
                         response_data["success"] = 1
+                        # Add raw data size for volume tracking
+                        response_data["_raw_data_size_bytes"] = len(raw_data)
                         return response_data
 
                     except json.JSONDecodeError:
