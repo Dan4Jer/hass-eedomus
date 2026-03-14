@@ -69,8 +69,8 @@ class EedomusEndpointVolumeSensor(CoordinatorEntity, SensorEntity):
     def extra_state_attributes(self):
         """Return additional state attributes."""
         bytes_value = int(self.coordinator._endpoint_data_sizes.get(self._endpoint_name, 0)) if hasattr(self.coordinator, '_endpoint_data_sizes') else 0
-        kb_value = round(bytes_value / 1024, 2)
-        mb_value = round(kb_value / 1024, 2)
+        kb_value = bytes_value / 1024
+        mb_value = kb_value / 1024
         
         return {
             "last_updated": datetime.now().isoformat(),
@@ -79,8 +79,8 @@ class EedomusEndpointVolumeSensor(CoordinatorEntity, SensorEntity):
             "unit": "kilobytes",
             "call_count": self.coordinator._endpoint_call_counts.get(self._endpoint_name, 0) if hasattr(self.coordinator, '_endpoint_call_counts') else 0,
             "bytes": bytes_value,
-            "kilobytes": kb_value,
-            "megabytes": mb_value
+            "kilobytes": round(kb_value, 2),
+            "megabytes": round(mb_value, 2)
         }
 
 
