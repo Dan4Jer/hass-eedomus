@@ -17,5 +17,6 @@
     "icon": "https://raw.githubusercontent.com/Dan4Jer/hass-eedomus/main/icons/eedomus.png",
     "logo": "https://raw.githubusercontent.com/Dan4Jer/hass-eedomus/main/icons/eedomus.png",
     "render_icon": true,
-    "dependencies": []
+    "dependencies": [],
+    "language": ["fr"]
 }

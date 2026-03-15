@@ -7,6 +7,7 @@ import voluptuous as vol
 import logging
 import yaml
 import os
+import json
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.helpers import selector
@@ -34,6 +35,26 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+async def async_get_translations(hass, language="en"):
+    """Load translations for the given language."""
+    try:
+        translations_path = os.path.join(
+            os.path.dirname(__file__), "translations", f"{language}.json"
+        )
+        if os.path.exists(translations_path):
+            with open(translations_path, "r") as f:
+                return json.load(f)
+        else:
+            _LOGGER.warning(f"Translations for language {language} not found. Using English as fallback.")
+            translations_path = os.path.join(
+                os.path.dirname(__file__), "translations", "en.json"
+            )
+            with open(translations_path, "r") as f:
+                return json.load(f)
+    except Exception as e:
+        _LOGGER.error(f"Failed to load translations: {e}")
+        return {}
 
 
 class EedomusOptionsFlow(config_entries.OptionsFlow):
@@ -101,6 +122,10 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input=None):
         """Manage the options with mode selection."""
+        # Load translations
+        language = self.hass.config.language if self.hass else "en"
+        translations = await async_get_translations(self.hass, language) if self.hass else {}
+        
         if user_input is not None:
             # Save all configuration options
             options = {}
@@ -169,7 +194,9 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
             }),
             description_placeholders={
                 "current_mode": "Custom Mapping" if self.use_yaml else "UI (DISABLED)",
-                "docs_link": "https://github.com/Dan4Jer/hass-eedomus/blob/main/docs/README.md"
+                "docs_link": "https://github.com/Dan4Jer/hass-eedomus/blob/main/docs/README.md",
+                "title": translations.get("title", "Eedomus"),
+                "description": translations.get("description", "Integration for the eedomus home automation box.")
             }
         )
 
