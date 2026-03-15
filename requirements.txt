@@ -18,7 +18,6 @@ safety==2.3.5     # Security: Known vulnerability checking
 # Home Assistant development (compatible with Python 3.14)
 homeassistant>=2026.3.0
 requests>=2.31.0  # Security: CVE-2023-32681 fixed in 2.31.0+
-=======
 
 # Documentation
 mkdocs==1.5.3
