@@ -39,6 +39,10 @@ _LOGGER = logging.getLogger(__name__)
 async def async_get_translations(hass, language="en"):
     """Load translations for the given language."""
     try:
+        # Handle en-GB as en
+        if language == "en-GB":
+            language = "en"
+        
         translations_path = os.path.join(
             os.path.dirname(__file__), "translations", f"{language}.json"
         )
