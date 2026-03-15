@@ -172,8 +172,8 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
             _LOGGER.debug("Options to be saved: %s", {k: v for k, v in options.items() if k != CONF_YAML_CONTENT})
             _LOGGER.debug("API Proxy Disable Security to be saved: %s", options.get(CONF_API_PROXY_DISABLE_SECURITY, False))
             
-            # If YAML mode is enabled or edit YAML is requested, redirect to YAML edit step
-            if user_input.get(CONF_USE_YAML, False) or user_input.get("edit_yaml", False):
+            # If YAML mode is enabled, redirect to YAML edit step
+            if user_input.get(CONF_USE_YAML, False):
                 return await self.async_step_yaml_edit(user_input)
             
             # Create entry with only the options that are allowed
@@ -199,7 +199,6 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(CONF_PHP_FALLBACK_ENABLED, default=current_options.get(CONF_PHP_FALLBACK_ENABLED, False)): bool,
                 vol.Optional(CONF_PHP_FALLBACK_SCRIPT_NAME, default=current_options.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")): str,
                 vol.Optional(CONF_PHP_FALLBACK_TIMEOUT, default=current_options.get(CONF_PHP_FALLBACK_TIMEOUT, 5)): int,
-                vol.Optional("edit_yaml", default=False): bool,
             }),
             description_placeholders={
                 "current_mode": "Custom Mapping" if self.use_yaml else "UI (DISABLED)",
