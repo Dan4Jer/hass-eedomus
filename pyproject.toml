@@ -11,6 +11,9 @@ dependencies = [
     "yarl==1.9.2",
 ]
 
+[tool.setuptools]
+py-modules = []
+
 [tool.black]
 line-length = 88
 target-version = ['py39']
