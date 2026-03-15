@@ -385,6 +385,7 @@ def merge_yaml_mappings(default_mapping: Dict[str, Any], custom_mapping: Dict[st
     advanced_rules_dict = {}
     if isinstance(advanced_rules, list):
         _LOGGER.debug("🔍 Converting advanced rules from list to dict format")
+        dynamic_props = {}
         for rule in advanced_rules:
             if isinstance(rule, dict) and 'mapping' in rule:
                 mapping = rule['mapping']
@@ -401,6 +402,16 @@ def merge_yaml_mappings(default_mapping: Dict[str, Any], custom_mapping: Dict[st
                     ha_entity = mapping.get('ha_entity')
                     if ha_entity:
                         dynamic_props[ha_entity] = True
+        
+        # Convert advanced rules list to dict format for entity.py
+        # This is the actual conversion that was missing!
+        for rule in advanced_rules:
+            if isinstance(rule, dict) and 'name' in rule:
+                rule_name = rule['name']
+                advanced_rules_dict[rule_name] = rule
+                _LOGGER.debug("✅ Added rule '%s' to advanced_rules_dict", rule_name)
+        
+        _LOGGER.debug("🔍 Converted %d advanced rules to dict format", len(advanced_rules_dict))
         
         # Merge extracted properties with existing properties (don't override)
         if dynamic_props:
@@ -476,6 +487,15 @@ def merge_yaml_mappings(default_mapping: Dict[str, Any], custom_mapping: Dict[st
             merged['metadata'] = {}
         merged['metadata'].update(custom_mapping['metadata'])
         _LOGGER.debug("✅ Merged custom metadata: %s", custom_mapping['metadata'].get('version', 'unknown'))
+
+    # Add advanced_rules (list format) to merged for backward compatibility
+    merged['advanced_rules'] = advanced_rules
+    _LOGGER.debug("✅ Added advanced_rules (list format) with %d rules to merged configuration", len(advanced_rules))
+
+    # CRITICAL: Add advanced_rules_dict to merged result
+    # This was missing and caused RGBW mapping to fail
+    merged['advanced_rules_dict'] = advanced_rules_dict
+    _LOGGER.debug("✅ Added advanced_rules_dict with %d rules to merged configuration", len(advanced_rules_dict))
 
     return merged
 

@@ -94,7 +94,9 @@ class EedomusSelect(EedomusEntity, SelectEntity):
     def options(self) -> list[str]:
         """Return a list of available options."""
         # eedomus uses "values" field which contains list of {value, description} items
-        values_data = self.coordinator.data[self._periph_id].get("values", [])
+        if self.coordinator.data is None:
+            return []
+        values_data = self.coordinator.data.get(self._periph_id, {}).get("values", [])
 
         if not values_data:
             return []
@@ -176,8 +178,10 @@ class EedomusSelect(EedomusEntity, SelectEntity):
     @property
     def available(self) -> bool:
         """Return True if entity is available."""
+        if self.coordinator.data is None:
+            return False
         return (
-            self.coordinator.data[self._periph_id].get("last_value", "") != ""
+            self.coordinator.data.get(self._periph_id, {}).get("last_value", "") != ""
             and len(self.options) > 0
         )
 

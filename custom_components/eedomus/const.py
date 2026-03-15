@@ -52,6 +52,7 @@ CONF_RELOAD_MAPPING = "reload_mapping"
 DEFAULT_CONF_ENABLE_API_EEDOMUS = True  # Enable Eedomus API integration
 DEFAULT_CONF_ENABLE_API_PROXY = False
 DEFAULT_ENABLE_API_PROXY = False  # API Proxy disabled by default in options
+DEFAULT_CONF_ENABLE_HISTORY = False  # History disabled by default (temporarily)
 DEFAULT_ENABLE_HISTORY = False  # History disabled by default (temporarily)
 DEFAULT_HISTORY_RETRY_DELAY = 24  # 24 hours  # History retry delay in hours (24 hours by default)
 DEFAULT_HISTORY_PERIPHERALS_PER_SCAN = 1  # History: 1 peripheral per scan interval by default

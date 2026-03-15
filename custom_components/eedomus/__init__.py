@@ -31,6 +31,7 @@ from .const import (
     DEFAULT_API_PROXY_DISABLE_SECURITY,
     DEFAULT_CONF_ENABLE_API_EEDOMUS,
     DEFAULT_CONF_ENABLE_API_PROXY,
+    DEFAULT_ENABLE_HISTORY,
     DEFAULT_ENABLE_WEBHOOK,
     DEFAULT_REMOVE_ENTITIES,
     DEFAULT_SCAN_INTERVAL,
@@ -80,13 +81,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """
     _LOGGER.info("🚀 Starting eedomus integration setup - Version %s", VERSION)
     _LOGGER.debug("Setting up eedomus integration with entry_id: %s", entry.entry_id)
+    
+    # Perform migration if needed
+    if entry.version < 4:
+        try:
+            await async_migrate_entry(hass, entry)
+            # Reload the entry to apply migration changes
+            await hass.config_entries.async_reload(entry.entry_id)
+            return False  # Setup will be retried after reload
+        except Exception as e:
+            _LOGGER.error("Migration failed: %s", e)
+            return False
 
     # Check which modes are enabled
-    api_eedomus_enabled = entry.data.get(
-        CONF_ENABLE_API_EEDOMUS, DEFAULT_CONF_ENABLE_API_EEDOMUS
+    # First check options (updated via options flow), then data (initial config), then defaults
+    api_eedomus_enabled = entry.options.get(
+        CONF_ENABLE_API_EEDOMUS,
+        entry.data.get(CONF_ENABLE_API_EEDOMUS, DEFAULT_CONF_ENABLE_API_EEDOMUS)
     )
-    api_proxy_enabled = entry.data.get(
-        CONF_ENABLE_API_PROXY, DEFAULT_CONF_ENABLE_API_PROXY
+    api_proxy_enabled = entry.options.get(
+        CONF_ENABLE_API_PROXY,
+        entry.data.get(CONF_ENABLE_API_PROXY, DEFAULT_CONF_ENABLE_API_PROXY)
     )
 
     _LOGGER.info(
@@ -245,11 +260,32 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # No need for separate registration to avoid double setup
         if timing_sensors:
             _LOGGER.info("✅ Refresh timing sensors ready (will be registered with other sensors)")
-            # Store timing sensors in coordinator for access by sensor setup
-            if coordinator:
-                coordinator._timing_sensors = timing_sensors
     except Exception as err:
         _LOGGER.error("Failed to setup refresh timing sensors: %s", err)
+
+    # Setup endpoint volume sensors (data volume monitoring)
+    try:
+        from .endpoint_volume_sensor import async_setup_endpoint_volume_sensors
+        volume_sensors = await async_setup_endpoint_volume_sensors(hass, coordinator, device_registry)
+        
+        # Debug: Log the number of volume sensors created
+        _LOGGER.info("📊 Created %d endpoint volume sensors", len(volume_sensors) if volume_sensors else 0)
+        
+        # Note: Volume sensors will be registered with other sensors via PLATFORMS
+        # No need for separate registration to avoid double setup
+        if volume_sensors:
+            _LOGGER.info("✅ Endpoint volume sensors ready (will be registered with other sensors)")
+            # Store volume sensors in coordinator for access by sensor setup
+            if coordinator:
+                coordinator._volume_sensors = volume_sensors
+                _LOGGER.debug("📊 Stored %d volume sensors in coordinator", len(volume_sensors))
+    except Exception as err:
+        _LOGGER.error("Failed to setup endpoint volume sensors: %s", err)
+
+    # Store timing sensors in coordinator for access by sensor setup
+    if coordinator and 'timing_sensors' in locals():
+        coordinator._timing_sensors = timing_sensors
+
 
 
     # Stockage sécurisé
@@ -357,6 +393,64 @@ async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None
     
     await hass.config_entries.async_reload(entry.entry_id)
 
+
+
+async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+    """Migrate old entry."""
+    _LOGGER.debug("Migrating from version %s", config_entry.version)
+    
+    # Migration from version 1 to 2: Add new options
+    if config_entry.version == 1:
+        new_data = {**config_entry.data}
+        new_options = {**config_entry.options}
+        
+        # Add new options with default values
+        new_options.setdefault(CONF_ENABLE_HISTORY, DEFAULT_ENABLE_HISTORY)
+        new_options.setdefault(CONF_REMOVE_ENTITIES, DEFAULT_REMOVE_ENTITIES)
+        
+        hass.config_entries.async_update_entry(config_entry, data=new_data, options=new_options, version=2)
+        _LOGGER.info("Migration to version 2 completed")
+    
+    # Migration from version 2 to 3: Add API proxy settings
+    if config_entry.version == 2:
+        new_data = {**config_entry.data}
+        new_options = {**config_entry.options}
+        
+        # Add API proxy settings
+        new_options.setdefault(CONF_ENABLE_API_PROXY, DEFAULT_CONF_ENABLE_API_PROXY)
+        new_options.setdefault(CONF_API_PROXY_DISABLE_SECURITY, DEFAULT_API_PROXY_DISABLE_SECURITY)
+        
+        hass.config_entries.async_update_entry(config_entry, data=new_data, options=new_options, version=3)
+        _LOGGER.info("Migration to version 3 completed")
+    
+    # Migration from version 3 to 4: Preserve custom_mapping.yaml
+    if config_entry.version == 3:
+        new_data = {**config_entry.data}
+        new_options = {**config_entry.options}
+        
+        # Preserve custom mapping file during migration
+        try:
+            custom_mapping_path = os.path.join(os.path.dirname(__file__), "config", "custom_mapping.yaml")
+            if os.path.exists(custom_mapping_path):
+                # Backup the custom mapping file using async executor to avoid blocking
+                backup_path = f"{custom_mapping_path}.backup_v{config_entry.version}"
+                
+                async def async_backup_file():
+                    import shutil
+                    await hass.async_add_executor_job(
+                        shutil.copy2, custom_mapping_path, backup_path
+                    )
+                    _LOGGER.info("Backed up custom_mapping.yaml to %s", backup_path)
+                
+                await async_backup_file()
+        except Exception as e:
+            _LOGGER.error("Failed to backup custom_mapping.yaml: %s", e)
+        
+        hass.config_entries.async_update_entry(config_entry, data=new_data, options=new_options, version=4)
+        _LOGGER.info("Migration to version 4 completed - custom_mapping.yaml preserved")
+    
+    _LOGGER.info("Migration completed successfully")
+    return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

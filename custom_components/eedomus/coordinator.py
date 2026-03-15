@@ -69,6 +69,13 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             'set_periph_value': 0.0,
             'partial_refresh': 0.0
         }
+        self._endpoint_data_sizes = {
+            'get_periph_list': 0,
+            'get_periph_value_list': 0,
+            'get_periph_caract': 0,
+            'set_periph_value': 0,
+            'partial_refresh': 0
+        }
         self._endpoint_call_counts = {
             'get_periph_list': 0,
             'get_periph_value_list': 0,
@@ -200,6 +207,35 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
         # Display enhanced mapping table only on initial startup (not on subsequent refreshes)
         if not hasattr(self, '_mapping_table_displayed'):
+            # Count device types for summary
+            device_types = {}
+            rgbw_lamps = 0
+            rgbw_children = 0
+            
+            for periph_id in aggregated_data.keys():
+                periph_data = aggregated_data[periph_id]
+                ha_entity = periph_data.get('ha_entity', '?')
+                ha_subtype = periph_data.get('ha_subtype', '?')
+                device_type = f"{ha_entity}:{ha_subtype}"
+                
+                # Count device types
+                device_types[device_type] = device_types.get(device_type, 0) + 1
+                
+                # Count RGBW devices
+                if ha_entity == 'light' and ha_subtype == 'rgbw':
+                    rgbw_lamps += 1
+                elif periph_data.get('parent_periph_id') and \
+                     aggregated_data.get(periph_data['parent_periph_id'], {}).get('ha_subtype') == 'rgbw':
+                    rgbw_children += 1
+            
+            # Display summary at INFO level (always visible)
+            _LOGGER.info("🗺️ Device Mapping Summary: %d total devices, %d unique types", 
+                        len(aggregated_data), len(device_types))
+            if rgbw_lamps > 0:
+                _LOGGER.info("🎨 RGBW Devices: %d lamps with %d brightness channels", 
+                           rgbw_lamps, rgbw_children)
+            
+            # Display enhanced mapping table at INFO level for complete visibility
             _LOGGER.info("🗺️ Enhanced Device Mapping Table:")
             _LOGGER.info("=" * 150)
             _LOGGER.info("| Periph ID   | Device Name                          | Parent ID     | Type       | Subtype         | usage_id | PRODUCT_TYPE_ID | Justification                                  |")
@@ -213,7 +249,6 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 usage_id = periph_data.get('usage_id', '?')
                 product_type_id = periph_data.get('PRODUCT_TYPE_ID', '?')
                 device_name = periph_data.get('name', '?')
-                usage_name = periph_data.get('usage_name', '?')
                 
                 # Determine justification
                 is_rgbw_parent = (ha_entity == 'light' and ha_subtype == 'rgbw')
@@ -230,7 +265,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 else:
                     justification = f"{ha_entity}:{ha_subtype} mapping"
                 
-                # Format the table row
+                # Format the table row at INFO level
                 _LOGGER.info("| %-12s | %-35s | %-12s | %-10s | %-14s | %-8s | %-15s | %-45s |",
                             periph_id,
                             f"{device_name}",
@@ -267,13 +302,20 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             self._full_refresh_needed = True
         self._last_update_start_time = start_time
         
-        # Reset endpoint timings before each refresh to avoid cumulative errors
+        # Reset endpoint timings and data sizes before each refresh
         self._endpoint_timings = {
             'get_periph_list': 0.0,
             'get_periph_value_list': 0.0,
             'get_periph_caract': 0.0,
             'set_periph_value': 0.0,
             'partial_refresh': 0.0
+        }
+        self._endpoint_data_sizes = {
+            'get_periph_list': 0,
+            'get_periph_value_list': 0,
+            'get_periph_caract': 0,
+            'set_periph_value': 0,
+            'partial_refresh': 0
         }
         
         try:
@@ -299,11 +341,14 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     self._last_refresh_time = total_time
                     self._last_processed_devices = stats['total_peripherals']
                     
-                    # Log detailed endpoint timings
+                    # Log detailed endpoint metrics (timings + data sizes in KB)
                     endpoint_details = []
                     for endpoint, time in self._endpoint_timings.items():
                         if time > 0:
-                            endpoint_details.append(f"{endpoint}: {time:.3f}s")
+                            data_size = self._endpoint_data_sizes.get(endpoint, 0)
+                            # Convert bytes to KB for better readability
+                            data_size_kb = round(data_size / 1024, 1) if data_size > 0 else 0
+                            endpoint_details.append(f"{endpoint}: {time:.3f}s ({data_size_kb} KB)")
                     endpoint_log = ", ".join(endpoint_details) if endpoint_details else "no endpoints"
                     
                     _LOGGER.info("🔄 FULL REFRESH: %d total, %d dynamic, %.3fs total (API: %.3fs, Processing: %.3fs, Endpoints: %s)",
@@ -353,11 +398,12 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 # For partial refresh, processed devices is the number of dynamic peripherals
                 self._last_processed_devices = len(self._dynamic_peripherals) if hasattr(self, '_dynamic_peripherals') else 0
                 
-                # Log detailed endpoint timings for partial refresh
+                # Log detailed endpoint metrics for partial refresh (timings + data sizes)
                 endpoint_details = []
                 for endpoint, time in self._endpoint_timings.items():
                     if time > 0:
-                        endpoint_details.append(f"{endpoint}: {time:.3f}s")
+                        data_size = self._endpoint_data_sizes.get(endpoint, 0)
+                        endpoint_details.append(f"{endpoint}: {time:.3f}s ({data_size} items)")
                 endpoint_log = ", ".join(endpoint_details) if endpoint_details else "no endpoints"
                 
                 # Count dynamic peripherals using the same logic as full refresh for consistency
@@ -368,13 +414,27 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 return ret
         except Exception as err:
             elapsed = (datetime.now() - start_time).total_seconds()
-            _LOGGER.exception(
-                "Error updating eedomus after %.3f seconds data: %s", elapsed, err
-            )
-            # Return last known good data if available
-            if hasattr(self, "data") and self.data:
-                return self.data
-            raise UpdateFailed(f"Error updating data: {err}") from err
+            
+            # Handle timeout specifically - don't raise UpdateFailed for timeouts
+            if "Request timed out" in str(err):
+                _LOGGER.warning(
+                    "⏳ Timeout occurred after %.3f seconds - using last known good data (size: %d)",
+                    elapsed,
+                    len(self.data) if hasattr(self, "data") and self.data else 0
+                )
+                # Return last known good data if available
+                if hasattr(self, "data") and self.data:
+                    return self.data
+                # If no data available, return empty success response
+                return {"success": 1, "body": []}
+            else:
+                _LOGGER.exception(
+                    "Error updating eedomus after %.3f seconds data: %s", elapsed, err
+                )
+                # Return last known good data if available
+                if hasattr(self, "data") and self.data:
+                    return self.data
+                raise UpdateFailed(f"Error updating data: {err}") from err
 
     async def _async_partial_data_retreive(self, concat_text_periph_id: str):
         peripherals_caract_response = await self.client.get_periph_caract(
@@ -437,26 +497,32 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         """Retrieve full data including peripherals list, value list, and characteristics."""
         from datetime import datetime
         
-        # Track timing for each endpoint
+        # Track timing and data size for each endpoint
         start_time = datetime.now()
         peripherals_response = await self.client.get_periph_list()
         self._endpoint_timings['get_periph_list'] = (datetime.now() - start_time).total_seconds()
+        # Store data size in bytes (raw response size from client)
+        self._endpoint_data_sizes['get_periph_list'] = peripherals_response.get('_raw_data_size_bytes', 0)
         self._endpoint_call_counts['get_periph_list'] += 1
         
         start_time = datetime.now()
         peripherals_value_list_response = await self.client.get_periph_value_list("all")
         self._endpoint_timings['get_periph_value_list'] = (datetime.now() - start_time).total_seconds()
+        # Store data size in bytes (raw response size from client)
+        self._endpoint_data_sizes['get_periph_value_list'] = peripherals_value_list_response.get('_raw_data_size_bytes', 0)
         self._endpoint_call_counts['get_periph_value_list'] += 1
         
         start_time = datetime.now()
         peripherals_caract_response = await self.client.get_periph_caract("all", True)
         self._endpoint_timings['get_periph_caract'] = (datetime.now() - start_time).total_seconds()
+        # Store data size in bytes (raw response size from client)
+        self._endpoint_data_sizes['get_periph_caract'] = peripherals_caract_response.get('_raw_data_size_bytes', 0)
         self._endpoint_call_counts['get_periph_caract'] += 1
         
-        _LOGGER.debug("📊 Endpoint timings - get_periph_list: %.3fs, get_periph_value_list: %.3fs, get_periph_caract: %.3fs",
-                     self._endpoint_timings['get_periph_list'],
-                     self._endpoint_timings['get_periph_value_list'],
-                     self._endpoint_timings['get_periph_caract'])
+        _LOGGER.debug("📊 Endpoint metrics - get_periph_list: %.3fs (%.1f KB), get_periph_value_list: %.3fs (%.1f KB), get_periph_caract: %.3fs (%.1f KB)",
+                     self._endpoint_timings['get_periph_list'], self._endpoint_data_sizes['get_periph_list'] / 1024,
+                     self._endpoint_timings['get_periph_value_list'], self._endpoint_data_sizes['get_periph_value_list'] / 1024,
+                     self._endpoint_timings['get_periph_caract'], self._endpoint_data_sizes['get_periph_caract'] / 1024)
         if (
             not isinstance(peripherals_response, dict)
             or not isinstance(peripherals_value_list_response, dict)
@@ -609,6 +675,15 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         history_retrieval = self.client.config_entry.data.get(
             CONF_ENABLE_HISTORY, False
         )
+        
+        # Get all peripherals that need history retrieval
+        # Include all peripherals that have data, not just dynamic ones
+        peripherals_for_history = []
+        
+        # Populate peripherals_for_history with dynamic peripheral IDs
+        for periph_id in self._dynamic_peripherals:
+            peripherals_for_history.append(periph_id)
+        
         _LOGGER.debug(
             "Performing partial refresh for %d dynamic peripherals, history=%s",
             len(self._dynamic_peripherals),
@@ -631,13 +706,18 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
         concat_text_periph_id = ",".join(peripherals_for_history)
         try:
-            # Track timing for get_periph_caract (partial refresh)
+            # Track timing and data size for get_periph_caract (partial refresh)
             api_start_time = datetime.now()
             peripherals_caract = await self.client.get_periph_caract(
                 concat_text_periph_id
             )
             self._endpoint_timings['get_periph_caract'] = (datetime.now() - api_start_time).total_seconds()
+            # Store data size in bytes (raw response size from client)
+            self._endpoint_data_sizes['get_periph_caract'] = peripherals_caract.get('_raw_data_size_bytes', 0)
             self._endpoint_call_counts['get_periph_caract'] += 1
+            
+            _LOGGER.debug("📊 Partial refresh metrics - get_periph_caract: %.3fs (%d bytes)",
+                        self._endpoint_timings['get_periph_caract'], self._endpoint_data_sizes['get_periph_caract'])
         except Exception as e:
             _LOGGER.warning(
                 "Failed to partial refresh peripheral %s: %s", concat_text_periph_id, e
@@ -655,7 +735,13 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.error("peripherals_caract body is not a list: %s", type(peripherals_body))
             if peripherals_body is None:
                 _LOGGER.error("peripherals_caract body is None, API may have returned empty response")
-            return
+            # Return current data to preserve state instead of None
+            if hasattr(self, 'data') and self.data:
+                _LOGGER.info("Returning current data to preserve state during partial refresh")
+                return self.data
+            else:
+                _LOGGER.error("No data available to return during partial refresh")
+                return {"success": 1, "body": []}
         
         # End API timing, start processing timing
         api_time = (datetime.now() - api_start_time).total_seconds()

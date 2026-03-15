@@ -316,9 +316,8 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     
     # Debug: Log if advanced_rules_dict is empty
     if not advanced_rules_dict:
-        _LOGGER.error("❌ CRITICAL: advanced_rules_dict is empty for device %s (%s)", 
+        _LOGGER.debug("🔍 advanced_rules_dict is empty for device %s (%s) - no advanced rules configured", 
                      periph_name, periph_id)
-        _LOGGER.error("❌ This means no advanced rules will be evaluated!")
     else:
         _LOGGER.debug("✅ advanced_rules_dict has %d rules for device %s (%s)", 
                      len(advanced_rules_dict), periph_name, periph_id)
@@ -438,14 +437,14 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     if usage_id and DEVICE_MAPPINGS and usage_id in DEVICE_MAPPINGS['usage_id_mappings']:
         mapping = DEVICE_MAPPINGS['usage_id_mappings'][usage_id].copy()
         
-        # Debug: Log the mapping structure for usage_id 23
+        # Debug: Log the mapping structure for usage_id 23 (DEBUG level)
         if str(usage_id) == "23":
-            _LOGGER.info("🔍 Usage_id 23 mapping structure: %s", list(mapping.keys()))
-            _LOGGER.info("🔍 Checking for subtype_mapping: %s", ("subtype_mapping" in mapping))
+            _LOGGER.debug("🔍 Usage_id 23 mapping structure: %s", list(mapping.keys()))
+            _LOGGER.debug("🔍 Checking for subtype_mapping: %s", ("subtype_mapping" in mapping))
         
         # Check for dynamic subtype mapping based on device properties
         if "subtype_mapping" in mapping:
-            _LOGGER.info("✅ Found subtype_mapping in usage_id %s mapping", usage_id)
+            _LOGGER.debug("✅ Found subtype_mapping in usage_id %s mapping", usage_id)
             _LOGGER.debug("🔍 Evaluating dynamic subtype mapping for %s (%s) with usage_id=%s", 
                         periph_name, periph_id, usage_id)
             
@@ -455,13 +454,13 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                 conditions = subtype_rule.get("conditions", {})
                 match = True
                 
-                # Check each condition
+                # Check each condition (DEBUG level)
                 for cond_key, cond_value in conditions.items():
                     device_value = device_data.get(cond_key)
-                    _LOGGER.info("🔍 Checking condition %s=%s (device has %s)", 
+                    _LOGGER.debug("🔍 Checking condition %s=%s (device has %s)", 
                                 cond_key, cond_value, device_value)
                     if device_value != cond_value:
-                        _LOGGER.info("❌ Condition failed: %s=%s != %s", 
+                        _LOGGER.debug("❌ Condition failed: %s=%s != %s", 
                                     cond_key, device_value, cond_value)
                         match = False
                         break
@@ -477,7 +476,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                     break
             
             if not matched and "default" in mapping:
-                _LOGGER.info("🔄 Using default mapping for %s (%s)", periph_name, periph_id)
+                _LOGGER.debug("🔄 Using default mapping for %s (%s)", periph_name, periph_id)
                 # Apply default mapping
                 for key, value in mapping["default"].items():
                     mapping[key] = value

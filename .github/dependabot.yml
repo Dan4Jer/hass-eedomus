@@ -1,0 +1,28 @@
+version: 2
+updates:
+  # Mise à jour des dépendances Python (requirements.txt)
+  - package-ecosystem: "pip"
+    directory: "/"  # Dossier racine (où se trouve requirements.txt)
+    schedule:
+      interval: "weekly"  # Vérifie les mises à jour chaque semaine
+    open-pull-requests-limit: 5  # Limite le nombre de PR ouvertes
+    target-branch: "unstable"  # Cible la branche unstable (ta branche de dev)
+    labels:
+      - "dependencies"
+      - "automated"
+    reviewers:
+      - "Dan4Jer"  # Toi, pour review automatique
+    commit-message:
+      prefix: "[deps]"  # Préfixe pour les commits de dépendances
+      include: "scope"  # Inclut le nom de la dépendance dans le message
+
+  # Mise à jour des GitHub Actions (workflows CI)
+  - package-ecosystem: "github-actions"
+    directory: "/.github/workflows"  # Dossier des workflows
+    schedule:
+      interval: "monthly"  # Moins fréquent pour les actions
+    open-pull-requests-limit: 3
+    target-branch: "unstable"
+    labels:
+      - "github-actions"
+      - "automated"
