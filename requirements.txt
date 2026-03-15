@@ -2,8 +2,10 @@
 # This file is for local development and testing purposes
 
 # Core dependencies (also in manifest.json)
-aiohttp>=3.8
-yarl>=1.8
+aiohttp>=3.9.3  # Version corrigée pour les vulnérabilités connues
+requests>=2.31.0  # Remplace l'ancienne version vulnérable
+yarl>=1.9.2
+
 
 # Development dependencies
 black==26.3.1
@@ -15,9 +17,9 @@ mypy==1.8.0
 pip-audit==2.7.0  # Security: Dependency vulnerability scanning
 safety==2.3.5     # Security: Known vulnerability checking
 
+
 # Home Assistant development (compatible with Python 3.14)
 homeassistant>=2026.3.0
-requests>=2.31.0  # Security: CVE-2023-32681 fixed in 2.31.0+
 
 # Documentation
 mkdocs==1.5.3
@@ -25,3 +27,4 @@ mkdocs-material==9.5.6
 
 # Type checking
 types-aiohttp==0.4.11
+types-requests==2.31.0.20240311  # Ajout pour le typage de requests
