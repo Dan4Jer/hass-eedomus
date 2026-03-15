@@ -16,6 +16,7 @@ import json
 import sys
 import subprocess
 from typing import List, Dict, Optional
+from urllib.parse import urlparse
 
 # Configuration
 REPO_OWNER = "Dan4Jer"
@@ -26,13 +27,10 @@ try:
     import os
     with open(os.path.expanduser("~/.git-credentials")) as f:
         for line in f:
-            if "github.com" in line:
+            parsed = urlparse(line.strip())
+            if parsed.hostname == "github.com":
                 # Extract token from URL format: https://user:token@github.com
-                parts = line.split(":")
-                if len(parts) >= 3:
-                    GITHUB_TOKEN = parts[2].split("@")[0]
-                else:
-                    GITHUB_TOKEN = parts[1].split("@")[0]
+                GITHUB_TOKEN = parsed.password
                 break
         else:
             GITHUB_TOKEN = None
