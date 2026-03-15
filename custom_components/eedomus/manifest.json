@@ -6,8 +6,9 @@
     "issue_tracker": "https://github.com/Dan4Jer/hass-eedomus/issues",
     "category": "Hub",
     "requirements": [
-        "aiohttp>=3.8",
-        "yarl>=1.8"
+        "aiohttp==3.9.3",
+        "requests==2.31.0",
+        "yarl==1.9.2"
     ],
     "codeowners": ["@Dan4Jer"],
     "iot_class": "local_polling",

@@ -1,6 +1,4 @@
-# Production requirements for hass-eedomus
-# These are also specified in manifest.json but provided here for reference
-
-# Core dependencies
-aiohttp>=3.8
-yarl>=1.8
+# Production dependencies only (for lockfile generation)
+aiohttp==3.9.3
+requests==2.31.0
+yarl==1.9.2

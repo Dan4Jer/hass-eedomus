@@ -1,3 +1,16 @@
+[build-system]
+requires = ["setuptools>=65.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hass-eedomus"
+version = "0.14.3"
+dependencies = [
+    "aiohttp==3.9.3",
+    "requests==2.31.0",
+    "yarl==1.9.2",
+]
+
 [tool.black]
 line-length = 88
 target-version = ['py39']
