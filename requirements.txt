@@ -14,6 +14,8 @@ isort==5.13.2
 pytest==7.4.4
 pytest-asyncio==0.23.2
 mypy==1.8.0
+pip-audit==2.7.0  # Security: Dependency vulnerability scanning
+safety==2.3.5     # Security: Known vulnerability checking
 
 
 # Home Assistant development (compatible with Python 3.14)
