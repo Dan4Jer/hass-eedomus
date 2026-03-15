@@ -1,4 +1,4 @@
 # Runtime dependencies only (for GitHub dependency submission)
-aiohttp==3.9.3
-requests==2.31.0
-yarl==1.9.2
+aiohttp>=3.9.0
+requests>=2.31.0
+yarl>=1.9.0
