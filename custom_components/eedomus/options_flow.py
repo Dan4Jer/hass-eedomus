@@ -230,8 +230,10 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                     os.path.dirname(__file__), "config", "custom_mapping.yaml"
                 )
                 
-                with open(custom_mapping_path, "w") as f:
-                    f.write(yaml_content)
+                # Use async_add_executor_job to avoid blocking calls
+                await hass.async_add_executor_job(
+                    lambda: open(custom_mapping_path, "w").write(yaml_content)
+                )
                 
                 _LOGGER.info("YAML configuration saved successfully")
                 
@@ -274,9 +276,11 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 os.path.dirname(__file__), "config", "custom_mapping.yaml"
             )
             
+            # Use async_add_executor_job to avoid blocking calls
             if os.path.exists(custom_mapping_path):
-                with open(custom_mapping_path, "r") as f:
-                    yaml_content = f.read()
+                yaml_content = await hass.async_add_executor_job(
+                    lambda: open(custom_mapping_path, "r").read()
+                )
             else:
                 yaml_content = "# Custom device mapping configuration\n"
         except Exception as e:
@@ -442,11 +446,14 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 self.hass,
                 self.hass.config.config_dir
             )
-            self.yaml_content = yaml.dump(
-                current_mapping,
-                default_flow_style=False,
-                sort_keys=False,
-                allow_unicode=True
+            # Use async_add_executor_job to avoid blocking calls
+            self.yaml_content = await hass.async_add_executor_job(
+                lambda: yaml.dump(
+                    current_mapping,
+                    default_flow_style=False,
+                    sort_keys=False,
+                    allow_unicode=True
+                )
             )
         except Exception as e:
             _LOGGER.error("Failed to load YAML for editing: %s", e)
