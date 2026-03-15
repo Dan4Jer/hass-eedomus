@@ -112,3 +112,27 @@ async def test_cover_with_energy_sensor():
     # This is handled in the coordinator setup, but we can verify the data exists
     consumption_data = mock_coordinator.data.get("cover_123_consumption", {})
     assert consumption_data.get("consumption") == 25.5
+
+
+@pytest.mark.asyncio
+async def test_cover_with_missing_parent():
+    """Test cover when parent device is not loaded (Issue #26)."""
+    mock_coordinator = AsyncMock()
+    mock_coordinator.data = {
+        "cover_child": {"name": "Child Cover", "value": "closed", "position": 0, "parent_periph_id": "missing_parent"}
+        # Note: missing_parent is NOT in coordinator.data
+    }
+
+    device_info = {
+        "periph_id": "cover_child",
+        "name": "Child Cover",
+        "usage_id": "48",
+        "parent_periph_id": "missing_parent"
+    }
+
+    # This should not raise KeyError
+    cover = EedomusCover(mock_coordinator, device_info)
+
+    # Verify cover properties
+    assert cover.name == "Child Cover"
+    # Should not crash even with missing parent

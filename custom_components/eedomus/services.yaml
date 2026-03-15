@@ -26,6 +26,11 @@ reload:
   description: Reload the eedomus integration configuration
   fields: {}
 
+cleanup_unused_entities:
+  name: Cleanup unused eedomus entities
+  description: Remove disabled, deprecated, and orphaned eedomus entities
+  fields: {}
+
 # Additional services can be added here for future expansion
 # Example:
 # get_history:
