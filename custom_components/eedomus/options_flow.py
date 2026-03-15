@@ -46,16 +46,20 @@ async def async_get_translations(hass, language="en"):
         translations_path = os.path.join(
             os.path.dirname(__file__), "translations", f"{language}.json"
         )
+        
+        # Use async_add_executor_job to avoid blocking calls
         if os.path.exists(translations_path):
-            with open(translations_path, "r") as f:
-                return json.load(f)
+            return await hass.async_add_executor_job(
+                lambda: json.load(open(translations_path, "r"))
+            )
         else:
             _LOGGER.warning(f"Translations for language {language} not found. Using English as fallback.")
             translations_path = os.path.join(
                 os.path.dirname(__file__), "translations", "en.json"
             )
-            with open(translations_path, "r") as f:
-                return json.load(f)
+            return await hass.async_add_executor_job(
+                lambda: json.load(open(translations_path, "r"))
+            )
     except Exception as e:
         _LOGGER.error(f"Failed to load translations: {e}")
         return {}
