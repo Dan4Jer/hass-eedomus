@@ -1,4 +1,6 @@
 name: HACS Validation
+permissions:
+  contents: read
 
 on:
   push:
