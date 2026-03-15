@@ -50,7 +50,7 @@ async def async_get_translations(hass, language="en"):
         
         # Use async_add_executor_job to avoid blocking calls
         if os.path.exists(translations_path):
-            return await hass.async_add_executor_job(
+            return await self.hass.async_add_executor_job(
                 lambda: json.load(open(translations_path, "r"))
             )
         else:
@@ -58,7 +58,7 @@ async def async_get_translations(hass, language="en"):
             translations_path = os.path.join(
                 os.path.dirname(__file__), "translations", "en.json"
             )
-            return await hass.async_add_executor_job(
+            return await self.hass.async_add_executor_job(
                 lambda: json.load(open(translations_path, "r"))
             )
     except Exception as e:
@@ -231,7 +231,7 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 )
                 
                 # Use async_add_executor_job to avoid blocking calls
-                await hass.async_add_executor_job(
+                await self.hass.async_add_executor_job(
                     lambda: open(custom_mapping_path, "w").write(yaml_content)
                 )
                 
@@ -278,7 +278,7 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
             
             # Use async_add_executor_job to avoid blocking calls
             if os.path.exists(custom_mapping_path):
-                yaml_content = await hass.async_add_executor_job(
+                yaml_content = await self.hass.async_add_executor_job(
                     lambda: open(custom_mapping_path, "r").read()
                 )
             else:
@@ -286,6 +286,10 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
         except Exception as e:
             _LOGGER.error(f"Failed to load YAML configuration: {e}")
             yaml_content = "# Custom device mapping configuration\n"
+        
+        # Load translations
+        language = self.hass.config.language if self.hass else "en"
+        translations = await async_get_translations(self.hass, language) if self.hass else {}
         
         return self.async_show_form(
             step_id="yaml_edit",
@@ -447,7 +451,7 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 self.hass.config.config_dir
             )
             # Use async_add_executor_job to avoid blocking calls
-            self.yaml_content = await hass.async_add_executor_job(
+            self.yaml_content = await self.hass.async_add_executor_job(
                 lambda: yaml.dump(
                     current_mapping,
                     default_flow_style=False,
