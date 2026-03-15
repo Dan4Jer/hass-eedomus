@@ -50,7 +50,7 @@ async def async_get_translations(hass, language="en"):
         
         # Use async_add_executor_job to avoid blocking calls
         if os.path.exists(translations_path):
-            return await self.hass.async_add_executor_job(
+            return await hass.async_add_executor_job(
                 lambda: json.load(open(translations_path, "r"))
             )
         else:
@@ -58,7 +58,7 @@ async def async_get_translations(hass, language="en"):
             translations_path = os.path.join(
                 os.path.dirname(__file__), "translations", "en.json"
             )
-            return await self.hass.async_add_executor_job(
+            return await hass.async_add_executor_job(
                 lambda: json.load(open(translations_path, "r"))
             )
     except Exception as e:
