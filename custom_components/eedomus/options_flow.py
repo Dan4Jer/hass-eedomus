@@ -168,6 +168,10 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
             _LOGGER.debug("Options to be saved: %s", {k: v for k, v in options.items() if k != CONF_YAML_CONTENT})
             _LOGGER.debug("API Proxy Disable Security to be saved: %s", options.get(CONF_API_PROXY_DISABLE_SECURITY, False))
             
+            # If YAML mode is enabled, redirect to YAML edit step
+            if user_input.get(CONF_USE_YAML, False):
+                return await self.async_step_yaml_edit(user_input)
+            
             # Create entry with only the options that are allowed
             return self.async_create_entry(title="", data=options)
 
@@ -198,6 +202,88 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 "title": translations.get("title", "Eedomus"),
                 "description": translations.get("description", "Integration for the eedomus home automation box.")
             }
+        )
+
+    async def async_step_yaml_edit(self, user_input=None):
+        """Handle YAML configuration editing."""
+        errors = {}
+        
+        if user_input is not None:
+            # Save YAML configuration
+            yaml_content = user_input.get(CONF_YAML_CONTENT, "")
+            
+            try:
+                # Validate YAML syntax
+                yaml.safe_load(yaml_content)
+                
+                # Save to custom_mapping.yaml
+                custom_mapping_path = os.path.join(
+                    os.path.dirname(__file__), "config", "custom_mapping.yaml"
+                )
+                
+                with open(custom_mapping_path, "w") as f:
+                    f.write(yaml_content)
+                
+                _LOGGER.info("YAML configuration saved successfully")
+                
+                # Update options
+                options = {
+                    CONF_USE_YAML: True,
+                    CONF_YAML_CONTENT: yaml_content
+                }
+                
+                # Add API configuration options - ensure config values are preserved
+                current_options = self._copy_config_to_options()
+                options.update({
+                    CONF_ENABLE_API_EEDOMUS: current_options.get(CONF_ENABLE_API_EEDOMUS, True),
+                    CONF_ENABLE_API_PROXY: current_options.get(CONF_ENABLE_API_PROXY, False),
+                    CONF_ENABLE_HISTORY: current_options.get(CONF_ENABLE_HISTORY, False),
+                    CONF_HISTORY_RETRY_DELAY: current_options.get(CONF_HISTORY_RETRY_DELAY, DEFAULT_HISTORY_RETRY_DELAY),
+                    CONF_HISTORY_PERIPHERALS_PER_SCAN: current_options.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, DEFAULT_HISTORY_PERIPHERALS_PER_SCAN),
+                    CONF_SCAN_INTERVAL: current_options.get(CONF_SCAN_INTERVAL, 300),
+                    CONF_ENABLE_SET_VALUE_RETRY: current_options.get(CONF_ENABLE_SET_VALUE_RETRY, True),
+                    CONF_ENABLE_WEBHOOK: current_options.get(CONF_ENABLE_WEBHOOK, True),
+                    CONF_API_PROXY_DISABLE_SECURITY: current_options.get(CONF_API_PROXY_DISABLE_SECURITY, False),
+                    CONF_PHP_FALLBACK_ENABLED: current_options.get(CONF_PHP_FALLBACK_ENABLED, False),
+                    CONF_PHP_FALLBACK_SCRIPT_NAME: current_options.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php"),
+                    CONF_PHP_FALLBACK_TIMEOUT: current_options.get(CONF_PHP_FALLBACK_TIMEOUT, 5),
+                    CONF_HTTP_REQUEST_TIMEOUT: current_options.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)
+                })
+                
+                _LOGGER.debug("Saving YAML configuration: %s", options)
+                return self.async_create_entry(title="", data=options)
+            except yaml.YAMLError as e:
+                errors["base"] = f"Invalid YAML syntax: {e}"
+                _LOGGER.error(f"Failed to save YAML configuration: {e}")
+            except Exception as e:
+                errors["base"] = f"Failed to save YAML configuration: {e}"
+                _LOGGER.error(f"Failed to save YAML configuration: {e}")
+        
+        # Load current YAML configuration
+        try:
+            custom_mapping_path = os.path.join(
+                os.path.dirname(__file__), "config", "custom_mapping.yaml"
+            )
+            
+            if os.path.exists(custom_mapping_path):
+                with open(custom_mapping_path, "r") as f:
+                    yaml_content = f.read()
+            else:
+                yaml_content = "# Custom device mapping configuration\n"
+        except Exception as e:
+            _LOGGER.error(f"Failed to load YAML configuration: {e}")
+            yaml_content = "# Custom device mapping configuration\n"
+        
+        return self.async_show_form(
+            step_id="yaml_edit",
+            data_schema=vol.Schema({
+                vol.Optional(CONF_YAML_CONTENT, default=yaml_content): str
+            }),
+            description_placeholders={
+                "title": translations.get("title", "Eedomus"),
+                "description": translations.get("description", "Integration for the eedomus home automation box.")
+            },
+            errors=errors
         )
 
     async def async_step_ui(self, user_input=None):
