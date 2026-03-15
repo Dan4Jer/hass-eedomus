@@ -92,16 +92,17 @@ class EedomusClient:
         params: Optional[Dict] = None,
         use_set: bool = False,
         history_mode: bool = False,
+        url: Optional[str] = None,
     ) -> Dict:
         """Fetch data from eedomus API with proper encoding handling."""
         if params is None:
             params = {}
         params["api_user"] = self.api_user
         params["api_secret"] = self.api_secret
-        url = self.base_url_set if use_set else self.base_url_get
-        url = f"{url}?action={endpoint}"
-        if history_mode:  # url is fully build by caller
-            url = endpoint
+        if url is None:
+            base_url = self.base_url_set if use_set else self.base_url_get
+            url = f"{base_url}?action={endpoint}"
+        # When url is provided (e.g. history_mode), it is already fully built.
         self.url = url
         self.params = params
 
@@ -519,19 +520,21 @@ class EedomusClient:
         Returns:
             list: Liste de dictionnaires {"value": str, "timestamp": str}.
         """
-        endpoint = (
-            f"{HISTORY_API_URL}/get?"
-            f"action=periph.history&"
-            f"periph_id={periph_id}&"
-            f"start={start_timestamp}&"
-            f"end={end_timestamp or int(time.time())}&"
-            f"api_user={self.api_user}&"
-            f"api_secret={self.api_secret}"
-        )
+        base_url = f"{HISTORY_API_URL}/get"
+        params = {
+            "action": "periph.history",
+            "periph_id": periph_id,
+            "start": start_timestamp,
+            "end": end_timestamp or int(time.time()),
+        }
 
         try:
             data = await self.fetch_data(
-                endpoint, None, use_set=False, history_mode=True
+                endpoint="periph.history",
+                params=params,
+                use_set=False,
+                history_mode=True,
+                url=base_url,
             )
             if data.get("success") == 1:
                 return [
