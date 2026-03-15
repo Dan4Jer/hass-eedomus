@@ -179,7 +179,14 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
             
             # If YAML mode is enabled, redirect to YAML edit step
             if user_input.get(CONF_USE_YAML, False):
-                return await self.async_step_yaml_edit(user_input)
+                # Store the YAML mode preference in options
+                options[CONF_USE_YAML] = True
+                # Update config_entry options so the preference is preserved
+                if hasattr(self._config_entry.options, 'update'):
+                    self._config_entry.options.update({CONF_USE_YAML: True})
+                
+                # Redirect to YAML edit mode (without user_input to show current content)
+                return await self.async_step_yaml_edit(None)
             
             # Create entry with only the options that are allowed
             return self.async_create_entry(title="", data=options)
