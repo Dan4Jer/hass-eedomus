@@ -8,6 +8,7 @@ import logging
 import yaml
 import os
 import json
+import datetime
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.helpers import selector
@@ -177,7 +178,7 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
             _LOGGER.debug("Options to be saved: %s", {k: v for k, v in options.items() if k != CONF_YAML_CONTENT})
             _LOGGER.debug("API Proxy Disable Security to be saved: %s", options.get(CONF_API_PROXY_DISABLE_SECURITY, False))
             
-            # If YAML mode is enabled, redirect to YAML edit step
+            # Check if user wants to edit YAML configuration
             if user_input.get(CONF_USE_YAML, False):
                 # Store the YAML mode preference in options
                 options[CONF_USE_YAML] = True
@@ -185,8 +186,8 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 if hasattr(self._config_entry.options, 'update'):
                     self._config_entry.options.update({CONF_USE_YAML: True})
                 
-                # Redirect to YAML edit mode (without user_input to show current content)
-                return await self.async_step_yaml_edit(None)
+                # Redirect to enhanced YAML editor
+                return await self.async_step_yaml_editor(None)
             
             # Create entry with only the options that are allowed
             return self.async_create_entry(title="", data=options)
@@ -496,7 +497,130 @@ custom_devices:
             }
         )
 
-    async def async_step_cleanup(self, user_input=None):
+    
+    async def async_step_yaml_editor(self, user_input=None):
+        """Handle YAML configuration editing with rich editor interface."""
+        errors = {}
+        
+        if user_input is not None:
+            # Save YAML configuration
+            yaml_content = user_input.get(CONF_YAML_CONTENT, "")
+            
+            try:
+                # Validate YAML syntax
+                yaml.safe_load(yaml_content)
+                
+                # Save to custom_mapping.yaml
+                custom_mapping_path = os.path.join(
+                    os.path.dirname(__file__), "config", "custom_mapping.yaml"
+                )
+                
+                # Use async_add_executor_job to avoid blocking calls
+                await self.hass.async_add_executor_job(
+                    lambda: open(custom_mapping_path, "w").write(yaml_content)
+                )
+                
+                _LOGGER.info("YAML configuration saved successfully")
+                
+                # Update options
+                options = {
+                    CONF_USE_YAML: True,
+                    CONF_YAML_CONTENT: yaml_content
+                }
+                
+                # Add API configuration options - ensure config values are preserved
+                current_options = self._copy_config_to_options()
+                options.update({
+                    CONF_ENABLE_API_EEDOMUS: current_options.get(CONF_ENABLE_API_EEDOMUS, True),
+                    CONF_ENABLE_API_PROXY: current_options.get(CONF_ENABLE_API_PROXY, False),
+                    CONF_ENABLE_HISTORY: current_options.get(CONF_ENABLE_HISTORY, False),
+                    CONF_HISTORY_RETRY_DELAY: current_options.get(CONF_HISTORY_RETRY_DELAY, DEFAULT_HISTORY_RETRY_DELAY),
+                    CONF_HISTORY_PERIPHERALS_PER_SCAN: current_options.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, DEFAULT_HISTORY_PERIPHERALS_PER_SCAN),
+                    CONF_SCAN_INTERVAL: current_options.get(CONF_SCAN_INTERVAL, 300),
+                    CONF_ENABLE_SET_VALUE_RETRY: current_options.get(CONF_ENABLE_SET_VALUE_RETRY, True),
+                    CONF_ENABLE_WEBHOOK: current_options.get(CONF_ENABLE_WEBHOOK, True),
+                    CONF_API_PROXY_DISABLE_SECURITY: current_options.get(CONF_API_PROXY_DISABLE_SECURITY, False),
+                    CONF_PHP_FALLBACK_ENABLED: current_options.get(CONF_PHP_FALLBACK_ENABLED, False),
+                    CONF_PHP_FALLBACK_SCRIPT_NAME: current_options.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php"),
+                    CONF_PHP_FALLBACK_TIMEOUT: current_options.get(CONF_PHP_FALLBACK_TIMEOUT, 5),
+                    CONF_HTTP_REQUEST_TIMEOUT: current_options.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)
+                })
+                
+                _LOGGER.debug("Saving YAML configuration: %s", options)
+                return self.async_create_entry(title="", data=options)
+            except yaml.YAMLError as e:
+                errors["base"] = f"Invalid YAML syntax: {e}"
+                _LOGGER.error(f"Failed to save YAML configuration: {e}")
+            except Exception as e:
+                errors["base"] = f"Failed to save YAML configuration: {e}"
+                _LOGGER.error(f"Failed to save YAML configuration: {e}")
+        
+        # Load current YAML configuration
+        try:
+            custom_mapping_path = os.path.join(
+                os.path.dirname(__file__), "config", "custom_mapping.yaml"
+            )
+            
+            # Use async_add_executor_job to avoid blocking calls
+            if os.path.exists(custom_mapping_path):
+                yaml_content = await self.hass.async_add_executor_job(
+                    lambda: open(custom_mapping_path, "r").read()
+                )
+            else:
+                yaml_content = """# Eedomus Custom Mapping Configuration
+# Edit this file to override default device mappings
+#
+# Structure:
+# - metadata: Version and change information
+# - custom_rules: Advanced mapping rules
+# - custom_usage_id_mappings: Override usage ID mappings
+# - temperature_setpoint_mappings: Map climate entities to temperature sensors
+# - custom_name_patterns: Regex patterns for device names
+# - custom_devices: List of custom device configurations
+
+metadata:
+  version: "1.0"
+  last_modified: """ + str(datetime.datetime.now().strftime('%Y-%m-%d')) + """
+  changes: []
+
+custom_rules: []
+custom_usage_id_mappings: {}
+temperature_setpoint_mappings: {}
+custom_name_patterns: []
+
+custom_devices:
+  # Example:
+  # - eedomus_id: "12345"
+  #   ha_entity: "light.my_light"
+  #   type: "light"
+  #   name: "My Custom Light"
+  #   ha_subtype: "rgbw"
+  #   icon: "mdi:lightbulb"
+  #   room: "Living Room"
+"""
+        except Exception as e:
+            _LOGGER.error(f"Failed to load YAML configuration: {e}")
+            yaml_content = """# Eedomus Custom Mapping Configuration
+# Add your custom device mappings here
+"""
+        
+        # Load translations
+        language = self.hass.config.language if self.hass else "en"
+        translations = await async_get_translations(self.hass, language) if self.hass else {}
+        
+        return self.async_show_form(
+            step_id="yaml_editor",
+            data_schema=vol.Schema({
+                vol.Optional(CONF_YAML_CONTENT, default=yaml_content): str
+            }),
+            description_placeholders={
+                "title": translations.get("title", "Eedomus"),
+                "description": translations.get("description", "Integration for the eedomus home automation box.") + " - YAML Editor",
+                "helper": "Edit the YAML configuration below. Use the structure shown in the comments."
+            },
+            errors=errors
+        )
+async def async_step_cleanup(self, user_input=None):
         """Handle cleanup of unused eedomus entities."""
         _LOGGER.info("Starting cleanup of unused eedomus entities")
         
