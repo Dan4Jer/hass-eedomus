@@ -32,6 +32,7 @@ from .const import (
     CONF_PHP_FALLBACK_TIMEOUT,
     CONF_HTTP_REQUEST_TIMEOUT,
     DEFAULT_HTTP_REQUEST_TIMEOUT,
+    DEFAULT_HISTORY_RETRY_DELAY,
 )
 
 _LOGGER = logging.getLogger(__name__)
