@@ -6,13 +6,13 @@
         "title": "Connexion Eedomus",
         "description": "Configure access to your eedomus box",
         "data": {
-            "host": "Box IP address",
-            "api_key": "API Key",
-            "secret": "Secret API",
-            "history": "Enable history retrieval mode from cloud",
-            "php_fallback": "Enable PHP fallback for rejected values",
-            "scan_interval": "Data refresh interval (seconds)",
-            "enable_api_proxy": "Enable API proxy mode"
+          "host": "Box IP address",
+          "api_key": "API Key",
+          "secret": "Secret API",
+          "history": "Enable history retrieval mode from cloud",
+          "php_fallback": "Enable PHP fallback for rejected values",
+          "scan_interval": "Data refresh interval (seconds)",
+          "enable_api_proxy": "Enable API proxy mode"
         }
       }
     },
@@ -31,5 +31,13 @@
       "enable_history": "History retrieval",
       "enable_api_proxy": "API Proxy mode"
     }
+  },
+  "ui": {
+    "edit_yaml_tooltip": "Edit YAML configuration directly",
+    "config_tip": "Configure API settings and device mappings",
+    "preview_yaml": "Preview YAML",
+    "save_config": "Save Configuration",
+    "add_device": "Add Device",
+    "device_settings": "Device Settings"
   }
 }

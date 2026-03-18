@@ -26,5 +26,13 @@
     "no_devices": "Aucun périphérique trouvé",
     "partial_refresh": "Rafraîchissement partiel en cours",
     "full_refresh": "Rafraîchissement complet en cours"
+  },
+  "ui": {
+    "edit_yaml_tooltip": "Éditer la configuration YAML directement",
+    "config_tip": "Configurez les paramètres API et les mappings de devices",
+    "preview_yaml": "Prévisualiser le YAML",
+    "save_config": "Sauvegarder la configuration",
+    "add_device": "Ajouter un device",
+    "device_settings": "Paramètres du device"
   }
 }

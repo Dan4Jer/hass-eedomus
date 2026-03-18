@@ -137,16 +137,20 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
         translations = await async_get_translations(self.hass, language) if self.hass else {}
         
         if user_input is not None:
-            # Save all configuration options
-            options = {}
-            
             # Debug: Log the user input
             _LOGGER.debug("User input received: %s", {k: v for k, v in user_input.items() if k != CONF_YAML_CONTENT})
             _LOGGER.debug("API Proxy Disable Security: %s", user_input.get(CONF_API_PROXY_DISABLE_SECURITY, False))
             
-            # Save mode selection
-            self.use_yaml = user_input.get(CONF_USE_YAML, False)
-            options[CONF_USE_YAML] = self.use_yaml
+            # Save all configuration options
+            options = {}
+            
+            # Save mode selection (hidden field, always False for init step)
+            self.use_yaml = False
+            options[CONF_USE_YAML] = False
+            
+            # Check if user clicked "Edit YAML Configuration" button
+            if user_input.get("action") == "edit_yaml":
+                return await self.async_step_yaml_editor(None)
             
             # Save API configuration options
             options[CONF_ENABLE_API_EEDOMUS] = user_input.get(CONF_ENABLE_API_EEDOMUS, True)
@@ -178,28 +182,16 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
             _LOGGER.debug("Options to be saved: %s", {k: v for k, v in options.items() if k != CONF_YAML_CONTENT})
             _LOGGER.debug("API Proxy Disable Security to be saved: %s", options.get(CONF_API_PROXY_DISABLE_SECURITY, False))
             
-            # Check if user wants to edit YAML configuration
-            if user_input.get(CONF_USE_YAML, False):
-                # Store the YAML mode preference in options
-                options[CONF_USE_YAML] = True
-                # Update config_entry options so the preference is preserved
-                if hasattr(self._config_entry.options, 'update'):
-                    self._config_entry.options.update({CONF_USE_YAML: True})
-                
-                # Redirect to enhanced YAML editor
-                return await self.async_step_yaml_editor(None)
-            
             # Create entry with only the options that are allowed
             return self.async_create_entry(title="", data=options)
-
+        
         # Get current options - ensure config values are copied to options
         current_options = self._copy_config_to_options()
         self.use_yaml = current_options.get(CONF_USE_YAML, False)
-
+        
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema({
-                vol.Required(CONF_USE_YAML, default=self.use_yaml): bool,
                 vol.Optional(CONF_ENABLE_API_EEDOMUS, default=current_options.get(CONF_ENABLE_API_EEDOMUS, True)): bool,
                 vol.Optional(CONF_SCAN_INTERVAL, default=current_options.get(CONF_SCAN_INTERVAL, 300)): int,
                 vol.Optional(CONF_ENABLE_API_PROXY, default=current_options.get(CONF_ENABLE_API_PROXY, False)): bool,
@@ -212,12 +204,15 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(CONF_PHP_FALLBACK_ENABLED, default=current_options.get(CONF_PHP_FALLBACK_ENABLED, False)): bool,
                 vol.Optional(CONF_PHP_FALLBACK_SCRIPT_NAME, default=current_options.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")): str,
                 vol.Optional(CONF_PHP_FALLBACK_TIMEOUT, default=current_options.get(CONF_PHP_FALLBACK_TIMEOUT, 5)): int,
+                vol.Optional("action"): str,  # Hidden field for button actions
             }),
             description_placeholders={
-                "current_mode": "Custom Mapping" if self.use_yaml else "UI (DISABLED)",
+                "current_mode": "UI",
                 "docs_link": "https://github.com/Dan4Jer/hass-eedomus/blob/main/docs/README.md",
                 "title": translations.get("title", "Eedomus"),
-                "description": translations.get("description", "Integration for the eedomus home automation box.")
+                "description": translations.get("description", "Integration for the eedomus home automation box."),
+                "edit_yaml_tooltip": translations.get("edit_yaml_tooltip", "Edit YAML configuration directly"),
+                "config_tip": translations.get("config_tip", "Configure API settings and device mappings"),
             }
         )
 
