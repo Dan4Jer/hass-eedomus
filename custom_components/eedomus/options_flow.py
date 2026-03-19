@@ -326,7 +326,7 @@ custom_devices:
                 return self.async_show_form(
                     step_id="ui",
                     data_schema=vol.Schema({
-                        vol.Optional(CONF_CUSTOM_DEVICES, default=current_devices): vol.Any(
+                        vol.Optional(CONF_CUSTOM_DEVICES, default=current_devices): [
                             vol.Schema({
                                 vol.Required("eedomus_id"): str,
                                 vol.Required("ha_entity"): str,
@@ -336,18 +336,8 @@ custom_devices:
                                 vol.Optional("room"): str,
                                 vol.Optional("parent_periph_id"): str,
                                 vol.Optional("attributes"): dict,
-                            }),
-                            [vol.Schema({
-                                vol.Required("eedomus_id"): str,
-                                vol.Required("ha_entity"): str,
-                                vol.Required("type"): vol.In(["light", "switch", "sensor", "climate", "cover", "binary_sensor", "text_sensor"]),
-                                vol.Optional("ha_subtype"): str,
-                                vol.Optional("icon"): str,
-                                vol.Optional("room"): str,
-                                vol.Optional("parent_periph_id"): str,
-                                vol.Optional("attributes"): dict,
-                            })]
-                        ),
+                            })
+                        ],
                     }),
                     description_placeholders={
                         "preview": f"```yaml\n{preview_yaml}\n```"
@@ -394,7 +384,7 @@ custom_devices:
         return self.async_show_form(
             step_id="ui",
             data_schema=vol.Schema({
-                vol.Required(CONF_CUSTOM_DEVICES, default=current_devices): vol.Any(
+                vol.Required(CONF_CUSTOM_DEVICES, default=current_devices): [
                     vol.Schema({
                         vol.Required("eedomus_id"): str,
                         vol.Required("ha_entity"): str,
@@ -404,18 +394,8 @@ custom_devices:
                         vol.Optional("room"): str,
                         vol.Optional("parent_periph_id"): str,
                         vol.Optional("attributes"): dict,
-                    }),
-                    [vol.Schema({
-                        vol.Required("eedomus_id"): str,
-                        vol.Required("ha_entity"): str,
-                        vol.Required("type"): vol.In(["light", "switch", "sensor", "climate", "cover", "binary_sensor", "text_sensor"]),
-                        vol.Optional("ha_subtype"): str,
-                        vol.Optional("icon"): str,
-                        vol.Optional("room"): str,
-                        vol.Optional("parent_periph_id"): str,
-                        vol.Optional("attributes"): dict,
-                    })]
-                ),
+                    })
+                ],
             }),
             description_placeholders={
                 "intro": translations.get("ui_intro", "Configurez vos devices eedomus via l'interface graphique ou basculez en mode YAML pour une édition avancée.")
@@ -432,8 +412,9 @@ async def async_load_mapping(hass, config_dir):
     )
     if os.path.exists(mapping_path):
         try:
-            with open(mapping_path, "r") as f:
-                return yaml.safe_load(f) or {}
+            return await hass.async_add_executor_job(
+                lambda: (yaml.safe_load(open(mapping_path, "r")) or {})
+            )
         except Exception as e:
             _LOGGER.error(f"Failed to load mapping: {e}")
     return {}
@@ -446,13 +427,14 @@ async def async_save_custom_mapping(hass, config_dir, mapping):
         "custom_mapping.yaml"
     )
     try:
-        with open(mapping_path, "w") as f:
-            yaml.dump(
+        await hass.async_add_executor_job(
+            lambda: yaml.dump(
                 mapping,
-                f,
+                open(mapping_path, "w"),
                 default_flow_style=False,
                 sort_keys=False
             )
+        )
         return True
     except Exception as e:
         _LOGGER.error(f"Failed to save mapping: {e}")
