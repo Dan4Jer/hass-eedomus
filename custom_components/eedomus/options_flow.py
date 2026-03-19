@@ -503,13 +503,53 @@ custom_devices:
         """Handle YAML configuration editing with rich editor interface."""
         errors = {}
         
-        if user_input is not None:
-            # Save YAML configuration
+        # Check if user wants to preview YAML
+        if user_input is not None and user_input.get("action") == "preview":
+            yaml_content = user_input.get("yaml_content", "")
+            try:
+                # Parse and validate
+                parsed_yaml = yaml.safe_load(yaml_content) or {}
+                from .const import YAML_MAPPING_SCHEMA
+                YAML_MAPPING_SCHEMA(parsed_yaml)
+                
+                # Return preview
+                return self.async_show_form(
+                    step_id="yaml_editor",
+                    data_schema=vol.Schema({
+                        vol.Optional("yaml_content", default=yaml_content): str,
+                        vol.Optional("preview_mode"): bool,
+                    }),
+                    description_placeholders={
+                        "preview_title": "YAML Preview",
+                        "preview_content": f"```yaml\n{yaml_content}\n```",
+                        "preview_valid": "✅ YAML is valid",
+                    },
+                    errors=errors
+                )
+            except (yaml.YAMLError, vol.Invalid) as e:
+                errors["base"] = f"Invalid YAML: {e}"
+                return self.async_show_form(
+                    step_id="yaml_editor",
+                    data_schema=vol.Schema({
+                        vol.Optional("yaml_content", default=yaml_content): str,
+                    }),
+                    description_placeholders={
+                        "preview_title": "YAML Preview",
+                        "preview_content": f"```yaml\n{yaml_content}\n```",
+                        "preview_error": f"❌ Error: {e}",
+                    },
+                    errors=errors
+                )
+        
+        # Save YAML configuration
+        if user_input is not None and user_input.get("yaml_content"):
             yaml_content = user_input.get("yaml_content", "")
             
             try:
-                # Validate YAML syntax
-                yaml.safe_load(yaml_content)
+                # Parse and validate
+                parsed_yaml = yaml.safe_load(yaml_content) or {}
+                from .const import YAML_MAPPING_SCHEMA
+                validated = YAML_MAPPING_SCHEMA(parsed_yaml)
                 
                 # Save to custom_mapping.yaml
                 custom_mapping_path = os.path.join(
@@ -526,10 +566,10 @@ custom_devices:
                 # Update options
                 options = {
                     CONF_USE_YAML: True,
-                    CONF_YAML_CONTENT: yaml_content
+                    "yaml_content": yaml_content
                 }
                 
-                # Add API configuration options - ensure config values are preserved
+                # Preserve API configuration options
                 current_options = self._copy_config_to_options()
                 options.update({
                     CONF_ENABLE_API_EEDOMUS: current_options.get(CONF_ENABLE_API_EEDOMUS, True),
@@ -547,13 +587,10 @@ custom_devices:
                     CONF_HTTP_REQUEST_TIMEOUT: current_options.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)
                 })
                 
-                _LOGGER.debug("Saving YAML configuration: %s", options)
+                _LOGGER.debug("Saving YAML configuration")
                 return self.async_create_entry(title="", data=options)
-            except yaml.YAMLError as e:
-                errors["base"] = f"Invalid YAML syntax: {e}"
-                _LOGGER.error(f"Failed to save YAML configuration: {e}")
-            except Exception as e:
-                errors["base"] = f"Failed to save YAML configuration: {e}"
+            except (yaml.YAMLError, vol.Invalid) as e:
+                errors["base"] = f"Invalid YAML: {e}"
                 _LOGGER.error(f"Failed to save YAML configuration: {e}")
         
         # Load current YAML configuration
@@ -568,16 +605,9 @@ custom_devices:
                     lambda: open(custom_mapping_path, "r").read()
                 )
             else:
+                # Provide template
                 yaml_content = """# Eedomus Custom Mapping Configuration
 # Edit this file to override default device mappings
-#
-# Structure:
-# - metadata: Version and change information
-# - custom_rules: Advanced mapping rules
-# - custom_usage_id_mappings: Override usage ID mappings
-# - temperature_setpoint_mappings: Map climate entities to temperature sensors
-# - custom_name_patterns: Regex patterns for device names
-# - custom_devices: List of custom device configurations
 
 metadata:
   version: "1.0"
@@ -594,7 +624,6 @@ custom_devices:
   # - eedomus_id: "12345"
   #   ha_entity: "light.my_light"
   #   type: "light"
-  #   name: "My Custom Light"
   #   ha_subtype: "rgbw"
   #   icon: "mdi:lightbulb"
   #   room: "Living Room"
@@ -612,71 +641,13 @@ custom_devices:
         return self.async_show_form(
             step_id="yaml_editor",
             data_schema=vol.Schema({
-                vol.Optional("yaml_content", default=yaml_content): str
+                vol.Optional("yaml_content", default=yaml_content): str,
             }),
             description_placeholders={
                 "title": translations.get("title", "Eedomus"),
-                "description": translations.get("description", "Integration for the eedomus home automation box.") + " - YAML Editor",
-                "helper": "Edit the YAML configuration below. Use the structure shown in the comments."
+                "description": translations.get("description", "Edit YAML configuration"),
+                "helper": "Modify the YAML below. Click 'Preview' to validate before saving.",
             },
             errors=errors
         )
-async def async_step_cleanup(self, user_input=None):
-        """Handle cleanup of unused eedomus entities."""
-        _LOGGER.info("Starting cleanup of unused eedomus entities")
-        
-        # Get entity registry
-        entity_registry = await self.hass.helpers.entity_registry.async_get_registry()
-        
-        # Find entities to remove: eedomus domain, disabled, and have "deprecated" in unique_id
-        entities_to_remove = []
-        entities_analyzed = 0
-        entities_considered = 0
-        
-        for entity_entry in entity_registry.entities.values():
-            entities_analyzed += 1
-            
-            # Check if this is an eedomus entity
-            if entity_entry.platform == "eedomus":
-                entities_considered += 1
-                
-                # Check if entity is disabled OR has "deprecated" in unique_id
-                is_disabled = entity_entry.disabled
-                has_deprecated = entity_entry.unique_id and "deprecated" in entity_entry.unique_id.lower()
-                
-                if is_disabled or has_deprecated:
-                    entities_to_remove.append({
-                        'entity_id': entity_entry.entity_id,
-                        'unique_id': entity_entry.unique_id,
-                        'disabled': is_disabled,
-                        'has_deprecated': has_deprecated,
-                        'reason': 'deprecated' if has_deprecated else 'disabled'
-                    })
-        
-        _LOGGER.info(f"Cleanup analysis complete: {entities_analyzed} entities analyzed, "
-                   f"{entities_considered} eedomus entities considered, "
-                   f"{len(entities_to_remove)} entities to be removed")
-        
-        # Remove the entities
-        removed_count = 0
-        for entity_info in entities_to_remove:
-            try:
-                _LOGGER.info(f"Removing entity {entity_info['entity_id']} (reason: {entity_info['reason']}, "
-                           f"unique_id: {entity_info['unique_id']})")
-                entity_registry.async_remove(entity_info['entity_id'])
-                removed_count += 1
-            except Exception as e:
-                _LOGGER.error(f"Failed to remove entity {entity_info['entity_id']}: {e}")
-        
-        _LOGGER.info(f"Cleanup completed: {removed_count} entities removed out of {len(entities_to_remove)} identified")
-        
-        return self.async_create_entry(
-            title="",
-            data={
-                "cleanup_completed": True,
-                "entities_analyzed": entities_analyzed,
-                "entities_considered": entities_considered,
-                "entities_identified": len(entities_to_remove),
-                "entities_removed": removed_count
-            }
-        )
+
