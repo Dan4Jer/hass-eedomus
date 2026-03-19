@@ -1,4 +1,4 @@
 # Production dependencies only (for lockfile generation)
-aiohttp==3.9.3
+aiohttp==3.13.3
 requests==2.31.0
 yarl==1.9.2
