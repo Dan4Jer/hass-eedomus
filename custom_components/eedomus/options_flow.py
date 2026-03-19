@@ -517,7 +517,7 @@ custom_devices:
                 return self.async_show_form(
                     step_id="yaml_editor",
                     data_schema=vol.Schema({
-                        vol.Optional("yaml_content", default=yaml_content): cv.multi_line,
+                        vol.Optional("yaml_content", default=yaml_content): str,
                         vol.Optional("preview_mode"): bool,
                     }),
                     description_placeholders={
@@ -532,7 +532,7 @@ custom_devices:
                 return self.async_show_form(
                     step_id="yaml_editor",
                     data_schema=vol.Schema({
-                        vol.Optional("yaml_content", default=yaml_content): cv.multi_line,
+                        vol.Optional("yaml_content", default=yaml_content): str,
                     }),
                     description_placeholders={
                         "preview_title": "YAML Preview",
@@ -642,7 +642,7 @@ custom_devices:
         return self.async_show_form(
             step_id="yaml_editor",
             data_schema=vol.Schema({
-                vol.Optional("yaml_content", default=yaml_content): cv.multi_line,
+                vol.Optional("yaml_content", default=yaml_content): str,
             }),
             description_placeholders={
                 "title": translations.get("title", "Eedomus"),
