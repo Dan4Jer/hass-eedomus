@@ -12,6 +12,7 @@ import datetime
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.helpers import selector
+from homeassistant.helpers import config_validation as cv
 from .const import (
     UI_OPTIONS_SCHEMA,
     DEVICE_SCHEMA,
@@ -516,7 +517,7 @@ custom_devices:
                 return self.async_show_form(
                     step_id="yaml_editor",
                     data_schema=vol.Schema({
-                        vol.Optional("yaml_content", default=yaml_content): str,
+                        vol.Optional("yaml_content", default=yaml_content): cv.multi_line,
                         vol.Optional("preview_mode"): bool,
                     }),
                     description_placeholders={
@@ -531,7 +532,7 @@ custom_devices:
                 return self.async_show_form(
                     step_id="yaml_editor",
                     data_schema=vol.Schema({
-                        vol.Optional("yaml_content", default=yaml_content): str,
+                        vol.Optional("yaml_content", default=yaml_content): cv.multi_line,
                     }),
                     description_placeholders={
                         "preview_title": "YAML Preview",
@@ -641,7 +642,7 @@ custom_devices:
         return self.async_show_form(
             step_id="yaml_editor",
             data_schema=vol.Schema({
-                vol.Optional("yaml_content", default=yaml_content): str,
+                vol.Optional("yaml_content", default=yaml_content): cv.multi_line,
             }),
             description_placeholders={
                 "title": translations.get("title", "Eedomus"),
