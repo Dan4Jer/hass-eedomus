@@ -52,15 +52,11 @@ _LOGGER = logging.getLogger(__name__)
 async def async_get_translations(hass, language="en"):
     """Load translations for the given language."""
     try:
-        # Handle en-GB as en
         if language == "en-GB":
             language = "en"
-        
         translations_path = os.path.join(
             os.path.dirname(__file__), "translations", f"{language}.json"
         )
-        
-        # Use async_add_executor_job to avoid blocking calls
         if os.path.exists(translations_path):
             return await hass.async_add_executor_job(
                 lambda: json.load(open(translations_path, "r"))
@@ -76,7 +72,6 @@ async def async_get_translations(hass, language="en"):
     except Exception as e:
         _LOGGER.error(f"Failed to load translations: {e}")
         return {}
-
 
 class EedomusOptionsFlow(config_entries.OptionsFlow):
     """Handle eedomus options with UI/YAML toggle."""
@@ -143,388 +138,41 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input=None):
         """Manage the options with mode selection."""
-        # Load translations
         language = self.hass.config.language if self.hass else "en"
         translations = await async_get_translations(self.hass, language) if self.hass else {}
         
         if user_input is not None:
-            # Save all configuration options
-            options = {}
-            
-            # Debug: Log the user input
-            _LOGGER.debug("User input received: %s", {k: v for k, v in user_input.items() if k != CONF_YAML_CONTENT})
-            _LOGGER.debug("API Proxy Disable Security: %s", user_input.get(CONF_API_PROXY_DISABLE_SECURITY, False))
-            
-            # Save mode selection
-            self.use_yaml = user_input.get(CONF_USE_YAML, False)
-            options[CONF_USE_YAML] = self.use_yaml
-            
-            # Save API configuration options
-            options[CONF_ENABLE_API_EEDOMUS] = user_input.get(CONF_ENABLE_API_EEDOMUS, True)
-            options[CONF_ENABLE_API_PROXY] = user_input.get(CONF_ENABLE_API_PROXY, False)
-            options[CONF_ENABLE_HISTORY] = user_input.get(CONF_ENABLE_HISTORY, False)
-            options[CONF_HISTORY_RETRY_DELAY] = user_input.get(CONF_HISTORY_RETRY_DELAY, DEFAULT_HISTORY_RETRY_DELAY)
-            options[CONF_HISTORY_PERIPHERALS_PER_SCAN] = user_input.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, DEFAULT_HISTORY_PERIPHERALS_PER_SCAN)
-            options[CONF_SCAN_INTERVAL] = user_input.get(CONF_SCAN_INTERVAL, 300)
-            options[CONF_ENABLE_SET_VALUE_RETRY] = user_input.get(CONF_ENABLE_SET_VALUE_RETRY, True)
-            options[CONF_ENABLE_WEBHOOK] = user_input.get(CONF_ENABLE_WEBHOOK, True)
-            options[CONF_API_PROXY_DISABLE_SECURITY] = user_input.get(CONF_API_PROXY_DISABLE_SECURITY, False)
-            options[CONF_PHP_FALLBACK_ENABLED] = user_input.get(CONF_PHP_FALLBACK_ENABLED, False)
-            options[CONF_PHP_FALLBACK_SCRIPT_NAME] = user_input.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")
-            options[CONF_PHP_FALLBACK_TIMEOUT] = user_input.get(CONF_PHP_FALLBACK_TIMEOUT, 5)
-            options[CONF_HTTP_REQUEST_TIMEOUT] = user_input.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)
-            
-            # Store options for use in other steps
-            # Convert mappingproxy to dict if needed
-            if hasattr(self._config_entry.options, 'update'):
-                self._config_entry.options.update(options)
-            else:
-                # Handle the case where options is a mappingproxy
-                _LOGGER.debug("Options is a mappingproxy, creating new dict")
-                new_options = dict(self._config_entry.options)
-                new_options.update(options)
-                # Note: We can't actually update the mappingproxy, so we'll use it in the next step
-            
-            # Debug: Log the options being saved
-            _LOGGER.debug("Options to be saved: %s", {k: v for k, v in options.items() if k != CONF_YAML_CONTENT})
-            _LOGGER.debug("API Proxy Disable Security to be saved: %s", options.get(CONF_API_PROXY_DISABLE_SECURITY, False))
-            
-            # Check if user wants to edit YAML configuration
-            if user_input.get(CONF_USE_YAML, False):
-                # Store the YAML mode preference in options
-                options[CONF_USE_YAML] = True
-                # Update config_entry options so the preference is preserved
-                if hasattr(self._config_entry.options, 'update'):
-                    self._config_entry.options.update({CONF_USE_YAML: True})
-                
-                # Redirect to enhanced YAML editor
+            self.use_yaml = user_input.get("mode") == "yaml"
+            if self.use_yaml:
                 return await self.async_step_yaml_editor(None)
-            
-            # Create entry with only the options that are allowed
-            return self.async_create_entry(title="", data=options)
-
-        # Get current options - ensure config values are copied to options
-        current_options = self._copy_config_to_options()
-        self.use_yaml = current_options.get(CONF_USE_YAML, False)
+            else:
+                return await self.async_step_ui(None)
 
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema({
-                vol.Required(CONF_USE_YAML, default=self.use_yaml): bool,
-                vol.Optional(CONF_ENABLE_API_EEDOMUS, default=current_options.get(CONF_ENABLE_API_EEDOMUS, True)): bool,
-                vol.Optional(CONF_SCAN_INTERVAL, default=current_options.get(CONF_SCAN_INTERVAL, 300)): int,
-                vol.Optional(CONF_ENABLE_API_PROXY, default=current_options.get(CONF_ENABLE_API_PROXY, False)): bool,
-                vol.Optional(CONF_ENABLE_HISTORY, default=current_options.get(CONF_ENABLE_HISTORY, False)): bool,
-                vol.Optional(CONF_SCAN_INTERVAL, default=current_options.get(CONF_SCAN_INTERVAL, 300)): int,
-                vol.Optional(CONF_HTTP_REQUEST_TIMEOUT, default=current_options.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)): int,
-                vol.Optional(CONF_ENABLE_SET_VALUE_RETRY, default=current_options.get(CONF_ENABLE_SET_VALUE_RETRY, True)): bool,
-                vol.Optional(CONF_ENABLE_WEBHOOK, default=current_options.get(CONF_ENABLE_WEBHOOK, True)): bool,
-                vol.Optional(CONF_API_PROXY_DISABLE_SECURITY, default=current_options.get(CONF_API_PROXY_DISABLE_SECURITY, False)): bool,
-                vol.Optional(CONF_PHP_FALLBACK_ENABLED, default=current_options.get(CONF_PHP_FALLBACK_ENABLED, False)): bool,
-                vol.Optional(CONF_PHP_FALLBACK_SCRIPT_NAME, default=current_options.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")): str,
-                vol.Optional(CONF_PHP_FALLBACK_TIMEOUT, default=current_options.get(CONF_PHP_FALLBACK_TIMEOUT, 5)): int,
+                vol.Required("mode", default="ui"): vol.In(["ui", "yaml"]),
             }),
-            description_placeholders={
-                "current_mode": "Custom Mapping" if self.use_yaml else "UI (DISABLED)",
-                "docs_link": "https://github.com/Dan4Jer/hass-eedomus/blob/main/docs/README.md",
-                "title": translations.get("title", "Eedomus"),
-                "description": translations.get("description", "Integration for the eedomus home automation box."),
-                "yaml_edit_hint": translations.get("edit_yaml_tooltip", "Check the box below to edit YAML configuration directly")
-            }        ),
-        custom_ui={
-            "type": "ha-yaml-editor",
-            "schema": YAML_MAPPING_SCHEMA,
-            "label": "YAML Editor",
-            "description": "Edit the YAML configuration below.",
-            "actions": [
-                {
-                    "name": "preview",
-                    "label": "Preview",
-                    "action": "preview"
-                },
-                {
-                    "name": "save",
-                    "label": "Save",
-                    "primary": True
+            custom_ui={
+                "type": "ha-form",
+                "schema": {
+                    "mode": {
+                        "selector": {
+                            "select": {
+                                "options": [
+                                    {"value": "ui", "label": translations.get("ui_mode", "Interface Graphique")},
+                                    {"value": "yaml", "label": translations.get("yaml_mode", "Éditeur YAML")}
+                                ],
+                                "mode": "list"
+                            }
+                        },
+                        "label": translations.get("mode_selector", "Mode de Configuration"),
+                        "description": translations.get("mode_selector_help", "Choisissez entre l'interface graphique ou l'éditeur YAML.")
+                    }
                 }
-            ]
-        }
-
-    async def async_step_yaml_edit(self, user_input=None):
-        """Handle YAML configuration editing."""
-        errors = {}
-        
-        if user_input is not None:
-            # Save YAML configuration
-            yaml_content = user_input.get("yaml_content", "")
-            
-            try:
-                # Validate YAML syntax
-                yaml.safe_load(yaml_content)
-                
-                # Save to custom_mapping.yaml
-                custom_mapping_path = os.path.join(
-                    os.path.dirname(__file__), "config", "custom_mapping.yaml"
-                )
-                
-                # Use async_add_executor_job to avoid blocking calls
-                await self.hass.async_add_executor_job(
-                    lambda: open(custom_mapping_path, "w").write(yaml_content)
-                )
-                
-                _LOGGER.info("YAML configuration saved successfully")
-                
-                # Update options
-                options = {
-                    CONF_USE_YAML: True,
-                    "yaml_content": yaml_content
-                }
-                
-                # Add API configuration options - ensure config values are preserved
-                current_options = self._copy_config_to_options()
-                options.update({
-                    CONF_ENABLE_API_EEDOMUS: current_options.get(CONF_ENABLE_API_EEDOMUS, True),
-                    CONF_ENABLE_API_PROXY: current_options.get(CONF_ENABLE_API_PROXY, False),
-                    CONF_ENABLE_HISTORY: current_options.get(CONF_ENABLE_HISTORY, False),
-                    CONF_HISTORY_RETRY_DELAY: current_options.get(CONF_HISTORY_RETRY_DELAY, DEFAULT_HISTORY_RETRY_DELAY),
-                    CONF_HISTORY_PERIPHERALS_PER_SCAN: current_options.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, DEFAULT_HISTORY_PERIPHERALS_PER_SCAN),
-                    CONF_SCAN_INTERVAL: current_options.get(CONF_SCAN_INTERVAL, 300),
-                    CONF_ENABLE_SET_VALUE_RETRY: current_options.get(CONF_ENABLE_SET_VALUE_RETRY, True),
-                    CONF_ENABLE_WEBHOOK: current_options.get(CONF_ENABLE_WEBHOOK, True),
-                    CONF_API_PROXY_DISABLE_SECURITY: current_options.get(CONF_API_PROXY_DISABLE_SECURITY, False),
-                    CONF_PHP_FALLBACK_ENABLED: current_options.get(CONF_PHP_FALLBACK_ENABLED, False),
-                    CONF_PHP_FALLBACK_SCRIPT_NAME: current_options.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php"),
-                    CONF_PHP_FALLBACK_TIMEOUT: current_options.get(CONF_PHP_FALLBACK_TIMEOUT, 5),
-                    CONF_HTTP_REQUEST_TIMEOUT: current_options.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)
-                })
-                
-                _LOGGER.debug("Saving YAML configuration: %s", options)
-                return self.async_create_entry(title="", data=options)
-            except yaml.YAMLError as e:
-                errors["base"] = f"Invalid YAML syntax: {e}"
-                _LOGGER.error(f"Failed to save YAML configuration: {e}")
-            except Exception as e:
-                errors["base"] = f"Failed to save YAML configuration: {e}"
-                _LOGGER.error(f"Failed to save YAML configuration: {e}")
-        
-        # Load current YAML configuration
-        try:
-            custom_mapping_path = os.path.join(
-                os.path.dirname(__file__), "config", "custom_mapping.yaml"
-            )
-            
-            # Use async_add_executor_job to avoid blocking calls
-            if os.path.exists(custom_mapping_path):
-                yaml_content = await self.hass.async_add_executor_job(
-                    lambda: open(custom_mapping_path, "r").read()
-                )
-            else:
-                yaml_content = "# Custom device mapping configuration\n"
-        except Exception as e:
-            _LOGGER.error(f"Failed to load YAML configuration: {e}")
-            yaml_content = "# Custom device mapping configuration\n"
-        
-        # Load translations
-        language = self.hass.config.language if self.hass else "en"
-        translations = await async_get_translations(self.hass, language) if self.hass else {}
-        
-        return self.async_show_form(
-            step_id="yaml_edit",
-            data_schema=vol.Schema({
-                vol.Optional(CONF_YAML_CONTENT, default=yaml_content): str
-            }),
-            description_placeholders={
-                "title": translations.get("title", "Eedomus"),
-                "description": translations.get("description", "Integration for the eedomus home automation box.")
-            },
-            errors=errors
+            }
         )
 
-    async def async_step_ui(self, user_input=None):
-        """Handle UI-based device configuration."""
-        errors = {}
-        
-        if user_input is not None:
-            # Save device configuration
-            devices = user_input.get(CONF_CUSTOM_DEVICES, [])
-            
-            # Save to custom_mapping.yaml
-            success = await async_save_custom_mapping(
-                self.hass,
-                self.hass.config.config_dir,
-                {"custom_devices": devices}
-            )
-            
-            if success:
-                # Update options
-                options = {
-                    CONF_USE_YAML: False,  # UI mode
-                    CONF_CUSTOM_DEVICES: devices
-                }
-                # Add API configuration options - ensure config values are preserved
-                current_options = self._copy_config_to_options()
-                options.update({
-                    CONF_ENABLE_API_EEDOMUS: current_options.get(CONF_ENABLE_API_EEDOMUS, True),
-                    CONF_ENABLE_API_PROXY: current_options.get(CONF_ENABLE_API_PROXY, False),
-                    CONF_ENABLE_HISTORY: current_options.get(CONF_ENABLE_HISTORY, False),
-                    CONF_HISTORY_RETRY_DELAY: current_options.get(CONF_HISTORY_RETRY_DELAY, DEFAULT_HISTORY_RETRY_DELAY),
-                    CONF_HISTORY_PERIPHERALS_PER_SCAN: current_options.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, DEFAULT_HISTORY_PERIPHERALS_PER_SCAN),
-                    CONF_SCAN_INTERVAL: current_options.get(CONF_SCAN_INTERVAL, 300),
-                    CONF_ENABLE_SET_VALUE_RETRY: current_options.get(CONF_ENABLE_SET_VALUE_RETRY, True),
-                    CONF_ENABLE_WEBHOOK: current_options.get(CONF_ENABLE_WEBHOOK, True),
-                    CONF_API_PROXY_DISABLE_SECURITY: current_options.get(CONF_API_PROXY_DISABLE_SECURITY, False),
-                    CONF_PHP_FALLBACK_ENABLED: current_options.get(CONF_PHP_FALLBACK_ENABLED, False),
-                    CONF_PHP_FALLBACK_SCRIPT_NAME: current_options.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php"),
-                    CONF_PHP_FALLBACK_TIMEOUT: current_options.get(CONF_PHP_FALLBACK_TIMEOUT, 5),
-                    CONF_HTTP_REQUEST_TIMEOUT: current_options.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)
-                })
-                # Log the options being saved
-                _LOGGER.debug("Saving options in UI mode: %s", options)
-                return self.async_create_entry(title="", data=options)
-            else:
-                errors["base"] = "failed_to_save_yaml"
-        
-        # Load current device configuration
-        try:
-            current_mapping = await async_load_mapping(
-                self.hass,
-                self.hass.config.config_dir
-            )
-            current_devices = current_mapping.get("custom_devices", []) if current_mapping else []
-        except Exception as e:
-            _LOGGER.error("Error loading mapping: %s", e)
-            current_devices = []
-        
-        # Load current API configuration
-        current_options = self._copy_config_to_options()
-        
-        return self.async_show_form(
-            step_id="ui",
-            data_schema=vol.Schema({
-                vol.Required(CONF_USE_YAML, default=False): False,
-                vol.Optional(CONF_CUSTOM_DEVICES, default=current_devices): current_devices,
-                vol.Optional(CONF_ENABLE_API_EEDOMUS, default=current_options.get(CONF_ENABLE_API_EEDOMUS, True)): bool,
-                vol.Optional(CONF_SCAN_INTERVAL, default=current_options.get(CONF_SCAN_INTERVAL, 300)): int,
-                vol.Optional(CONF_ENABLE_API_PROXY, default=current_options.get(CONF_ENABLE_API_PROXY, False)): bool,
-                vol.Optional(CONF_ENABLE_HISTORY, default=current_options.get(CONF_ENABLE_HISTORY, False)): bool,
-                vol.Optional(CONF_SCAN_INTERVAL, default=current_options.get(CONF_SCAN_INTERVAL, 300)): int,
-                vol.Optional(CONF_HTTP_REQUEST_TIMEOUT, default=current_options.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)): int,
-                vol.Optional(CONF_ENABLE_SET_VALUE_RETRY, default=current_options.get(CONF_ENABLE_SET_VALUE_RETRY, True)): bool,
-                vol.Optional(CONF_ENABLE_WEBHOOK, default=current_options.get(CONF_ENABLE_WEBHOOK, True)): bool,
-                vol.Optional(CONF_API_PROXY_DISABLE_SECURITY, default=current_options.get(CONF_API_PROXY_DISABLE_SECURITY, False)): bool,
-                vol.Optional(CONF_PHP_FALLBACK_ENABLED, default=current_options.get(CONF_PHP_FALLBACK_ENABLED, False)): bool,
-                vol.Optional(CONF_PHP_FALLBACK_SCRIPT_NAME, default=current_options.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")): str,
-                vol.Optional(CONF_PHP_FALLBACK_TIMEOUT, default=current_options.get(CONF_PHP_FALLBACK_TIMEOUT, 5)): int,
-            }),
-            errors=errors,
-            description_placeholders={
-                "current_mode": "UI"
-            }
-
-    async def async_step_yaml(self, user_input=None):
-        """Handle YAML-based configuration."""
-        # Local imports to avoid circular dependency
-        from . import async_load_mapping, async_save_custom_mapping
-        from .const import YAML_MAPPING_SCHEMA
-        
-        errors = {}
-
-        if user_input is not None:
-            yaml_content = user_input.get("yaml_content", "")
-
-            try:
-                # Parse and validate YAML
-                parsed_yaml = yaml.safe_load(yaml_content) or {}
-                validated = YAML_MAPPING_SCHEMA(parsed_yaml)
-
-                # Save to custom_mapping.yaml
-                success = await async_save_custom_mapping(
-                    self.hass,
-                    self.hass.config.config_dir,
-                    validated
-                )
-
-                if success:
-                    # Update options
-                    options = {
-                        CONF_USE_YAML: True,
-                        CONF_YAML_CONTENT: yaml_content  # Store for re-editing
-                    }
-                    # Add API configuration options - ensure config values are preserved
-                    current_options = self._copy_config_to_options()
-                    options.update({
-                        CONF_ENABLE_API_EEDOMUS: current_options.get(CONF_ENABLE_API_EEDOMUS, True),
-                        CONF_ENABLE_API_PROXY: current_options.get(CONF_ENABLE_API_PROXY, False),
-                        CONF_ENABLE_HISTORY: current_options.get(CONF_ENABLE_HISTORY, False),
-                        CONF_HISTORY_RETRY_DELAY: current_options.get(CONF_HISTORY_RETRY_DELAY, DEFAULT_HISTORY_RETRY_DELAY),
-                        CONF_HISTORY_PERIPHERALS_PER_SCAN: current_options.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, DEFAULT_HISTORY_PERIPHERALS_PER_SCAN),
-                        CONF_SCAN_INTERVAL: current_options.get(CONF_SCAN_INTERVAL, 300),
-                        CONF_ENABLE_SET_VALUE_RETRY: current_options.get(CONF_ENABLE_SET_VALUE_RETRY, True),
-                        CONF_ENABLE_WEBHOOK: current_options.get(CONF_ENABLE_WEBHOOK, True),
-                        CONF_API_PROXY_DISABLE_SECURITY: current_options.get(CONF_API_PROXY_DISABLE_SECURITY, False),
-                        CONF_PHP_FALLBACK_ENABLED: current_options.get(CONF_PHP_FALLBACK_ENABLED, False),
-                        CONF_PHP_FALLBACK_SCRIPT_NAME: current_options.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php"),
-                        CONF_PHP_FALLBACK_TIMEOUT: current_options.get(CONF_PHP_FALLBACK_TIMEOUT, 5),
-                        CONF_HTTP_REQUEST_TIMEOUT: current_options.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)
-                    })
-                    # Log the options being saved
-                    _LOGGER.debug("Saving options in YAML mode: %s", options)
-                    return self.async_create_entry(title="", data=options)
-                else:
-                    errors["base"] = "failed_to_save_yaml"
-
-            except yaml.YAMLError as e:
-                _LOGGER.error("YAML parse error: %s", e)
-                errors["base"] = f"invalid_yaml: {e}"
-            except vol.Invalid as e:
-                _LOGGER.error("YAML validation error: %s", e)
-                errors["base"] = f"invalid_mapping: {e}"
-
-        # Load current YAML content
-        try:
-            current_mapping = await async_load_mapping(
-                self.hass,
-                self.hass.config.config_dir
-            )
-            # Use async_add_executor_job to avoid blocking calls
-            self.yaml_content = await self.hass.async_add_executor_job(
-                lambda: yaml.dump(
-                    current_mapping,
-                    default_flow_style=False,
-                    sort_keys=False,
-                    allow_unicode=True
-                )
-            )
-        except Exception as e:
-            _LOGGER.error("Failed to load YAML for editing: %s", e)
-            errors["base"] = "failed_to_load_yaml"
-            # Provide template if loading fails
-            self.yaml_content = """# Eedomus Custom Mapping
-# Edit this file to override default device mappings
-
-custom_devices:
-  # Example:
-  # - eedomus_id: "12345"
-  #   ha_entity: "light.my_light"
-  #   type: "light"
-  #   name: "My Custom Light"
-  #   ha_subtype: "dimmable"
-  #   icon: "mdi:lightbulb"
-  #   room: "Living Room"
-
-"""
-
-        return self.async_show_form(
-            step_id="yaml",
-            data_schema=vol.Schema({
-                vol.Required("yaml_content", default=self.yaml_content): str
-            }),
-            errors=errors,
-            description_placeholders={
-                "example": "Edit YAML directly for advanced configuration"
-            }
-
-    
     async def async_step_yaml_editor(self, user_input=None):
         """Handle YAML configuration editing with rich editor interface."""
         errors = {}
@@ -636,8 +284,8 @@ custom_devices:
 # Edit this file to override default device mappings
 
 metadata:
-  version: "1.0"
-  last_modified: """ + str(datetime.datetime.now().strftime('%Y-%m-%d')) + """
+  version: \"1.0\"
+  last_modified: \""" + str(datetime.datetime.now().strftime('%Y-%m-%d')) + "\"
   changes: []
 
 custom_rules: []
@@ -647,12 +295,12 @@ custom_name_patterns: []
 
 custom_devices:
   # Example:
-  # - eedomus_id: "12345"
-  #   ha_entity: "light.my_light"
-  #   type: "light"
-  #   ha_subtype: "rgbw"
-  #   icon: "mdi:lightbulb"
-  #   room: "Living Room"
+  # - eedomus_id: \"12345\"
+  #   ha_entity: \"light.my_light\"
+  #   type: \"light\"
+  #   ha_subtype: \"rgbw\"
+  #   icon: \"mdi:lightbulb\"
+  #   room: \"Living Room\"
 """
         except Exception as e:
             _LOGGER.error(f"Failed to load YAML configuration: {e}")
@@ -695,3 +343,219 @@ custom_devices:
             }
         )
 
+    async def async_step_ui(self, user_input=None):
+        """Handle UI-based device configuration."""
+        errors = {}
+        current_devices = []
+        
+        if user_input is not None:
+            if user_input.get("action") == "preview":
+                preview_yaml = yaml.dump(
+                    {"custom_devices": user_input.get(CONF_CUSTOM_DEVICES, [])},
+                    default_flow_style=False,
+                    sort_keys=False
+                )
+                return self.async_show_form(
+                    step_id="ui",
+                    data_schema=vol.Schema({
+                        vol.Optional(CONF_CUSTOM_DEVICES, default=current_devices): [
+                            vol.Schema({
+                                vol.Required("eedomus_id"): str,
+                                vol.Required("ha_entity"): str,
+                                vol.Required("type"): vol.In(["light", "switch", "sensor", "climate", "cover", "binary_sensor", "text_sensor"]),
+                                vol.Optional("ha_subtype"): str,
+                                vol.Optional("icon"): str,
+                                vol.Optional("room"): str,
+                                vol.Optional("parent_periph_id"): str,
+                                vol.Optional("attributes"): dict,
+                            })
+                        ],
+                    }),
+                    description_placeholders={
+                        "preview": f"```yaml\n{preview_yaml}\n```"
+                    },
+                )
+            
+            try:
+                validated = YAML_MAPPING_SCHEMA({
+                    "custom_devices": user_input.get(CONF_CUSTOM_DEVICES, [])
+                })
+                await async_save_custom_mapping(
+                    self.hass,
+                    self.hass.config.config_dir,
+                    validated
+                )
+                return self.async_create_entry(
+                    title="",
+                    data={
+                        CONF_USE_YAML: False,
+                        CONF_CUSTOM_DEVICES: user_input.get(CONF_CUSTOM_DEVICES, [])
+                    }
+                )
+            except vol.Invalid as e:
+                errors["base"] = f"Erreur de validation: {e}"
+
+        # Load current devices
+        try:
+            current_mapping = await async_load_mapping(
+                self.hass,
+                self.hass.config.config_dir
+            )
+            current_devices = current_mapping.get("custom_devices", [])
+        except Exception as e:
+            _LOGGER.error("Error loading mapping: %s", e)
+            current_devices = []
+        
+        # Load current API configuration
+        current_options = self._copy_config_to_options()
+        
+        # Load translations
+        language = self.hass.config.language if self.hass else "en"
+        translations = await async_get_translations(self.hass, language) if self.hass else {}
+        
+        return self.async_show_form(
+            step_id="ui",
+            data_schema=vol.Schema({
+                vol.Required(CONF_CUSTOM_DEVICES, default=current_devices): [
+                    vol.Schema({
+                        vol.Required("eedomus_id"): str,
+                        vol.Required("ha_entity"): str,
+                        vol.Required("type"): vol.In(["light", "switch", "sensor", "climate", "cover", "binary_sensor", "text_sensor"]),
+                        vol.Optional("ha_subtype"): str,
+                        vol.Optional("icon"): str,
+                        vol.Optional("room"): str,
+                        vol.Optional("parent_periph_id"): str,
+                        vol.Optional("attributes"): dict,
+                    })
+                ],
+            }),
+            custom_ui={
+                "type": "ha-form",
+                "schema": {
+                    CONF_CUSTOM_DEVICES: {
+                        "type": "ha-list",
+                        "title": translations.get("custom_devices_title", "Devices Personnalisés"),
+                        "add_item_label": translations.get("add_device_label", "Ajouter un Device"),
+                        "schema": {
+                            "eedomus_id": {
+                                "selector": {"text": {}},
+                                "label": translations.get("eedomus_id_label", "ID Eedomus"),
+                                "description": translations.get("eedomus_id_help", "L'identifiant unique du device dans eedomus.")
+                            },
+                            "ha_entity": {
+                                "selector": {"text": {"pattern": "^[a-z_]+\.[a-z0-9_]+$"}},
+                                "label": translations.get("ha_entity_label", "Entité Home Assistant"),
+                                "description": translations.get("ha_entity_help", "Le nom de l'entité dans Home Assistant (ex: light.salon).")
+                            },
+                            "type": {
+                                "selector": {
+                                    "select": {
+                                        "options": [
+                                            {"value": "light", "label": translations.get("light_label", "Lumière")},
+                                            {"value": "switch", "label": translations.get("switch_label", "Interrupteur")},
+                                            {"value": "sensor", "label": translations.get("sensor_label", "Capteur")},
+                                            {"value": "climate", "label": translations.get("climate_label", "Climatisation")},
+                                            {"value": "cover", "label": translations.get("cover_label", "Volet")},
+                                            {"value": "binary_sensor", "label": translations.get("binary_sensor_label", "Capteur binaire")},
+                                            {"value": "text_sensor", "label": translations.get("text_sensor_label", "Capteur texte")}
+                                        ],
+                                        "mode": "dropdown"
+                                    }
+                                },
+                                "label": translations.get("type_label", "Type"),
+                                "description": translations.get("type_help", "Le type de device dans Home Assistant.")
+                            },
+                            "ha_subtype": {
+                                "selector": {"text": {"autocomplete": ["rgbw", "dimmable", "volume"]}},
+                                "label": translations.get("ha_subtype_label", "Sous-type"),
+                                "description": translations.get("ha_subtype_help", "Le sous-type de l'entité (ex: rgbw, dimmable).")
+                            },
+                            "icon": {
+                                "selector": {"icon": {}},
+                                "label": translations.get("icon_label", "Icône"),
+                                "description": translations.get("icon_help", "L'icône à afficher dans l'UI (ex: mdi:lightbulb).")
+                            },
+                            "room": {
+                                "selector": {
+                                    "select": {
+                                        "options": [
+                                            translations.get("living_room_label", "Salon"),
+                                            translations.get("kitchen_label", "Cuisine"),
+                                            translations.get("bedroom_label", "Chambre"),
+                                            translations.get("bathroom_label", "Salle de bain"),
+                                            translations.get("outside_label", "Extérieur"),
+                                            translations.get("other_label", "Autre")
+                                        ],
+                                        "custom_value": True
+                                    }
+                                },
+                                "label": translations.get("room_label", "Pièce"),
+                                "description": translations.get("room_help", "La pièce où se trouve le device.")
+                            },
+                            "parent_periph_id": {
+                                "selector": {"text": {}},
+                                "label": translations.get("parent_id_label", "ID Parent"),
+                                "description": translations.get("parent_id_help", "L'ID du device parent (optionnel).")
+                            },
+                            "attributes": {
+                                "selector": {"key-value": {}},
+                                "label": translations.get("attributes_label", "Attributs"),
+                                "description": translations.get("attributes_help", "Attributs personnalisés (optionnel).")
+                            }
+                        }
+                    }
+                },
+                "actions": [
+                    {
+                        "name": "preview",
+                        "label": translations.get("preview_label", "Prévisualiser le YAML"),
+                        "action": "preview"
+                    },
+                    {
+                        "name": "save",
+                        "label": translations.get("save_label", "Sauvegarder"),
+                        "primary": True
+                    }
+                ]
+            },
+            errors=errors,
+            description_placeholders={
+                "intro": translations.get("ui_intro", "Configurez vos devices eedomus via l'interface graphique ou basculez en mode YAML pour une édition avancée.")
+            }
+        )
+
+# Fonctions utilitaires pour charger/sauvegarder les mappings
+async def async_load_mapping(hass, config_dir):
+    """Load custom mapping from file."""
+    mapping_path = os.path.join(
+        os.path.dirname(__file__),
+        "config",
+        "custom_mapping.yaml"
+    )
+    if os.path.exists(mapping_path):
+        try:
+            with open(mapping_path, "r") as f:
+                return yaml.safe_load(f) or {}
+        except Exception as e:
+            _LOGGER.error(f"Failed to load mapping: {e}")
+    return {}
+
+async def async_save_custom_mapping(hass, config_dir, mapping):
+    """Save custom mapping to file."""
+    mapping_path = os.path.join(
+        os.path.dirname(__file__),
+        "config",
+        "custom_mapping.yaml"
+    )
+    try:
+        with open(mapping_path, "w") as f:
+            yaml.dump(
+                mapping,
+                f,
+                default_flow_style=False,
+                sort_keys=False
+            )
+        return True
+    except Exception as e:
+        _LOGGER.error(f"Failed to save mapping: {e}")
+        return False

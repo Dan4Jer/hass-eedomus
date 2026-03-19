@@ -10,8 +10,10 @@ L'intégration Eedomus offre deux modes de configuration pour adapter les mappin
 ## Accéder à la Configuration
 
 1. Allez dans **Paramètres → Appareils → Eedomus → Options**
-2. Vous verrez l'interface de configuration principale
-3. Choisissez votre mode préféré
+2. **Sélectionnez le mode de configuration** :
+   - **Interface Graphique** : Pour une configuration visuelle et intuitive
+   - **Éditeur YAML** : Pour une configuration avancée avec contrôle total
+3. Cliquez sur **Soumettre** pour accéder à l'interface choisie
 
 ## Mode Interface Graphique
 
@@ -33,9 +35,10 @@ L'intégration Eedomus offre deux modes de configuration pour adapter les mappin
 
 ### Prévisualiser le YAML
 
-1. Cliquez sur **"Prévisualiser YAML"** pour voir la configuration générée
-2. Une fenêtre s'affiche avec le YAML correspondant
-3. Vous pouvez copier ce YAML pour référence ou modification manuelle
+1. Cliquez sur **"Preview YAML"** pour voir la configuration générée
+2. Le YAML s'affiche dans une zone dédiée avec coloration syntaxique
+3. Vérifiez que la structure est correcte avant de sauvegarder
+4. Vous pouvez copier ce YAML pour référence ou modification manuelle
 
 ### Sauvegarder
 
@@ -97,9 +100,10 @@ custom_devices:
 
 ### Valider et Sauvegarder
 
-1. Cliquez sur **"Sauvegarder"** pour appliquer les modifications
-2. Si des erreurs sont détectées, elles s'affichent en rouge
-3. Corrigiez les erreurs et réessayez
+1. Cliquez sur **"Preview"** pour valider la syntaxe YAML
+2. Si des erreurs sont détectées, elles s'affichent avec des messages détaillés
+3. Cliquez sur **"Save"** pour appliquer les modifications
+4. Les modifications sont appliquées immédiatement sans redémarrage nécessaire
 
 ## Types de Devices Supportés
 

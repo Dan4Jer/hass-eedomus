@@ -172,13 +172,56 @@ YAML_MAPPING_SCHEMA = vol.Schema({
         vol.Optional("last_modified"): str,
         vol.Optional("changes"): list,
     },
-    vol.Optional("custom_rules"): list,
-    vol.Optional("custom_usage_id_mappings"): dict,
-    vol.Optional("custom_dynamic_entity_properties"): dict,
-    vol.Optional("custom_specific_device_dynamic_overrides"): dict,
-    vol.Optional("temperature_setpoint_mappings"): dict,
-    vol.Optional("custom_name_patterns"): list,
-    vol.Optional(CONF_CUSTOM_DEVICES): vol.All(cv.ensure_list, [DEVICE_SCHEMA]),
+    vol.Optional("custom_rules"): [
+        vol.Schema({
+            vol.Required("name"): str,
+            vol.Required("condition"): {
+                vol.Required("usage_id"): str,
+                vol.Required("state"): vol.In(["on", "off", "unavailable"]),
+            },
+            vol.Required("actions"): [
+                vol.Schema({
+                    vol.Required("type"): vol.In(["override", "ignore", "transform"]),
+                    vol.Optional("ha_entity"): str,
+                    vol.Optional("attributes"): dict,
+                })
+            ],
+        })
+    ],
+    vol.Optional("custom_usage_id_mappings"): {
+        str: vol.Schema({
+            vol.Required("ha_entity"): str,
+            vol.Optional("ha_subtype"): str,
+            vol.Optional("device_class"): str,
+            vol.Optional("justification"): str,
+        })
+    },
+    vol.Optional("temperature_setpoint_mappings"): {
+        str: vol.Schema({
+            vol.Required("ha_entity"): str,
+            vol.Optional("unit_of_measurement"): str,
+            vol.Optional("justification"): str,
+        })
+    },
+    vol.Optional("custom_name_patterns"): [
+        vol.Schema({
+            vol.Required("pattern"): str,
+            vol.Required("replacement"): str,
+            vol.Required("target"): vol.In(["name", "entity_id"]),
+        })
+    ],
+    vol.Optional(CONF_CUSTOM_DEVICES): [
+        vol.Schema({
+            vol.Required("eedomus_id"): str,
+            vol.Required("ha_entity"): str,
+            vol.Required("type"): vol.In(["light", "switch", "sensor", "climate", "cover", "binary_sensor", "text_sensor"]),
+            vol.Optional("ha_subtype"): str,
+            vol.Optional("icon"): str,
+            vol.Optional("room"): str,
+            vol.Optional("parent_periph_id"): str,
+            vol.Optional("attributes"): dict,
+        })
+    ],
 })
 
 # Schema for UI options
