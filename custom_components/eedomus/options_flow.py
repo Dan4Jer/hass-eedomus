@@ -326,8 +326,9 @@ custom_devices:
                 return self.async_show_form(
                     step_id="ui",
                     data_schema=vol.Schema({
-                        vol.Optional(CONF_CUSTOM_DEVICES, default=current_devices): [
-                            vol.Schema({
+                        vol.Optional(CONF_CUSTOM_DEVICES, default=current_devices): vol.All(
+                            cv.ensure_list,
+                            [vol.Schema({
                                 vol.Required("eedomus_id"): str,
                                 vol.Required("ha_entity"): str,
                                 vol.Required("type"): vol.In(["light", "switch", "sensor", "climate", "cover", "binary_sensor", "text_sensor"]),
@@ -336,8 +337,8 @@ custom_devices:
                                 vol.Optional("room"): str,
                                 vol.Optional("parent_periph_id"): str,
                                 vol.Optional("attributes"): dict,
-                            })
-                        ],
+                            })]
+                        ),
                     }),
                     description_placeholders={
                         "preview": f"```yaml\n{preview_yaml}\n```"
@@ -384,8 +385,9 @@ custom_devices:
         return self.async_show_form(
             step_id="ui",
             data_schema=vol.Schema({
-                vol.Required(CONF_CUSTOM_DEVICES, default=current_devices): [
-                    vol.Schema({
+                vol.Required(CONF_CUSTOM_DEVICES, default=current_devices): vol.All(
+                    cv.ensure_list,
+                    [vol.Schema({
                         vol.Required("eedomus_id"): str,
                         vol.Required("ha_entity"): str,
                         vol.Required("type"): vol.In(["light", "switch", "sensor", "climate", "cover", "binary_sensor", "text_sensor"]),
@@ -394,8 +396,8 @@ custom_devices:
                         vol.Optional("room"): str,
                         vol.Optional("parent_periph_id"): str,
                         vol.Optional("attributes"): dict,
-                    })
-                ],
+                    })]
+                ),
             }),
             description_placeholders={
                 "intro": translations.get("ui_intro", "Configurez vos devices eedomus via l'interface graphique ou basculez en mode YAML pour une édition avancée.")
