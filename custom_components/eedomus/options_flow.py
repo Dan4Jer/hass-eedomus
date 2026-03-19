@@ -228,7 +228,7 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
         
         if user_input is not None:
             # Save YAML configuration
-            yaml_content = user_input.get(CONF_YAML_CONTENT, "")
+            yaml_content = user_input.get("yaml_content", "")
             
             try:
                 # Validate YAML syntax
@@ -249,7 +249,7 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 # Update options
                 options = {
                     CONF_USE_YAML: True,
-                    CONF_YAML_CONTENT: yaml_content
+                    "yaml_content": yaml_content
                 }
                 
                 # Add API configuration options - ensure config values are preserved
@@ -505,7 +505,7 @@ custom_devices:
         
         if user_input is not None:
             # Save YAML configuration
-            yaml_content = user_input.get(CONF_YAML_CONTENT, "")
+            yaml_content = user_input.get("yaml_content", "")
             
             try:
                 # Validate YAML syntax
@@ -612,7 +612,7 @@ custom_devices:
         return self.async_show_form(
             step_id="yaml_editor",
             data_schema=vol.Schema({
-                vol.Optional(CONF_YAML_CONTENT, default=yaml_content): str
+                vol.Optional("yaml_content", default=yaml_content): str
             }),
             description_placeholders={
                 "title": translations.get("title", "Eedomus"),
