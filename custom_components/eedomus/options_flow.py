@@ -220,8 +220,25 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 "title": translations.get("title", "Eedomus"),
                 "description": translations.get("description", "Integration for the eedomus home automation box."),
                 "yaml_edit_hint": translations.get("edit_yaml_tooltip", "Check the box below to edit YAML configuration directly")
-            }
-        )
+            }        ),
+        custom_ui={
+            "type": "ha-yaml-editor",
+            "schema": YAML_MAPPING_SCHEMA,
+            "label": "YAML Editor",
+            "description": "Edit the YAML configuration below.",
+            "actions": [
+                {
+                    "name": "preview",
+                    "label": "Preview",
+                    "action": "preview"
+                },
+                {
+                    "name": "save",
+                    "label": "Save",
+                    "primary": True
+                }
+            ]
+        }
 
     async def async_step_yaml_edit(self, user_input=None):
         """Handle YAML configuration editing."""
@@ -393,7 +410,6 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
             description_placeholders={
                 "current_mode": "UI"
             }
-        )
 
     async def async_step_yaml(self, user_input=None):
         """Handle YAML-based configuration."""
@@ -497,7 +513,6 @@ custom_devices:
             description_placeholders={
                 "example": "Edit YAML directly for advanced configuration"
             }
-        )
 
     
     async def async_step_yaml_editor(self, user_input=None):
@@ -649,6 +664,24 @@ custom_devices:
                 "description": translations.get("description", "Edit YAML configuration"),
                 "helper": "Modify the YAML below. Click 'Preview' to validate before saving.",
             },
-            errors=errors
+            errors=errors,
+            custom_ui={
+                "type": "ha-yaml-editor",
+                "schema": YAML_MAPPING_SCHEMA,
+                "label": "YAML Editor",
+                "description": "Edit the YAML configuration below.",
+                "actions": [
+                    {
+                        "name": "preview",
+                        "label": "Preview",
+                        "action": "preview"
+                    },
+                    {
+                        "name": "save",
+                        "label": "Save",
+                        "primary": True
+                    }
+                ]
+            }
         )
 
