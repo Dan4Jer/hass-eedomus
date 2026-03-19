@@ -3,7 +3,7 @@
 
 # Core dependencies (also in manifest.json)
 aiohttp==3.13.3  # Version corrigée pour les vulnérabilités connues
-requests==2.31.0  # Remplace l'ancienne version vulnérable
+requests==2.32.5  # Remplace l'ancienne version vulnérable
 yarl==1.9.2
 
 
