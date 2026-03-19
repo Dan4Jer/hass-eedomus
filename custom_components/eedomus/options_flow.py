@@ -153,23 +153,9 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
             data_schema=vol.Schema({
                 vol.Required("mode", default="ui"): vol.In(["ui", "yaml"]),
             }),
-            custom_ui={
-                "type": "ha-form",
-                "schema": {
-                    "mode": {
-                        "selector": {
-                            "select": {
-                                "options": [
-                                    {"value": "ui", "label": translations.get("ui_mode", "Interface Graphique")},
-                                    {"value": "yaml", "label": translations.get("yaml_mode", "Éditeur YAML")}
-                                ],
-                                "mode": "list"
-                            }
-                        },
-                        "label": translations.get("mode_selector", "Mode de Configuration"),
-                        "description": translations.get("mode_selector_help", "Choisissez entre l'interface graphique ou l'éditeur YAML.")
-                    }
-                }
+            description_placeholders={
+                "mode_selector": translations.get("mode_selector", "Mode de Configuration"),
+                "mode_selector_help": translations.get("mode_selector_help", "Choisissez entre l'interface graphique ou l'éditeur YAML.")
             }
         )
 
@@ -322,25 +308,7 @@ custom_devices:
                 "description": translations.get("description", "Edit YAML configuration"),
                 "helper": "Modify the YAML below. Click 'Preview' to validate before saving.",
             },
-            errors=errors,
-            custom_ui={
-                "type": "ha-yaml-editor",
-                "schema": YAML_MAPPING_SCHEMA,
-                "label": "YAML Editor",
-                "description": "Edit the YAML configuration below.",
-                "actions": [
-                    {
-                        "name": "preview",
-                        "label": "Preview",
-                        "action": "preview"
-                    },
-                    {
-                        "name": "save",
-                        "label": "Save",
-                        "primary": True
-                    }
-                ]
-            }
+            errors=errors
         )
 
     async def async_step_ui(self, user_input=None):
@@ -429,96 +397,6 @@ custom_devices:
                     })
                 ],
             }),
-            custom_ui={
-                "type": "ha-form",
-                "schema": {
-                    CONF_CUSTOM_DEVICES: {
-                        "type": "ha-list",
-                        "title": translations.get("custom_devices_title", "Devices Personnalisés"),
-                        "add_item_label": translations.get("add_device_label", "Ajouter un Device"),
-                        "schema": {
-                            "eedomus_id": {
-                                "selector": {"text": {}},
-                                "label": translations.get("eedomus_id_label", "ID Eedomus"),
-                                "description": translations.get("eedomus_id_help", "L'identifiant unique du device dans eedomus.")
-                            },
-                            "ha_entity": {
-                                "selector": {"text": {"pattern": "^[a-z_]+\.[a-z0-9_]+$"}},
-                                "label": translations.get("ha_entity_label", "Entité Home Assistant"),
-                                "description": translations.get("ha_entity_help", "Le nom de l'entité dans Home Assistant (ex: light.salon).")
-                            },
-                            "type": {
-                                "selector": {
-                                    "select": {
-                                        "options": [
-                                            {"value": "light", "label": translations.get("light_label", "Lumière")},
-                                            {"value": "switch", "label": translations.get("switch_label", "Interrupteur")},
-                                            {"value": "sensor", "label": translations.get("sensor_label", "Capteur")},
-                                            {"value": "climate", "label": translations.get("climate_label", "Climatisation")},
-                                            {"value": "cover", "label": translations.get("cover_label", "Volet")},
-                                            {"value": "binary_sensor", "label": translations.get("binary_sensor_label", "Capteur binaire")},
-                                            {"value": "text_sensor", "label": translations.get("text_sensor_label", "Capteur texte")}
-                                        ],
-                                        "mode": "dropdown"
-                                    }
-                                },
-                                "label": translations.get("type_label", "Type"),
-                                "description": translations.get("type_help", "Le type de device dans Home Assistant.")
-                            },
-                            "ha_subtype": {
-                                "selector": {"text": {"autocomplete": ["rgbw", "dimmable", "volume"]}},
-                                "label": translations.get("ha_subtype_label", "Sous-type"),
-                                "description": translations.get("ha_subtype_help", "Le sous-type de l'entité (ex: rgbw, dimmable).")
-                            },
-                            "icon": {
-                                "selector": {"icon": {}},
-                                "label": translations.get("icon_label", "Icône"),
-                                "description": translations.get("icon_help", "L'icône à afficher dans l'UI (ex: mdi:lightbulb).")
-                            },
-                            "room": {
-                                "selector": {
-                                    "select": {
-                                        "options": [
-                                            translations.get("living_room_label", "Salon"),
-                                            translations.get("kitchen_label", "Cuisine"),
-                                            translations.get("bedroom_label", "Chambre"),
-                                            translations.get("bathroom_label", "Salle de bain"),
-                                            translations.get("outside_label", "Extérieur"),
-                                            translations.get("other_label", "Autre")
-                                        ],
-                                        "custom_value": True
-                                    }
-                                },
-                                "label": translations.get("room_label", "Pièce"),
-                                "description": translations.get("room_help", "La pièce où se trouve le device.")
-                            },
-                            "parent_periph_id": {
-                                "selector": {"text": {}},
-                                "label": translations.get("parent_id_label", "ID Parent"),
-                                "description": translations.get("parent_id_help", "L'ID du device parent (optionnel).")
-                            },
-                            "attributes": {
-                                "selector": {"key-value": {}},
-                                "label": translations.get("attributes_label", "Attributs"),
-                                "description": translations.get("attributes_help", "Attributs personnalisés (optionnel).")
-                            }
-                        }
-                    }
-                },
-                "actions": [
-                    {
-                        "name": "preview",
-                        "label": translations.get("preview_label", "Prévisualiser le YAML"),
-                        "action": "preview"
-                    },
-                    {
-                        "name": "save",
-                        "label": translations.get("save_label", "Sauvegarder"),
-                        "primary": True
-                    }
-                ]
-            },
-            errors=errors,
             description_placeholders={
                 "intro": translations.get("ui_intro", "Configurez vos devices eedomus via l'interface graphique ou basculez en mode YAML pour une édition avancée.")
             }
