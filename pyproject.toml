@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "hass-eedomus"
 version = "0.14.3"
 dependencies = [
-    "aiohttp==3.9.3",
+    "aiohttp==3.13.3",
     "requests==2.31.0",
     "yarl==1.9.2",
 ]
