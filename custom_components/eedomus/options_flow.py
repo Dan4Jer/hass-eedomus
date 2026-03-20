@@ -326,7 +326,7 @@ custom_devices:
                 return self.async_show_form(
                     step_id="ui",
                     data_schema=vol.Schema({
-                        vol.Optional(CONF_CUSTOM_DEVICES, default=current_devices): [
+                        vol.Optional(CONF_CUSTOM_DEVICES, default=current_devices): cv.multi_select(
                             vol.Schema({
                                 vol.Required("eedomus_id"): str,
                                 vol.Required("ha_entity"): str,
@@ -337,7 +337,7 @@ custom_devices:
                                 vol.Optional("parent_periph_id"): str,
                                 vol.Optional("attributes"): dict,
                             })
-                        ],
+                        ),
                     }),
                     description_placeholders={
                         "preview": f"```yaml\n{preview_yaml}\n```"
@@ -384,7 +384,7 @@ custom_devices:
         return self.async_show_form(
             step_id="ui",
             data_schema=vol.Schema({
-                vol.Required(CONF_CUSTOM_DEVICES, default=current_devices): [
+                vol.Required(CONF_CUSTOM_DEVICES, default=current_devices): cv.multi_select(
                     vol.Schema({
                         vol.Required("eedomus_id"): str,
                         vol.Required("ha_entity"): str,
@@ -395,7 +395,7 @@ custom_devices:
                         vol.Optional("parent_periph_id"): str,
                         vol.Optional("attributes"): dict,
                     })
-                ],
+                ),
             }),
             description_placeholders={
                 "intro": translations.get("ui_intro", "Configurez vos devices eedomus via l'interface graphique ou basculez en mode YAML pour une édition avancée.")
