@@ -137,27 +137,9 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
         return EedomusOptionsFlow(config_entry)
 
     async def async_step_init(self, user_input=None):
-        """Manage the options with mode selection."""
-        language = self.hass.config.language if self.hass else "en"
-        translations = await async_get_translations(self.hass, language) if self.hass else {}
-        
-        if user_input is not None:
-            self.use_yaml = user_input.get("mode") == "yaml"
-            if self.use_yaml:
-                return await self.async_step_yaml_editor(None)
-            else:
-                return await self.async_step_ui(None)
-
-        return self.async_show_form(
-            step_id="init",
-            data_schema=vol.Schema({
-                vol.Required("mode", default="ui"): vol.In(["ui", "yaml"]),
-            }),
-            description_placeholders={
-                "mode_selector": translations.get("mode_selector", "Mode de Configuration"),
-                "mode_selector_help": translations.get("mode_selector_help", "Choisissez entre l'interface graphique ou l'éditeur YAML.")
-            }
-        )
+        """Manage the options - redirect directly to YAML editor."""
+        # Directly go to YAML editor for full configuration
+        return await self.async_step_yaml_editor(None)
 
     async def async_step_yaml_editor(self, user_input=None):
         """Handle YAML configuration editing with rich editor interface."""
@@ -311,74 +293,7 @@ custom_devices:
             errors=errors
         )
 
-    async def async_step_ui(self, user_input=None):
-        """Handle UI-based device configuration."""
-        errors = {}
-        current_devices = []
-        
-        if user_input is not None:
-            if user_input.get("action") == "preview":
-                preview_yaml = yaml.dump(
-                    {"custom_devices": user_input.get(CONF_CUSTOM_DEVICES, [])},
-                    default_flow_style=False,
-                    sort_keys=False
-                )
-                return self.async_show_form(
-                    step_id="ui",
-                    data_schema=vol.Schema({
-                        vol.Optional(CONF_CUSTOM_DEVICES, default=current_devices): str,
-                    }),
-                    description_placeholders={
-                        "preview": f"```yaml\n{preview_yaml}\n```"
-                    },
-                )
-            
-            try:
-                validated = YAML_MAPPING_SCHEMA({
-                    "custom_devices": user_input.get(CONF_CUSTOM_DEVICES, [])
-                })
-                await async_save_custom_mapping(
-                    self.hass,
-                    self.hass.config.config_dir,
-                    validated
-                )
-                return self.async_create_entry(
-                    title="",
-                    data={
-                        CONF_USE_YAML: False,
-                        CONF_CUSTOM_DEVICES: user_input.get(CONF_CUSTOM_DEVICES, [])
-                    }
-                )
-            except vol.Invalid as e:
-                errors["base"] = f"Erreur de validation: {e}"
-
-        # Load current devices
-        try:
-            current_mapping = await async_load_mapping(
-                self.hass,
-                self.hass.config.config_dir
-            )
-            current_devices = current_mapping.get("custom_devices", [])
-        except Exception as e:
-            _LOGGER.error("Error loading mapping: %s", e)
-            current_devices = []
-        
-        # Load current API configuration
-        current_options = self._copy_config_to_options()
-        
-        # Load translations
-        language = self.hass.config.language if self.hass else "en"
-        translations = await async_get_translations(self.hass, language) if self.hass else {}
-        
-        return self.async_show_form(
-            step_id="ui",
-            data_schema=vol.Schema({
-                vol.Required(CONF_CUSTOM_DEVICES, default=current_devices): str,
-            }),
-            description_placeholders={
-                "intro": translations.get("ui_intro", "Configurez vos devices eedomus via l'interface graphique ou basculez en mode YAML pour une édition avancée.")
-            }
-        )
+    # async_step_ui method removed - using YAML editor only
 
 # Fonctions utilitaires pour charger/sauvegarder les mappings
 async def async_load_mapping(hass, config_dir):
@@ -390,9 +305,8 @@ async def async_load_mapping(hass, config_dir):
     )
     if os.path.exists(mapping_path):
         try:
-            return await hass.async_add_executor_job(
-                lambda: (yaml.safe_load(open(mapping_path, "r")) or {})
-            )
+            with open(mapping_path, "r") as f:
+                return yaml.safe_load(f) or {}
         except Exception as e:
             _LOGGER.error(f"Failed to load mapping: {e}")
     return {}
@@ -405,14 +319,13 @@ async def async_save_custom_mapping(hass, config_dir, mapping):
         "custom_mapping.yaml"
     )
     try:
-        await hass.async_add_executor_job(
-            lambda: yaml.dump(
+        with open(mapping_path, "w") as f:
+            yaml.dump(
                 mapping,
-                open(mapping_path, "w"),
+                f,
                 default_flow_style=False,
                 sort_keys=False
             )
-        )
         return True
     except Exception as e:
         _LOGGER.error(f"Failed to save mapping: {e}")
