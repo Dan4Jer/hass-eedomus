@@ -137,21 +137,11 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
         return EedomusOptionsFlow(config_entry)
 
     async def async_step_init(self, user_input=None):
-        """Manage the options - use rich editor interface."""
-        # Use the rich editor for configuration
-        return self.async_show_form(
-            step_id="init",
-            data_schema=vol.Schema({}),
-            description_placeholders={
-                "content": "Click below to open the rich configuration editor"
-            },
-            custom_ui={
-                "component": "eedomus-rich-editor",
-                "config": {
-                    "entry_id": self.config_entry.entry_id
-                }
-            }
-        )
+        """Manage the options - redirect to YAML editor with rich editor support."""
+        # For HA 2026+, custom UI components are loaded automatically from www/
+        # The rich editor will be available when the frontend loads it
+        # For now, use the standard YAML editor as fallback
+        return await self.async_step_yaml_editor(None)
 
     async def async_step_yaml_editor(self, user_input=None):
         """Handle YAML configuration editing with rich editor interface."""
