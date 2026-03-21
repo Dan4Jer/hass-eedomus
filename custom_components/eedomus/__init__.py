@@ -100,12 +100,16 @@ async def _async_init_schema_service(hass: HomeAssistant):
     await schema_service.async_init()
     return schema_service
 
+def _init_ui_service(hass: HomeAssistant):
+    """Initialize UIService with lazy import."""
+    from .ui_service import EedomusUIService
+    ui_service = EedomusUIService(hass)
+    return ui_service
+
 async def _async_init_ui_service(hass: HomeAssistant):
     """Initialize UIService with lazy import using executor to avoid blocking."""
     # Use async_add_executor_job to avoid blocking the event loop
-    ui_service = await hass.async_add_executor_job(
-        lambda: __import__('custom_components.eedomus.ui_service', fromlist=['EedomusUIService']).EedomusUIService(hass)
-    )
+    ui_service = await hass.async_add_executor_job(_init_ui_service, hass)
     await ui_service.async_init()
     return ui_service
 
