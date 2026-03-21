@@ -19,6 +19,7 @@ from .webhook import EedomusWebhookView
 from .config_manager import EedomusConfigManager
 from .data_service import EedomusDataService
 from .schema_service import SchemaService
+from .ui_service import EedomusUIService
 from .const import (
 
     CONF_API_HOST,
@@ -125,17 +126,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     schema_service = SchemaService(hass)
     await schema_service.async_init()
     
+    # Initialize UIService
+    ui_service = EedomusUIService(hass)
+    await ui_service.async_init()
+    
     # Store services in hass.data for access by other components
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
     hass.data[DOMAIN]["config_manager"] = config_manager
     hass.data[DOMAIN]["data_service"] = data_service
     hass.data[DOMAIN]["schema_service"] = schema_service
+    hass.data[DOMAIN]["ui_service"] = ui_service
     
     # Set up cleanup for services on unload
     async def _async_cleanup_services():
         await config_manager.async_shutdown()
         await data_service.async_shutdown()
+        await ui_service.async_shutdown()
         # SchemaService doesn't need async shutdown as it has no persistent resources
     entry.async_on_unload(_async_cleanup_services)
 
