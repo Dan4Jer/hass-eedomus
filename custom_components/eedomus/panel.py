@@ -37,7 +37,7 @@ async def async_setup_panel(hass: HomeAssistant):
         # Also register as a custom panel for compatibility
         try:
             from homeassistant.components.panel_custom import async_register_panel
-            async_register_panel(
+            await async_register_panel(
                 hass,
                 "eedomus-config",
                 "eedomus-config",
