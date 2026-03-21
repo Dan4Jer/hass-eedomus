@@ -15,8 +15,8 @@ panels:
   - name: eedomus-config
     sidebar_title: Eedomus Config
     sidebar_icon: mdi:cog
-    js_url: /local/custom_components/eedomus/www/eedomus-panel.js
-    embed_iframe: false
+    url_path: eedomus-config-panel
+    embed_iframe: true
     require_admin: true
     config:
       component: eedomus-config-panel

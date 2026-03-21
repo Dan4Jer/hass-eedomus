@@ -20,6 +20,33 @@ async def async_setup_panel(hass: HomeAssistant):
         async_register_built_in_panel(
             hass,
             "eedomus-config",
+            "eedomus-config-panel",  # Use HTML file
+            "mdi:cog",
+            require_admin=True,
+        )
+        
+        _LOGGER.info("✅ Eedomus configuration panel registered successfully")
+        
+    except Exception as e:
+        _LOGGER.error("Error setting up Eedomus panel: %s", e)
+        return False
+    
+    return True
+
+async def async_unload_panel(hass: HomeAssistant):
+    """Unload the Eedomus configuration panel."""
+    # Panel unregistration if needed
+    return True
+
+async def async_setup_panel(hass: HomeAssistant):
+    """Set up the Eedomus configuration panel."""
+    
+    try:
+        # Register the panel with proper configuration
+        # Note: async_register_built_in_panel doesn't return a value, it's a fire-and-forget function
+        async_register_built_in_panel(
+            hass,
+            "eedomus-config",
             "eedomus-config",
             "mdi:cog",
             require_admin=True,
