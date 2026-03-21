@@ -123,6 +123,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.info("🚀 Starting eedomus integration setup - Version %s", VERSION)
     _LOGGER.debug("Setting up eedomus integration with entry_id: %s", entry.entry_id)
     
+    # Setup configuration panel
+    try:
+        from .panel import async_setup_panel
+        await async_setup_panel(hass)
+        _LOGGER.info("✅ Eedomus configuration panel registered")
+    except Exception as e:
+        _LOGGER.warning("Could not setup configuration panel: %s", e)
+    
     # Perform migration if needed
     if entry.version < 4:
         try:
@@ -522,6 +530,14 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     This function cleans up the integration by unloading platforms and removing
     the entry data from the Home Assistant data store.
     """
+    # Cleanup configuration panel
+    try:
+        from .panel import async_unload_panel
+        await async_unload_panel(hass)
+        _LOGGER.debug("Eedomus configuration panel unloaded")
+    except Exception as e:
+        _LOGGER.warning("Could not unload configuration panel: %s", e)
+    
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         if entry.entry_id in hass.data[DOMAIN]:
             hass.data[DOMAIN].pop(entry.entry_id)
