@@ -1,13 +1,13 @@
 """Configuration Manager for Eedomus Integration with HA 2026 features."""
 
 import logging
-import asyncio
 from typing import Dict, Any, Optional
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.event import async_track_time_interval, async_track_state_change
 from homeassistant.helpers import config_validation as cv
+from datetime import timedelta
 import voluptuous as vol
 
 from .const import (
@@ -72,7 +72,7 @@ class EedomusConfigManager:
             self._unsubscribe_periodic_save = async_track_time_interval(
                 self.hass,
                 self._async_auto_save,
-                asyncio.timedelta(minutes=5)
+                timedelta(minutes=5)
             )
             
             self._initialized = True
