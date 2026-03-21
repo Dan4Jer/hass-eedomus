@@ -28,7 +28,7 @@ def register_frontend():
         hass = HomeAssistant('/config')
         
         # Register frontend module
-        frontend_path = '/config/custom_components/hass-eedomus/www'
+        frontend_path = '/config/custom_components/eedomus/www'
         
         # Check if frontend is already registered
         if hasattr(hass.components, 'frontend') and hass.components.frontend:

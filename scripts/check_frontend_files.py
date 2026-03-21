@@ -11,7 +11,7 @@ def check_frontend_files():
     print("🔍 Checking Eedomus Frontend Files")
     print("=" * 35)
     
-    base_path = '/homeassistant/custom_components/hass-eedomus/www'
+    base_path = '/homeassistant/custom_components/eedomus/www'
     
     files_to_check = [
         'eedomus-rich-editor.js',
