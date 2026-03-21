@@ -2,11 +2,11 @@
 
 import logging
 from typing import Dict, Any, List, Optional
+from datetime import datetime
 
 from homeassistant.core import HomeAssistant
 from homeassistant.components.websocket_api import (
     async_register_command,
-    WebSocketCommandHandler,
 )
 import voluptuous as vol
 
@@ -33,12 +33,12 @@ class EedomusUIService:
     async def async_init(self) -> None:
         """Initialize the UI service and register WebSocket commands."""
         try:
-            # Register WebSocket commands
+            # Register WebSocket commands with proper command types
             self._registered_commands = [
-                async_register_command(self.hass, self._handle_validate_config),
-                async_register_command(self.hass, self._handle_get_suggestions),
-                async_register_command(self.hass, self._handle_get_schema),
-                async_register_command(self.hass, self._handle_get_cache_stats)
+                async_register_command(self.hass, WS_TYPE_EEDOMUS_VALIDATE, self._handle_validate_config),
+                async_register_command(self.hass, WS_TYPE_EEDOMUS_SUGGESTIONS, self._handle_get_suggestions),
+                async_register_command(self.hass, WS_TYPE_EEDOMUS_SCHEMA, self._handle_get_schema),
+                async_register_command(self.hass, WS_TYPE_EEDOMUS_CACHE_STATS, self._handle_get_cache_stats)
             ]
             
             self._initialized = True
@@ -61,7 +61,6 @@ class EedomusUIService:
         self._initialized = False
         _LOGGER.debug("Eedomus UIService shutdown complete")
     
-    @WebSocketCommandHandler.register(WS_TYPE_EEDOMUS_VALIDATE)
     async def _handle_validate_config(
         self, 
         hass: HomeAssistant, 
@@ -93,7 +92,6 @@ class EedomusUIService:
             _LOGGER.error(f"Validation error: {e}")
             return self._create_error_response(str(e))
     
-    @WebSocketCommandHandler.register(WS_TYPE_EEDOMUS_SUGGESTIONS)
     async def _handle_get_suggestions(
         self, 
         hass: HomeAssistant, 
@@ -124,7 +122,6 @@ class EedomusUIService:
             _LOGGER.error(f"Suggestions error: {e}")
             return self._create_error_response(str(e))
     
-    @WebSocketCommandHandler.register(WS_TYPE_EEDOMUS_SCHEMA)
     async def _handle_get_schema(
         self, 
         hass: HomeAssistant, 
@@ -162,7 +159,6 @@ class EedomusUIService:
             _LOGGER.error(f"Schema error: {e}")
             return self._create_error_response(str(e))
     
-    @WebSocketCommandHandler.register(WS_TYPE_EEDOMUS_CACHE_STATS)
     async def _handle_get_cache_stats(
         self, 
         hass: HomeAssistant, 
