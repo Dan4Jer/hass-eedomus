@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.storage import Store
-from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.event import async_track_time_interval, async_track_state_change
 from homeassistant.helpers import config_validation as cv
 import voluptuous as vol
 
@@ -62,8 +62,9 @@ class EedomusConfigManager:
                 """Handle configuration updated events."""
                 self.hass.async_create_task(self._async_handle_config_updated(event))
             
-            self._unsubscribe_config_updated = self.hass.helpers.event.async_track_state_change(
-                self.hass.states.all(),
+            self._unsubscribe_config_updated = async_track_state_change(
+                self.hass,
+                [f"{DOMAIN}.*"],
                 _handle_config_updated
             )
             
