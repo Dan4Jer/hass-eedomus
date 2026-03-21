@@ -11,11 +11,11 @@ async def async_setup_panel(hass: HomeAssistant):
     """Set up the Eedomus configuration panel."""
     
     try:
-        # Register the panel using iframe approach
+        # Register the panel using component approach
         async_register_built_in_panel(
             hass,
             "eedomus-config",
-            "eedomus-config-panel",  # This should match the HTML filename
+            "eedomus-config-panel",  # This should match the component name
             "mdi:cog",
             require_admin=True,
         )
