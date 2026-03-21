@@ -145,14 +145,20 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 # Redirect to our custom panel
                 return self.async_abort(reason="redirect_to_panel")
             
-            # Save regular options
+            # Save all options
             options = {
                 CONF_ENABLE_API_EEDOMUS: user_input[CONF_ENABLE_API_EEDOMUS],
                 CONF_ENABLE_API_PROXY: user_input[CONF_ENABLE_API_PROXY],
                 CONF_ENABLE_HISTORY: user_input[CONF_ENABLE_HISTORY],
+                CONF_HISTORY_PERIPHERALS_PER_SCAN: user_input[CONF_HISTORY_PERIPHERALS_PER_SCAN],
                 CONF_SCAN_INTERVAL: user_input[CONF_SCAN_INTERVAL],
+                CONF_ENABLE_SET_VALUE_RETRY: user_input[CONF_ENABLE_SET_VALUE_RETRY],
                 CONF_ENABLE_WEBHOOK: user_input[CONF_ENABLE_WEBHOOK],
                 CONF_API_PROXY_DISABLE_SECURITY: user_input[CONF_API_PROXY_DISABLE_SECURITY],
+                CONF_PHP_FALLBACK_ENABLED: user_input[CONF_PHP_FALLBACK_ENABLED],
+                CONF_PHP_FALLBACK_SCRIPT_NAME: user_input[CONF_PHP_FALLBACK_SCRIPT_NAME],
+                CONF_PHP_FALLBACK_TIMEOUT: user_input[CONF_PHP_FALLBACK_TIMEOUT],
+                CONF_HTTP_REQUEST_TIMEOUT: user_input[CONF_HTTP_REQUEST_TIMEOUT],
             }
             
             # Update config entry
@@ -173,13 +179,19 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(CONF_ENABLE_API_EEDOMUS, default=current_config.get(CONF_ENABLE_API_EEDOMUS, True)): bool,
                 vol.Optional(CONF_ENABLE_API_PROXY, default=current_config.get(CONF_ENABLE_API_PROXY, False)): bool,
                 vol.Optional(CONF_ENABLE_HISTORY, default=current_config.get(CONF_ENABLE_HISTORY, False)): bool,
-                vol.Optional(CONF_SCAN_INTERVAL, default=current_config.get(CONF_SCAN_INTERVAL, 60)): int,
-                vol.Optional(CONF_ENABLE_WEBHOOK, default=current_config.get(CONF_ENABLE_WEBHOOK, False)): bool,
+                vol.Optional(CONF_HISTORY_PERIPHERALS_PER_SCAN, default=current_config.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, 5)): int,
+                vol.Optional(CONF_SCAN_INTERVAL, default=current_config.get(CONF_SCAN_INTERVAL, 300)): int,
+                vol.Optional(CONF_ENABLE_SET_VALUE_RETRY, default=current_config.get(CONF_ENABLE_SET_VALUE_RETRY, True)): bool,
+                vol.Optional(CONF_ENABLE_WEBHOOK, default=current_config.get(CONF_ENABLE_WEBHOOK, True)): bool,
                 vol.Optional(CONF_API_PROXY_DISABLE_SECURITY, default=current_config.get(CONF_API_PROXY_DISABLE_SECURITY, False)): bool,
+                vol.Optional(CONF_PHP_FALLBACK_ENABLED, default=current_config.get(CONF_PHP_FALLBACK_ENABLED, False)): bool,
+                vol.Optional(CONF_PHP_FALLBACK_SCRIPT_NAME, default=current_config.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")): str,
+                vol.Optional(CONF_PHP_FALLBACK_TIMEOUT, default=current_config.get(CONF_PHP_FALLBACK_TIMEOUT, 5)): int,
+                vol.Optional(CONF_HTTP_REQUEST_TIMEOUT, default=current_config.get(CONF_HTTP_REQUEST_TIMEOUT, 30)): int,
                 vol.Optional("use_rich_editor", default=False): bool,
             }),
             description_placeholders={
-                "content": "Configure Eedomus integration settings. Check 'Use Rich Editor' for advanced configuration."
+                "content": "Configure Eedomus integration settings. Check 'Use Rich Editor' for advanced YAML configuration."
             }
         )
     
@@ -310,46 +322,87 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 CONF_ENABLE_HISTORY,
                 self.config_entry.data.get(CONF_ENABLE_HISTORY, False)
             ),
+            CONF_HISTORY_PERIPHERALS_PER_SCAN: self.config_entry.options.get(
+                CONF_HISTORY_PERIPHERALS_PER_SCAN,
+                self.config_entry.data.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, 5)
+            ),
             CONF_SCAN_INTERVAL: self.config_entry.options.get(
                 CONF_SCAN_INTERVAL,
-                self.config_entry.data.get(CONF_SCAN_INTERVAL, 60)
+                self.config_entry.data.get(CONF_SCAN_INTERVAL, 300)
+            ),
+            CONF_ENABLE_SET_VALUE_RETRY: self.config_entry.options.get(
+                CONF_ENABLE_SET_VALUE_RETRY,
+                self.config_entry.data.get(CONF_ENABLE_SET_VALUE_RETRY, True)
             ),
             CONF_ENABLE_WEBHOOK: self.config_entry.options.get(
                 CONF_ENABLE_WEBHOOK,
-                self.config_entry.data.get(CONF_ENABLE_WEBHOOK, False)
+                self.config_entry.data.get(CONF_ENABLE_WEBHOOK, True)
             ),
             CONF_API_PROXY_DISABLE_SECURITY: self.config_entry.options.get(
                 CONF_API_PROXY_DISABLE_SECURITY,
                 self.config_entry.data.get(CONF_API_PROXY_DISABLE_SECURITY, False)
             ),
+            CONF_PHP_FALLBACK_ENABLED: self.config_entry.options.get(
+                CONF_PHP_FALLBACK_ENABLED,
+                self.config_entry.data.get(CONF_PHP_FALLBACK_ENABLED, False)
+            ),
+            CONF_PHP_FALLBACK_SCRIPT_NAME: self.config_entry.options.get(
+                CONF_PHP_FALLBACK_SCRIPT_NAME,
+                self.config_entry.data.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")
+            ),
+            CONF_PHP_FALLBACK_TIMEOUT: self.config_entry.options.get(
+                CONF_PHP_FALLBACK_TIMEOUT,
+                self.config_entry.data.get(CONF_PHP_FALLBACK_TIMEOUT, 5)
+            ),
+            CONF_HTTP_REQUEST_TIMEOUT: self.config_entry.options.get(
+                CONF_HTTP_REQUEST_TIMEOUT,
+                self.config_entry.data.get(CONF_HTTP_REQUEST_TIMEOUT, 30)
+            ),
         }
     
     def _copy_config_to_options(self):
-        """Copy relevant config entries to options."""
-        options = {}
+        """Copy configuration values from config_entry.data to options.
         
-        # Copy API mode settings
-        if CONF_ENABLE_API_EEDOMUS in self.config_entry.data:
-            options[CONF_ENABLE_API_EEDOMUS] = self.config_entry.options.get(
-                CONF_ENABLE_API_EEDOMUS,
-                self.config_entry.data[CONF_ENABLE_API_EEDOMUS]
-            )
+        This ensures that values set during config_flow are available in options_flow.
+        Only copies values that haven't been explicitly set in options.
+        """
+        # Start with existing options or empty dict
+        if not self.config_entry.options:
+            options = {}
+        else:
+            options = dict(self.config_entry.options)
         
-        if CONF_ENABLE_API_PROXY in self.config_entry.data:
-            options[CONF_ENABLE_API_PROXY] = self.config_entry.options.get(
-                CONF_ENABLE_API_PROXY,
-                self.config_entry.data[CONF_ENABLE_API_PROXY]
-            )
+        # Copy values from config_entry.data (config_flow values)
+        # Only copy if the option hasn't been explicitly set yet
+        config_data = self.config_entry.data
         
-        # Copy other settings
-        for key in [CONF_ENABLE_HISTORY, CONF_SCAN_INTERVAL, CONF_ENABLE_WEBHOOK, 
-                   CONF_API_PROXY_DISABLE_SECURITY]:
-            if key in self.config_entry.data:
-                options[key] = self.config_entry.options.get(
-                    key,
-                    self.config_entry.data[key]
-                )
+        # Only copy if not already in options
+        if CONF_ENABLE_API_EEDOMUS not in options:
+            options[CONF_ENABLE_API_EEDOMUS] = config_data.get(CONF_ENABLE_API_EEDOMUS, True)
+        if CONF_ENABLE_API_PROXY not in options:
+            options[CONF_ENABLE_API_PROXY] = config_data.get(CONF_ENABLE_API_PROXY, False)
+        if CONF_ENABLE_HISTORY not in options:
+            options[CONF_ENABLE_HISTORY] = config_data.get(CONF_ENABLE_HISTORY, False)
+        if CONF_HISTORY_PERIPHERALS_PER_SCAN not in options:
+            options[CONF_HISTORY_PERIPHERALS_PER_SCAN] = config_data.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, 5)
+        if CONF_SCAN_INTERVAL not in options:
+            options[CONF_SCAN_INTERVAL] = config_data.get(CONF_SCAN_INTERVAL, 300)
+        if CONF_ENABLE_SET_VALUE_RETRY not in options:
+            options[CONF_ENABLE_SET_VALUE_RETRY] = config_data.get(CONF_ENABLE_SET_VALUE_RETRY, True)
+        if CONF_ENABLE_WEBHOOK not in options:
+            options[CONF_ENABLE_WEBHOOK] = config_data.get(CONF_ENABLE_WEBHOOK, True)
+        if CONF_API_PROXY_DISABLE_SECURITY not in options:
+            options[CONF_API_PROXY_DISABLE_SECURITY] = config_data.get(CONF_API_PROXY_DISABLE_SECURITY, False)
+        if CONF_PHP_FALLBACK_ENABLED not in options:
+            options[CONF_PHP_FALLBACK_ENABLED] = config_data.get(CONF_PHP_FALLBACK_ENABLED, False)
+        if CONF_PHP_FALLBACK_SCRIPT_NAME not in options:
+            options[CONF_PHP_FALLBACK_SCRIPT_NAME] = config_data.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")
+        if CONF_PHP_FALLBACK_TIMEOUT not in options:
+            options[CONF_PHP_FALLBACK_TIMEOUT] = config_data.get(CONF_PHP_FALLBACK_TIMEOUT, 5)
+        if CONF_HTTP_REQUEST_TIMEOUT not in options:
+            options[CONF_HTTP_REQUEST_TIMEOUT] = config_data.get(CONF_HTTP_REQUEST_TIMEOUT, 30)
         
+        _LOGGER.debug("Copied config to options: %s", {k: v for k, v in options.items() if k not in ['api_user', 'api_secret']})
         return options
     
     def _load_current_yaml(self):
