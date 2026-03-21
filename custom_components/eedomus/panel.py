@@ -1,38 +1,63 @@
 """Eedomus Configuration Panel for Home Assistant 2026+."""
 
 import voluptuous as vol
-from homeassistant.components.panel_custom import async_register_panel
+import logging
 from homeassistant.components.frontend import (
     async_register_built_in_panel,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_entry_flow
 from .const import DOMAIN
+
+_LOGGER = logging.getLogger(__name__)
 
 async def async_setup_panel(hass: HomeAssistant):
     """Set up the Eedomus configuration panel."""
     
-    # Register as a built-in panel
-    await async_register_built_in_panel(
-        hass,
-        "eedomus-config",
-        "eedomus-config",
-        "mdi:cog",
-        require_admin=True,
-        config={
-            "component": "eedomus-rich-editor",
-            "title": "Eedomus Configuration",
-            "icon": "mdi:cog",
-            "require_admin": True,
-        },
-    )
-    
-    # Alternative registration method for HA 2026+
     try:
-        from homeassistant.components.lovelace import async_register_panel
-        await async_register_panel(hass, "eedomus-config", "eedomus-config", "mdi:cog")
-    except ImportError:
-        # Fallback for older versions
-        pass
+        # Register the panel with proper configuration
+        result = await async_register_built_in_panel(
+            hass,
+            "eedomus-config",
+            "eedomus-config",
+            "mdi:cog",
+            require_admin=True,
+            config={
+                "component": "eedomus-config-panel",  # Use our panel component
+                "title": "Eedomus Configuration",
+                "icon": "mdi:cog",
+                "require_admin": True,
+                "url_path": "eedomus-config",
+            },
+        )
+        
+        if result:
+            _LOGGER.info("✅ Eedomus configuration panel registered successfully")
+            
+            # Also register as a custom panel for compatibility
+            try:
+                from homeassistant.components.panel_custom import async_register_panel
+                await async_register_panel(
+                    hass,
+                    "eedomus-config",
+                    "eedomus-config",
+                    "mdi:cog",
+                    config={
+                        "component": "eedomus-config-panel",
+                        "title": "Eedomus Configuration",
+                        "icon": "mdi:cog",
+                    },
+                    require_admin=True,
+                )
+                _LOGGER.info("✅ Eedomus custom panel registered successfully")
+            except ImportError as e:
+                _LOGGER.debug("Custom panel registration not available: %s", e)
+        else:
+            _LOGGER.warning("Failed to register Eedomus configuration panel")
+            
+    except Exception as e:
+        _LOGGER.error("Error setting up Eedomus panel: %s", e)
+        return False
     
     return True
 

@@ -137,11 +137,234 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
         return EedomusOptionsFlow(config_entry)
 
     async def async_step_init(self, user_input=None):
-        """Manage the options - redirect to YAML editor with rich editor support."""
-        # For HA 2026+, custom UI components are loaded automatically from www/
-        # The rich editor will be available when the frontend loads it
-        # For now, use the standard YAML editor as fallback
-        return await self.async_step_yaml_editor(None)
+        """Manage the options - comprehensive configuration interface."""
+        # Handle form submission
+        if user_input is not None:
+            # Check if user wants to use rich editor
+            if user_input.get("use_rich_editor", False):
+                # Redirect to our custom panel
+                return self.async_abort(reason="redirect_to_panel")
+            
+            # Save regular options
+            options = {
+                CONF_ENABLE_API_EEDOMUS: user_input[CONF_ENABLE_API_EEDOMUS],
+                CONF_ENABLE_API_PROXY: user_input[CONF_ENABLE_API_PROXY],
+                CONF_ENABLE_HISTORY: user_input[CONF_ENABLE_HISTORY],
+                CONF_SCAN_INTERVAL: user_input[CONF_SCAN_INTERVAL],
+                CONF_ENABLE_WEBHOOK: user_input[CONF_ENABLE_WEBHOOK],
+                CONF_API_PROXY_DISABLE_SECURITY: user_input[CONF_API_PROXY_DISABLE_SECURITY],
+            }
+            
+            # Update config entry
+            self.hass.config_entries.async_update_entry(
+                self.config_entry,
+                options=options
+            )
+            
+            return self.async_create_entry(title="", data={})
+        
+        # Get current configuration
+        current_config = self._get_current_config()
+        
+        # Show comprehensive options form
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema({
+                vol.Optional(CONF_ENABLE_API_EEDOMUS, default=current_config.get(CONF_ENABLE_API_EEDOMUS, True)): bool,
+                vol.Optional(CONF_ENABLE_API_PROXY, default=current_config.get(CONF_ENABLE_API_PROXY, False)): bool,
+                vol.Optional(CONF_ENABLE_HISTORY, default=current_config.get(CONF_ENABLE_HISTORY, False)): bool,
+                vol.Optional(CONF_SCAN_INTERVAL, default=current_config.get(CONF_SCAN_INTERVAL, 60)): int,
+                vol.Optional(CONF_ENABLE_WEBHOOK, default=current_config.get(CONF_ENABLE_WEBHOOK, False)): bool,
+                vol.Optional(CONF_API_PROXY_DISABLE_SECURITY, default=current_config.get(CONF_API_PROXY_DISABLE_SECURITY, False)): bool,
+                vol.Optional("use_rich_editor", default=False): bool,
+            }),
+            description_placeholders={
+                "content": "Configure Eedomus integration settings. Check 'Use Rich Editor' for advanced configuration."
+            }
+        )
+    
+    async def async_step_yaml_editor(self, user_input=None):
+        """Handle YAML configuration editing - fallback for compatibility."""
+        errors = {}
+        
+        # Check if user wants to preview YAML
+        if user_input is not None and user_input.get("action") == "preview":
+            yaml_content = user_input.get("yaml_content", "")
+            try:
+                # Parse and validate
+                parsed_yaml = yaml.safe_load(yaml_content) or {}
+                from .const import YAML_MAPPING_SCHEMA
+                YAML_MAPPING_SCHEMA(parsed_yaml)
+                
+                # Return preview
+                return self.async_show_form(
+                    step_id="yaml_editor",
+                    data_schema=vol.Schema({
+                        vol.Optional("yaml_content", default=yaml_content): str,
+                        vol.Optional("preview_mode"): bool,
+                    }),
+                    description_placeholders={
+                        "preview_title": "YAML Preview",
+                        "preview_content": f"```yaml\n{yaml_content}\n```",
+                        "preview_valid": "✅ YAML is valid",
+                    },
+                    errors=errors
+                )
+            except (yaml.YAMLError, vol.Invalid) as e:
+                errors["base"] = f"Invalid YAML: {e}"
+                return self.async_show_form(
+                    step_id="yaml_editor",
+                    data_schema=vol.Schema({
+                        vol.Optional("yaml_content", default=yaml_content): str,
+                    }),
+                    description_placeholders={
+                        "preview_title": "YAML Preview",
+                        "preview_content": f"```yaml\n{yaml_content}\n```",
+                        "preview_error": f"❌ Error: {e}",
+                    },
+                    errors=errors
+                )
+        
+        # Save YAML configuration
+        if user_input is not None and user_input.get("yaml_content"):
+            yaml_content = user_input.get("yaml_content", "")
+            
+            try:
+                # Parse and validate
+                parsed_yaml = yaml.safe_load(yaml_content) or {}
+                from .const import YAML_MAPPING_SCHEMA
+                validated = YAML_MAPPING_SCHEMA(parsed_yaml)
+                
+                # Save to custom_mapping.yaml
+                custom_mapping_path = os.path.join(
+                    os.path.dirname(__file__), "config", "custom_mapping.yaml"
+                )
+                
+                # Use async_add_executor_job to avoid blocking calls
+                await self.hass.async_add_executor_job(
+                    lambda: open(custom_mapping_path, "w").write(yaml_content)
+                )
+                
+                _LOGGER.info("YAML configuration saved successfully")
+                
+                # Update options
+                options = {
+                    CONF_USE_YAML: True,
+                    "yaml_content": yaml_content
+                }
+                
+                # Preserve API configuration options
+                current_options = self._copy_config_to_options()
+                options.update(current_options)
+                
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry,
+                    options=options
+                )
+                
+                return self.async_create_entry(title="", data={})
+                
+            except Exception as err:
+                _LOGGER.error("Failed to save YAML configuration: %s", err)
+                return self.async_show_form(
+                    step_id="yaml_editor",
+                    data_schema=vol.Schema({
+                        vol.Optional("yaml_content", default=yaml_content): str,
+                    }),
+                    description_placeholders={
+                        "error": f"Failed to save configuration: {err}"
+                    },
+                    errors={"base": str(err)}
+                )
+        
+        # Initial YAML editor view
+        try:
+            # Load current YAML configuration
+            yaml_content = self._load_current_yaml()
+        except Exception as e:
+            _LOGGER.warning("Could not load current YAML: %s", e)
+            yaml_content = ""
+        
+        return self.async_show_form(
+            step_id="yaml_editor",
+            data_schema=vol.Schema({
+                vol.Optional("yaml_content", default=yaml_content): str,
+            }),
+            description_placeholders={
+                "content": "Edit YAML configuration directly. Use the panel for rich editing."
+            }
+        )
+    
+    def _get_current_config(self):
+        """Get current configuration from options or defaults."""
+        return {
+            CONF_ENABLE_API_EEDOMUS: self.config_entry.options.get(
+                CONF_ENABLE_API_EEDOMUS,
+                self.config_entry.data.get(CONF_ENABLE_API_EEDOMUS, True)
+            ),
+            CONF_ENABLE_API_PROXY: self.config_entry.options.get(
+                CONF_ENABLE_API_PROXY,
+                self.config_entry.data.get(CONF_ENABLE_API_PROXY, False)
+            ),
+            CONF_ENABLE_HISTORY: self.config_entry.options.get(
+                CONF_ENABLE_HISTORY,
+                self.config_entry.data.get(CONF_ENABLE_HISTORY, False)
+            ),
+            CONF_SCAN_INTERVAL: self.config_entry.options.get(
+                CONF_SCAN_INTERVAL,
+                self.config_entry.data.get(CONF_SCAN_INTERVAL, 60)
+            ),
+            CONF_ENABLE_WEBHOOK: self.config_entry.options.get(
+                CONF_ENABLE_WEBHOOK,
+                self.config_entry.data.get(CONF_ENABLE_WEBHOOK, False)
+            ),
+            CONF_API_PROXY_DISABLE_SECURITY: self.config_entry.options.get(
+                CONF_API_PROXY_DISABLE_SECURITY,
+                self.config_entry.data.get(CONF_API_PROXY_DISABLE_SECURITY, False)
+            ),
+        }
+    
+    def _copy_config_to_options(self):
+        """Copy relevant config entries to options."""
+        options = {}
+        
+        # Copy API mode settings
+        if CONF_ENABLE_API_EEDOMUS in self.config_entry.data:
+            options[CONF_ENABLE_API_EEDOMUS] = self.config_entry.options.get(
+                CONF_ENABLE_API_EEDOMUS,
+                self.config_entry.data[CONF_ENABLE_API_EEDOMUS]
+            )
+        
+        if CONF_ENABLE_API_PROXY in self.config_entry.data:
+            options[CONF_ENABLE_API_PROXY] = self.config_entry.options.get(
+                CONF_ENABLE_API_PROXY,
+                self.config_entry.data[CONF_ENABLE_API_PROXY]
+            )
+        
+        # Copy other settings
+        for key in [CONF_ENABLE_HISTORY, CONF_SCAN_INTERVAL, CONF_ENABLE_WEBHOOK, 
+                   CONF_API_PROXY_DISABLE_SECURITY]:
+            if key in self.config_entry.data:
+                options[key] = self.config_entry.options.get(
+                    key,
+                    self.config_entry.data[key]
+                )
+        
+        return options
+    
+    def _load_current_yaml(self):
+        """Load current YAML configuration."""
+        try:
+            custom_mapping_path = os.path.join(
+                os.path.dirname(__file__), "config", "custom_mapping.yaml"
+            )
+            with open(custom_mapping_path, "r") as f:
+                return f.read()
+        except FileNotFoundError:
+            return "# Eedomus Configuration\n# Add your custom device mappings here\n"
+        except Exception as e:
+            _LOGGER.error("Failed to load YAML: %s", e)
+            return "# Error loading configuration"
 
     async def async_step_yaml_editor(self, user_input=None):
         """Handle YAML configuration editing with rich editor interface."""
