@@ -142,8 +142,36 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             # Check if user wants to use rich editor
             if user_input.get("use_rich_editor", False):
-                # Redirect to our custom panel
-                return self.async_abort(reason="redirect_to_panel")
+                # Save options first
+                options = {
+                    CONF_ENABLE_API_EEDOMUS: user_input[CONF_ENABLE_API_EEDOMUS],
+                    CONF_ENABLE_API_PROXY: user_input[CONF_ENABLE_API_PROXY],
+                    CONF_ENABLE_HISTORY: user_input[CONF_ENABLE_HISTORY],
+                    CONF_HISTORY_PERIPHERALS_PER_SCAN: user_input[CONF_HISTORY_PERIPHERALS_PER_SCAN],
+                    CONF_SCAN_INTERVAL: user_input[CONF_SCAN_INTERVAL],
+                    CONF_ENABLE_SET_VALUE_RETRY: user_input[CONF_ENABLE_SET_VALUE_RETRY],
+                    CONF_ENABLE_WEBHOOK: user_input[CONF_ENABLE_WEBHOOK],
+                    CONF_API_PROXY_DISABLE_SECURITY: user_input[CONF_API_PROXY_DISABLE_SECURITY],
+                    CONF_PHP_FALLBACK_ENABLED: user_input[CONF_PHP_FALLBACK_ENABLED],
+                    CONF_PHP_FALLBACK_SCRIPT_NAME: user_input[CONF_PHP_FALLBACK_SCRIPT_NAME],
+                    CONF_PHP_FALLBACK_TIMEOUT: user_input[CONF_PHP_FALLBACK_TIMEOUT],
+                    CONF_HTTP_REQUEST_TIMEOUT: user_input[CONF_HTTP_REQUEST_TIMEOUT],
+                }
+                
+                # Update config entry
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry,
+                    options=options
+                )
+                
+                # Show message about using the panel
+                return self.async_show_form(
+                    step_id="init",
+                    data_schema=vol.Schema({}),
+                    description_placeholders={
+                        "message": "✅ Configuration saved! You can now use the Eedomus Config panel from the sidebar for advanced YAML editing."
+                    }
+                )
             
             # Save all options
             options = {
