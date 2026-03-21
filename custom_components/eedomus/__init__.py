@@ -16,10 +16,6 @@ import aiohttp
 
 from .api_proxy import EedomusApiProxyView
 from .webhook import EedomusWebhookView
-from .config_manager import EedomusConfigManager
-from .data_service import EedomusDataService
-from .schema_service import SchemaService
-from .ui_service import EedomusUIService
 from .const import (
 
     CONF_API_HOST,
@@ -114,21 +110,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         api_proxy_enabled,
     )
 
-    # Initialize ConfigManager
-    config_manager = EedomusConfigManager(hass)
-    await config_manager.async_init()
-    
-    # Initialize DataService
-    data_service = EedomusDataService(hass)
-    await data_service.async_init()
-    
-    # Initialize SchemaService
-    schema_service = SchemaService(hass)
-    await schema_service.async_init()
-    
-    # Initialize UIService
-    ui_service = EedomusUIService(hass)
-    await ui_service.async_init()
+    # Initialize services using lazy imports to avoid blocking
+    config_manager = await self._async_init_config_manager(hass)
+    data_service = await self._async_init_data_service(hass)
+    schema_service = await self._async_init_schema_service(hass)
+    ui_service = await self._async_init_ui_service(hass)
     
     # Store services in hass.data for access by other components
     if DOMAIN not in hass.data:
@@ -750,3 +736,35 @@ async def async_cleanup_unused_entities(hass):
         }
 
 
+
+    @staticmethod
+    async def _async_init_config_manager(hass: HomeAssistant):
+        """Initialize ConfigManager with lazy import."""
+        from .config_manager import EedomusConfigManager
+        config_manager = EedomusConfigManager(hass)
+        await config_manager.async_init()
+        return config_manager
+    
+    @staticmethod
+    async def _async_init_data_service(hass: HomeAssistant):
+        """Initialize DataService with lazy import."""
+        from .data_service import EedomusDataService
+        data_service = EedomusDataService(hass)
+        await data_service.async_init()
+        return data_service
+    
+    @staticmethod
+    async def _async_init_schema_service(hass: HomeAssistant):
+        """Initialize SchemaService with lazy import."""
+        from .schema_service import SchemaService
+        schema_service = SchemaService(hass)
+        await schema_service.async_init()
+        return schema_service
+    
+    @staticmethod
+    async def _async_init_ui_service(hass: HomeAssistant):
+        """Initialize UIService with lazy import."""
+        from .ui_service import EedomusUIService
+        ui_service = EedomusUIService(hass)
+        await ui_service.async_init()
+        return ui_service
