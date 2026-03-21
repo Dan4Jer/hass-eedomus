@@ -72,6 +72,43 @@ except Exception as e:
     VERSION = "unknown"
     _LOGGER.warning("Failed to read version from manifest.json: %s", e)
 
+# Lazy import methods for services to avoid blocking the event loop
+async def _async_init_config_manager(hass: HomeAssistant):
+    """Initialize ConfigManager with lazy import using executor to avoid blocking."""
+    # Use async_add_executor_job to avoid blocking the event loop
+    config_manager = await hass.async_add_executor_job(
+        lambda: __import__('custom_components.eedomus.config_manager', fromlist=['EedomusConfigManager']).EedomusConfigManager(hass)
+    )
+    await config_manager.async_init()
+    return config_manager
+
+async def _async_init_data_service(hass: HomeAssistant):
+    """Initialize DataService with lazy import using executor to avoid blocking."""
+    # Use async_add_executor_job to avoid blocking the event loop
+    data_service = await hass.async_add_executor_job(
+        lambda: __import__('custom_components.eedomus.data_service', fromlist=['EedomusDataService']).EedomusDataService(hass)
+    )
+    await data_service.async_init()
+    return data_service
+
+async def _async_init_schema_service(hass: HomeAssistant):
+    """Initialize SchemaService with lazy import using executor to avoid blocking."""
+    # Use async_add_executor_job to avoid blocking the event loop
+    schema_service = await hass.async_add_executor_job(
+        lambda: __import__('custom_components.eedomus.schema_service', fromlist=['SchemaService']).SchemaService(hass)
+    )
+    await schema_service.async_init()
+    return schema_service
+
+async def _async_init_ui_service(hass: HomeAssistant):
+    """Initialize UIService with lazy import using executor to avoid blocking."""
+    # Use async_add_executor_job to avoid blocking the event loop
+    ui_service = await hass.async_add_executor_job(
+        lambda: __import__('custom_components.eedomus.ui_service', fromlist=['EedomusUIService']).EedomusUIService(hass)
+    )
+    await ui_service.async_init()
+    return ui_service
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up eedomus from a config entry.
@@ -737,42 +774,3 @@ async def async_cleanup_unused_entities(hass):
 
 
 
-    @staticmethod
-    async def _async_init_config_manager(hass: HomeAssistant):
-        """Initialize ConfigManager with lazy import using executor to avoid blocking."""
-        # Use async_add_executor_job to avoid blocking the event loop
-        config_manager = await hass.async_add_executor_job(
-            lambda: __import__('custom_components.eedomus.config_manager', fromlist=['EedomusConfigManager']).EedomusConfigManager(hass)
-        )
-        await config_manager.async_init()
-        return config_manager
-    
-    @staticmethod
-    async def _async_init_data_service(hass: HomeAssistant):
-        """Initialize DataService with lazy import using executor to avoid blocking."""
-        # Use async_add_executor_job to avoid blocking the event loop
-        data_service = await hass.async_add_executor_job(
-            lambda: __import__('custom_components.eedomus.data_service', fromlist=['EedomusDataService']).EedomusDataService(hass)
-        )
-        await data_service.async_init()
-        return data_service
-    
-    @staticmethod
-    async def _async_init_schema_service(hass: HomeAssistant):
-        """Initialize SchemaService with lazy import using executor to avoid blocking."""
-        # Use async_add_executor_job to avoid blocking the event loop
-        schema_service = await hass.async_add_executor_job(
-            lambda: __import__('custom_components.eedomus.schema_service', fromlist=['SchemaService']).SchemaService(hass)
-        )
-        await schema_service.async_init()
-        return schema_service
-    
-    @staticmethod
-    async def _async_init_ui_service(hass: HomeAssistant):
-        """Initialize UIService with lazy import using executor to avoid blocking."""
-        # Use async_add_executor_job to avoid blocking the event loop
-        ui_service = await hass.async_add_executor_job(
-            lambda: __import__('custom_components.eedomus.ui_service', fromlist=['EedomusUIService']).EedomusUIService(hass)
-        )
-        await ui_service.async_init()
-        return ui_service
