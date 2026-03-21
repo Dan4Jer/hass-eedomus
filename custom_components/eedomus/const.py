@@ -232,6 +232,17 @@ YAML_MAPPING_SCHEMA = vol.Schema({
             vol.Optional("justification"): str,
         })
     },
+    vol.Optional("custom_specific_device_dynamic_overrides"): {
+        str: vol.Schema({
+            vol.Optional("ha_entity"): str,
+            vol.Optional("ha_subtype"): str,
+            vol.Optional("device_class"): str,
+            vol.Optional("unit_of_measurement"): str,
+            vol.Optional("icon"): str,
+            vol.Optional("justification"): str,
+            vol.Optional("override_rules"): dict,
+        })
+    },
 })
 
 # Schema for UI options
