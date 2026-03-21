@@ -111,10 +111,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     # Initialize services using lazy imports to avoid blocking
-    config_manager = await self._async_init_config_manager(hass)
-    data_service = await self._async_init_data_service(hass)
-    schema_service = await self._async_init_schema_service(hass)
-    ui_service = await self._async_init_ui_service(hass)
+    config_manager = await _async_init_config_manager(hass)
+    data_service = await _async_init_data_service(hass)
+    schema_service = await _async_init_schema_service(hass)
+    ui_service = await _async_init_ui_service(hass)
     
     # Store services in hass.data for access by other components
     if DOMAIN not in hass.data:
