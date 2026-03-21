@@ -16,6 +16,7 @@ import aiohttp
 
 from .api_proxy import EedomusApiProxyView
 from .webhook import EedomusWebhookView
+from .config_manager import EedomusConfigManager
 from .const import (
 
     CONF_API_HOST,
@@ -109,6 +110,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         api_eedomus_enabled,
         api_proxy_enabled,
     )
+
+    # Initialize ConfigManager
+    config_manager = EedomusConfigManager(hass)
+    await config_manager.async_init()
+    
+    # Store config_manager in hass.data for access by other components
+    if DOMAIN not in hass.data:
+        hass.data[DOMAIN] = {}
+    hass.data[DOMAIN]["config_manager"] = config_manager
+    
+    # Set up cleanup for config_manager on unload
+    async def _async_cleanup_config_manager():
+        await config_manager.async_shutdown()
+    entry.async_on_unload(_async_cleanup_config_manager)
 
     _LOGGER.debug("Setting up eedomus integration before entry.update_listener: %s", entry.update_listeners)
     # Set up options flow handler
