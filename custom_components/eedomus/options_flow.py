@@ -138,24 +138,27 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input=None):
         """Manage the options - comprehensive configuration interface."""
+        # Get current configuration first (needed for both display and submission)
+        current_config = self._get_current_config()
+        
         # Handle form submission
         if user_input is not None:
             # Check if user wants to use rich editor
             if user_input.get("use_rich_editor", False):
                 # Save options first
                 options = {
-                    CONF_ENABLE_API_EEDOMUS: user_input[CONF_ENABLE_API_EEDOMUS],
-                    CONF_ENABLE_API_PROXY: user_input[CONF_ENABLE_API_PROXY],
-                    CONF_ENABLE_HISTORY: user_input[CONF_ENABLE_HISTORY],
-                    CONF_HISTORY_PERIPHERALS_PER_SCAN: user_input[CONF_HISTORY_PERIPHERALS_PER_SCAN],
-                    CONF_SCAN_INTERVAL: user_input[CONF_SCAN_INTERVAL],
-                    CONF_ENABLE_SET_VALUE_RETRY: user_input[CONF_ENABLE_SET_VALUE_RETRY],
-                    CONF_ENABLE_WEBHOOK: user_input[CONF_ENABLE_WEBHOOK],
-                    CONF_API_PROXY_DISABLE_SECURITY: user_input[CONF_API_PROXY_DISABLE_SECURITY],
-                    CONF_PHP_FALLBACK_ENABLED: user_input[CONF_PHP_FALLBACK_ENABLED],
-                    CONF_PHP_FALLBACK_SCRIPT_NAME: user_input[CONF_PHP_FALLBACK_SCRIPT_NAME],
-                    CONF_PHP_FALLBACK_TIMEOUT: user_input[CONF_PHP_FALLBACK_TIMEOUT],
-                    CONF_HTTP_REQUEST_TIMEOUT: user_input[CONF_HTTP_REQUEST_TIMEOUT],
+                    CONF_ENABLE_API_EEDOMUS: user_input.get(CONF_ENABLE_API_EEDOMUS, current_config[CONF_ENABLE_API_EEDOMUS]),
+                    CONF_ENABLE_API_PROXY: user_input.get(CONF_ENABLE_API_PROXY, current_config[CONF_ENABLE_API_PROXY]),
+                    CONF_ENABLE_HISTORY: user_input.get(CONF_ENABLE_HISTORY, current_config[CONF_ENABLE_HISTORY]),
+                    CONF_HISTORY_PERIPHERALS_PER_SCAN: user_input.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, current_config[CONF_HISTORY_PERIPHERALS_PER_SCAN]),
+                    CONF_SCAN_INTERVAL: user_input.get(CONF_SCAN_INTERVAL, current_config[CONF_SCAN_INTERVAL]),
+                    CONF_ENABLE_SET_VALUE_RETRY: user_input.get(CONF_ENABLE_SET_VALUE_RETRY, current_config[CONF_ENABLE_SET_VALUE_RETRY]),
+                    CONF_ENABLE_WEBHOOK: user_input.get(CONF_ENABLE_WEBHOOK, current_config[CONF_ENABLE_WEBHOOK]),
+                    CONF_API_PROXY_DISABLE_SECURITY: user_input.get(CONF_API_PROXY_DISABLE_SECURITY, current_config[CONF_API_PROXY_DISABLE_SECURITY]),
+                    CONF_PHP_FALLBACK_ENABLED: user_input.get(CONF_PHP_FALLBACK_ENABLED, current_config[CONF_PHP_FALLBACK_ENABLED]),
+                    CONF_PHP_FALLBACK_SCRIPT_NAME: user_input.get(CONF_PHP_FALLBACK_SCRIPT_NAME, current_config[CONF_PHP_FALLBACK_SCRIPT_NAME]),
+                    CONF_PHP_FALLBACK_TIMEOUT: user_input.get(CONF_PHP_FALLBACK_TIMEOUT, current_config[CONF_PHP_FALLBACK_TIMEOUT]),
+                    CONF_HTTP_REQUEST_TIMEOUT: user_input.get(CONF_HTTP_REQUEST_TIMEOUT, current_config[CONF_HTTP_REQUEST_TIMEOUT]),
                 }
                 
                 # Update config entry
