@@ -7,7 +7,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.components.websocket_api import (
     async_register_command,
     WebSocketCommandHandler,
-    WSType,
 )
 import voluptuous as vol
 
