@@ -91,7 +91,10 @@ class EedomusConfigManager:
             self._unsubscribe_periodic_save()
         
         # Final save before shutdown
-        await self.async_save_configuration()
+        try:
+            await self.async_save_configuration()
+        except Exception as e:
+            _LOGGER.error(f"Failed to save configuration during shutdown: {e}")
         
         _LOGGER.debug("Eedomus ConfigManager shutdown complete")
     
@@ -131,7 +134,7 @@ class EedomusConfigManager:
             await self.hass.async_add_executor_job(
                 lambda: setattr(self.store, '_data', config_to_save)
             )
-            await self.store.async_save()
+            await self.store.async_save(config_to_save)
             
             # Fire config updated event
             self.hass.bus.async_fire(
