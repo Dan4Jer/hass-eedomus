@@ -197,11 +197,16 @@ YAML_MAPPING_SCHEMA = vol.Schema({
         })
     },
     vol.Optional("temperature_setpoint_mappings"): {
-        str: vol.Schema({
-            vol.Required("ha_entity"): str,
-            vol.Optional("unit_of_measurement"): str,
-            vol.Optional("justification"): str,
-        })
+        str: vol.Any(
+            vol.Schema({
+                vol.Required("ha_entity"): str,
+                vol.Optional("unit_of_measurement"): str,
+                vol.Optional("justification"): str,
+            }),
+            str,
+            int,
+            float
+        )
     },
     vol.Optional("custom_name_patterns"): [
         vol.Schema({

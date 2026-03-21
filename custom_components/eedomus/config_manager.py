@@ -40,8 +40,13 @@ class EedomusConfigManager:
             await self.store.async_load()
             
             # Cache current configuration
-            if self.store.data:
-                self._config_cache = dict(self.store.data)
+            # Note: Store doesn't have .data attribute, we need to use .async_load() result
+            stored_data = await self.hass.async_add_executor_job(
+                lambda: self.store._data  # Access internal data
+            )
+            
+            if stored_data:
+                self._config_cache = dict(stored_data)
             else:
                 # Initialize with default structure
                 self._config_cache = {
@@ -122,7 +127,9 @@ class EedomusConfigManager:
             self._config_cache = dict(config_to_save)
             
             # Use HA 2026 storage
-            self.store.data = config_to_save
+            await self.hass.async_add_executor_job(
+                lambda: setattr(self.store, '_data', config_to_save)
+            )
             await self.store.async_save()
             
             # Fire config updated event
