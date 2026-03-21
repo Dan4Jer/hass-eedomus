@@ -222,6 +222,16 @@ YAML_MAPPING_SCHEMA = vol.Schema({
             vol.Optional("attributes"): dict,
         })
     ],
+    vol.Optional("custom_dynamic_entity_properties"): {
+        str: vol.Schema({
+            vol.Optional("ha_entity"): str,
+            vol.Optional("ha_subtype"): str,
+            vol.Optional("device_class"): str,
+            vol.Optional("unit_of_measurement"): str,
+            vol.Optional("icon"): str,
+            vol.Optional("justification"): str,
+        })
+    },
 })
 
 # Schema for UI options
