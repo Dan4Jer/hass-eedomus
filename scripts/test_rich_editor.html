@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eedomus Rich Editor Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #039be5;
+            margin-bottom: 20px;
+        }
+        
+        .info-box {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border-left: 4px solid #039be5;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            display: inline-block;
+        }
+        
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Eedomus Rich Editor Test</h1>
+        
+        <div class="info-box">
+            <strong>Info:</strong> This page tests the Eedomus Rich Editor component.
+            If you see the editor below, the component is working correctly.
+        </div>
+        
+        <div id="status" class="status status-warning">
+            Loading editor component...
+        </div>
+        
+        <eedomus-rich-editor id="editor"></eedomus-rich-editor>
+    </div>
+    
+    <script>
+        // Load the editor component
+        console.log('Loading Eedomus Rich Editor...');
+        
+        // Create a script element to load the component
+        const script = document.createElement('script');
+        script.src = '/local/custom_components/hass-eedomus/www/eedomus-rich-editor.js';
+        script.type = 'module';
+        
+        script.onload = function() {
+            console.log('Editor script loaded successfully');
+            document.getElementById('status').textContent = '✅ Editor component loaded!';
+            document.getElementById('status').className = 'status status-success';
+            
+            // Initialize the editor with sample config
+            const editor = document.getElementById('editor');
+            if (editor) {
+                editor.setConfig({
+                    name: "Test Configuration",
+                    custom_devices: [
+                        {
+                            device_id: "test_device_1",
+                            device_type: "light",
+                            name: "Test Light",
+                            state: "on"
+                        }
+                    ]
+                });
+                console.log('Editor initialized with test configuration');
+            }
+        };
+        
+        script.onerror = function(error) {
+            console.error('Failed to load editor script:', error);
+            document.getElementById('status').textContent = '❌ Failed to load editor component';
+            document.getElementById('status').className = 'status status-error';
+        };
+        
+        document.head.appendChild(script);
+    </script>
+</body>
+</html>

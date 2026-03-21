@@ -137,9 +137,21 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
         return EedomusOptionsFlow(config_entry)
 
     async def async_step_init(self, user_input=None):
-        """Manage the options - redirect directly to YAML editor."""
-        # Directly go to YAML editor for full configuration
-        return await self.async_step_yaml_editor(None)
+        """Manage the options - use rich editor interface."""
+        # Use the rich editor for configuration
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema({}),
+            description_placeholders={
+                "content": "Click below to open the rich configuration editor"
+            },
+            custom_ui={
+                "component": "eedomus-rich-editor",
+                "config": {
+                    "entry_id": self.config_entry.entry_id
+                }
+            }
+        )
 
     async def async_step_yaml_editor(self, user_input=None):
         """Handle YAML configuration editing with rich editor interface."""
