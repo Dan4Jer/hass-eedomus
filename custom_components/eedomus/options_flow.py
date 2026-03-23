@@ -147,18 +147,18 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
             if user_input.get("use_rich_editor", False):
                 # Save options first
                 options = {
-                    CONF_ENABLE_API_EEDOMUS: user_input.get(CONF_ENABLE_API_EEDOMUS, current_config[CONF_ENABLE_API_EEDOMUS]),
-                    CONF_ENABLE_API_PROXY: user_input.get(CONF_ENABLE_API_PROXY, current_config[CONF_ENABLE_API_PROXY]),
-                    CONF_ENABLE_HISTORY: user_input.get(CONF_ENABLE_HISTORY, current_config[CONF_ENABLE_HISTORY]),
-                    CONF_HISTORY_PERIPHERALS_PER_SCAN: user_input.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, current_config[CONF_HISTORY_PERIPHERALS_PER_SCAN]),
-                    CONF_SCAN_INTERVAL: user_input.get(CONF_SCAN_INTERVAL, current_config[CONF_SCAN_INTERVAL]),
-                    CONF_ENABLE_SET_VALUE_RETRY: user_input.get(CONF_ENABLE_SET_VALUE_RETRY, current_config[CONF_ENABLE_SET_VALUE_RETRY]),
-                    CONF_ENABLE_WEBHOOK: user_input.get(CONF_ENABLE_WEBHOOK, current_config[CONF_ENABLE_WEBHOOK]),
-                    CONF_API_PROXY_DISABLE_SECURITY: user_input.get(CONF_API_PROXY_DISABLE_SECURITY, current_config[CONF_API_PROXY_DISABLE_SECURITY]),
-                    CONF_PHP_FALLBACK_ENABLED: user_input.get(CONF_PHP_FALLBACK_ENABLED, current_config[CONF_PHP_FALLBACK_ENABLED]),
-                    CONF_PHP_FALLBACK_SCRIPT_NAME: user_input.get(CONF_PHP_FALLBACK_SCRIPT_NAME, current_config[CONF_PHP_FALLBACK_SCRIPT_NAME]),
-                    CONF_PHP_FALLBACK_TIMEOUT: user_input.get(CONF_PHP_FALLBACK_TIMEOUT, current_config[CONF_PHP_FALLBACK_TIMEOUT]),
-                    CONF_HTTP_REQUEST_TIMEOUT: user_input.get(CONF_HTTP_REQUEST_TIMEOUT, current_config[CONF_HTTP_REQUEST_TIMEOUT]),
+                    CONF_ENABLE_API_EEDOMUS: user_input.get(CONF_ENABLE_API_EEDOMUS, current_config.get(CONF_ENABLE_API_EEDOMUS, True)),
+                    CONF_ENABLE_API_PROXY: user_input.get(CONF_ENABLE_API_PROXY, current_config.get(CONF_ENABLE_API_PROXY, False)),
+                    CONF_ENABLE_HISTORY: user_input.get(CONF_ENABLE_HISTORY, current_config.get(CONF_ENABLE_HISTORY, False)),
+                    CONF_HISTORY_PERIPHERALS_PER_SCAN: user_input.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, current_config.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, 5)),
+                    CONF_SCAN_INTERVAL: user_input.get(CONF_SCAN_INTERVAL, current_config.get(CONF_SCAN_INTERVAL, 300)),
+                    CONF_ENABLE_SET_VALUE_RETRY: user_input.get(CONF_ENABLE_SET_VALUE_RETRY, current_config.get(CONF_ENABLE_SET_VALUE_RETRY, True)),
+                    CONF_ENABLE_WEBHOOK: user_input.get(CONF_ENABLE_WEBHOOK, current_config.get(CONF_ENABLE_WEBHOOK, True)),
+                    CONF_API_PROXY_DISABLE_SECURITY: user_input.get(CONF_API_PROXY_DISABLE_SECURITY, current_config.get(CONF_API_PROXY_DISABLE_SECURITY, False)),
+                    CONF_PHP_FALLBACK_ENABLED: user_input.get(CONF_PHP_FALLBACK_ENABLED, current_config.get(CONF_PHP_FALLBACK_ENABLED, False)),
+                    CONF_PHP_FALLBACK_SCRIPT_NAME: user_input.get(CONF_PHP_FALLBACK_SCRIPT_NAME, current_config.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")),
+                    CONF_PHP_FALLBACK_TIMEOUT: user_input.get(CONF_PHP_FALLBACK_TIMEOUT, current_config.get(CONF_PHP_FALLBACK_TIMEOUT, 5)),
+                    CONF_HTTP_REQUEST_TIMEOUT: user_input.get(CONF_HTTP_REQUEST_TIMEOUT, current_config.get(CONF_HTTP_REQUEST_TIMEOUT, 30)),
                 }
                 
                 # Update config entry
