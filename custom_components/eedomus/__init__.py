@@ -153,6 +153,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.data.get(CONF_ENABLE_API_PROXY, DEFAULT_CONF_ENABLE_API_PROXY)
     )
 
+    # Debug: Log what was read from entry.options and entry.data
+    _LOGGER.debug("Entry options: %s", dict(entry.options) if hasattr(entry.options, 'items') else entry.options)
+    _LOGGER.debug("Entry data: %s", entry.data)
+    _LOGGER.debug("CONF_ENABLE_API_PROXY in entry.options: %s", CONF_ENABLE_API_PROXY in (dict(entry.options) if hasattr(entry.options, 'items') else entry.options))
+    _LOGGER.debug("CONF_ENABLE_API_PROXY in entry.data: %s", CONF_ENABLE_API_PROXY in entry.data)
+    if CONF_ENABLE_API_PROXY in (dict(entry.options) if hasattr(entry.options, 'items') else entry.options):
+        _LOGGER.debug("CONF_ENABLE_API_PROXY value from options: %s", entry.options[CONF_ENABLE_API_PROXY])
+    if CONF_ENABLE_API_PROXY in entry.data:
+        _LOGGER.debug("CONF_ENABLE_API_PROXY value from data: %s", entry.data[CONF_ENABLE_API_PROXY])
+    _LOGGER.debug("Final api_proxy_enabled value: %s", api_proxy_enabled)
+
     _LOGGER.info(
         "Starting eedomus integration - API Eedomus: %s, API Proxy: %s",
         api_eedomus_enabled,
