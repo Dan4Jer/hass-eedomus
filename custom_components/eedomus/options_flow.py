@@ -176,6 +176,12 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                     }
                 )
             
+            # Debug: Log user_input to see what's actually submitted
+            _LOGGER.debug("User input received in async_step_init: %s", user_input)
+            _LOGGER.debug("CONF_ENABLE_API_PROXY in user_input: %s", CONF_ENABLE_API_PROXY in user_input)
+            if CONF_ENABLE_API_PROXY in user_input:
+                _LOGGER.debug("CONF_ENABLE_API_PROXY value: %s", user_input[CONF_ENABLE_API_PROXY])
+            
             # Save all options with proper key names
             options = {
                 CONF_ENABLE_API_EEDOMUS: user_input.get(CONF_ENABLE_API_EEDOMUS, current_config.get(CONF_ENABLE_API_EEDOMUS, True)),
@@ -191,6 +197,9 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 CONF_PHP_FALLBACK_TIMEOUT: user_input.get(CONF_PHP_FALLBACK_TIMEOUT, current_config.get(CONF_PHP_FALLBACK_TIMEOUT, 5)),
                 CONF_HTTP_REQUEST_TIMEOUT: user_input.get(CONF_HTTP_REQUEST_TIMEOUT, current_config.get(CONF_HTTP_REQUEST_TIMEOUT, 30)),
             }
+            
+            # Debug: Log the options being saved
+            _LOGGER.debug("Options to be saved: %s", options)
             
             # Update config entry
             self.hass.config_entries.async_update_entry(
