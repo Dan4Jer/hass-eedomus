@@ -202,10 +202,12 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
             _LOGGER.debug("Options to be saved: %s", options)
             
             # Update config entry
+            _LOGGER.debug("Calling async_update_entry with options: %s", options)
             self.hass.config_entries.async_update_entry(
                 self.config_entry,
                 options=options
             )
+            _LOGGER.debug("async_update_entry called successfully")
             
             return self.async_create_entry(title="", data={})
         
