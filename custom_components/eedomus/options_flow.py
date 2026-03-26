@@ -209,6 +209,22 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
             )
             _LOGGER.debug("async_update_entry called successfully")
             
+            # Since HA has a bug where options are not persisted, we also need to update entry.data
+            # This ensures that the values are available even if options are not loaded
+            _LOGGER.warning("⚠️ Due to a Home Assistant bug, options are not persisted across restarts.")
+            _LOGGER.warning("   As a workaround, we will also update entry.data with the new values.")
+            
+            # Create a new data dict with updated values
+            new_data = dict(self.config_entry.data)
+            new_data.update(options)
+            
+            _LOGGER.debug("Updating entry.data with new values: %s", new_data)
+            self.hass.config_entries.async_update_entry(
+                self.config_entry,
+                data=new_data
+            )
+            _LOGGER.debug("entry.data updated successfully")
+            
             # Force reload of the entry to ensure options are properly loaded
             _LOGGER.debug("Reloading config entry to ensure options are loaded")
             await self.hass.config_entries.async_reload(self.config_entry.entry_id)
