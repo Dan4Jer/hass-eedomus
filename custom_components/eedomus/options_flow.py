@@ -209,6 +209,11 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
             )
             _LOGGER.debug("async_update_entry called successfully")
             
+            # Force reload of the entry to ensure options are properly loaded
+            _LOGGER.debug("Reloading config entry to ensure options are loaded")
+            await self.hass.config_entries.async_reload(self.config_entry.entry_id)
+            _LOGGER.debug("Config entry reloaded")
+            
             return self.async_create_entry(title="", data={})
         
         # Get current configuration
