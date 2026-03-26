@@ -144,21 +144,33 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Check which modes are enabled
     # First check options (updated via options flow), then data (initial config), then defaults
-    api_eedomus_enabled = entry.options.get(
-        CONF_ENABLE_API_EEDOMUS,
-        entry.data.get(CONF_ENABLE_API_EEDOMUS, DEFAULT_CONF_ENABLE_API_EEDOMUS)
-    )
-    api_proxy_enabled = entry.options.get(
-        CONF_ENABLE_API_PROXY,
-        entry.data.get(CONF_ENABLE_API_PROXY, DEFAULT_CONF_ENABLE_API_PROXY)
-    )
+    # If options are empty (bug in HA), fall back to data
+    options_dict = dict(entry.options) if hasattr(entry.options, 'items') else entry.options
+    if not options_dict:
+        _LOGGER.warning("⚠️ Entry options are empty! This indicates a Home Assistant bug where options are not persisted. Falling back to entry.data.")
+        _LOGGER.warning("   This means that options set in the options flow will not persist across restarts.")
+        _LOGGER.warning("   As a workaround, we will use entry.data values, but this is not the intended behavior.")
+        
+        # Fall back to using entry.data values directly
+        api_eedomus_enabled = entry.data.get(CONF_ENABLE_API_EEDOMUS, DEFAULT_CONF_ENABLE_API_EEDOMUS)
+        api_proxy_enabled = entry.data.get(CONF_ENABLE_API_PROXY, DEFAULT_CONF_ENABLE_API_PROXY)
+    else:
+        # Normal behavior: read from options first, then data, then defaults
+        api_eedomus_enabled = entry.options.get(
+            CONF_ENABLE_API_EEDOMUS,
+            entry.data.get(CONF_ENABLE_API_EEDOMUS, DEFAULT_CONF_ENABLE_API_EEDOMUS)
+        )
+        api_proxy_enabled = entry.options.get(
+            CONF_ENABLE_API_PROXY,
+            entry.data.get(CONF_ENABLE_API_PROXY, DEFAULT_CONF_ENABLE_API_PROXY)
+        )
 
     # Debug: Log what was read from entry.options and entry.data
-    _LOGGER.debug("Entry options: %s", dict(entry.options) if hasattr(entry.options, 'items') else entry.options)
+    _LOGGER.debug("Entry options: %s", options_dict)
     _LOGGER.debug("Entry data: %s", entry.data)
-    _LOGGER.debug("CONF_ENABLE_API_PROXY in entry.options: %s", CONF_ENABLE_API_PROXY in (dict(entry.options) if hasattr(entry.options, 'items') else entry.options))
+    _LOGGER.debug("CONF_ENABLE_API_PROXY in entry.options: %s", CONF_ENABLE_API_PROXY in options_dict)
     _LOGGER.debug("CONF_ENABLE_API_PROXY in entry.data: %s", CONF_ENABLE_API_PROXY in entry.data)
-    if CONF_ENABLE_API_PROXY in (dict(entry.options) if hasattr(entry.options, 'items') else entry.options):
+    if CONF_ENABLE_API_PROXY in options_dict:
         _LOGGER.debug("CONF_ENABLE_API_PROXY value from options: %s", entry.options[CONF_ENABLE_API_PROXY])
     if CONF_ENABLE_API_PROXY in entry.data:
         _LOGGER.debug("CONF_ENABLE_API_PROXY value from data: %s", entry.data[CONF_ENABLE_API_PROXY])
