@@ -7,7 +7,7 @@ name = "hass-eedomus"
 version = "0.14.3"
 dependencies = [
     "aiohttp==3.13.5",
-    "requests==2.33.0",
+    "requests==2.33.1",
     "yarl==1.23.0",
 ]
 
