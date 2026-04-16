@@ -2,7 +2,7 @@
 # This file is for local development and testing purposes
 
 # Core dependencies (also in manifest.json)
-aiohttp==3.13.3  # Version corrigée pour les vulnérabilités connues
+aiohttp==3.13.5  # Version corrigée pour les vulnérabilités connues
 requests==2.33.0  # Remplace l'ancienne version vulnérable
 yarl==1.23.0
 
