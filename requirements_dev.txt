@@ -27,4 +27,4 @@ mkdocs-material==9.7.6
 
 # Type checking
 types-aiohttp==0.4.11
-types-requests==2.32.4.20260324  # Ajout pour le typage de requests
+types-requests==2.33.0.20260408  # Ajout pour le typage de requests
