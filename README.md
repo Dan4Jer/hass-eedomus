@@ -1,4 +1,6 @@
 # Intégration eedomus pour Home Assistant
+![Installs](https://img.shields.io/badge/dynamic/json?color=41BDF5&logo=home-assistant&label=Installations&cacheSeconds=15600&url=https://analytics.home-assistant.io/custom_integrations.json&query=$.hass-eedomus.total&style=for-the-badge)
+![Hassfest](https://img.shields.io/github/actions/workflow/status/fmo01/hass-eedomus/hassfest.yml?label=hassfest&style=for-the-badge)
 [![HACS Validated](https://img.shields.io/badge/HACS-Validated-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
 [![GitHub Release](https://img.shields.io/github/v/release/fmo01/hass-eedomus?style=for-the-badge&color=blue)](https://github.com/fmo01/hass-eedomus/releases/latest)
