@@ -30,7 +30,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
     """Eedomus data update coordinator with optimized refresh strategy."""
 
     def __init__(
-        self, hass: HomeAssistant, client, scan_interval=DEFAULT_SCAN_INTERVAL
+        self,
+        hass: HomeAssistant,
+        client,
+        scan_interval=DEFAULT_SCAN_INTERVAL,
+        config_entry=None,
     ):
         """Initialize the coordinator."""
         super().__init__(
@@ -38,6 +42,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER,
             name=DOMAIN,
             update_interval=timedelta(seconds=scan_interval),
+            config_entry=config_entry,  # <-- Passage explicite du config_entry
         )
         self.client = client
         self._last_update_start_time = datetime.now()

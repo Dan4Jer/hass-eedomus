@@ -1,34 +1,40 @@
-"""Règles de mapping avancées pour les devices."""
+"""Règles de mapping avancées pour les périphériques eedomus."""
 
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 _LOGGER = logging.getLogger(__name__)
 
 
 def evaluate_conditions(
-    conditions: list,
-    device_data: dict,
-    all_devices: dict,
+    conditions: list[dict[str, Any]],
+    device_data: dict[str, Any],
+    all_devices: dict[str, dict[str, Any]],
     periph_id: str,
     rule_name: str,
-    parent_child_relations=None,
+    parent_child_relations: dict[str, list[str]] | None = None,
 ) -> bool:
     """Évalue une liste de conditions avec gestion optimisée des dépendances."""
-    condition_result = True
-
     for condition in conditions:
         for cond_key, cond_value in condition.items():
             if cond_key == "usage_id":
                 if device_data.get("usage_id") != cond_value:
-                    condition_result = False
-                    break
+                    return False
+
             elif cond_key == "min_children":
-                if not all_devices:
-                    condition_result = False
-                    break
-                # Utiliser les relations pré-calculées si disponibles pour éviter les scans coûteux
+                try:
+                    target_count = int(cond_value)
+                except (ValueError, TypeError):
+                    _LOGGER.error(
+                        "Invalid min_children value '%s' in rule %s",
+                        cond_value,
+                        rule_name,
+                    )
+                    return False
+
+                # Utiliser les relations pré-calculées si disponibles
                 if parent_child_relations and periph_id in parent_child_relations:
                     # Compter directement depuis les relations sans dépendre de all_devices
                     # Cela résout le problème de timing où all_devices peut être incomplet
@@ -38,11 +44,11 @@ def evaluate_conditions(
                         children_count,
                         periph_id,
                     )
-                else:
-                    # Fallback à l'ancienne méthode si les relations ne sont pas disponibles
+                elif all_devices:
+                    # Fallback si les relations pré-calculées ne sont pas transmises
                     children = [
                         child
-                        for child_id, child in all_devices.items()
+                        for child in all_devices.values()
                         if child.get("parent_periph_id") == periph_id
                     ]
                     children_count = len(children)
@@ -51,52 +57,62 @@ def evaluate_conditions(
                         children_count,
                         periph_id,
                     )
+                else:
+                    return False
 
-                if children_count < int(cond_value):
-                    condition_result = False
+                if children_count < target_count:
                     _LOGGER.debug(
-                        "🔍 min_children condition failed: %d < %s for device %s",
+                        "🔍 min_children condition failed: %d < %d for device %s",
                         children_count,
-                        cond_value,
+                        target_count,
                         periph_id,
                     )
-                    break
+                    return False
 
             elif cond_key == "child_usage_id":
                 if not all_devices:
-                    condition_result = False
-                    break
-                children = [
-                    child
-                    for child_id, child in all_devices.items()
-                    if child.get("parent_periph_id") == periph_id
+                    return False
+
+                has_matching_child = any(
+                    child.get("parent_periph_id") == periph_id
                     and child.get("usage_id") == cond_value
-                ]
-                if len(children) < 1:
-                    condition_result = False
-                    break
+                    for child in all_devices.values()
+                )
+                if not has_matching_child:
+                    return False
+
             elif cond_key == "PRODUCT_TYPE_ID":
                 if device_data.get("PRODUCT_TYPE_ID") != cond_value:
-                    condition_result = False
-                    break
+                    return False
+
             elif cond_key == "has_parent":
                 if not device_data.get("parent_periph_id"):
-                    condition_result = False
-                    break
+                    return False
+
             elif cond_key == "parent_usage_id":
-                if not device_data.get("parent_periph_id"):
-                    condition_result = False
-                    break
                 parent_id = device_data.get("parent_periph_id")
+                if not parent_id or not all_devices:
+                    return False
+
                 parent = all_devices.get(parent_id, {})
                 if parent.get("usage_id") != cond_value:
-                    condition_result = False
-                    break
+                    return False
+
             elif cond_key == "parent_has_min_children":
-                if not device_data.get("parent_periph_id"):
-                    condition_result = False
-                    break
                 parent_id = device_data.get("parent_periph_id")
+                if not parent_id:
+                    return False
+
+                try:
+                    target_count = int(cond_value)
+                except (ValueError, TypeError):
+                    _LOGGER.error(
+                        "Invalid parent_has_min_children value '%s' in rule %s",
+                        cond_value,
+                        rule_name,
+                    )
+                    return False
+
                 # Utiliser les relations pré-calculées si disponibles
                 if parent_child_relations and parent_id in parent_child_relations:
                     # Compter directement depuis les relations sans dépendre de all_devices
@@ -106,11 +122,10 @@ def evaluate_conditions(
                         parent_id,
                         parent_children_count,
                     )
-                else:
-                    # Fallback à l'ancienne méthode
+                elif all_devices:
                     parent_children = [
                         child
-                        for child_id, child in all_devices.items()
+                        for child in all_devices.values()
                         if child.get("parent_periph_id") == parent_id
                     ]
                     parent_children_count = len(parent_children)
@@ -119,48 +134,43 @@ def evaluate_conditions(
                         parent_id,
                         parent_children_count,
                     )
+                else:
+                    return False
 
-                if parent_children_count < int(cond_value):
-                    condition_result = False
+                if parent_children_count < target_count:
                     _LOGGER.debug(
-                        "🔍 parent_has_min_children condition failed: parent %s has %d < %s children",
+                        "🔍 parent_has_min_children condition failed: parent %s has %d < %d children",
                         parent_id,
                         parent_children_count,
-                        cond_value,
+                        target_count,
                     )
-                    break
+                    return False
+
             elif cond_key == "has_children_with_names":
                 if not all_devices:
-                    condition_result = False
-                    break
-                # Check if device has children with specific names
+                    return False
+
                 required_names = (
                     cond_value if isinstance(cond_value, list) else [cond_value]
                 )
-                children = [
-                    child
-                    for child_id, child in all_devices.items()
+                child_names = [
+                    child.get("name", "").lower()
+                    for child in all_devices.values()
                     if child.get("parent_periph_id") == periph_id
                 ]
-                child_names = [child.get("name", "").lower() for child in children]
 
-                # Check if all required names are present in children
                 all_found = all(
                     any(
-                        required_name.lower() in child_name
+                        req_name.lower() in child_name
                         for child_name in child_names
                     )
-                    for required_name in required_names
+                    for req_name in required_names
                 )
                 if not all_found:
-                    condition_result = False
-                    break
+                    return False
+
             else:
                 _LOGGER.warning("Unknown condition key: %s", cond_key)
-                condition_result = False
-                break
+                return False
 
-        if not condition_result:
-            break
-
-    return condition_result
+    return True

@@ -13,7 +13,7 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.const import EntityCategory
+from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -76,13 +76,12 @@ class EedomusRefreshTimingSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self):
         """Return the current value of the sensor."""
-        return 0.0  # Will be overridden by specific sensors
+        return 0.0
 
     @property
     def extra_state_attributes(self):
         """Return additional state attributes."""
         return {
-            "last_updated": datetime.now().isoformat(),
             "sensor_type": self._sensor_type,
         }
 
@@ -92,16 +91,13 @@ class EedomusAPITimeSensor(EedomusRefreshTimingSensor):
 
     def __init__(self, coordinator):
         """Initialize the API time sensor."""
-        super().__init__(coordinator, "API Time", "s", "mdi:clock-outline")
+        super().__init__(coordinator, "API Time", UnitOfTime.SECONDS, "mdi:clock-outline")
 
     @property
     def native_value(self):
         """Return the current API time."""
-        return (
-            round(self.coordinator._last_api_time, 3)
-            if hasattr(self.coordinator, "_last_api_time")
-            else 0.0
-        )
+        val = getattr(self.coordinator, "_last_api_time", None)
+        return round(val, 3) if isinstance(val, (int, float)) else 0.0
 
     @property
     def extra_state_attributes(self):
@@ -122,16 +118,13 @@ class EedomusProcessingTimeSensor(EedomusRefreshTimingSensor):
 
     def __init__(self, coordinator):
         """Initialize the processing time sensor."""
-        super().__init__(coordinator, "Processing Time", "s", "mdi:cog-outline")
+        super().__init__(coordinator, "Processing Time", UnitOfTime.SECONDS, "mdi:cog-outline")
 
     @property
     def native_value(self):
         """Return the current processing time."""
-        return (
-            round(self.coordinator._last_processing_time, 3)
-            if hasattr(self.coordinator, "_last_processing_time")
-            else 0.0
-        )
+        val = getattr(self.coordinator, "_last_processing_time", None)
+        return round(val, 3) if isinstance(val, (int, float)) else 0.0
 
     @property
     def extra_state_attributes(self):
@@ -152,16 +145,13 @@ class EedomusTotalRefreshTimeSensor(EedomusRefreshTimingSensor):
 
     def __init__(self, coordinator):
         """Initialize the total refresh time sensor."""
-        super().__init__(coordinator, "Total Refresh Time", "s", "mdi:timer-outline")
+        super().__init__(coordinator, "Total Refresh Time", UnitOfTime.SECONDS, "mdi:timer-outline")
 
     @property
     def native_value(self):
         """Return the current total refresh time."""
-        return (
-            round(self.coordinator._last_refresh_time, 3)
-            if hasattr(self.coordinator, "_last_refresh_time")
-            else 0.0
-        )
+        val = getattr(self.coordinator, "_last_refresh_time", None)
+        return round(val, 3) if isinstance(val, (int, float)) else 0.0
 
     @property
     def extra_state_attributes(self):
@@ -183,16 +173,13 @@ class EedomusProcessedDevicesSensor(EedomusRefreshTimingSensor):
     def __init__(self, coordinator):
         """Initialize the processed devices sensor."""
         super().__init__(coordinator, "Processed Devices", "devices", "mdi:devices")
-        self._attr_device_class = None  # Not a duration for this sensor
+        self._attr_device_class = None
 
     @property
     def native_value(self):
         """Return the current number of processed devices."""
-        return (
-            int(self.coordinator._last_processed_devices)
-            if hasattr(self.coordinator, "_last_processed_devices")
-            else 0
-        )
+        val = getattr(self.coordinator, "_last_processed_devices", None)
+        return int(val) if isinstance(val, (int, float)) else 0
 
     @property
     def extra_state_attributes(self):
@@ -213,32 +200,33 @@ class EedomusEndpointTimingSensor(EedomusRefreshTimingSensor):
 
     def __init__(self, coordinator, endpoint_name: str, icon: str):
         """Initialize the endpoint timing sensor."""
-        super().__init__(coordinator, f"{endpoint_name} Time", "s", icon)
+        super().__init__(coordinator, f"{endpoint_name} Time", UnitOfTime.SECONDS, icon)
         self._endpoint_name = endpoint_name
 
     @property
     def native_value(self):
         """Return the current timing for this endpoint."""
-        if hasattr(self.coordinator, "_endpoint_timings"):
-            return round(
-                self.coordinator._endpoint_timings.get(self._endpoint_name, 0.0), 3
-            )
+        timings = getattr(self.coordinator, "_endpoint_timings", None)
+        if isinstance(timings, dict):
+            val = timings.get(self._endpoint_name, 0.0)
+            return round(val, 3) if isinstance(val, (int, float)) else 0.0
         return 0.0
 
     @property
     def extra_state_attributes(self):
         """Return additional state attributes."""
         attrs = super().extra_state_attributes
+        counts = getattr(self.coordinator, "_endpoint_call_counts", None)
+        call_count = (
+            counts.get(self._endpoint_name, 0) if isinstance(counts, dict) else 0
+        )
+
         attrs.update(
             {
                 "description": f"Time spent on {self._endpoint_name} API endpoint",
                 "endpoint": self._endpoint_name,
                 "unit": "seconds",
-                "call_count": (
-                    self.coordinator._endpoint_call_counts.get(self._endpoint_name, 0)
-                    if hasattr(self.coordinator, "_endpoint_call_counts")
-                    else 0
-                ),
+                "call_count": call_count,
             }
         )
         return attrs

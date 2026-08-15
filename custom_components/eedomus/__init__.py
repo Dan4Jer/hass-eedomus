@@ -12,6 +12,7 @@ import aiohttp
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import aiohttp_client
+from homeassistant.exceptions import ConfigEntryNotReady
 
 from .api_proxy import EedomusApiProxyView
 from .const import (
@@ -259,13 +260,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 print_mapping_table()
             except Exception as e:
                 _LOGGER.debug("Failed to display mapping table: %s", e)
-        except aiohttp.ClientError as err:
+        except ConfigEntryNotReady:
+            # Laisse remonter ConfigEntryNotReady pour que Home Assistant 
+            # planifie un réessai automatique et propre en arrière-plan.
+            raise
+        except Exception as err:
             _LOGGER.error("Failed to fetch data from eedomus: %s", err)
             return False
-        except asyncio.TimeoutError:
-            _LOGGER.error("Timeout while fetching data from eedomus")
-            return False
-
         # Setup services after coordinator is initialized
         try:
             await async_setup_services(hass, coordinator)

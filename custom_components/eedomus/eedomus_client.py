@@ -115,10 +115,7 @@ class EedomusClient:
 
                     # Gestion des statuts HTTP
                     if resp.status != 200:
-                        try:
-                            error_text = raw_data.decode("utf-8", errors="replace")
-                        except UnicodeDecodeError:
-                            error_text = raw_data.decode("iso-8859-1", errors="replace")
+                        error_text = self._decode_response(raw_data)
                         _LOGGER.error(
                             "HTTP %s error for %s: %s",
                             resp.status,

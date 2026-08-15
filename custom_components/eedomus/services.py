@@ -219,6 +219,19 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
             current_peripheral_ids = (
                 set(coordinator_data.keys()) if coordinator_data else set()
             )
+            # fmo
+            # Extraction robuste des identifiants périphériques actuels du coordinateur
+            current_peripheral_ids = set()
+            if coordinator and coordinator.data:
+                data = coordinator.data
+                if isinstance(data, dict):
+                    current_peripheral_ids = {str(k) for k in data.keys()}
+                elif isinstance(data, list):
+                    current_peripheral_ids = {
+                        str(item.get("periph_id") or item.get("id"))
+                        for item in data
+                        if isinstance(item, dict)
+                    }
 
             for entity_entry in entity_registry.entities.values():
                 entities_analyzed += 1
@@ -238,7 +251,6 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
                     )
 
                     # Check for orphaned entities (no longer provided by integration)
-                    is_orphaned = False
                     if entity_entry.unique_id:
                         # Extract peripheral_id from unique_id (format usually includes the peripheral_id)
                         # --- COMMENTAIRE D'ANALYSE ---
@@ -248,7 +260,10 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
                         # 'periph_id' (ex: '114365') est purement numérique, "part.isdigit()"
                         # trouvera toujours le periph_id sans se tromper.
                         # -----------------------------
+                        is_orphaned = False
                         unique_id_parts = entity_entry.unique_id.split("_")
+                     
+
                         for part in unique_id_parts:
                             if part.isdigit() and part not in current_peripheral_ids:
                                 is_orphaned = True

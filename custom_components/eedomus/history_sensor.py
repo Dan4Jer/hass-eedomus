@@ -9,6 +9,7 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
+from homeassistant.const import PERCENTAGE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -40,9 +41,9 @@ class EedomusHistorySensor(CoordinatorEntity, SensorEntity):
 
         self._attr_device_info = device_info
         self._attr_name = f"{periph_name} (History)"
-        self._attr_device_class = SensorDeviceClass.TEMPERATURE
+        
+        # --- CORRECTION: Suppression des attributs TEMPERATURE / °C imposés en dur ---
         self._attr_state_class = SensorStateClass.MEASUREMENT
-        self._attr_native_unit_of_measurement = "°C"
         self._attr_icon = "mdi:history"
         self._attr_entity_category = "diagnostic"
         self._attr_has_entity_name = True
@@ -50,15 +51,18 @@ class EedomusHistorySensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self):
         """Return the current historical value."""
-        # Get the current value from coordinator data
-        periph_data = self.coordinator.data.get(self._periph_id, {})
+        # --- CORRECTION: Protection contre coordinator.data == None ---
+        coordinator_data = self.coordinator.data or {}
+        periph_data = coordinator_data.get(self._periph_id, {})
         return periph_data.get("last_value", "unknown")
 
     @property
     def extra_state_attributes(self):
         """Return additional state attributes."""
-        periph_data = self.coordinator.data.get(self._periph_id, {})
-        progress = self.coordinator._history_progress.get(self._periph_id, {})
+        coordinator_data = self.coordinator.data or {}
+        periph_data = coordinator_data.get(self._periph_id, {})
+        history_progress = getattr(self.coordinator, "_history_progress", {})
+        progress = history_progress.get(self._periph_id, {})
 
         return {
             "device_id": self._periph_id,
@@ -88,30 +92,31 @@ class EedomusHistoryProgressSensor(CoordinatorEntity, SensorEntity):
 
         self._attr_device_info = device_info
         self._attr_name = f"History Progress: {periph_name}"
-        self._attr_device_class = SensorDeviceClass.ENUM
+        
+        # --- CORRECTION: Suppression de SensorDeviceClass.ENUM ---
         self._attr_state_class = SensorStateClass.MEASUREMENT
-        self._attr_native_unit_of_measurement = "%"
+        self._attr_native_unit_of_measurement = PERCENTAGE
         self._attr_icon = "mdi:progress-clock"
         self._attr_entity_category = "diagnostic"
 
     @property
     def native_value(self):
         """Return the current progress percentage."""
-        total_points = self.coordinator._history_progress.get(self._periph_id, {}).get(
-            "total_points", 1
-        )
-        retrieved_points = self.coordinator._history_progress.get(
-            self._periph_id, {}
-        ).get("retrieved_points", 0)
+        history_progress = getattr(self.coordinator, "_history_progress", {})
+        progress = history_progress.get(self._periph_id, {})
+        
+        total_points = progress.get("total_points", 1)
+        retrieved_points = progress.get("retrieved_points", 0)
 
         if total_points > 0:
-            return min(100, (retrieved_points / total_points) * 100)
-        return 0
+            return min(100.0, (retrieved_points / total_points) * 100)
+        return 0.0
 
     @property
     def extra_state_attributes(self):
         """Return additional state attributes."""
-        progress = self.coordinator._history_progress.get(self._periph_id, {})
+        history_progress = getattr(self.coordinator, "_history_progress", {})
+        progress = history_progress.get(self._periph_id, {})
         return {
             "periph_id": self._periph_id,
             "periph_name": self._periph_name,
@@ -145,44 +150,39 @@ class EedomusGlobalHistoryProgressSensor(CoordinatorEntity, SensorEntity):
 
         self._attr_device_info = device_info
         self._attr_name = "Eedomus History Retrieval Progress"
-        self._attr_device_class = SensorDeviceClass.ENUM
+        
+        # --- CORRECTION: Suppression de SensorDeviceClass.ENUM ---
         self._attr_state_class = SensorStateClass.MEASUREMENT
-        self._attr_native_unit_of_measurement = "%"
+        self._attr_native_unit_of_measurement = PERCENTAGE
         self._attr_icon = "mdi:progress-wrench"
 
     @property
     def native_value(self):
         """Return the global progress percentage."""
-        if (
-            not hasattr(self.coordinator, "_history_progress")
-            or not self.coordinator._history_progress
-        ):
-            return 0
+        history_progress = getattr(self.coordinator, "_history_progress", {})
+        if not history_progress:
+            return 0.0
 
-        total_devices = len(self.coordinator._history_progress)
+        total_devices = len(history_progress)
         if total_devices == 0:
-            return 0
+            return 0.0
 
         completed_devices = sum(
-            1
-            for p in self.coordinator._history_progress.values()
-            if p.get("completed", False)
+            1 for p in history_progress.values() if p.get("completed", False)
         )
 
-        # Simple average-based progress
-        return min(100, (completed_devices / total_devices) * 100)
+        return min(100.0, (completed_devices / total_devices) * 100)
 
     @property
     def extra_state_attributes(self):
         """Return additional state attributes."""
-        if not hasattr(self.coordinator, "_history_progress"):
+        history_progress = getattr(self.coordinator, "_history_progress", {})
+        if not history_progress:
             return {}
 
-        total_devices = len(self.coordinator._history_progress)
+        total_devices = len(history_progress)
         completed_devices = sum(
-            1
-            for p in self.coordinator._history_progress.values()
-            if p.get("completed", False)
+            1 for p in history_progress.values() if p.get("completed", False)
         )
 
         return {
@@ -214,46 +214,36 @@ class EedomusHistoryStatsSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self):
         """Return the downloaded size in MB."""
-        # Estimate based on progress
-        if (
-            not hasattr(self.coordinator, "_history_progress")
-            or not self.coordinator._history_progress
-        ):
-            return 0
+        history_progress = getattr(self.coordinator, "_history_progress", {})
+        if not history_progress:
+            return 0.0
 
-        # Simple estimation: assume 100 bytes per data point
         total_points = sum(
-            p.get("total_points", 0)
-            for p in self.coordinator._history_progress.values()
+            p.get("total_points", 0) for p in history_progress.values()
         )
         retrieved_points = sum(
-            p.get("retrieved_points", 0)
-            for p in self.coordinator._history_progress.values()
+            p.get("retrieved_points", 0) for p in history_progress.values()
         )
 
         if total_points > 0:
             downloaded_mb = (retrieved_points * 100) / (1024 * 1024)
             return round(downloaded_mb, 2)
-        return 0
+        return 0.0
 
     @property
     def extra_state_attributes(self):
         """Return additional state attributes."""
-        if (
-            not hasattr(self.coordinator, "_history_progress")
-            or not self.coordinator._history_progress
-        ):
+        history_progress = getattr(self.coordinator, "_history_progress", {})
+        if not history_progress:
             return {}
 
-        total_devices = len(self.coordinator._history_progress)
+        total_devices = len(history_progress)
         completed_devices = sum(
-            1
-            for p in self.coordinator._history_progress.values()
-            if p.get("completed", False)
+            1 for p in history_progress.values() if p.get("completed", False)
         )
 
         return {
-            "total_size": "N/A",  # Would need estimation
+            "total_size": "N/A",
             "downloaded_size": str(self.native_value),
             "devices_with_history": completed_devices,
             "devices_without_history": total_devices - completed_devices,
@@ -264,11 +254,11 @@ async def async_setup_history_sensors(
     hass: HomeAssistant, coordinator, device_registry
 ):
     """Set up history sensors and attach them to the eedomus box device."""
+    box_id = coordinator.config_entry.entry_id
 
-    # Get or create the main eedomus box device
     device_registry.async_get_or_create(
-        config_entry_id=coordinator.config_entry.entry_id,
-        identifiers={(DOMAIN, f"eedomus_box_{coordinator.config_entry.entry_id}")},
+        config_entry_id=box_id,
+        identifiers={(DOMAIN, f"eedomus_box_{box_id}")},
         name="Box eedomus",
         manufacturer="Eedomus",
         model="Eedomus Box",
@@ -276,23 +266,24 @@ async def async_setup_history_sensors(
     )
 
     device_info = DeviceInfo(
-        identifiers={(DOMAIN, f"eedomus_box_{coordinator.config_entry.entry_id}")},
+        identifiers={(DOMAIN, f"eedomus_box_{box_id}")},
         name="Box eedomus",
         manufacturer="Eedomus",
         model="Eedomus Box",
         sw_version="Unknown",
     )
 
-    # Create global sensors
     sensors = [
         EedomusGlobalHistoryProgressSensor(coordinator, device_info),
         EedomusHistoryStatsSensor(coordinator, device_info),
     ]
 
-    # Create per-device sensors if history is enabled
-    if hasattr(coordinator, "_history_progress") and coordinator._history_progress:
-        for periph_id, progress in coordinator._history_progress.items():
-            periph_name = coordinator.data.get(periph_id, {}).get(
+    history_progress = getattr(coordinator, "_history_progress", {})
+    coordinator_data = coordinator.data or {}
+
+    if history_progress:
+        for periph_id in history_progress:
+            periph_name = coordinator_data.get(periph_id, {}).get(
                 "name", f"Device {periph_id}"
             )
             # Create dedicated history sensor for each device

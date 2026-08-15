@@ -139,11 +139,10 @@ class EedomusBinarySensor(EedomusEntity, BinarySensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return the state attributes."""
-        attrs = (
-            super().extra_state_attributes
-            if hasattr(super(), "extra_state_attributes")
-            else {}
-        )
+        # Sécurisation : convertit None en dictionnaire vide
+        super_attrs = super().extra_state_attributes
+        attrs = dict(super_attrs) if super_attrs else {}
+
         periph_data = self._get_periph_data() or {}
 
         # Ajout de l'historique et de la liste des valeurs eedomus si disponibles
