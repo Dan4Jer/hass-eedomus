@@ -218,9 +218,7 @@ class EedomusHistoryStatsSensor(CoordinatorEntity, SensorEntity):
         if not history_progress:
             return 0.0
 
-        total_points = sum(
-            p.get("total_points", 0) for p in history_progress.values()
-        )
+        total_points = sum(p.get("total_points", 0) for p in history_progress.values())
         retrieved_points = sum(
             p.get("retrieved_points", 0) for p in history_progress.values()
         )

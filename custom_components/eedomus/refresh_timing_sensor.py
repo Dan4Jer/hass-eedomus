@@ -90,7 +90,9 @@ class EedomusAPITimeSensor(EedomusRefreshTimingSensor):
 
     def __init__(self, coordinator):
         """Initialize the API time sensor."""
-        super().__init__(coordinator, "API Time", UnitOfTime.SECONDS, "mdi:clock-outline")
+        super().__init__(
+            coordinator, "API Time", UnitOfTime.SECONDS, "mdi:clock-outline"
+        )
 
     @property
     def native_value(self):
@@ -117,7 +119,9 @@ class EedomusProcessingTimeSensor(EedomusRefreshTimingSensor):
 
     def __init__(self, coordinator):
         """Initialize the processing time sensor."""
-        super().__init__(coordinator, "Processing Time", UnitOfTime.SECONDS, "mdi:cog-outline")
+        super().__init__(
+            coordinator, "Processing Time", UnitOfTime.SECONDS, "mdi:cog-outline"
+        )
 
     @property
     def native_value(self):
@@ -144,7 +148,9 @@ class EedomusTotalRefreshTimeSensor(EedomusRefreshTimingSensor):
 
     def __init__(self, coordinator):
         """Initialize the total refresh time sensor."""
-        super().__init__(coordinator, "Total Refresh Time", UnitOfTime.SECONDS, "mdi:timer-outline")
+        super().__init__(
+            coordinator, "Total Refresh Time", UnitOfTime.SECONDS, "mdi:timer-outline"
+        )
 
     @property
     def native_value(self):

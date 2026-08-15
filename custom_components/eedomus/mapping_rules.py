@@ -160,10 +160,7 @@ def evaluate_conditions(
                 ]
 
                 all_found = all(
-                    any(
-                        req_name.lower() in child_name
-                        for child_name in child_names
-                    )
+                    any(req_name.lower() in child_name for child_name in child_names)
                     for req_name in required_names
                 )
                 if not all_found:
