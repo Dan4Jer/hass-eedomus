@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.21.6](https://github.com/fmo01/hass-eedomus/compare/0.21.5...0.21.6) (2026-08-15)
+
+### Bug Fixes
+
+* mise a jour ([331ca7f](https://github.com/fmo01/hass-eedomus/commit/331ca7fb3c637a12cdf492860a71df5d09991bad))
+
 ## [0.21.5](https://github.com/fmo01/hass-eedomus/compare/0.21.4...0.21.5) (2026-08-15)
 
 ### Bug Fixes
