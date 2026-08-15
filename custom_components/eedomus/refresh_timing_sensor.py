@@ -6,7 +6,6 @@ Provides virtual sensors to monitor and analyze refresh performance metrics.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,

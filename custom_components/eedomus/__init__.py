@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import os
 from datetime import timedelta
 
-import aiohttp
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import aiohttp_client
@@ -261,7 +259,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             except Exception as e:
                 _LOGGER.debug("Failed to display mapping table: %s", e)
         except ConfigEntryNotReady:
-            # Laisse remonter ConfigEntryNotReady pour que Home Assistant 
+            # Laisse remonter ConfigEntryNotReady pour que Home Assistant
             # planifie un réessai automatique et propre en arrière-plan.
             raise
         except Exception as err:

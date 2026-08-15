@@ -41,7 +41,7 @@ class EedomusHistorySensor(CoordinatorEntity, SensorEntity):
 
         self._attr_device_info = device_info
         self._attr_name = f"{periph_name} (History)"
-        
+
         # --- CORRECTION: Suppression des attributs TEMPERATURE / °C imposés en dur ---
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_icon = "mdi:history"
@@ -92,7 +92,7 @@ class EedomusHistoryProgressSensor(CoordinatorEntity, SensorEntity):
 
         self._attr_device_info = device_info
         self._attr_name = f"History Progress: {periph_name}"
-        
+
         # --- CORRECTION: Suppression de SensorDeviceClass.ENUM ---
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_native_unit_of_measurement = PERCENTAGE
@@ -104,7 +104,7 @@ class EedomusHistoryProgressSensor(CoordinatorEntity, SensorEntity):
         """Return the current progress percentage."""
         history_progress = getattr(self.coordinator, "_history_progress", {})
         progress = history_progress.get(self._periph_id, {})
-        
+
         total_points = progress.get("total_points", 1)
         retrieved_points = progress.get("retrieved_points", 0)
 
@@ -150,7 +150,7 @@ class EedomusGlobalHistoryProgressSensor(CoordinatorEntity, SensorEntity):
 
         self._attr_device_info = device_info
         self._attr_name = "Eedomus History Retrieval Progress"
-        
+
         # --- CORRECTION: Suppression de SensorDeviceClass.ENUM ---
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_native_unit_of_measurement = PERCENTAGE

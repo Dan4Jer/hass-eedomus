@@ -262,7 +262,6 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
                         # -----------------------------
                         is_orphaned = False
                         unique_id_parts = entity_entry.unique_id.split("_")
-                     
 
                         for part in unique_id_parts:
                             if part.isdigit() and part not in current_peripheral_ids:

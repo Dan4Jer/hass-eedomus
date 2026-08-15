@@ -19,7 +19,7 @@ def register_device_mapping(
 ) -> None:
     """Enregistre un mapping dans le registre global."""
     parent_periph_id = device_data.get("parent_periph_id") if device_data else None
-    
+
     ha_entity = mapping.get("ha_entity", "unknown")
     ha_subtype = mapping.get("ha_subtype", "unknown")
     justification = mapping.get("justification", "No justification provided")
