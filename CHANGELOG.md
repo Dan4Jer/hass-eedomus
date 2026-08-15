@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.21.4](https://github.com/fmo01/hass-eedomus/compare/0.21.3...0.21.4) (2026-08-15)
+
+### Bug Fixes
+
+* ajout fonctionnalité, mise en forme, automatisation ([bb86124](https://github.com/fmo01/hass-eedomus/commit/bb861245f78ed9411761e52607cd7e473212c78c))
+
 ## [0.21.3](https://github.com/fmo01/hass-eedomus/compare/0.21.2...0.21.3) (2026-07-28)
 
 ### Bug Fixes
