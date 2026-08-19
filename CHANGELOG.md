@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.22.0](https://github.com/fmo01/hass-eedomus/compare/0.21.6...0.22.0) (2026-08-19)
+
+### Features
+
+* Plusieurs correctifs don VERSION qui bloque plus correction divers mineur ([77d459b](https://github.com/fmo01/hass-eedomus/commit/77d459b651f35e9aebf2c4190e002b4b9f6d62ae))
+
 ## [0.21.6](https://github.com/fmo01/hass-eedomus/compare/0.21.5...0.21.6) (2026-08-15)
 
 ### Bug Fixes
