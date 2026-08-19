@@ -205,9 +205,9 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                 attrs["last_updated"] = periph_data.get("last_updated", "unknown")
 
                 # Temperature range information
-                attrs[
-                    "temperature_range"
-                ] = f"{self._attr_min_temp}°C - {self._attr_max_temp}°C"
+                attrs["temperature_range"] = (
+                    f"{self._attr_min_temp}°C - {self._attr_max_temp}°C"
+                )
                 attrs["temperature_step"] = self._attr_target_temperature_step
 
                 # Device health and status
@@ -237,9 +237,9 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                 if self._linked_temperature_sensor:
                     attrs["linked_temperature_sensor"] = self._linked_temperature_sensor
                     if self._attr_current_temperature is not None:
-                        attrs[
-                            "current_temperature"
-                        ] = f"{self._attr_current_temperature}°C"
+                        attrs["current_temperature"] = (
+                            f"{self._attr_current_temperature}°C"
+                        )
 
                 if self._linked_heating_switch:
                     attrs["linked_heating_switch"] = self._linked_heating_switch
