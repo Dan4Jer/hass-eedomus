@@ -472,9 +472,7 @@ def merge_yaml_mappings(
 
         # Merge extracted properties with existing properties (don't override)
         if dynamic_props:
-            _LOGGER.info(
-                "✅ Extracted dynamic properties from rules: %s", dynamic_props
-            )
+            _LOGGER.info("✅ Extracted dynamic properties from rules: %s", dynamic_props)
             # Merge with existing dynamic properties, don't override
             existing_props = merged.get("dynamic_entity_properties", {})
             merged["dynamic_entity_properties"] = {**existing_props, **dynamic_props}

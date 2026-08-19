@@ -17,6 +17,9 @@ except ImportError:
     DEFAULT_API_USER = ""
     DEFAULT_API_SECRET = ""
 
+# Numéro de version cible de la configuration (ConfigEntry)
+CONFIG_VERSION = 4
+
 # Configuration
 CONF_API_HOST = "api_host"
 CONF_API_USER = "api_user"

@@ -10,12 +10,8 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
-
-# from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import callback
-
-# from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import (
@@ -33,6 +29,7 @@ from .const import (
     CONF_PHP_FALLBACK_SCRIPT_NAME,
     CONF_PHP_FALLBACK_TIMEOUT,
     CONF_REMOVE_ENTITIES,
+    CONFIG_VERSION,
     DEFAULT_API_HOST,
     DEFAULT_API_PROXY_DISABLE_SECURITY,
     DEFAULT_API_SECRET,
@@ -130,7 +127,7 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for eedomus."""
 
-    VERSION = 1
+    VERSION = CONFIG_VERSION
 
     def __init__(self):
         """Initialize the config flow."""

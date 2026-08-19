@@ -22,9 +22,9 @@ try:
     manifest_path = os.path.join(os.path.dirname(__file__), "manifest.json")
     with open(manifest_path, "r") as f:
         manifest_data = json.load(f)
-        VERSION = manifest_data.get("version", "unknown")
+        INTEGRATION_VERSION = manifest_data.get("version", "unknown")
 except Exception as e:
-    VERSION = "unknown"
+    INTEGRATION_VERSION = "unknown"
     _LOGGER.warning("Failed to read version from manifest.json: %s", e)
 
 # Global variable to store loaded mappings
@@ -37,6 +37,9 @@ DEVICE_MAPPINGS = None
 
 # Initialize YAML mappings when module is loaded
 try:
+    _LOGGER.info(
+        "🚀 Starting eedomus integration setup - Version %s", INTEGRATION_VERSION
+    )
     _LOGGER.debug("🚀 Starting DEVICE_MAPPINGS initialization...")
     DEVICE_MAPPINGS = load_and_merge_yaml_mappings()
 

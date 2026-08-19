@@ -24,6 +24,7 @@ from .const import (
     CONF_ENABLE_WEBHOOK,
     CONF_REMOVE_ENTITIES,
     CONF_SCAN_INTERVAL,
+    CONFIG_VERSION,
     COORDINATOR,
     DEFAULT_API_PROXY_DISABLE_SECURITY,
     DEFAULT_CONF_ENABLE_API_EEDOMUS,
@@ -50,9 +51,9 @@ try:
     manifest_path = os.path.join(os.path.dirname(__file__), "manifest.json")
     with open(manifest_path, "r") as f:
         manifest_data = json.load(f)
-        VERSION = manifest_data.get("version", "unknown")
+        INTEGRATION_VERSION = manifest_data.get("version", "unknown")
 except Exception as e:
-    VERSION = "unknown"
+    INTEGRATION_VERSION = "unknown"
     _LOGGER.warning("Failed to read version from manifest.json: %s", e)
 
 
@@ -79,11 +80,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     This function initializes the eedomus integration by creating the API client,
     setting up the data coordinator, registering services, and forwarding setup to platforms.
     """
-    _LOGGER.info("🚀 Starting eedomus integration setup - Version %s", VERSION)
+    _LOGGER.info(
+        "🚀 Starting eedomus integration setup - Version %s", INTEGRATION_VERSION
+    )
     _LOGGER.debug("Setting up eedomus integration with entry_id: %s", entry.entry_id)
 
     # Perform migration if needed
-    if entry.version < 4:
+    if entry.version < CONFIG_VERSION:
         try:
             await async_migrate_entry(hass, entry)
             # Reload the entry to apply migration changes
@@ -573,7 +576,7 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
             _LOGGER.error("Failed to backup custom_mapping.yaml: %s", e)
 
         hass.config_entries.async_update_entry(
-            config_entry, data=new_data, options=new_options, version=4
+            config_entry, data=new_data, options=new_options, version=CONFIG_VERSION
         )
         _LOGGER.info("Migration to version 4 completed - custom_mapping.yaml preserved")
 
