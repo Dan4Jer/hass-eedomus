@@ -222,7 +222,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
         )
 
-        coordinator = EedomusDataUpdateCoordinator(hass, client, scan_interval)
+        coordinator = EedomusDataUpdateCoordinator(
+            hass,
+            client,
+            scan_interval,
+            config_entry=entry,)
 
         # Create main eedomus box device for proper device hierarchy
         try:
