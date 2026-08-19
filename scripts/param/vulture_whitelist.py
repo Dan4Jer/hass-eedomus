@@ -19,7 +19,7 @@ async_step_init
 async_get_options_flow
 async_step_uninstall
 async_step_ui
-
+VERSION
 # --- Plateformes (sensor.py, light.py, etc.) ---
 async_setup_platform
 async_setup_entry
