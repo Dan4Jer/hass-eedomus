@@ -223,7 +223,6 @@ async def async_setup_history_sensors(hass: HomeAssistant, coordinator, device_r
         manufacturer="Eedomus",
         model="Eedomus Box",
         sw_version="Unknown",
-        via_device_id=(DOMAIN, "eedomus_box_main"),
     )
     
     # Create global sensors

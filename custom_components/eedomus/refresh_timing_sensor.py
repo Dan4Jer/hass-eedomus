@@ -257,7 +257,6 @@ async def async_setup_refresh_timing_sensors(hass: HomeAssistant, coordinator, d
         manufacturer="Eedomus",
         model="Eedomus Box",
         sw_version="Unknown",
-        via_device_id=(DOMAIN, "eedomus_box_main"),
     )
 
     # Create timing sensors
