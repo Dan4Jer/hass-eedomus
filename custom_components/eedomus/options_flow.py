@@ -139,7 +139,7 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(self, user_input=None):
             """Manage the options - comprehensive configuration interface."""
             # Get current configuration first (needed for both display and submission)
-            current_config = self._get_current_config()
+            current_config = dict(self.config_entry.options) if self.config_entry.options else {}
             
             # Handle form submission
             if user_input is not None:

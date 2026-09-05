@@ -4,12 +4,18 @@ from typing import Any, Dict
 
 # Ensure required imports are available
 import voluptuous as vol
-from homeassistant.components.light import (
-    ColorMode,
-    LightEntityFeature,
-)
 from homeassistant.const import Platform
 from homeassistant.helpers import config_validation as cv
+
+# Import light components with try/except for HA 2026.9 compatibility
+try:
+    from homeassistant.components.light import (
+        ColorMode,
+        LightEntityFeature,
+    )
+except ImportError:
+    ColorMode = None
+    LightEntityFeature = None
 
 try:
     from .private_const import (
