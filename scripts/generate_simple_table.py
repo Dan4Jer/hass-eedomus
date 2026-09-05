@@ -115,8 +115,15 @@ def make_api_request(url: str, username: str, secret: str) -> Optional[Dict[str,
         Dictionary with API response or None on error
     """
     try:
-        # Add authentication parameters to URL
-        full_url = f"{url}&api_user={urllib.parse.quote(username)}&api_secret={urllib.parse.quote(secret)}"
+        # Build URL with parameters
+        params = {
+            'api_user': username,
+            'api_secret': secret
+        }
+        
+        # Add parameters to URL
+        param_string = urllib.parse.urlencode(params)
+        full_url = f"{url}&{param_string}"
         
         # Make request
         req = urllib.request.Request(
