@@ -132,12 +132,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _LOGGER.warning("Could not setup configuration panel: %s", e)
     
     # Perform migration if needed
+    # Note: async_migrate_entry already calls async_update_entry internally
+    # to update the config entry version, so we don't need to reload here
+    # (reloading would cause a deadlock as it tries to acquire entry.setup_lock
+    # which is already held by async_setup_entry)
     if entry.version < 4:
         try:
             await async_migrate_entry(hass, entry)
-            # Reload the entry to apply migration changes
-            await hass.config_entries.async_reload(entry.entry_id)
-            return False  # Setup will be retried after reload
+            return False  # Setup will be retried automatically with updated config
         except Exception as e:
             _LOGGER.error("Migration failed: %s", e)
             return False
