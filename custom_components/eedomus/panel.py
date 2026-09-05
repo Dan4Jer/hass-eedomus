@@ -1,7 +1,6 @@
 """Eedomus Configuration Panel for Home Assistant 2026+."""
 
 import logging
-from homeassistant.components.frontend import async_register_built_in_panel
 from homeassistant.core import HomeAssistant
 from .const import DOMAIN
 
@@ -12,8 +11,10 @@ async def async_setup_panel(hass: HomeAssistant):
     
     try:
         # Register the panel using component approach
-        # Check if frontend is available
-        if not hasattr(hass.components, 'frontend'):
+        # Check if frontend is available using try/except approach
+        try:
+            from homeassistant.components.frontend import async_register_built_in_panel
+        except ImportError:
             _LOGGER.warning("Frontend component not available - panel registration skipped")
             return False
             

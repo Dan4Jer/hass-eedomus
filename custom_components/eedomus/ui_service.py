@@ -5,9 +5,6 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 from homeassistant.core import HomeAssistant
-from homeassistant.components.websocket_api import (
-    async_register_command,
-)
 import voluptuous as vol
 
 from .const import DOMAIN
@@ -33,14 +30,13 @@ class EedomusUIService:
     async def async_init(self) -> None:
         """Initialize the UI service and register WebSocket commands."""
         try:
-            # Check if WebSocket API is available
-            if not hasattr(self.hass.components, 'websocket_api'):
+            # Import WebSocket API components - this might fail in some HA versions
+            try:
+                from homeassistant.components.websocket_api import async_register_command
+            except ImportError:
                 _LOGGER.warning("WebSocket API not available - UIService will run in limited mode")
                 self._initialized = True
                 return
-            
-            # Import WebSocket API components
-            from homeassistant.components.websocket_api import async_register_command
             
             # Register WebSocket commands with proper command types
             self._registered_commands = [
