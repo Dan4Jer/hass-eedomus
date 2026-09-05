@@ -181,7 +181,7 @@ class EedomusEntity(CoordinatorEntity):
                 name=parent_name,
                 manufacturer="Eedomus",
                 model=parent_data.get("usage_name", "Unknown"),
-                via_device=(DOMAIN, "eedomus_box_main"),
+                via_device_id=(DOMAIN, "eedomus_box_main"),
             )
         
         # Otherwise, use this device's info
@@ -190,7 +190,7 @@ class EedomusEntity(CoordinatorEntity):
             name=device_name,
             manufacturer="Eedomus",
             model=periph_data.get("usage_name", "Unknown"),
-            via_device=(DOMAIN, "eedomus_box_main"),
+            via_device_id=(DOMAIN, "eedomus_box_main"),
         )
 
     async def async_update(self):
