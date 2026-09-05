@@ -52,17 +52,18 @@ echo ""
 echo "📦 Deploying to Raspberry Pi..."
 start_time=$(date +%s)
 
-# Git operations on remote
+# Git operations on remote (using sudo as the directory is owned by root)
 ssh $REMOTE_IP "
+    sudo git config --global --add safe.directory $REMOTE_PATH && \
     cd $REMOTE_PATH && \
-    git fetch && \
-    git checkout $BRANCH && \
-    git pull origin $BRANCH && \
+    sudo git fetch && \
+    sudo git checkout $BRANCH && \
+    sudo git pull origin $BRANCH && \
     echo \"✅ Git operations completed\"
 "
 
 # Restart Home Assistant in background
-ssh $REMOTE_IP "nohup ha core restart > /dev/null 2>&1 &"
+ssh $REMOTE_IP "nohup sudo -i ha core restart > /dev/null 2>&1 &"
 
 end_time=$(date +%s)
 duration=$((end_time - start_time))

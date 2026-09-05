@@ -12,6 +12,11 @@ async def async_setup_panel(hass: HomeAssistant):
     
     try:
         # Register the panel using component approach
+        # Check if frontend is available
+        if not hasattr(hass.components, 'frontend'):
+            _LOGGER.warning("Frontend component not available - panel registration skipped")
+            return False
+            
         async_register_built_in_panel(
             hass,
             "eedomus-config",

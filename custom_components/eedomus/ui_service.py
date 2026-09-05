@@ -33,6 +33,15 @@ class EedomusUIService:
     async def async_init(self) -> None:
         """Initialize the UI service and register WebSocket commands."""
         try:
+            # Check if WebSocket API is available
+            if not hasattr(self.hass.components, 'websocket_api'):
+                _LOGGER.warning("WebSocket API not available - UIService will run in limited mode")
+                self._initialized = True
+                return
+            
+            # Import WebSocket API components
+            from homeassistant.components.websocket_api import async_register_command
+            
             # Register WebSocket commands with proper command types
             self._registered_commands = [
                 async_register_command(self.hass, WS_TYPE_EEDOMUS_VALIDATE, self._handle_validate_config),
@@ -46,16 +55,18 @@ class EedomusUIService:
             
         except Exception as e:
             _LOGGER.error(f"Failed to initialize UIService: {e}")
-            raise
+            # Don't raise - allow the integration to continue in limited mode
+            self._initialized = False
     
     async def async_shutdown(self) -> None:
         """Clean up resources."""
-        # Unregister WebSocket commands
-        for unregister_func in self._registered_commands:
-            try:
-                unregister_func()
-            except Exception as e:
-                _LOGGER.error(f"Failed to unregister WebSocket command: {e}")
+        # Unregister WebSocket commands if they were registered
+        if self._registered_commands:
+            for unregister_func in self._registered_commands:
+                try:
+                    unregister_func()
+                except Exception as e:
+                    _LOGGER.error(f"Failed to unregister WebSocket command: {e}")
         
         self._registered_commands = []
         self._initialized = False
@@ -322,6 +333,10 @@ class EedomusUIService:
                 'description': 'Get data cache statistics'
             }
         ]
+
+    def is_initialized(self) -> bool:
+        """Check if UIService is properly initialized."""
+        return self._initialized
 
 
 # Utility functions for WebSocket API

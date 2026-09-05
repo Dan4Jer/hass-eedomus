@@ -99,33 +99,33 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
         
         # Copy values from config_entry.data (config_flow values)
         # Only copy if the option hasn't been explicitly set yet
-        # Use the same logic as _get_current_config() to ensure consistency
+        config_data = self._config_entry.data
         
         # Only copy if not already in options
         if CONF_ENABLE_API_EEDOMUS not in options:
-            options[CONF_ENABLE_API_EEDOMUS] = self._config_entry.data.get(CONF_ENABLE_API_EEDOMUS, True)
+            options[CONF_ENABLE_API_EEDOMUS] = config_data.get(CONF_ENABLE_API_EEDOMUS, True)
         if CONF_ENABLE_API_PROXY not in options:
-            options[CONF_ENABLE_API_PROXY] = self._config_entry.data.get(CONF_ENABLE_API_PROXY, False)
+            options[CONF_ENABLE_API_PROXY] = config_data.get(CONF_ENABLE_API_PROXY, False)
         if CONF_ENABLE_HISTORY not in options:
-            options[CONF_ENABLE_HISTORY] = self._config_entry.data.get(CONF_ENABLE_HISTORY, False)
+            options[CONF_ENABLE_HISTORY] = config_data.get(CONF_ENABLE_HISTORY, False)
         if CONF_HISTORY_PERIPHERALS_PER_SCAN not in options:
-            options[CONF_HISTORY_PERIPHERALS_PER_SCAN] = self._config_entry.data.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, DEFAULT_HISTORY_PERIPHERALS_PER_SCAN)
+            options[CONF_HISTORY_PERIPHERALS_PER_SCAN] = config_data.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, DEFAULT_HISTORY_PERIPHERALS_PER_SCAN)
         if CONF_SCAN_INTERVAL not in options:
-            options[CONF_SCAN_INTERVAL] = self._config_entry.data.get(CONF_SCAN_INTERVAL, 300)
+            options[CONF_SCAN_INTERVAL] = config_data.get(CONF_SCAN_INTERVAL, 300)
         if CONF_HTTP_REQUEST_TIMEOUT not in options:
-            options[CONF_HTTP_REQUEST_TIMEOUT] = self._config_entry.data.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)
+            options[CONF_HTTP_REQUEST_TIMEOUT] = config_data.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)
         if CONF_ENABLE_SET_VALUE_RETRY not in options:
-            options[CONF_ENABLE_SET_VALUE_RETRY] = self._config_entry.data.get(CONF_ENABLE_SET_VALUE_RETRY, True)
+            options[CONF_ENABLE_SET_VALUE_RETRY] = config_data.get(CONF_ENABLE_SET_VALUE_RETRY, True)
         if CONF_ENABLE_WEBHOOK not in options:
-            options[CONF_ENABLE_WEBHOOK] = self._config_entry.data.get(CONF_ENABLE_WEBHOOK, True)
+            options[CONF_ENABLE_WEBHOOK] = config_data.get(CONF_ENABLE_WEBHOOK, True)
         if CONF_API_PROXY_DISABLE_SECURITY not in options:
-            options[CONF_API_PROXY_DISABLE_SECURITY] = self._config_entry.data.get(CONF_API_PROXY_DISABLE_SECURITY, False)
+            options[CONF_API_PROXY_DISABLE_SECURITY] = config_data.get(CONF_API_PROXY_DISABLE_SECURITY, False)
         if CONF_PHP_FALLBACK_ENABLED not in options:
-            options[CONF_PHP_FALLBACK_ENABLED] = self._config_entry.data.get(CONF_PHP_FALLBACK_ENABLED, False)
+            options[CONF_PHP_FALLBACK_ENABLED] = config_data.get(CONF_PHP_FALLBACK_ENABLED, False)
         if CONF_PHP_FALLBACK_SCRIPT_NAME not in options:
-            options[CONF_PHP_FALLBACK_SCRIPT_NAME] = self._config_entry.data.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")
+            options[CONF_PHP_FALLBACK_SCRIPT_NAME] = config_data.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")
         if CONF_PHP_FALLBACK_TIMEOUT not in options:
-            options[CONF_PHP_FALLBACK_TIMEOUT] = self._config_entry.data.get(CONF_PHP_FALLBACK_TIMEOUT, 5)
+            options[CONF_PHP_FALLBACK_TIMEOUT] = config_data.get(CONF_PHP_FALLBACK_TIMEOUT, 5)
         
         _LOGGER.debug("Copied config to options: %s", {k: v for k, v in options.items() if k not in ['api_user', 'api_secret']})
         return options
@@ -136,111 +136,43 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
         """Get the options flow for this handler."""
         return EedomusOptionsFlow(config_entry)
 
-    async def async_step_init(self, user_input=None):
+async def async_step_init(self, user_input=None):
         """Manage the options - comprehensive configuration interface."""
         # Get current configuration first (needed for both display and submission)
         current_config = self._get_current_config()
         
         # Handle form submission
         if user_input is not None:
-            # Check if user wants to use rich editor
-            if user_input.get("use_rich_editor", False):
-                # Save options first
-                options = {
-                    CONF_ENABLE_API_EEDOMUS: user_input.get(CONF_ENABLE_API_EEDOMUS, current_config.get(CONF_ENABLE_API_EEDOMUS, True)),
-                    CONF_ENABLE_API_PROXY: user_input.get(CONF_ENABLE_API_PROXY, current_config.get(CONF_ENABLE_API_PROXY, False)),
-                    CONF_ENABLE_HISTORY: user_input.get(CONF_ENABLE_HISTORY, current_config.get(CONF_ENABLE_HISTORY, False)),
-                    CONF_HISTORY_PERIPHERALS_PER_SCAN: user_input.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, current_config.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, 5)),
-                    CONF_SCAN_INTERVAL: user_input.get(CONF_SCAN_INTERVAL, current_config.get(CONF_SCAN_INTERVAL, 300)),
-                    CONF_ENABLE_SET_VALUE_RETRY: user_input.get(CONF_ENABLE_SET_VALUE_RETRY, current_config.get(CONF_ENABLE_SET_VALUE_RETRY, True)),
-                    CONF_ENABLE_WEBHOOK: user_input.get(CONF_ENABLE_WEBHOOK, current_config.get(CONF_ENABLE_WEBHOOK, True)),
-                    CONF_API_PROXY_DISABLE_SECURITY: user_input.get(CONF_API_PROXY_DISABLE_SECURITY, current_config.get(CONF_API_PROXY_DISABLE_SECURITY, False)),
-                    CONF_PHP_FALLBACK_ENABLED: user_input.get(CONF_PHP_FALLBACK_ENABLED, current_config.get(CONF_PHP_FALLBACK_ENABLED, False)),
-                    CONF_PHP_FALLBACK_SCRIPT_NAME: user_input.get(CONF_PHP_FALLBACK_SCRIPT_NAME, current_config.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")),
-                    CONF_PHP_FALLBACK_TIMEOUT: user_input.get(CONF_PHP_FALLBACK_TIMEOUT, current_config.get(CONF_PHP_FALLBACK_TIMEOUT, 5)),
-                    CONF_HTTP_REQUEST_TIMEOUT: user_input.get(CONF_HTTP_REQUEST_TIMEOUT, current_config.get(CONF_HTTP_REQUEST_TIMEOUT, 30)),
-                }
-                
-                # Update config entry
-                self.hass.config_entries.async_update_entry(
-                    self.config_entry,
-                    options=options
-                )
-                
-                # Show message about using the panel
-                return self.async_show_form(
-                    step_id="init",
-                    data_schema=vol.Schema({}),
-                    description_placeholders={
-                        "message": "✅ Configuration saved! You can now use the Eedomus Config panel from the sidebar for advanced YAML editing."
-                    }
-                )
-            
-            # Debug: Log user_input to see what's actually submitted
-            _LOGGER.debug("User input received in async_step_init: %s", user_input)
-            _LOGGER.debug("CONF_ENABLE_API_PROXY in user_input: %s", CONF_ENABLE_API_PROXY in user_input)
-            if CONF_ENABLE_API_PROXY in user_input:
-                _LOGGER.debug("CONF_ENABLE_API_PROXY value: %s", user_input[CONF_ENABLE_API_PROXY])
-            
-            # Save all options with proper key names
+            # Save all options
             options = {
-                CONF_ENABLE_API_EEDOMUS: user_input.get(CONF_ENABLE_API_EEDOMUS, current_config.get(CONF_ENABLE_API_EEDOMUS, True)),
-                CONF_ENABLE_API_PROXY: user_input.get(CONF_ENABLE_API_PROXY, current_config.get(CONF_ENABLE_API_PROXY, False)),
-                CONF_ENABLE_HISTORY: user_input.get(CONF_ENABLE_HISTORY, current_config.get(CONF_ENABLE_HISTORY, False)),
-                CONF_HISTORY_PERIPHERALS_PER_SCAN: user_input.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, current_config.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, 5)),
-                CONF_SCAN_INTERVAL: user_input.get(CONF_SCAN_INTERVAL, current_config.get(CONF_SCAN_INTERVAL, 300)),
-                CONF_ENABLE_SET_VALUE_RETRY: user_input.get(CONF_ENABLE_SET_VALUE_RETRY, current_config.get(CONF_ENABLE_SET_VALUE_RETRY, True)),
-                CONF_ENABLE_WEBHOOK: user_input.get(CONF_ENABLE_WEBHOOK, current_config.get(CONF_ENABLE_WEBHOOK, True)),
-                CONF_API_PROXY_DISABLE_SECURITY: user_input.get(CONF_API_PROXY_DISABLE_SECURITY, current_config.get(CONF_API_PROXY_DISABLE_SECURITY, False)),
-                CONF_PHP_FALLBACK_ENABLED: user_input.get(CONF_PHP_FALLBACK_ENABLED, current_config.get(CONF_PHP_FALLBACK_ENABLED, False)),
-                CONF_PHP_FALLBACK_SCRIPT_NAME: user_input.get(CONF_PHP_FALLBACK_SCRIPT_NAME, current_config.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")),
-                CONF_PHP_FALLBACK_TIMEOUT: user_input.get(CONF_PHP_FALLBACK_TIMEOUT, current_config.get(CONF_PHP_FALLBACK_TIMEOUT, 5)),
-                CONF_HTTP_REQUEST_TIMEOUT: user_input.get(CONF_HTTP_REQUEST_TIMEOUT, current_config.get(CONF_HTTP_REQUEST_TIMEOUT, 30)),
+                CONF_ENABLE_API_EEDOMUS: user_input.get(CONF_ENABLE_API_EEDOMUS, current_config[CONF_ENABLE_API_EEDOMUS]),
+                CONF_ENABLE_API_PROXY: user_input.get(CONF_ENABLE_API_PROXY, current_config[CONF_ENABLE_API_PROXY]),
+                CONF_ENABLE_HISTORY: user_input.get(CONF_ENABLE_HISTORY, current_config[CONF_ENABLE_HISTORY]),
+                CONF_HISTORY_PERIPHERALS_PER_SCAN: user_input.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, current_config[CONF_HISTORY_PERIPHERALS_PER_SCAN]),
+                CONF_SCAN_INTERVAL: user_input.get(CONF_SCAN_INTERVAL, current_config[CONF_SCAN_INTERVAL]),
+                CONF_ENABLE_SET_VALUE_RETRY: user_input.get(CONF_ENABLE_SET_VALUE_RETRY, current_config[CONF_ENABLE_SET_VALUE_RETRY]),
+                CONF_ENABLE_WEBHOOK: user_input.get(CONF_ENABLE_WEBHOOK, current_config[CONF_ENABLE_WEBHOOK]),
+                CONF_API_PROXY_DISABLE_SECURITY: user_input.get(CONF_API_PROXY_DISABLE_SECURITY, current_config[CONF_API_PROXY_DISABLE_SECURITY]),
+                CONF_PHP_FALLBACK_ENABLED: user_input.get(CONF_PHP_FALLBACK_ENABLED, current_config[CONF_PHP_FALLBACK_ENABLED]),
+                CONF_PHP_FALLBACK_SCRIPT_NAME: user_input.get(CONF_PHP_FALLBACK_SCRIPT_NAME, current_config[CONF_PHP_FALLBACK_SCRIPT_NAME]),
+                CONF_PHP_FALLBACK_TIMEOUT: user_input.get(CONF_PHP_FALLBACK_TIMEOUT, current_config[CONF_PHP_FALLBACK_TIMEOUT]),
+                CONF_HTTP_REQUEST_TIMEOUT: user_input.get(CONF_HTTP_REQUEST_TIMEOUT, current_config[CONF_HTTP_REQUEST_TIMEOUT]),
             }
             
-            # Debug: Log the options being saved
-            _LOGGER.debug("Options to be saved: %s", options)
-            
             # Update config entry
-            _LOGGER.debug("Calling async_update_entry with options: %s", options)
             self.hass.config_entries.async_update_entry(
                 self.config_entry,
                 options=options
             )
-            _LOGGER.debug("async_update_entry called successfully")
-            
-            # Since HA has a bug where options are not persisted, we also need to update entry.data
-            # This ensures that the values are available even if options are not loaded
-            _LOGGER.warning("⚠️ Due to a Home Assistant bug, options are not persisted across restarts.")
-            _LOGGER.warning("   As a workaround, we will also update entry.data with the new values.")
-            
-            # Create a new data dict with updated values
-            new_data = dict(self.config_entry.data)
-            new_data.update(options)
-            
-            _LOGGER.debug("Updating entry.data with new values: %s", new_data)
-            self.hass.config_entries.async_update_entry(
-                self.config_entry,
-                data=new_data
-            )
-            _LOGGER.debug("entry.data updated successfully")
-            
-            # Force reload of the entry to ensure options are properly loaded
-            _LOGGER.debug("Reloading config entry to ensure options are loaded")
-            await self.hass.config_entries.async_reload(self.config_entry.entry_id)
-            _LOGGER.debug("Config entry reloaded")
             
             return self.async_create_entry(title="", data={})
-        
-        # Get current configuration
-        current_config = self._get_current_config()
         
         # Show comprehensive options form
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema({
                 vol.Optional(CONF_ENABLE_API_EEDOMUS, default=current_config.get(CONF_ENABLE_API_EEDOMUS, True)): bool,
-                vol.Required(CONF_ENABLE_API_PROXY, default=current_config.get(CONF_ENABLE_API_PROXY, False)): bool,
+                vol.Optional(CONF_ENABLE_API_PROXY, default=current_config.get(CONF_ENABLE_API_PROXY, False)): bool,
                 vol.Optional(CONF_ENABLE_HISTORY, default=current_config.get(CONF_ENABLE_HISTORY, False)): bool,
                 vol.Optional(CONF_HISTORY_PERIPHERALS_PER_SCAN, default=current_config.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, 5)): int,
                 vol.Optional(CONF_SCAN_INTERVAL, default=current_config.get(CONF_SCAN_INTERVAL, 300)): int,

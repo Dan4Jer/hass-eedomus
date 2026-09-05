@@ -35,6 +35,13 @@ This skill provides **standardized deployment procedures** for the hass-eedomus 
 - Local: Development machine at ${LOCAL_REPO_PATH}
 - Deployment path on Raspberry Pi: ${REMOTE_PATH}/
 
+**SSH Log Bridge:**
+- Background process that maintains persistent SSH connection
+- Streams Home Assistant logs in real-time
+- Saves logs locally to ${LOG_FILE} (default: ~/mistral/rasp.log)
+- Automatic log rotation at 100MB with 5 file retention
+- PID file tracking for process management
+
 **Repository:**
 - Main repository: https://github.com/Dan4Jer/hass-eedomus
 - Branches: main (stable), unstable (development)
@@ -141,6 +148,76 @@ ssh ${REMOTE_IP} "ha core logs --follow" | tee hass-eedomus.log
 
 **Stop Log Streaming:** Press `Ctrl+C`
 
+### SSH Log Bridge (Persistent Background Process)
+
+**New in this version**: The `get_rasp_logs.sh` script now supports running as a persistent background process that continuously streams logs from the Raspberry Pi and saves them locally.
+
+**Features:**
+- ✅ Background execution (runs as a daemon)
+- ✅ Automatic log file management
+- ✅ Log rotation at configurable size (default: 100MB)
+- ✅ Retains multiple log files (default: 5)
+- ✅ PID file tracking for process control
+- ✅ Automatic HA command detection (ha vs sudo -i ha)
+
+**Configuration:**
+```bash
+# Environment variables (can be set in .env)
+LOG_DIR=${LOG_DIR:-$HOME/mistral}           # Log directory
+LOG_FILE=${LOG_FILE:-$LOG_DIR/rasp.log}    # Main log file
+PID_FILE=${PID_FILE:-$LOG_DIR/rasp_logs.pid}  # Process ID file
+MAX_LOG_SIZE_MB=100                        # Rotate at 100MB
+MAX_LOG_FILES=5                           # Keep 5 rotated files
+```
+
+**Usage:**
+```bash
+# Start the log bridge (background)
+./get_rasp_logs.sh start
+
+# Check bridge status
+./get_rasp_logs.sh status
+
+# View current logs
+./get_rasp_logs.sh tail     # Last 50 lines
+./get_rasp_logs.sh tail 100 # Last 100 lines
+./get_rasp_logs.sh logs     # Last 100 lines (alias)
+
+# Follow logs in real-time
+./get_rasp_logs.sh follow
+
+# Stop the log bridge
+./get_rasp_logs.sh stop
+
+# Restart the log bridge
+./get_rasp_logs.sh restart
+
+# Clean old log files
+./get_rasp_logs.sh clean
+```
+
+**Example Status Output:**
+```
+📊 SSH Log Bridge Status
+======================
+✅ Status: RUNNING
+   PID: 12345
+   Log file: /Users/danjer/mistral/rasp.log
+   Started: Sat Sep  5 14:51:30 2026
+   Log size: 8MB
+   Last modified: 2026-09-05 14:51:30
+
+📝 To view logs: tail -f /Users/danjer/mistral/rasp.log
+🛑 To stop: ./get_rasp_logs.sh stop
+```
+
+**Automatic Log Rotation:**
+When the log file reaches MAX_LOG_SIZE_MB (default 100MB), it is automatically rotated:
+- Current log → rasp.log.0.log
+- Old logs are renamed (rasp.log.0.log → rasp.log.1.log, etc.)
+- Logs older than MAX_LOG_FILES are compressed with gzip
+- Compressed logs: rasp.log.1.log.gz, rasp.log.2.log.gz, etc.
+
 ### One-Command Deployment Script (Replaces deploy_on_rasp.sh)
 
 Create a new deployment script at `${LOCAL_BASE_PATH}deploy_hass_eedomus.sh`:
@@ -233,30 +310,27 @@ chmod +x ${LOCAL_BASE_PATH}deploy_hass_eedomus.sh
 
 ### Log Retrieval Script (Replaces get_rasp_log.sh)
 
-Create a new log retrieval script at `${LOCAL_BASE_PATH}get_rasp_logs.sh`:
+The `get_rasp_logs.sh` script has been **completely rewritten** to support background operation as an SSH log bridge. See the **SSH Log Bridge** section above for full documentation.
+
+**Legacy Mode:** The script still supports backward compatibility - any arguments passed will be forwarded to `ha core logs` on the remote server.
 
 ```bash
-#!/bin/bash
-# Standardized log retrieval for hass-eedomus
-# Provides SSH log streaming with local display
+# Legacy usage (direct SSH streaming to terminal)
+./get_rasp_logs.sh --follow
+./get_rasp_logs.sh -n 50
+./get_rasp_logs.sh | grep -i eedomus
+```
 
-# Configuration
-REMOTE_IP="${REMOTE_IP}"
-LOG_FILE="~/mistral/rasp.log"
+**New Bridge Mode (Recommended):**
+```bash
+# Start background bridge
+./get_rasp_logs.sh start
 
-# Source SSH environment
-if [ -f .env ]; then
-    source .env
-fi
-
-# Check if arguments provided
-if [ $# -gt 0 ]; then
-    # Pass all arguments to ha core logs
-    ssh $REMOTE_IP "ha core logs $@"
-else
-    # Default: follow logs
-    ssh $REMOTE_IP "ha core logs --follow"
-fi
+# Then use bridge commands
+./get_rasp_logs.sh status
+./get_rasp_logs.sh tail 50
+./get_rasp_logs.sh follow
+./get_rasp_logs.sh stop
 ```
 
 Make it executable:
