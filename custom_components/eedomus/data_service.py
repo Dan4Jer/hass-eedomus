@@ -59,8 +59,10 @@ class EedomusDataService:
         if self._unsubscribe_refresh:
             self._unsubscribe_refresh()
         
-        if self.session:
-            await self.session.close()
+        # Note: We should NOT close the session obtained from async_get_clientsession
+        # as it is managed by Home Assistant. Removing the manual close to avoid
+        # the warning: "Detected that custom integration 'eedomus' closes the Home Assistant aiohttp session"
+        # self.session = None  # Just clear the reference, don't close
         
         _LOGGER.debug("Eedomus DataService shutdown complete")
     

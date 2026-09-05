@@ -60,7 +60,8 @@ class EedomusUIService:
         if self._registered_commands:
             for unregister_func in self._registered_commands:
                 try:
-                    unregister_func()
+                    if unregister_func is not None and callable(unregister_func):
+                        unregister_func()
                 except Exception as e:
                     _LOGGER.error(f"Failed to unregister WebSocket command: {e}")
         

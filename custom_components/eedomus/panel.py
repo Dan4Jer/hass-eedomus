@@ -6,8 +6,17 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
+# Track if panel is already registered to avoid duplicate registration
+_PANEL_REGISTERED = False
+
 async def async_setup_panel(hass: HomeAssistant):
     """Set up the Eedomus configuration panel."""
+    global _PANEL_REGISTERED
+    
+    # Check if panel is already registered to avoid "Overwriting panel" error
+    if _PANEL_REGISTERED:
+        _LOGGER.debug("Eedomus panel already registered, skipping duplicate registration")
+        return True
     
     try:
         # Register the panel using component approach
@@ -26,6 +35,7 @@ async def async_setup_panel(hass: HomeAssistant):
             require_admin=True,
         )
         
+        _PANEL_REGISTERED = True
         _LOGGER.info("✅ Eedomus configuration panel registered successfully")
         
     except Exception as e:

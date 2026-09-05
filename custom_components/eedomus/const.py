@@ -63,6 +63,7 @@ DEFAULT_ENABLE_HISTORY = False  # History disabled by default (temporarily)
 DEFAULT_HISTORY_RETRY_DELAY = 24  # 24 hours  # History retry delay in hours (24 hours by default)
 DEFAULT_HISTORY_PERIPHERALS_PER_SCAN = 1  # History: 1 peripheral per scan interval by default
 DEFAULT_ENABLE_SET_VALUE_RETRY = True  # Set value retry enabled by default
+DEFAULT_CONF_ENABLE_SET_VALUE_RETRY = True  # Set value retry enabled by default (for config flow)
 DEFAULT_ENABLE_WEBHOOK = True  # Webhook enabled by default
 DEFAULT_REMOVE_ENTITIES = False  # Remove entities on uninstall disabled by default
 
