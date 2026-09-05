@@ -213,3 +213,14 @@ private_const.py-e
 docs/ENTITY_DOCUMENTATION.md
 docs/MANIFEST_INFO.md
 custom_components/eedomus/private_const.py
+
+# Backup files
+*.backup
+*.backup[0-9]
+
+# Vibe skills directory (keep .vibe/config.toml and .vibe/skills/ directory structure)
+.vibe/skills/
+.vibe/connector_bootstrap_cache.json
+.vibe/whoami_cache.json
+.vibe/experiment_eval_cache.json
+.vibe/session_logging/
