@@ -251,11 +251,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 sw_version="Unknown",
             )
             _LOGGER.info("Created main eedomus box device: %s", box_device.id)
+            _LOGGER.info("Device ID type: %s, value: %s", type(box_device.id), box_device.id)
             
             # Store box device ID in coordinator for use by entities
             # Note: via_device_id can use either the device ID (UUID) or an identifier tuple
             if coordinator:
                 coordinator.box_device_id = box_device.id
+                _LOGGER.info("Stored box_device_id in coordinator: %s (type: %s)", coordinator.box_device_id, type(coordinator.box_device_id))
         except Exception as e:
             _LOGGER.warning("Failed to create main eedomus box device: %s", e)
 
