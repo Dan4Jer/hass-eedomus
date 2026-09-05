@@ -107,6 +107,7 @@ EEDOMUS_TO_HA_ATTR_MAPPING = {
 # Domain
 DOMAIN = "eedomus"
 COORDINATOR = "coordinator"
+BOX_DEVICE_ID = "box_device_id"
 
 
 # Device classes for sensors

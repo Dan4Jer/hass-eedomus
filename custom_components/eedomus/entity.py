@@ -176,20 +176,29 @@ class EedomusEntity(CoordinatorEntity):
             parent_data = self.coordinator.data[parent_id]
             parent_name = parent_data.get("name", f"Unknown Parent ({parent_id})")
             
-            return DeviceInfo(
-                identifiers={(DOMAIN, parent_id)},
-                name=parent_name,
-                manufacturer="Eedomus",
-                model=parent_data.get("usage_name", "Unknown"),
-            )
+            # Add via_device_id if box device ID is available
+            device_info_kwargs = {
+                "identifiers": {(DOMAIN, parent_id)},
+                "name": parent_name,
+                "manufacturer": "Eedomus",
+                "model": parent_data.get("usage_name", "Unknown"),
+            }
+            if hasattr(self.coordinator, 'box_device_id') and self.coordinator.box_device_id:
+                device_info_kwargs["via_device_id"] = self.coordinator.box_device_id
+            
+            return DeviceInfo(**device_info_kwargs)
         
         # Otherwise, use this device's info
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._periph_id)},
-            name=device_name,
-            manufacturer="Eedomus",
-            model=periph_data.get("usage_name", "Unknown"),
-        )
+        device_info_kwargs = {
+            "identifiers": {(DOMAIN, self._periph_id)},
+            "name": device_name,
+            "manufacturer": "Eedomus",
+            "model": periph_data.get("usage_name", "Unknown"),
+        }
+        if hasattr(self.coordinator, 'box_device_id') and self.coordinator.box_device_id:
+            device_info_kwargs["via_device_id"] = self.coordinator.box_device_id
+        
+        return DeviceInfo(**device_info_kwargs)
 
     async def async_update(self):
         """Update the entity state.

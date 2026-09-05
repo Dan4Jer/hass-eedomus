@@ -37,6 +37,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     PLATFORMS,
+    BOX_DEVICE_ID,
 )
 from .coordinator import EedomusDataUpdateCoordinator
 
@@ -250,6 +251,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 sw_version="Unknown",
             )
             _LOGGER.info("Created main eedomus box device: %s", box_device.id)
+            
+            # Store box device ID in coordinator for use by entities
+            if coordinator:
+                coordinator.box_device_id = box_device.id
         except Exception as e:
             _LOGGER.warning("Failed to create main eedomus box device: %s", e)
 
