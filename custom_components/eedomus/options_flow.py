@@ -136,60 +136,60 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
         """Get the options flow for this handler."""
         return EedomusOptionsFlow(config_entry)
 
-async def async_step_init(self, user_input=None):
-        """Manage the options - comprehensive configuration interface."""
-        # Get current configuration first (needed for both display and submission)
-        current_config = self._get_current_config()
-        
-        # Handle form submission
-        if user_input is not None:
-            # Save all options
-            options = {
-                CONF_ENABLE_API_EEDOMUS: user_input.get(CONF_ENABLE_API_EEDOMUS, current_config[CONF_ENABLE_API_EEDOMUS]),
-                CONF_ENABLE_API_PROXY: user_input.get(CONF_ENABLE_API_PROXY, current_config[CONF_ENABLE_API_PROXY]),
-                CONF_ENABLE_HISTORY: user_input.get(CONF_ENABLE_HISTORY, current_config[CONF_ENABLE_HISTORY]),
-                CONF_HISTORY_PERIPHERALS_PER_SCAN: user_input.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, current_config[CONF_HISTORY_PERIPHERALS_PER_SCAN]),
-                CONF_SCAN_INTERVAL: user_input.get(CONF_SCAN_INTERVAL, current_config[CONF_SCAN_INTERVAL]),
-                CONF_ENABLE_SET_VALUE_RETRY: user_input.get(CONF_ENABLE_SET_VALUE_RETRY, current_config[CONF_ENABLE_SET_VALUE_RETRY]),
-                CONF_ENABLE_WEBHOOK: user_input.get(CONF_ENABLE_WEBHOOK, current_config[CONF_ENABLE_WEBHOOK]),
-                CONF_API_PROXY_DISABLE_SECURITY: user_input.get(CONF_API_PROXY_DISABLE_SECURITY, current_config[CONF_API_PROXY_DISABLE_SECURITY]),
-                CONF_PHP_FALLBACK_ENABLED: user_input.get(CONF_PHP_FALLBACK_ENABLED, current_config[CONF_PHP_FALLBACK_ENABLED]),
-                CONF_PHP_FALLBACK_SCRIPT_NAME: user_input.get(CONF_PHP_FALLBACK_SCRIPT_NAME, current_config[CONF_PHP_FALLBACK_SCRIPT_NAME]),
-                CONF_PHP_FALLBACK_TIMEOUT: user_input.get(CONF_PHP_FALLBACK_TIMEOUT, current_config[CONF_PHP_FALLBACK_TIMEOUT]),
-                CONF_HTTP_REQUEST_TIMEOUT: user_input.get(CONF_HTTP_REQUEST_TIMEOUT, current_config[CONF_HTTP_REQUEST_TIMEOUT]),
-            }
+    async def async_step_init(self, user_input=None):
+            """Manage the options - comprehensive configuration interface."""
+            # Get current configuration first (needed for both display and submission)
+            current_config = self._get_current_config()
             
-            # Update config entry
-            self.hass.config_entries.async_update_entry(
-                self.config_entry,
-                options=options
+            # Handle form submission
+            if user_input is not None:
+                # Save all options
+                options = {
+                    CONF_ENABLE_API_EEDOMUS: user_input.get(CONF_ENABLE_API_EEDOMUS, current_config[CONF_ENABLE_API_EEDOMUS]),
+                    CONF_ENABLE_API_PROXY: user_input.get(CONF_ENABLE_API_PROXY, current_config[CONF_ENABLE_API_PROXY]),
+                    CONF_ENABLE_HISTORY: user_input.get(CONF_ENABLE_HISTORY, current_config[CONF_ENABLE_HISTORY]),
+                    CONF_HISTORY_PERIPHERALS_PER_SCAN: user_input.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, current_config[CONF_HISTORY_PERIPHERALS_PER_SCAN]),
+                    CONF_SCAN_INTERVAL: user_input.get(CONF_SCAN_INTERVAL, current_config[CONF_SCAN_INTERVAL]),
+                    CONF_ENABLE_SET_VALUE_RETRY: user_input.get(CONF_ENABLE_SET_VALUE_RETRY, current_config[CONF_ENABLE_SET_VALUE_RETRY]),
+                    CONF_ENABLE_WEBHOOK: user_input.get(CONF_ENABLE_WEBHOOK, current_config[CONF_ENABLE_WEBHOOK]),
+                    CONF_API_PROXY_DISABLE_SECURITY: user_input.get(CONF_API_PROXY_DISABLE_SECURITY, current_config[CONF_API_PROXY_DISABLE_SECURITY]),
+                    CONF_PHP_FALLBACK_ENABLED: user_input.get(CONF_PHP_FALLBACK_ENABLED, current_config[CONF_PHP_FALLBACK_ENABLED]),
+                    CONF_PHP_FALLBACK_SCRIPT_NAME: user_input.get(CONF_PHP_FALLBACK_SCRIPT_NAME, current_config[CONF_PHP_FALLBACK_SCRIPT_NAME]),
+                    CONF_PHP_FALLBACK_TIMEOUT: user_input.get(CONF_PHP_FALLBACK_TIMEOUT, current_config[CONF_PHP_FALLBACK_TIMEOUT]),
+                    CONF_HTTP_REQUEST_TIMEOUT: user_input.get(CONF_HTTP_REQUEST_TIMEOUT, current_config[CONF_HTTP_REQUEST_TIMEOUT]),
+                }
+                
+                # Update config entry
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry,
+                    options=options
+                )
+                
+                return self.async_create_entry(title="", data={})
+            
+            # Show comprehensive options form
+            return self.async_show_form(
+                step_id="init",
+                data_schema=vol.Schema({
+                    vol.Optional(CONF_ENABLE_API_EEDOMUS, default=current_config.get(CONF_ENABLE_API_EEDOMUS, True)): bool,
+                    vol.Optional(CONF_ENABLE_API_PROXY, default=current_config.get(CONF_ENABLE_API_PROXY, False)): bool,
+                    vol.Optional(CONF_ENABLE_HISTORY, default=current_config.get(CONF_ENABLE_HISTORY, False)): bool,
+                    vol.Optional(CONF_HISTORY_PERIPHERALS_PER_SCAN, default=current_config.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, 5)): int,
+                    vol.Optional(CONF_SCAN_INTERVAL, default=current_config.get(CONF_SCAN_INTERVAL, 300)): int,
+                    vol.Optional(CONF_ENABLE_SET_VALUE_RETRY, default=current_config.get(CONF_ENABLE_SET_VALUE_RETRY, True)): bool,
+                    vol.Optional(CONF_ENABLE_WEBHOOK, default=current_config.get(CONF_ENABLE_WEBHOOK, True)): bool,
+                    vol.Optional(CONF_API_PROXY_DISABLE_SECURITY, default=current_config.get(CONF_API_PROXY_DISABLE_SECURITY, False)): bool,
+                    vol.Optional(CONF_PHP_FALLBACK_ENABLED, default=current_config.get(CONF_PHP_FALLBACK_ENABLED, False)): bool,
+                    vol.Optional(CONF_PHP_FALLBACK_SCRIPT_NAME, default=current_config.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")): str,
+                    vol.Optional(CONF_PHP_FALLBACK_TIMEOUT, default=current_config.get(CONF_PHP_FALLBACK_TIMEOUT, 5)): int,
+                    vol.Optional(CONF_HTTP_REQUEST_TIMEOUT, default=current_config.get(CONF_HTTP_REQUEST_TIMEOUT, 30)): int,
+                    vol.Optional("use_rich_editor", default=False): bool,
+                }),
+                description_placeholders={
+                    "content": "Configure Eedomus integration settings. Check 'Use Rich Editor' for advanced YAML configuration."
+                }
             )
-            
-            return self.async_create_entry(title="", data={})
         
-        # Show comprehensive options form
-        return self.async_show_form(
-            step_id="init",
-            data_schema=vol.Schema({
-                vol.Optional(CONF_ENABLE_API_EEDOMUS, default=current_config.get(CONF_ENABLE_API_EEDOMUS, True)): bool,
-                vol.Optional(CONF_ENABLE_API_PROXY, default=current_config.get(CONF_ENABLE_API_PROXY, False)): bool,
-                vol.Optional(CONF_ENABLE_HISTORY, default=current_config.get(CONF_ENABLE_HISTORY, False)): bool,
-                vol.Optional(CONF_HISTORY_PERIPHERALS_PER_SCAN, default=current_config.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, 5)): int,
-                vol.Optional(CONF_SCAN_INTERVAL, default=current_config.get(CONF_SCAN_INTERVAL, 300)): int,
-                vol.Optional(CONF_ENABLE_SET_VALUE_RETRY, default=current_config.get(CONF_ENABLE_SET_VALUE_RETRY, True)): bool,
-                vol.Optional(CONF_ENABLE_WEBHOOK, default=current_config.get(CONF_ENABLE_WEBHOOK, True)): bool,
-                vol.Optional(CONF_API_PROXY_DISABLE_SECURITY, default=current_config.get(CONF_API_PROXY_DISABLE_SECURITY, False)): bool,
-                vol.Optional(CONF_PHP_FALLBACK_ENABLED, default=current_config.get(CONF_PHP_FALLBACK_ENABLED, False)): bool,
-                vol.Optional(CONF_PHP_FALLBACK_SCRIPT_NAME, default=current_config.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")): str,
-                vol.Optional(CONF_PHP_FALLBACK_TIMEOUT, default=current_config.get(CONF_PHP_FALLBACK_TIMEOUT, 5)): int,
-                vol.Optional(CONF_HTTP_REQUEST_TIMEOUT, default=current_config.get(CONF_HTTP_REQUEST_TIMEOUT, 30)): int,
-                vol.Optional("use_rich_editor", default=False): bool,
-            }),
-            description_placeholders={
-                "content": "Configure Eedomus integration settings. Check 'Use Rich Editor' for advanced YAML configuration."
-            }
-        )
-    
     async def async_step_yaml_editor(self, user_input=None):
         """Handle YAML configuration editing with rich editor interface."""
         errors = {}
