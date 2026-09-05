@@ -1,0 +1,57 @@
+# Hass-Eedomus Commit Message Template
+# Use this template for consistent commit messages
+
+# Standard Format:
+# <type>(<scope>): <subject>
+# 
+# <body (optional)>
+# 
+# <footer (optional)>
+
+# Types:
+# - feat: New feature
+# - fix: Bug fix
+# - docs: Documentation
+# - style: Formatting (no code change)
+# - refactor: Code refactoring
+# - perf: Performance improvement
+# - test: Test-related changes
+# - chore: Maintenance tasks
+# - revert: Revert a commit
+
+# Scopes (for hass-eedomus):
+# - Components: light, sensor, cover, switch, climate, binary_sensor, select, text_sensor
+# - Modules: coordinator, entity, config_flow, options_flow, services, webhook, api_proxy
+# - Core: const, manifest, __init__
+# - Frontend: frontend, www, panel
+# - Scripts: scripts
+
+# Example 1: Bug fix
+fix(light): handle None color_mode attribute
+
+# Example 2: New feature
+feat(sensor): add history retrieval for all device types
+
+- Add new HistoryProgressSensor class to track import progress
+- Implement async_import_history method for batch peripheral processing
+- Add history_retry_delay and history_peripherals_per_scan options
+- Handle rate limiting from Eedomus API with exponential backoff
+
+# Example 3: Documentation
+/docs: update README with HA 2026 compatibility notes
+
+# Example 4: Refactoring
+refactor(coordinator): extract API client to separate class
+
+# Example 5: With issue reference
+fix(sensor): handle None values in battery sensors
+
+Fixes: #27
+
+# Example 6: Breaking change
+feat(config): migrate to new configuration format
+
+BREAKING CHANGE: Custom mapping configuration format has changed.
+Users must migrate their custom_mapping.yaml files.
+
+Fixes: #27, #28
