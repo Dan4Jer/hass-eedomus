@@ -8,7 +8,7 @@ version = "0.14.3"
 dependencies = [
     "aiohttp==3.13.5",
     "requests==2.34.2",
-    "yarl==1.23.0",
+    "yarl==1.24.2",
 ]
 
 [tool.setuptools]
