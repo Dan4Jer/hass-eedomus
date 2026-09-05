@@ -584,38 +584,165 @@ ssh ${REMOTE_IP} "
 " > system_debug_$(date +%Y%m%d_%H%M%S).txt
 ```
 
+## 🚨 MANDATORY: Git-Only Deployment Policy
+
+**⚠️ IMPERATIVE: ALL MODIFICATIONS MUST GO THROUGH GIT**
+
+This is a **non-negotiable requirement** for this project. Direct file modifications on the Raspberry Pi will cause:
+- ❌ Version control loss
+- ❌ Inability to rollback
+- ❌ Conflicts during deployments
+- ❌ Unrecoverable errors
+- ❌ **VOIDED SUPPORT**
+
+---
+
 ## Best Practices
 
-### ❌ NEVER Do This
+### ❌❌❌ STRICTLY FORBIDDEN ❌❌❌
 
-1. **Manual File Copying**: Never use `scp` or `rsync` to copy files directly
+1. **❌ Manual File Copying**: NEVER use `scp` or `rsync` to copy files directly
    ```bash
-   # BAD: Manual file copying
+   # ❌❌❌ FORBIDDEN: Manual file copying
    scp -r custom_components/eedomus/* ${REMOTE_IP}:${REMOTE_COMPONENTS_PATH}eedomus/
    ```
 
-2. **Direct File Editing on Raspberry Pi**: Never edit files directly on the Pi
+2. **❌ Direct File Editing on Raspberry Pi**: NEVER edit files directly on the Pi
    ```bash
-   # BAD: Editing files directly on Pi
+   # ❌❌❌ FORBIDDEN: Editing files directly on Pi
    ssh ${REMOTE_IP} "nano ${REMOTE_COMPONENTS_PATH}eedomus/some_file.py"
+   ssh ${REMOTE_IP} "vim ${REMOTE_COMPONENTS_PATH}eedomus/some_file.py"
+   ssh ${REMOTE_IP} "sed -i 's/.../.../' ${REMOTE_COMPONENTS_PATH}eedomus/some_file.py"
    ```
 
-3. **Hard Resets**: Never reset git repository on Raspberry Pi without backup
+3. **❌ Manual Git Operations on Raspberry Pi**: NEVER run git commands manually on Pi
    ```bash
-   # BAD: Hard reset without backup
+   # ❌❌❌ FORBIDDEN: Manual git operations on Raspberry Pi
+   ssh ${REMOTE_IP} "cd ${REMOTE_PATH} && git pull"
+   ssh ${REMOTE_IP} "cd ${REMOTE_PATH} && git commit"
    ssh ${REMOTE_IP} "cd ${REMOTE_PATH} && git reset --hard"
    ```
 
-### ✅ ALWAYS Do This
+### ✅✅✅ ONLY ALLOWED METHOD ✅✅✅
 
-1. **Use Git for All Changes**: All deployments must go through git
-   ```bash
-   # GOOD: Git-based deployment
-   git add .
-   git commit -m "Fix: description"
-   git push
-   ./deploy_hass_eedomus.sh
-   ```
+**Use the standardized deployment scripts ONLY:**
+
+```bash
+# ✅✅✅ CORRECT: Use deployment scripts
+cd ${LOCAL_REPO_PATH}
+
+# 1. Make your changes locally
+# ... edit files ...
+
+# 2. Commit to git
+git add .
+git commit -m "Fix: description of changes"
+git push origin unstable
+
+# 3. Deploy using the script (ONLY method)
+cd .vibe/skills/hass-eedomus-deploy
+./deploy_hass_eedomus.sh
+
+# 4. Monitor logs
+./get_rasp_logs.sh status
+./get_rasp_logs.sh tail 20
+```
+
+---
+
+### 🔒 Enforcement Rules
+
+1. **All code changes** MUST be committed to git before deployment
+2. **All deployments** MUST use `deploy_hass_eedomus.sh` script
+3. **No exceptions** - Direct file modifications will be rejected in support requests
+4. **Automated checks** - Deployment script verifies git status before deploying
+
+---
+
+### 🛡️ Why This Policy?
+
+| Reason | Benefit |
+|--------|---------|
+| Version Control | Track all changes, rollback capability |
+| Consistency | Same process for all developers |
+| Reproducibility | Deployments are traceable and repeatable |
+| Collaboration | Team can review and validate changes |
+| Disaster Recovery | Always able to restore previous versions |
+
+---
+
+### 🚨 Violation Consequences
+
+- ❌ **Support will be refused** for issues caused by direct modifications
+- ❌ **Changes will be lost** on next deployment
+- ❌ **Merge conflicts** will occur
+- ❌ **Integration may break** unpredictably
+
+---
+
+### 📋 Deployment Workflow (MANDATORY)
+
+```
+Local Machine                    Raspberry Pi
+    │                                │
+    ▼                                ▼
+┌─────────────┐          ┌───────────────────────┐
+│  1. Edit     │          │                       │
+│     files    │          │                       │
+└─────────────┘          │                       │
+    │                    │                       │
+    ▼                    │                       │
+┌─────────────┐          │                       │
+│  2. git add  │          │                       │
+│     .       │          │                       │
+└─────────────┘          │                       │
+    │                    │                       │
+    ▼                    │                       │
+┌─────────────┐          │                       │
+│  3. git     │          │                       │
+│  commit    │          │                       │
+└─────────────┘          │                       │
+    │                    │                       │
+    ▼                    │                       │
+┌─────────────┐          │                       │
+│  4. git     │──────┬───►                       │
+│  push      │      │    │                       │
+└─────────────┘      │    │                       │
+                     │    ▼
+                     ├──────────────────────────┐
+                     │                          │
+                     ▼                          ▼
+              ┌─────────────────┐       ┌───────────────┐
+              │ deploy_hass_    │       │  Git pull    │
+              │ eedomus.sh      │───────►│ + restart    │
+              │ (ONLY method)   │       │ (automatic)  │
+              └─────────────────┘       └───────────────┘
+```
+
+---
+
+### 🔧 Backup and Recovery
+
+If you MUST modify files directly on Raspberry Pi (emergency only):
+
+```bash
+# 1. Create a backup branch FIRST
+ssh ${REMOTE_IP} "cd ${REMOTE_PATH} && git checkout -b emergency-fix-$(date +%Y%m%d-%H%M%S)"
+
+# 2. Make your emergency changes
+ssh ${REMOTE_IP} "cd ${REMOTE_PATH} && nano some_file.py"
+
+# 3. Commit the changes to the backup branch
+ssh ${REMOTE_IP} "cd ${REMOTE_PATH} && \
+    git add . && \
+    git commit -m 'Emergency fix: description' && \
+    git push origin emergency-fix-$(date +%Y%m%d-%H%M%S)"
+
+# 4. Then create a PR to merge into unstable
+# 5. Use the normal deployment process
+
+# ⚠️ WARNING: This is for EMERGENCY ONLY. Normal development MUST use local git.
+```
 
 2. **Backup Before Major Changes**: Always create a backup branch
    ```bash

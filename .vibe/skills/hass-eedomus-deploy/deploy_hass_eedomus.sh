@@ -28,9 +28,38 @@ source .env
 echo "🔍 Running pre-deployment checks..."
 
 # Check local git status
-echo "  - Local git status:"
 cd ${LOCAL_REPO_PATH}
-git status --short || true
+echo "  - Local git status:"
+git status --short 2>/dev/null || true
+
+# 🚨 MANDATORY: Check for uncommitted changes
+echo ""
+echo "🔒 Git-Only Deployment Check:"
+UNCOMMITTED=$(git status --porcelain 2>/dev/null | grep -v "^??" | wc -l)
+if [ "$UNCOMMITTED" -gt 0 ]; then
+    echo "❌ ERROR: You have uncommitted changes!"
+    echo ""
+    echo "   All modifications MUST be committed to git before deployment."
+    echo "   This is a MANDATORY requirement - direct file modifications are FORBIDDEN."
+    echo ""
+    echo "   To fix:"
+    echo "     1. git add ."
+    echo "     2. git commit -m 'Your message'"
+    echo "     3. git push origin unstable"
+    echo "     4. Then run this deployment script again"
+    echo ""
+    echo "   Current uncommitted changes:"
+    git status --short 2>/dev/null | grep -v "^??"
+    exit 1
+fi
+
+# Check for untracked files (warning only, not blocking)
+UNTRACTED=$(git status --porcelain 2>/dev/null | grep "^??" | wc -l)
+if [ "$UNTRACTED" -gt 0 ]; then
+    echo "⚠️  Warning: You have $UNTRACTED untracked files."
+    echo "   These will not be deployed. Add them to git if they should be included."
+    git status --short 2>/dev/null | grep "^??"
+fi
 
 # Check current branch
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")

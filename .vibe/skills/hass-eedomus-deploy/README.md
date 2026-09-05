@@ -1,10 +1,24 @@
 # Hass-Eedomus Deployment Skill
 
+## 🚨 MANDATORY POLICY: Git-Only Deployment
+
+**⚠️ ALL MODIFICATIONS MUST GO THROUGH GIT - NO EXCEPTIONS**
+
+Direct file modifications on the Raspberry Pi are **STRICTLY FORBIDDEN** and will:
+- ❌ Cause version control loss
+- ❌ Prevent rollback capability  
+- ❌ Create merge conflicts
+- ❌ **VOID ALL SUPPORT**
+
+**Only use the provided deployment scripts.**
+
+---
+
 ## Overview
 
-This skill provides standardized deployment procedures for the hass-eedomus Home Assistant custom component.
+This skill provides **standardized, git-based** deployment procedures for the hass-eedomus Home Assistant custom component. All deployments must follow the mandatory workflow described below.
 
-## Quick Start
+## 📋 Quick Start (MANDATORY PROCESS)
 
 ### 1. Deploy to Raspberry Pi
 
@@ -95,18 +109,56 @@ Ensure the hass-eedomus repository is cloned at the location specified in `REMOT
 ${REMOTE_PATH}/
 ```
 
-## Best Practices
+## 🚨 Best Practices (MANDATORY)
 
-### ❌ NEVER
-- Manual file copying (`scp`, `rsync`)
-- Direct file editing on Raspberry Pi
-- Hard git resets without backup
+### ❌❌❌ STRICTLY FORBIDDEN ❌❌❌
 
-### ✅ ALWAYS
-- Use git for all deployments
-- Create backup branches before major changes
-- Test locally before deploying
-- Monitor logs after deployment
+**Violating these rules will VOID all support:**
+
+- ❌ **Manual file copying** (`scp`, `rsync`) - Direct copies bypass version control
+- ❌ **Direct file editing on Raspberry Pi** - Any editor (nano, vim, sed, etc.)
+- ❌ **Manual git operations on Raspberry Pi** - All git must be done locally
+- ❌ **Hard resets without backup** - Data loss risk
+
+### ✅✅✅ ONLY ALLOWED METHOD ✅✅✅
+
+**The ONLY acceptable deployment process:**
+
+```bash
+# 1. Edit files LOCALLY (never on Raspberry Pi)
+# ... make your changes ...
+
+# 2. Commit to git LOCALLY
+git add .
+git commit -m "Your descriptive message"
+
+# 3. Push to remote repository
+git push origin unstable
+
+# 4. Deploy using the script (ONLY method)
+./.vibe/skills/hass-eedomus-deploy/deploy_hass_eedomus.sh
+```
+
+**Remember:** The deployment script will **BLOCK** deployment if uncommitted changes exist.
+
+### 📋 Pre-Deployment Checklist
+
+- [ ] All changes are in local files (not on Raspberry Pi)
+- [ ] `git status` shows no uncommitted changes (except untracked files)
+- [ ] All changes are committed with descriptive messages
+- [ ] Changes are pushed to GitHub (`git push`)
+- [ ] You are on the correct branch (`unstable` for development)
+- [ ] You have tested changes locally when possible
+
+### 🛡️ Why This Matters
+
+| Problem | Solution |
+|---------|----------|
+| Version conflicts | Git tracks all changes |
+| Deployment failures | Script validates git status |
+| Lost changes | Git provides history |
+| Team collaboration | Everyone uses same process |
+| Disaster recovery | Easy rollback to previous commits |
 
 ## Troubleshooting
 

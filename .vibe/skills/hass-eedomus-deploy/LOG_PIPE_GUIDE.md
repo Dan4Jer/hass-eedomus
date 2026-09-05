@@ -1,19 +1,37 @@
 # Hass-Eedomus Log Pipe Guide
 
+## 🚨 IMPORTANT: Git-Only Deployment Policy
+
+**All deployments MUST go through git.** Direct file modifications on the Raspberry Pi are **STRICTLY FORBIDDEN**.
+
+✅ **DO USE:**
+- `deploy_hass_eedomus.sh` script
+- Git commits and pushes
+- This log pipe for monitoring
+
+❌ **DON'T USE:**
+- Direct `nano`/`vim` editing on Raspberry Pi
+- `scp` or `rsync` for file transfers
+- Manual `git pull` on Raspberry Pi
+
+---
+
 ## Quick Access
 
 From your project root (`/Users/danjer/mistral/hass-eedomus`):
 
 ```bash
-# Method 1: Simple streaming
+# Method 1: Simple streaming (legacy mode)
 ./.vibe/skills/hass-eedomus-deploy/get_rasp_logs.sh
 
 # Method 2: Advanced streaming with colors and filters (RECOMMENDED)
 ./.vibe/skills/hass-eedomus-deploy/watch_logs.sh
 
-# Method 3: Direct SSH
-./.vibe/skills/hass-eedomus-deploy/watch_logs.sh -e  # eedomus only
+# Method 3: Log bridge (background process)
+./.vibe/skills/hass-eedomus-deploy/get_rasp_logs.sh start
 ```
+
+**Remember:** Always use the deployment script (`deploy_hass_eedomus.sh`) for deployments, never modify files directly on the Raspberry Pi.
 
 ---
 
