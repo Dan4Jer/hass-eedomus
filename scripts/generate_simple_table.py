@@ -41,9 +41,9 @@ EEDOMUS_API_USER = os.getenv("EEDOMUS_API_USER", "")
 EEDOMUS_API_SECRET = os.getenv("EEDOMUS_API_SECRET", "")
 
 # API endpoints
-API_PERIPH_LIST = "/api/get/json?action=get_periph_list"
-API_PERIPH_VALUE_LIST = "/api/get/json?action=get_periph_value_list"
-API_PERIPH_CARACT = "/api/get/json?action=get_periph.caract&periph_id="
+API_PERIPH_LIST = "/api/get?action=periph.list"
+API_PERIPH_VALUE_LIST = "/api/get?action=periph.value.list"
+API_PERIPH_CARACT = "/api/get?action=periph.caract&periph_id="
 
 # Output files
 MARKDOWN_TABLE_FILE = "simple_device_table.md"
@@ -115,13 +115,8 @@ def make_api_request(url: str, username: str, secret: str) -> Optional[Dict[str,
         Dictionary with API response or None on error
     """
     try:
-        # Create authentication string
-        auth_string = f"{username}:{secret}"
-        auth_bytes = auth_string.encode('utf-8')
-        base64_auth = urllib.parse.quote(auth_string)
-        
-        # Build URL with authentication
-        full_url = f"{url}&user={base64_auth}"
+        # Add authentication parameters to URL
+        full_url = f"{url}&api_user={urllib.parse.quote(username)}&api_secret={urllib.parse.quote(secret)}"
         
         # Make request
         req = urllib.request.Request(
