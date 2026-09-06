@@ -170,13 +170,8 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                     CONF_HTTP_REQUEST_TIMEOUT: user_input.get(CONF_HTTP_REQUEST_TIMEOUT, current_config.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)),
                 }
                 
-                # Update config entry
-                self.hass.config_entries.async_update_entry(
-                    self.config_entry,
-                    options=options
-                )
-                
-                return self.async_create_entry(title="", data={})
+                # Update config entry - using data parameter as per HA best practices
+                return self.async_create_entry(title="", data=options)
             
             # Show comprehensive options form
             return self.async_show_form(
@@ -289,15 +284,9 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                     CONF_HTTP_REQUEST_TIMEOUT: current_options.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)
                 })
                 
-                # Save options to config entry - CRITICAL: This was missing!
-                # Without this, options are not persisted across restarts
-                self.hass.config_entries.async_update_entry(
-                    self.config_entry,
-                    options=options
-                )
-                
+                # Save options to config entry - using data parameter as per HA best practices
                 _LOGGER.debug("Saving YAML configuration")
-                return self.async_create_entry(title="", data={})
+                return self.async_create_entry(title="", data=options)
             except (yaml.YAMLError, vol.Invalid) as e:
                 errors["base"] = f"Invalid YAML: {e}"
                 _LOGGER.error(f"Failed to save YAML configuration: {e}")
