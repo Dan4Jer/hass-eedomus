@@ -96,19 +96,6 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
         self.use_yaml = False
         self.yaml_content = ""
 
-    @property
-    def hass(self):
-        """Safety property to ensure hass is always available from parent class.
-        
-        This prevents the hass property from being accidentally overridden to None
-        or other values, which would cause 'TypeError: bool object can't be awaited'
-        when trying to await hass.config_entries.async_update_entry().
-        
-        Returns:
-            The HomeAssistant instance from the parent OptionsFlow class.
-        """
-        return super().hass
-
     def _copy_config_to_options(self):
         """Copy configuration values from config_entry.data to options.
         
