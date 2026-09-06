@@ -1,0 +1,101 @@
+name: Release
+
+# This workflow creates a HACS-compatible release package
+# that excludes the .vibe directory (skills, local config)
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-release:
+    name: Build HACS Release Package
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Needed for git describe to work
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Extract version from pyproject.toml
+        id: version
+        run: |
+          VERSION=$(grep 'version' pyproject.toml | head -1 | cut -d'"' -f2)
+          echo "Extracted version: v${VERSION}"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Create HACS release package
+        id: package
+        run: |
+          # Create release directory
+          RELEASE_DIR="hass-eedomus-release-v${{ steps.version.outputs.version }}"
+          OUTPUT_FILE="hass-eedomus-v${{ steps.version.outputs.version }}.tar.gz"
+          
+          mkdir -p "${RELEASE_DIR}"
+          
+          # Copy only files needed for HACS
+          cp -r custom_components/ "${RELEASE_DIR}/" || true
+          cp -r icons/ "${RELEASE_DIR}/" || true
+          cp -r translations/ "${RELEASE_DIR}/" || true
+          cp README.md LICENSE requirements.txt requirements_prod.txt "${RELEASE_DIR}/" 2>/dev/null || true
+          
+          # Copy manifest.json from custom_components/eedomus to root of release
+          # HACS expects manifest.json at the root
+          if [ -f "custom_components/eedomus/manifest.json" ]; then
+              cp "custom_components/eedomus/manifest.json" "${RELEASE_DIR}/manifest.json"
+          fi
+          
+          # Create the archive
+          tar -czf "${OUTPUT_FILE}" "${RELEASE_DIR}"
+          
+          # Clean up
+          rm -rf "${RELEASE_DIR}"
+          
+          echo "package=${OUTPUT_FILE}" >> $GITHUB_OUTPUT
+
+      - name: Verify package contents
+        run: |
+          echo "Verifying package contents..."
+          tar -tzf ${{ steps.package.outputs.package }} | grep -E '(custom_components|manifest)' || exit 1
+          echo "✅ Package contains required files"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release v${{ steps.version.outputs.version }}
+          body: |
+            ## Release v${{ steps.version.outputs.version }}
+            
+            **Important:** This release excludes the `.vibe` directory (skills, local configs) which is only needed for development.
+            
+            ### Installation
+            
+            **Via HACS:**
+            1. Go to HACS > Integrations
+            2. Click the three dots (⋮) > Custom repositories
+            3. Add: `https://github.com/Dan4Jer/hass-eedomus`
+            4. Install via HACS interface
+            
+            **Manual:**
+            1. Download the release package below
+            2. Extract to your `custom_components/` directory
+            3. Restart Home Assistant
+          files: ${{ steps.package.outputs.package }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clean up release artifact
+        if: always()
+        run: |
+          rm -f ${{ steps.package.outputs.package }}
