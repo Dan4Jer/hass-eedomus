@@ -167,7 +167,7 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 }
                 
                 # Update config entry
-                self.hass.config_entries.async_update_entry(
+                await self.hass.config_entries.async_update_entry(
                     self.config_entry,
                     options=options
                 )
@@ -285,8 +285,15 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                     CONF_HTTP_REQUEST_TIMEOUT: current_options.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)
                 })
                 
+                # Save options to config entry - CRITICAL: This was missing!
+                # Without this, options are not persisted across restarts
+                await self.hass.config_entries.async_update_entry(
+                    self.config_entry,
+                    options=options
+                )
+                
                 _LOGGER.debug("Saving YAML configuration")
-                return self.async_create_entry(title="", data=options)
+                return self.async_create_entry(title="", data={})
             except (yaml.YAMLError, vol.Invalid) as e:
                 errors["base"] = f"Invalid YAML: {e}"
                 _LOGGER.error(f"Failed to save YAML configuration: {e}")
