@@ -155,13 +155,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.info("🚀 Starting eedomus integration setup - Version %s", VERSION)
     _LOGGER.debug("Setting up eedomus integration with entry_id: %s", entry.entry_id)
     
-    # Setup configuration panel
-    try:
-        from .panel import async_setup_panel
-        await async_setup_panel(hass)
-        _LOGGER.info("✅ Eedomus configuration panel registered")
-    except Exception as e:
-        _LOGGER.warning("Could not setup configuration panel: %s", e)
+    # Setup configuration panel - DISABLED for v0.14.4 to resolve duplicate registration errors
+    # try:
+    #     from .panel import async_setup_panel
+    #     await async_setup_panel(hass)
+    #     _LOGGER.info("✅ Eedomus configuration panel registered")
+    # except Exception as e:
+    #     _LOGGER.warning("Could not setup configuration panel: %s", e)
     
     # Perform migration if needed
     # Note: async_migrate_entry already calls async_update_entry internally

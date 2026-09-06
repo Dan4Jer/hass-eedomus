@@ -11,13 +11,14 @@ resources:
     type: module
     version: 1.0.0
 
-panels:
-  - name: eedomus-config
-    sidebar_title: Eedomus Config
-    sidebar_icon: mdi:cog
-    embed_iframe: false
-    require_admin: true
-    config:
-      component: eedomus-config-panel
-      title: Eedomus Configuration
-      icon: mdi:cog
+# Configuration panel disabled for v0.14.4 to resolve duplicate registration errors
+# panels:
+#   - name: eedomus-config
+#     sidebar_title: Eedomus Config
+#     sidebar_icon: mdi:cog
+#     embed_iframe: false
+#     require_admin: true
+#     config:
+#       component: eedomus-config-panel
+#       title: Eedomus Configuration
+#       icon: mdi:cog
