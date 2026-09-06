@@ -81,7 +81,12 @@ async def async_get_translations(hass, language="en"):
         return {}
 
 class EedomusOptionsFlow(config_entries.OptionsFlow):
-    """Handle eedomus options with UI/YAML toggle."""
+    """Handle eedomus options with UI/YAML toggle.
+    
+    Note: Do NOT override self.hass in subclasses of OptionsFlow.
+    The hass property is provided by the parent OptionsFlow class and
+    should always be used directly without reinitialization.
+    """
 
     def __init__(self, config_entry):
         """Initialize options flow."""
@@ -90,6 +95,19 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
         self.current_devices = []
         self.use_yaml = False
         self.yaml_content = ""
+
+    @property
+    def hass(self):
+        """Safety property to ensure hass is always available from parent class.
+        
+        This prevents the hass property from being accidentally overridden to None
+        or other values, which would cause 'TypeError: bool object can't be awaited'
+        when trying to await hass.config_entries.async_update_entry().
+        
+        Returns:
+            The HomeAssistant instance from the parent OptionsFlow class.
+        """
+        return super().hass
 
     def _copy_config_to_options(self):
         """Copy configuration values from config_entry.data to options.
