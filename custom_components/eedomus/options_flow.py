@@ -181,6 +181,7 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(CONF_ENABLE_API_PROXY, default=current_config.get(CONF_ENABLE_API_PROXY, False)): bool,
                     vol.Optional(CONF_HISTORY_PERIPHERALS_PER_SCAN, default=current_config.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, 5)): int,
                     vol.Optional(CONF_SCAN_INTERVAL, default=current_config.get(CONF_SCAN_INTERVAL, 300)): int,
+                    vol.Optional(CONF_ENABLE_HISTORY, default=current_config.get(CONF_ENABLE_HISTORY, DEFAULT_CONF_ENABLE_HISTORY)): bool,
                     vol.Optional(CONF_ENABLE_SET_VALUE_RETRY, default=current_config.get(CONF_ENABLE_SET_VALUE_RETRY, True)): bool,
                     vol.Optional(CONF_ENABLE_WEBHOOK, default=current_config.get(CONF_ENABLE_WEBHOOK, True)): bool,
                     vol.Optional(CONF_API_PROXY_DISABLE_SECURITY, default=current_config.get(CONF_API_PROXY_DISABLE_SECURITY, False)): bool,

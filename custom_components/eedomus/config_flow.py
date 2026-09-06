@@ -100,6 +100,7 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Optional(CONF_API_USER, default=DEFAULT_API_USER or ""): str,
         vol.Optional(CONF_API_SECRET, default=DEFAULT_API_SECRET or ""): str,
         vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int,
+        vol.Optional(CONF_ENABLE_HISTORY, default=DEFAULT_CONF_ENABLE_HISTORY): bool,
         vol.Optional(CONF_HTTP_REQUEST_TIMEOUT, default=DEFAULT_HTTP_REQUEST_TIMEOUT): int,
         vol.Optional(
             CONF_ENABLE_SET_VALUE_RETRY, default=DEFAULT_ENABLE_SET_VALUE_RETRY
