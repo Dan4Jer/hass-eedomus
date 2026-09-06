@@ -115,6 +115,37 @@ async def _async_init_ui_service(hass: HomeAssistant):
     return ui_service
 
 
+def _get_config_value(entry: ConfigEntry, option_name: str, default_value=None):
+    """Get a configuration value from entry, trying options first, then data, then default.
+    
+    This function handles the Home Assistant bug where entry.options may be empty or None.
+    It provides a consistent fallback mechanism to ensure options work even if HA doesn't
+    persist them correctly.
+    
+    Args:
+        entry: The config entry
+        option_name: The option name to retrieve
+        default_value: The default value if not found in options or data
+        
+    Returns:
+        The value for the option, or default_value if not found
+    """
+    # Try options first (may be empty due to HA bug)
+    if hasattr(entry.options, 'items') and entry.options:
+        value = entry.options.get(option_name)
+        if value is not None:
+            return value
+    
+    # Fall back to data
+    if hasattr(entry.data, 'items') and entry.data:
+        value = entry.data.get(option_name)
+        if value is not None:
+            return value
+    
+    # Return default
+    return default_value
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up eedomus from a config entry.
     
@@ -146,38 +177,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             return False
 
     # Check which modes are enabled
-    # First check options (updated via options flow), then data (initial config), then defaults
-    # If options are empty (bug in HA), fall back to data
-    options_dict = dict(entry.options) if hasattr(entry.options, 'items') else entry.options
-    if not options_dict:
-        _LOGGER.warning("⚠️ Entry options are empty! This indicates a Home Assistant bug where options are not persisted. Falling back to entry.data.")
-        _LOGGER.warning("   This means that options set in the options flow will not persist across restarts.")
-        _LOGGER.warning("   As a workaround, we will use entry.data values, but this is not the intended behavior.")
-        
-        # Fall back to using entry.data values directly
-        api_eedomus_enabled = entry.data.get(CONF_ENABLE_API_EEDOMUS, DEFAULT_CONF_ENABLE_API_EEDOMUS)
-        api_proxy_enabled = entry.data.get(CONF_ENABLE_API_PROXY, DEFAULT_CONF_ENABLE_API_PROXY)
-    else:
-        # Normal behavior: read from options first, then data, then defaults
-        api_eedomus_enabled = entry.options.get(
-            CONF_ENABLE_API_EEDOMUS,
-            entry.data.get(CONF_ENABLE_API_EEDOMUS, DEFAULT_CONF_ENABLE_API_EEDOMUS)
-        )
-        api_proxy_enabled = entry.options.get(
-            CONF_ENABLE_API_PROXY,
-            entry.data.get(CONF_ENABLE_API_PROXY, DEFAULT_CONF_ENABLE_API_PROXY)
-        )
+    # Use helper function to handle HA bug where entry.options may be empty
+    api_eedomus_enabled = _get_config_value(
+        entry, 
+        CONF_ENABLE_API_EEDOMUS, 
+        DEFAULT_CONF_ENABLE_API_EEDOMUS
+    )
+    api_proxy_enabled = _get_config_value(
+        entry,
+        CONF_ENABLE_API_PROXY,
+        DEFAULT_CONF_ENABLE_API_PROXY
+    )
 
-    # Debug: Log what was read from entry.options and entry.data
-    _LOGGER.debug("Entry options: %s", options_dict)
-    _LOGGER.debug("Entry data: %s", entry.data)
-    _LOGGER.debug("CONF_ENABLE_API_PROXY in entry.options: %s", CONF_ENABLE_API_PROXY in options_dict)
-    _LOGGER.debug("CONF_ENABLE_API_PROXY in entry.data: %s", CONF_ENABLE_API_PROXY in entry.data)
-    if CONF_ENABLE_API_PROXY in options_dict:
-        _LOGGER.debug("CONF_ENABLE_API_PROXY value from options: %s", entry.options[CONF_ENABLE_API_PROXY])
-    if CONF_ENABLE_API_PROXY in entry.data:
-        _LOGGER.debug("CONF_ENABLE_API_PROXY value from data: %s", entry.data[CONF_ENABLE_API_PROXY])
-    _LOGGER.debug("Final api_proxy_enabled value: %s", api_proxy_enabled)
+    # Log final values for debugging
+    _LOGGER.debug("API Eedomus enabled: %s, API Proxy enabled: %s", api_eedomus_enabled, api_proxy_enabled)
 
     _LOGGER.info(
         "Starting eedomus integration - API Eedomus: %s, API Proxy: %s",
@@ -228,10 +241,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             return False
 
         # Initialize coordinator with custom scan interval
-        # Check options first, then data, then default
-        scan_interval = entry.options.get(
+        # Use helper function for consistent option reading
+        scan_interval = _get_config_value(
+            entry,
             CONF_SCAN_INTERVAL,
-            entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+            DEFAULT_SCAN_INTERVAL
         )
         
         coordinator = EedomusDataUpdateCoordinator(hass, client, scan_interval)
@@ -343,7 +357,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Create entities based on supported classes (only if API Eedomus mode is enabled)
     # Setup history sensors if history feature is enabled
-    if api_eedomus_enabled and entry.data.get(CONF_ENABLE_HISTORY, False):
+    history_enabled = _get_config_value(entry, CONF_ENABLE_HISTORY, False)
+    if api_eedomus_enabled and history_enabled:
         try:
             from .history_sensor import async_setup_history_sensors
             from homeassistant.helpers.device_registry import async_get as async_get_device_registry
@@ -414,9 +429,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id] = entry_data
 
     # Enregistrement du webhook et service (always register webhooks)
-    disable_security = entry.options.get(
+    disable_security = _get_config_value(
+        entry,
         CONF_API_PROXY_DISABLE_SECURITY,
-        entry.data.get(CONF_API_PROXY_DISABLE_SECURITY, DEFAULT_API_PROXY_DISABLE_SECURITY)
+        DEFAULT_API_PROXY_DISABLE_SECURITY
     )
 
     # Log security warning if disabled
@@ -433,9 +449,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
     # Check if webhook is enabled
-    webhook_enabled = entry.options.get(
+    webhook_enabled = _get_config_value(
+        entry,
         CONF_ENABLE_WEBHOOK,
-        entry.data.get(CONF_ENABLE_WEBHOOK, DEFAULT_ENABLE_WEBHOOK)
+        DEFAULT_ENABLE_WEBHOOK
     )
 
     # Define allowed_ips for webhook
@@ -490,7 +507,7 @@ async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None
     # Update coordinator scan interval if it exists and scan_interval option changed
     if entry.entry_id in hass.data.get(DOMAIN, {}) and COORDINATOR in hass.data[DOMAIN][entry.entry_id]:
         coordinator = hass.data[DOMAIN][entry.entry_id][COORDINATOR]
-        new_scan_interval = entry.options.get(CONF_SCAN_INTERVAL)
+        new_scan_interval = _get_config_value(entry, CONF_SCAN_INTERVAL)
         if new_scan_interval and hasattr(coordinator, 'update_interval'):
             coordinator.update_interval = timedelta(seconds=new_scan_interval)
             _LOGGER.info(f"🔄 Updated scan interval to {new_scan_interval} seconds")
@@ -587,7 +604,11 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     associated entities from the entity registry based on user configuration.
     """
     # Check if the remove_entities option is set
-    remove_entities = entry.options.get(CONF_REMOVE_ENTITIES, DEFAULT_REMOVE_ENTITIES)
+    remove_entities = _get_config_value(
+        entry,
+        CONF_REMOVE_ENTITIES,
+        DEFAULT_REMOVE_ENTITIES
+    )
 
     if remove_entities:
         _LOGGER.info("Removing all entities associated with eedomus integration")
