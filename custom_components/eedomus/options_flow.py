@@ -179,7 +179,6 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 data_schema=vol.Schema({
                     vol.Optional(CONF_ENABLE_API_EEDOMUS, default=current_config.get(CONF_ENABLE_API_EEDOMUS, True)): bool,
                     vol.Optional(CONF_ENABLE_API_PROXY, default=current_config.get(CONF_ENABLE_API_PROXY, False)): bool,
-                    vol.Optional(CONF_ENABLE_HISTORY, default=current_config.get(CONF_ENABLE_HISTORY, False)): bool,
                     vol.Optional(CONF_HISTORY_PERIPHERALS_PER_SCAN, default=current_config.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, 5)): int,
                     vol.Optional(CONF_SCAN_INTERVAL, default=current_config.get(CONF_SCAN_INTERVAL, 300)): int,
                     vol.Optional(CONF_ENABLE_SET_VALUE_RETRY, default=current_config.get(CONF_ENABLE_SET_VALUE_RETRY, True)): bool,
@@ -189,7 +188,6 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(CONF_PHP_FALLBACK_SCRIPT_NAME, default=current_config.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")): str,
                     vol.Optional(CONF_PHP_FALLBACK_TIMEOUT, default=current_config.get(CONF_PHP_FALLBACK_TIMEOUT, 5)): int,
                     vol.Optional(CONF_HTTP_REQUEST_TIMEOUT, default=current_config.get(CONF_HTTP_REQUEST_TIMEOUT, 30)): int,
-                    vol.Optional("use_rich_editor", default=False): bool,
                 }),
                 description_placeholders={
                     "content": "Configure Eedomus integration settings. Check 'Use Rich Editor' for advanced YAML configuration."

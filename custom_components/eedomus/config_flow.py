@@ -87,7 +87,6 @@ _LOGGER = logging.getLogger(__name__)
 
 # Configuration constants
 CONF_SCAN_INTERVAL = "scan_interval"
-CONF_ADVANCED_OPTIONS = "advanced_options"
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
@@ -100,7 +99,6 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         ): bool,
         vol.Optional(CONF_API_USER, default=DEFAULT_API_USER or ""): str,
         vol.Optional(CONF_API_SECRET, default=DEFAULT_API_SECRET or ""): str,
-        vol.Optional(CONF_ENABLE_HISTORY, default=False): bool,
         vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int,
         vol.Optional(CONF_HTTP_REQUEST_TIMEOUT, default=DEFAULT_HTTP_REQUEST_TIMEOUT): int,
         vol.Optional(
