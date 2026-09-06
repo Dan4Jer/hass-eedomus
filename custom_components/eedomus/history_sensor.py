@@ -231,7 +231,22 @@ async def async_setup_history_sensors(hass: HomeAssistant, coordinator, device_r
         EedomusHistoryStatsSensor(coordinator, device_info),
     ]
     
-    # Create per-device sensors if history is enabled
+    # Create per-device sensors for all peripherals in coordinator data
+    # This ensures sensors are created even on first startup when _history_progress is empty
+    # If _history_progress doesn't exist or is empty, initialize it with all peripherals
+    if not hasattr(coordinator, '_history_progress') or not coordinator._history_progress:
+        # Initialize _history_progress with all peripherals from coordinator data
+        if hasattr(coordinator, 'data') and coordinator.data:
+            for periph_id, periph_data in coordinator.data.items():
+                if periph_id not in coordinator._history_progress:
+                    coordinator._history_progress[periph_id] = {
+                        "last_timestamp": 0,
+                        "completed": False,
+                        "retrieved_points": 0,
+                        "total_points": 0,
+                    }
+    
+    # Create sensors for all peripherals that have history progress tracking
     if hasattr(coordinator, '_history_progress') and coordinator._history_progress:
         for periph_id, progress in coordinator._history_progress.items():
             periph_name = coordinator.data.get(periph_id, {}).get("name", f"Device {periph_id}")
