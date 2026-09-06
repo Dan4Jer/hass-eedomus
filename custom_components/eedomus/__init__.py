@@ -302,7 +302,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         
         # Create history progress sensors if history is enabled
         # Check both config_entry.data and options
-        history_from_config = coordinator.config_entry.data.get(CONF_ENABLE_HISTORY, False)
+        history_from_config = coordinator.config_entry.data.get(CONF_ENABLE_HISTORY, DEFAULT_ENABLE_HISTORY)
         
         # Check if history option is explicitly set in options
         if CONF_ENABLE_HISTORY in coordinator.config_entry.options:
