@@ -12,6 +12,9 @@ jobs:
   build-release:
     name: Build HACS Release Package
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
     
     steps:
       - name: Checkout repository
