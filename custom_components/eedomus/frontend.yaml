@@ -1,0 +1,24 @@
+# Eedomus Frontend Configuration for Home Assistant 2026+
+#
+# This file declares frontend assets that should be loaded by Home Assistant
+# Format: https://developers.home-assistant.io/docs/frontend/adding-resources
+
+resources:
+  - url: /local/custom_components/eedomus/www/eedomus-rich-editor.js
+    type: module
+    version: 1.0.0
+  - url: /local/custom_components/eedomus/www/eedomus-panel.js
+    type: module
+    version: 1.0.0
+
+# Configuration panel disabled for v0.14.4 to resolve duplicate registration errors
+# panels:
+#   - name: eedomus-config
+#     sidebar_title: Eedomus Config
+#     sidebar_icon: mdi:cog
+#     embed_iframe: false
+#     require_admin: true
+#     config:
+#       component: eedomus-config-panel
+#       title: Eedomus Configuration
+#       icon: mdi:cog

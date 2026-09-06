@@ -1,0 +1,25 @@
+{
+  "eedomus-rich-editor": {
+    "version": "1.0.0",
+    "description": "Eedomus Rich Configuration Editor",
+    "author": "Eedomus Integration Team",
+    "license": "MIT",
+    "compatibility": [
+      {
+        "homeassistant": ">= 2026.0.0"
+      }
+    ],
+    "files": [
+      {
+        "path": "eedomus-rich-editor.js",
+        "type": "module"
+      }
+    ],
+    "dependencies": [],
+    "browser_requirements": {
+      "custom_elements": true,
+      "shadow_dom": true,
+      "es6_modules": true
+    }
+  }
+}

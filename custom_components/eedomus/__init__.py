@@ -37,6 +37,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     PLATFORMS,
+    BOX_DEVICE_ID,
 )
 from .coordinator import EedomusDataUpdateCoordinator
 
@@ -72,6 +73,78 @@ except Exception as e:
     VERSION = "unknown"
     _LOGGER.warning("Failed to read version from manifest.json: %s", e)
 
+# Lazy import methods for services to avoid blocking the event loop
+async def _async_init_config_manager(hass: HomeAssistant):
+    """Initialize ConfigManager with lazy import using executor to avoid blocking."""
+    # Use async_add_executor_job to avoid blocking the event loop
+    config_manager = await hass.async_add_executor_job(
+        lambda: __import__('custom_components.eedomus.config_manager', fromlist=['EedomusConfigManager']).EedomusConfigManager(hass)
+    )
+    await config_manager.async_init()
+    return config_manager
+
+async def _async_init_data_service(hass: HomeAssistant):
+    """Initialize DataService with lazy import using executor to avoid blocking."""
+    # Use async_add_executor_job to avoid blocking the event loop
+    data_service = await hass.async_add_executor_job(
+        lambda: __import__('custom_components.eedomus.data_service', fromlist=['EedomusDataService']).EedomusDataService(hass)
+    )
+    await data_service.async_init()
+    return data_service
+
+async def _async_init_schema_service(hass: HomeAssistant):
+    """Initialize SchemaService with lazy import using executor to avoid blocking."""
+    # Use async_add_executor_job to avoid blocking the event loop
+    schema_service = await hass.async_add_executor_job(
+        lambda: __import__('custom_components.eedomus.schema_service', fromlist=['SchemaService']).SchemaService(hass)
+    )
+    await schema_service.async_init()
+    return schema_service
+
+def _init_ui_service(hass: HomeAssistant):
+    """Initialize UIService with lazy import."""
+    from .ui_service import EedomusUIService
+    ui_service = EedomusUIService(hass)
+    return ui_service
+
+async def _async_init_ui_service(hass: HomeAssistant):
+    """Initialize UIService with lazy import using executor to avoid blocking."""
+    # Use async_add_executor_job to avoid blocking the event loop
+    ui_service = await hass.async_add_executor_job(_init_ui_service, hass)
+    await ui_service.async_init()
+    return ui_service
+
+
+def _get_config_value(entry: ConfigEntry, option_name: str, default_value=None):
+    """Get a configuration value from entry, trying options first, then data, then default.
+    
+    This function handles the Home Assistant bug where entry.options may be empty or None.
+    It provides a consistent fallback mechanism to ensure options work even if HA doesn't
+    persist them correctly.
+    
+    Args:
+        entry: The config entry
+        option_name: The option name to retrieve
+        default_value: The default value if not found in options or data
+        
+    Returns:
+        The value for the option, or default_value if not found
+    """
+    # Try options first (may be empty due to HA bug)
+    if hasattr(entry.options, 'items') and entry.options:
+        value = entry.options.get(option_name)
+        if value is not None:
+            return value
+    
+    # Fall back to data
+    if hasattr(entry.data, 'items') and entry.data:
+        value = entry.data.get(option_name)
+        if value is not None:
+            return value
+    
+    # Return default
+    return default_value
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up eedomus from a config entry.
@@ -82,33 +155,70 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.info("🚀 Starting eedomus integration setup - Version %s", VERSION)
     _LOGGER.debug("Setting up eedomus integration with entry_id: %s", entry.entry_id)
     
+    # Setup configuration panel - DISABLED for v0.14.4 to resolve duplicate registration errors
+    # try:
+    #     from .panel import async_setup_panel
+    #     await async_setup_panel(hass)
+    #     _LOGGER.info("✅ Eedomus configuration panel registered")
+    # except Exception as e:
+    #     _LOGGER.warning("Could not setup configuration panel: %s", e)
+    
     # Perform migration if needed
+    # Note: async_migrate_entry already calls async_update_entry internally
+    # to update the config entry version, so we don't need to reload here
+    # (reloading would cause a deadlock as it tries to acquire entry.setup_lock
+    # which is already held by async_setup_entry)
     if entry.version < 4:
         try:
             await async_migrate_entry(hass, entry)
-            # Reload the entry to apply migration changes
-            await hass.config_entries.async_reload(entry.entry_id)
-            return False  # Setup will be retried after reload
+            return False  # Setup will be retried automatically with updated config
         except Exception as e:
             _LOGGER.error("Migration failed: %s", e)
             return False
 
     # Check which modes are enabled
-    # First check options (updated via options flow), then data (initial config), then defaults
-    api_eedomus_enabled = entry.options.get(
-        CONF_ENABLE_API_EEDOMUS,
-        entry.data.get(CONF_ENABLE_API_EEDOMUS, DEFAULT_CONF_ENABLE_API_EEDOMUS)
+    # Use helper function to handle HA bug where entry.options may be empty
+    api_eedomus_enabled = _get_config_value(
+        entry, 
+        CONF_ENABLE_API_EEDOMUS, 
+        DEFAULT_CONF_ENABLE_API_EEDOMUS
     )
-    api_proxy_enabled = entry.options.get(
+    api_proxy_enabled = _get_config_value(
+        entry,
         CONF_ENABLE_API_PROXY,
-        entry.data.get(CONF_ENABLE_API_PROXY, DEFAULT_CONF_ENABLE_API_PROXY)
+        DEFAULT_CONF_ENABLE_API_PROXY
     )
+
+    # Log final values for debugging
+    _LOGGER.debug("API Eedomus enabled: %s, API Proxy enabled: %s", api_eedomus_enabled, api_proxy_enabled)
 
     _LOGGER.info(
         "Starting eedomus integration - API Eedomus: %s, API Proxy: %s",
         api_eedomus_enabled,
         api_proxy_enabled,
     )
+
+    # Initialize services using lazy imports to avoid blocking
+    config_manager = await _async_init_config_manager(hass)
+    data_service = await _async_init_data_service(hass)
+    schema_service = await _async_init_schema_service(hass)
+    ui_service = await _async_init_ui_service(hass)
+    
+    # Store services in hass.data for access by other components
+    if DOMAIN not in hass.data:
+        hass.data[DOMAIN] = {}
+    hass.data[DOMAIN]["config_manager"] = config_manager
+    hass.data[DOMAIN]["data_service"] = data_service
+    hass.data[DOMAIN]["schema_service"] = schema_service
+    hass.data[DOMAIN]["ui_service"] = ui_service
+    
+    # Set up cleanup for services on unload
+    async def _async_cleanup_services():
+        await config_manager.async_shutdown()
+        await data_service.async_shutdown()
+        await ui_service.async_shutdown()
+        # SchemaService doesn't need async shutdown as it has no persistent resources
+    entry.async_on_unload(_async_cleanup_services)
 
     _LOGGER.debug("Setting up eedomus integration before entry.update_listener: %s", entry.update_listeners)
     # Set up options flow handler
@@ -131,10 +241,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             return False
 
         # Initialize coordinator with custom scan interval
-        # Check options first, then data, then default
-        scan_interval = entry.options.get(
+        # Use helper function for consistent option reading
+        scan_interval = _get_config_value(
+            entry,
             CONF_SCAN_INTERVAL,
-            entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+            DEFAULT_SCAN_INTERVAL
         )
         
         coordinator = EedomusDataUpdateCoordinator(hass, client, scan_interval)
@@ -154,6 +265,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 sw_version="Unknown",
             )
             _LOGGER.info("Created main eedomus box device: %s", box_device.id)
+            _LOGGER.info("Device ID type: %s, value: %s", type(box_device.id), box_device.id)
+            
+            # Store box device ID in coordinator for use by entities
+            # Note: via_device_id can use either the device ID (UUID) or an identifier tuple
+            if coordinator:
+                coordinator.box_device_id = box_device.id
+                _LOGGER.info("Stored box_device_id in coordinator: %s (type: %s)", coordinator.box_device_id, type(coordinator.box_device_id))
         except Exception as e:
             _LOGGER.warning("Failed to create main eedomus box device: %s", e)
 
@@ -237,18 +355,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         except Exception as err:
             _LOGGER.error("Failed to setup eedomus services in proxy-only mode: %s", err)
 
-    # Create entities based on supported classes (only if API Eedomus mode is enabled)
-    # Setup history sensors if history feature is enabled
-    if api_eedomus_enabled and entry.data.get(CONF_ENABLE_HISTORY, False):
-        try:
-            from .history_sensor import async_setup_history_sensors
-            from homeassistant.helpers.device_registry import async_get as async_get_device_registry
-            device_registry = async_get_device_registry(hass)
-            await async_setup_history_sensors(hass, coordinator, device_registry)
-            _LOGGER.info("✅ History sensors registered successfully")
-        except Exception as err:
-            _LOGGER.error("Failed to setup history sensors: %s", err)
-
     # Always setup refresh timing sensors (they're lightweight and useful for monitoring)
     try:
         from .refresh_timing_sensor import async_setup_refresh_timing_sensors
@@ -310,9 +416,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id] = entry_data
 
     # Enregistrement du webhook et service (always register webhooks)
-    disable_security = entry.options.get(
+    disable_security = _get_config_value(
+        entry,
         CONF_API_PROXY_DISABLE_SECURITY,
-        entry.data.get(CONF_API_PROXY_DISABLE_SECURITY, DEFAULT_API_PROXY_DISABLE_SECURITY)
+        DEFAULT_API_PROXY_DISABLE_SECURITY
     )
 
     # Log security warning if disabled
@@ -329,9 +436,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
     # Check if webhook is enabled
-    webhook_enabled = entry.options.get(
+    webhook_enabled = _get_config_value(
+        entry,
         CONF_ENABLE_WEBHOOK,
-        entry.data.get(CONF_ENABLE_WEBHOOK, DEFAULT_ENABLE_WEBHOOK)
+        DEFAULT_ENABLE_WEBHOOK
     )
 
     # Define allowed_ips for webhook
@@ -386,7 +494,7 @@ async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None
     # Update coordinator scan interval if it exists and scan_interval option changed
     if entry.entry_id in hass.data.get(DOMAIN, {}) and COORDINATOR in hass.data[DOMAIN][entry.entry_id]:
         coordinator = hass.data[DOMAIN][entry.entry_id][COORDINATOR]
-        new_scan_interval = entry.options.get(CONF_SCAN_INTERVAL)
+        new_scan_interval = _get_config_value(entry, CONF_SCAN_INTERVAL)
         if new_scan_interval and hasattr(coordinator, 'update_interval'):
             coordinator.update_interval = timedelta(seconds=new_scan_interval)
             _LOGGER.info(f"🔄 Updated scan interval to {new_scan_interval} seconds")
@@ -459,6 +567,14 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     This function cleans up the integration by unloading platforms and removing
     the entry data from the Home Assistant data store.
     """
+    # Cleanup configuration panel
+    try:
+        from .panel import async_unload_panel
+        await async_unload_panel(hass)
+        _LOGGER.debug("Eedomus configuration panel unloaded")
+    except Exception as e:
+        _LOGGER.warning("Could not unload configuration panel: %s", e)
+    
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         if entry.entry_id in hass.data[DOMAIN]:
             hass.data[DOMAIN].pop(entry.entry_id)
@@ -475,7 +591,11 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     associated entities from the entity registry based on user configuration.
     """
     # Check if the remove_entities option is set
-    remove_entities = entry.options.get(CONF_REMOVE_ENTITIES, DEFAULT_REMOVE_ENTITIES)
+    remove_entities = _get_config_value(
+        entry,
+        CONF_REMOVE_ENTITIES,
+        DEFAULT_REMOVE_ENTITIES
+    )
 
     if remove_entities:
         _LOGGER.info("Removing all entities associated with eedomus integration")
@@ -712,5 +832,6 @@ async def async_cleanup_unused_entities(hass):
             "success": False,
             "error": str(e)
         }
+
 
 

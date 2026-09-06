@@ -1,0 +1,21 @@
+{
+  "eedomus-rich-editor": {
+    "version": "1.0.0",
+    "name": "Eedomus Rich Configuration Editor",
+    "description": "Advanced configuration editor for Eedomus integration with UI and YAML modes",
+    "author": "Eedomus Integration Team",
+    "license": "MIT",
+    "homeassistant": ">= 2026.0.0",
+    "files": [
+      "eedomus-rich-editor.js"
+    ],
+    "dependencies": [],
+    "browser_requirements": {
+      "custom_elements": true,
+      "shadow_dom": true
+    },
+    "config_flow": true,
+    "documentation": "https://github.com/Dan4Jer/hass-eedomus/blob/unstable/docs/RICH_EDITOR_DOCUMENTATION.md",
+    "issue_tracker": "https://github.com/Dan4Jer/hass-eedomus/issues"
+  }
+}

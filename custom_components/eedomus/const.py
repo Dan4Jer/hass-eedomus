@@ -4,12 +4,18 @@ from typing import Any, Dict
 
 # Ensure required imports are available
 import voluptuous as vol
-from homeassistant.components.light import (
-    ColorMode,
-    LightEntityFeature,
-)
 from homeassistant.const import Platform
 from homeassistant.helpers import config_validation as cv
+
+# Import light components with try/except for HA 2026.9 compatibility
+try:
+    from homeassistant.components.light import (
+        ColorMode,
+        LightEntityFeature,
+    )
+except ImportError:
+    ColorMode = None
+    LightEntityFeature = None
 
 try:
     from .private_const import (
@@ -57,6 +63,7 @@ DEFAULT_ENABLE_HISTORY = False  # History disabled by default (temporarily)
 DEFAULT_HISTORY_RETRY_DELAY = 24  # 24 hours  # History retry delay in hours (24 hours by default)
 DEFAULT_HISTORY_PERIPHERALS_PER_SCAN = 1  # History: 1 peripheral per scan interval by default
 DEFAULT_ENABLE_SET_VALUE_RETRY = True  # Set value retry enabled by default
+DEFAULT_CONF_ENABLE_SET_VALUE_RETRY = True  # Set value retry enabled by default (for config flow)
 DEFAULT_ENABLE_WEBHOOK = True  # Webhook enabled by default
 DEFAULT_REMOVE_ENTITIES = False  # Remove entities on uninstall disabled by default
 
@@ -107,6 +114,7 @@ EEDOMUS_TO_HA_ATTR_MAPPING = {
 # Domain
 DOMAIN = "eedomus"
 COORDINATOR = "coordinator"
+BOX_DEVICE_ID = "box_device_id"
 
 
 # Device classes for sensors
@@ -167,14 +175,87 @@ DEVICE_SCHEMA = vol.Schema({
 
 # Schema for YAML files
 YAML_MAPPING_SCHEMA = vol.Schema({
-    vol.Optional("metadata"): dict,
-    vol.Optional("advanced_rules"): list,
-    vol.Optional("usage_id_mappings"): dict,
-    vol.Optional("dynamic_entity_properties"): dict,
-    vol.Optional("specific_device_dynamic_overrides"): dict,
-    vol.Optional("specific_device_mappings"): dict,
-    vol.Optional("name_patterns"): list,
-    vol.Optional(CONF_CUSTOM_DEVICES): vol.All(cv.ensure_list, [DEVICE_SCHEMA]),
+    vol.Optional("metadata"): {
+        vol.Optional("version"): str,
+        vol.Optional("last_modified"): str,
+        vol.Optional("changes"): list,
+    },
+    vol.Optional("custom_rules"): [
+        vol.Schema({
+            vol.Required("name"): str,
+            vol.Required("condition"): {
+                vol.Required("usage_id"): str,
+                vol.Required("state"): vol.In(["on", "off", "unavailable"]),
+            },
+            vol.Required("actions"): [
+                vol.Schema({
+                    vol.Required("type"): vol.In(["override", "ignore", "transform"]),
+                    vol.Optional("ha_entity"): str,
+                    vol.Optional("attributes"): dict,
+                })
+            ],
+        })
+    ],
+    vol.Optional("custom_usage_id_mappings"): {
+        str: vol.Schema({
+            vol.Required("ha_entity"): str,
+            vol.Optional("ha_subtype"): str,
+            vol.Optional("device_class"): str,
+            vol.Optional("justification"): str,
+        })
+    },
+    vol.Optional("temperature_setpoint_mappings"): {
+        str: vol.Any(
+            vol.Schema({
+                vol.Required("ha_entity"): str,
+                vol.Optional("unit_of_measurement"): str,
+                vol.Optional("justification"): str,
+            }),
+            str,
+            int,
+            float
+        )
+    },
+    vol.Optional("custom_name_patterns"): [
+        vol.Schema({
+            vol.Required("pattern"): str,
+            vol.Required("replacement"): str,
+            vol.Required("target"): vol.In(["name", "entity_id"]),
+        })
+    ],
+    vol.Optional(CONF_CUSTOM_DEVICES): [
+        vol.Schema({
+            vol.Required("eedomus_id"): str,
+            vol.Required("ha_entity"): str,
+            vol.Required("type"): vol.In(["light", "switch", "sensor", "climate", "cover", "binary_sensor", "text_sensor"]),
+            vol.Optional("ha_subtype"): str,
+            vol.Optional("icon"): str,
+            vol.Optional("room"): str,
+            vol.Optional("parent_periph_id"): str,
+            vol.Optional("attributes"): dict,
+        })
+    ],
+    vol.Optional("custom_dynamic_entity_properties"): {
+        str: vol.Schema({
+            vol.Optional("ha_entity"): str,
+            vol.Optional("ha_subtype"): str,
+            vol.Optional("device_class"): str,
+            vol.Optional("unit_of_measurement"): str,
+            vol.Optional("icon"): str,
+            vol.Optional("justification"): str,
+        })
+    },
+    vol.Optional("custom_specific_device_dynamic_overrides"): {
+        str: vol.Schema({
+            vol.Optional("ha_entity"): str,
+            vol.Optional("ha_subtype"): str,
+            vol.Optional("device_class"): str,
+            vol.Optional("unit_of_measurement"): str,
+            vol.Optional("icon"): str,
+            vol.Optional("justification"): str,
+            vol.Optional("override_rules"): dict,
+        })
+    },
 })
 
 # Schema for UI options

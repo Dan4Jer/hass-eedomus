@@ -355,6 +355,10 @@ def load_yaml_mappings(base_path: str = "") -> Dict[str, Any]:
 def merge_yaml_mappings(default_mapping: Dict[str, Any], custom_mapping: Dict[str, Any]) -> Dict[str, Any]:
     """Merge default and custom mappings, with custom mappings taking precedence.
     
+    Handles backward compatibility for custom_rules -> advanced_rules conversion.
+    The schema was updated to use 'custom_rules' but the code still uses 'advanced_rules'.
+    This function automatically converts 'custom_rules' to 'advanced_rules' for compatibility.
+    
     Args:
         default_mapping: Default mapping configuration
         custom_mapping: Custom mapping configuration
@@ -370,6 +374,43 @@ def merge_yaml_mappings(default_mapping: Dict[str, Any], custom_mapping: Dict[st
     if not isinstance(custom_mapping, dict):
         _LOGGER.error("Custom mapping is not a dictionary: %s", type(custom_mapping))
         custom_mapping = {}
+    
+    # Backward compatibility: Handle schema changes from commit 21bb7a4
+    # The schema was updated to use 'custom_*' prefixes but the code still uses the original names
+    # This ensures both old (advanced_rules, usage_id_mappings) and new (custom_rules, custom_usage_id_mappings) work
+    
+    def _ensure_backward_compat(mapping: Dict[str, Any]) -> Dict[str, Any]:
+        """Convert new custom_* field names to old names for backward compatibility."""
+        # custom_rules -> advanced_rules
+        if 'custom_rules' in mapping and 'advanced_rules' not in mapping:
+            _LOGGER.debug("🔄 Converting custom_rules to advanced_rules for backward compatibility")
+            mapping['advanced_rules'] = mapping.get('custom_rules', [])
+        
+        # custom_usage_id_mappings -> usage_id_mappings
+        if 'custom_usage_id_mappings' in mapping and 'usage_id_mappings' not in mapping:
+            _LOGGER.debug("🔄 Converting custom_usage_id_mappings to usage_id_mappings")
+            mapping['usage_id_mappings'] = mapping.get('custom_usage_id_mappings', {})
+        
+        # custom_dynamic_entity_properties -> dynamic_entity_properties
+        if 'custom_dynamic_entity_properties' in mapping and 'dynamic_entity_properties' not in mapping:
+            _LOGGER.debug("🔄 Converting custom_dynamic_entity_properties to dynamic_entity_properties")
+            mapping['dynamic_entity_properties'] = mapping.get('custom_dynamic_entity_properties', {})
+        
+        # custom_specific_device_dynamic_overrides -> specific_device_dynamic_overrides
+        if 'custom_specific_device_dynamic_overrides' in mapping and 'specific_device_dynamic_overrides' not in mapping:
+            _LOGGER.debug("🔄 Converting custom_specific_device_dynamic_overrides to specific_device_dynamic_overrides")
+            mapping['specific_device_dynamic_overrides'] = mapping.get('custom_specific_device_dynamic_overrides', {})
+        
+        # custom_name_patterns -> name_patterns
+        if 'custom_name_patterns' in mapping and 'name_patterns' not in mapping:
+            _LOGGER.debug("🔄 Converting custom_name_patterns to name_patterns")
+            mapping['name_patterns'] = mapping.get('custom_name_patterns', [])
+        
+        return mapping
+    
+    # Apply backward compatibility conversion to both mappings
+    default_mapping = _ensure_backward_compat(default_mapping)
+    custom_mapping = _ensure_backward_compat(custom_mapping)
     
     merged = {}
     
