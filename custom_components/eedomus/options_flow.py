@@ -90,7 +90,6 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
         self.current_devices = []
         self.use_yaml = False
         self.yaml_content = ""
-        self.hass = None
 
     def _copy_config_to_options(self):
         """Copy configuration values from config_entry.data to options.
