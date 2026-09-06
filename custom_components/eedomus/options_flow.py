@@ -171,7 +171,10 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 }
                 
                 # Update config entry
-                await self.async_update_entry(self.config_entry, options=options)
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry,
+                    options=options
+                )
                 
                 return self.async_create_entry(title="", data={})
             
@@ -288,7 +291,10 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 
                 # Save options to config entry - CRITICAL: This was missing!
                 # Without this, options are not persisted across restarts
-                await self.async_update_entry(self.config_entry, options=options)
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry,
+                    options=options
+                )
                 
                 _LOGGER.debug("Saving YAML configuration")
                 return self.async_create_entry(title="", data={})
