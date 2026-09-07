@@ -73,7 +73,7 @@ class EedomusHistoryProgressSensor(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = f"eedomus_history_progress_{periph_id}"
         self._attr_device_info = device_info
         self._attr_name = f"History Progress: {periph_name}"
-        self._attr_device_class = SensorDeviceClass.ENUM
+        self._attr_device_class = None
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_native_unit_of_measurement = "%"
         self._attr_icon = "mdi:progress-clock"
