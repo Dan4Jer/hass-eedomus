@@ -151,7 +151,7 @@ usage_id_mappings:
       justification: CPU usage monitor - default for usage_id=23
     is_dynamic: false
     internal_box_eedomus: true
-    entity_category: diagnostic
+    # entity_category: diagnostic
   '24':
     ha_entity: sensor
     ha_subtype: illuminance
