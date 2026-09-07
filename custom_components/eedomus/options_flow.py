@@ -170,8 +170,8 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                     CONF_HTTP_REQUEST_TIMEOUT: user_input.get(CONF_HTTP_REQUEST_TIMEOUT, current_config.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)),
                 }
                 
-                # Update config entry - using data parameter as per HA best practices
-                return self.async_create_entry(title="", data=options)
+                # Update config entry options - using async_update_entry as per HA best practices
+                return self.async_update_entry(config_entry=self._config_entry, options=options)
             
             # Show comprehensive options form
             return self.async_show_form(

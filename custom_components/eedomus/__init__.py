@@ -340,6 +340,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 _LOGGER.info("✅ History sensors created and attached to eedomus box device")
             except Exception as err:
                 _LOGGER.error("Failed to create history sensors: %s", err)
+        else:
+            # Clear history sensors if history is disabled
+            coordinator._history_sensors = []
+            _LOGGER.info("🗑️  History sensors disabled, cleared from coordinator")
 
 
     # If neither mode is enabled, this shouldn't happen due to validation, but handle it anyway

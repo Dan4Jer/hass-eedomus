@@ -169,6 +169,11 @@ async def async_setup_entry(
         entities.extend(coordinator._timing_sensors)
         _LOGGER.info("📊 Added %d refresh timing sensors", len(coordinator._timing_sensors))
     
+    # Add history sensors if they exist in the coordinator
+    if hasattr(coordinator, '_history_sensors') and coordinator._history_sensors:
+        entities.extend(coordinator._history_sensors)
+        _LOGGER.info("📊 Added %d history sensors", len(coordinator._history_sensors))
+    
     # Add volume sensors if they exist in the coordinator
     if hasattr(coordinator, '_volume_sensors') and coordinator._volume_sensors:
         _LOGGER.debug("📊 Found %d volume sensors in coordinator, adding to entities", len(coordinator._volume_sensors))
