@@ -7,6 +7,7 @@ from datetime import datetime
 
 from homeassistant.components.sensor import (SensorEntity, SensorDeviceClass, SensorStateClass)
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -35,7 +36,7 @@ class EedomusHistorySensor(CoordinatorEntity, SensorEntity):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_native_unit_of_measurement = "°C"
         self._attr_icon = "mdi:history"
-        self._attr_entity_category = "diagnostic"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_has_entity_name = True
 
     @property
@@ -76,7 +77,7 @@ class EedomusHistoryProgressSensor(CoordinatorEntity, SensorEntity):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_native_unit_of_measurement = "%"
         self._attr_icon = "mdi:progress-clock"
-        self._attr_entity_category = "diagnostic"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     @property
     def native_value(self):
