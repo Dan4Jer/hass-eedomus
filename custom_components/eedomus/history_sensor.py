@@ -32,9 +32,9 @@ class EedomusHistorySensor(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = f"eedomus_{periph_id}_history"
         self._attr_device_info = device_info
         self._attr_name = f"{periph_name} (History)"
-        self._attr_device_class = SensorDeviceClass.TEMPERATURE
-        self._attr_state_class = SensorStateClass.MEASUREMENT
-        self._attr_native_unit_of_measurement = "°C"
+        self._attr_device_class = None
+        self._attr_state_class = None
+        self._attr_native_unit_of_measurement = None
         self._attr_icon = "mdi:history"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_has_entity_name = True
@@ -122,9 +122,9 @@ class EedomusGlobalHistoryProgressSensor(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = "eedomus_history_progress_global"
         self._attr_device_info = device_info
         self._attr_name = "Eedomus History Retrieval Progress"
-        self._attr_device_class = SensorDeviceClass.ENUM
-        self._attr_state_class = SensorStateClass.MEASUREMENT
-        self._attr_native_unit_of_measurement = "%"
+        self._attr_device_class = None
+        self._attr_state_class = None
+        self._attr_native_unit_of_measurement = None
         self._attr_icon = "mdi:progress-wrench"
 
     @property
@@ -167,9 +167,9 @@ class EedomusHistoryStatsSensor(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = "eedomus_history_stats"
         self._attr_device_info = device_info
         self._attr_name = "Eedomus History Retrieval Stats"
-        self._attr_device_class = SensorDeviceClass.DATA_SIZE
-        self._attr_state_class = SensorStateClass.MEASUREMENT
-        self._attr_native_unit_of_measurement = "MB"
+        self._attr_device_class = None
+        self._attr_state_class = None
+        self._attr_native_unit_of_measurement = None
         self._attr_icon = "mdi:database-clock"
 
     @property
