@@ -4,10 +4,10 @@
 # Format: https://developers.home-assistant.io/docs/frontend/adding-resources
 
 resources:
-  - url: eedomus/www/eedomus-rich-editor.js
+  - url: /local/custom_components/eedomus/www/eedomus-rich-editor.js
     type: module
     version: 1.0.0
-  - url: eedomus/www/eedomus-panel.js
+  - url: /local/custom_components/eedomus/www/eedomus-panel.js
     type: module
     version: 1.0.0
 
