@@ -113,6 +113,20 @@ except Exception as e:
     NAME_PATTERNS = []
 
 
+def get_entry_prefix(coordinator) -> str:
+    """Return the config entry id tied to this coordinator's box.
+
+    Used to prefix unique_id / device identifiers so that two peripherals
+    with the same numeric periph_id on two different eedomus boxes never
+    collide in Home Assistant's entity/device registries. Falls back to a
+    fixed string only if a coordinator without a config_entry is ever passed
+    (should not happen in normal operation), to avoid a hard crash.
+    """
+    entry = getattr(coordinator, "config_entry", None)
+    entry_id = getattr(entry, "entry_id", None)
+    return entry_id or "unknown_entry"
+
+
 class EedomusEntity(CoordinatorEntity):
     """Base class for eedomus entities.
     
@@ -128,6 +142,7 @@ class EedomusEntity(CoordinatorEntity):
         """
         super().__init__(coordinator)
         self._periph_id = periph_id
+        self._entry_prefix = get_entry_prefix(coordinator)
         
         # Safe access to coordinator data
         periph_data = self._get_periph_data(periph_id)
@@ -135,11 +150,11 @@ class EedomusEntity(CoordinatorEntity):
             _LOGGER.warning(f"Peripheral data not found for {periph_id}, using fallback")
             self._attr_name = f"Unknown Device ({periph_id})"
             self._parent_id = None
-            self._attr_unique_id = f"{periph_id}"
+            self._attr_unique_id = f"{self._entry_prefix}_{periph_id}"
         else:
             self._attr_name = periph_data.get("name", f"Unknown Device ({periph_id})")
             self._parent_id = periph_data.get("parent_periph_id", None)
-            self._attr_unique_id = f"{periph_id}"
+            self._attr_unique_id = f"{self._entry_prefix}_{periph_id}"
 
     def _get_periph_data(self, periph_id: str = None):
         """Get peripheral data from coordinator.
@@ -160,10 +175,11 @@ class EedomusEntity(CoordinatorEntity):
         Constructs device information for Home Assistant's device registry.
         Handles parent-child relationships and provides proper device hierarchy information.
         """
+        entry_prefix = get_entry_prefix(self.coordinator)
         periph_data = self._get_periph_data(self._periph_id)
         if not periph_data:
             return DeviceInfo(
-                identifiers={(DOMAIN, self._periph_id)},
+                identifiers={(DOMAIN, f"{entry_prefix}_{self._periph_id}")},
                 name=f"Unknown Device ({self._periph_id})",
                 manufacturer="Eedomus",
             )
@@ -178,7 +194,7 @@ class EedomusEntity(CoordinatorEntity):
             
             # Add via_device_id if box device ID is available
             device_info_kwargs = {
-                "identifiers": {(DOMAIN, parent_id)},
+                "identifiers": {(DOMAIN, f"{entry_prefix}_{parent_id}")},
                 "name": parent_name,
                 "manufacturer": "Eedomus",
                 "model": parent_data.get("usage_name", "Unknown"),
@@ -190,7 +206,7 @@ class EedomusEntity(CoordinatorEntity):
         
         # Otherwise, use this device's info
         device_info_kwargs = {
-            "identifiers": {(DOMAIN, self._periph_id)},
+            "identifiers": {(DOMAIN, f"{entry_prefix}_{self._periph_id}")},
             "name": device_name,
             "manufacturer": "Eedomus",
             "model": periph_data.get("usage_name", "Unknown"),

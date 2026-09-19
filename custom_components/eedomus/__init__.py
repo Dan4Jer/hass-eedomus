@@ -168,7 +168,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # to update the config entry version, so we don't need to reload here
     # (reloading would cause a deadlock as it tries to acquire entry.setup_lock
     # which is already held by async_setup_entry)
-    if entry.version < 4:
+    if entry.version < 5:
         try:
             await async_migrate_entry(hass, entry)
             return False  # Setup will be retried automatically with updated config
@@ -255,10 +255,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             from homeassistant.helpers.device_registry import async_get as async_get_device_registry
             device_registry = async_get_device_registry(hass)
             
-            # Create the main eedomus box device
+            # Create the main eedomus box device (identifier prefixed per box/entry
+            # so that two boxes never share the same "Box eedomus" device - see #102)
             box_device = device_registry.async_get_or_create(
                 config_entry_id=entry.entry_id,
-                identifiers={(DOMAIN, "eedomus_box_main")},
+                identifiers={(DOMAIN, f"eedomus_box_main_{entry.entry_id}")},
                 name="Box eedomus",
                 manufacturer="Eedomus",
                 model="Eedomus Box",
@@ -556,9 +557,115 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
         
         hass.config_entries.async_update_entry(config_entry, data=new_data, options=new_options, version=4)
         _LOGGER.info("Migration to version 4 completed - custom_mapping.yaml preserved")
-    
+
+    # Migration from version 4 to 5: prefix unique_id / device identifiers per box.
+    # Fixes entity and device collisions on multi-box installs where two boxes
+    # happen to share the same numeric periph_id (see GitHub issue #102).
+    # This renames existing registry entries IN PLACE rather than creating new
+    # ones, so entity history and long-term statistics are preserved.
+    if config_entry.version == 4:
+        try:
+            await async_migrate_unique_ids_and_devices(hass, config_entry)
+        except Exception as e:
+            _LOGGER.error(
+                "Multi-box unique_id/device migration failed (entry will keep "
+                "working with the old identifiers, duplicate warnings may "
+                "persist): %s", e
+            )
+
+        hass.config_entries.async_update_entry(config_entry, version=5)
+        _LOGGER.info("Migration to version 5 completed - identifiers prefixed per box")
+
     _LOGGER.info("Migration completed successfully")
     return True
+
+
+async def async_migrate_unique_ids_and_devices(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
+    """Rewrite this entry's entity/device registry identifiers in place.
+
+    Prior to this migration, unique_id and device identifiers were built from
+    the bare eedomus periph_id, with no reference to which box (config entry)
+    a peripheral belongs to. On multi-box installs this silently dropped
+    entities and merged devices whenever the same periph_id happened to exist
+    on more than one box (see GitHub issue #102). This prefixes every
+    existing unique_id / device identifier for THIS config entry with the
+    entry_id, in place - the existing registry entry is renamed, not
+    recreated, so entity history and statistics are preserved.
+    """
+    from homeassistant.helpers import entity_registry as er
+    from homeassistant.helpers import device_registry as dr
+    entry_id = config_entry.entry_id
+    prefix = f"{entry_id}_"
+    box_prefix = "eedomus_box_main_"
+
+    entity_registry = er.async_get(hass)
+    migrated_entities = 0
+    for entity_entry in list(entity_registry.entities.values()):
+        if entity_entry.platform != DOMAIN or entity_entry.config_entry_id != entry_id:
+            continue
+        if not entity_entry.unique_id or entity_entry.unique_id.startswith(prefix):
+            continue  # No unique_id, or already migrated (e.g. reload mid-migration)
+
+        new_unique_id = f"{prefix}{entity_entry.unique_id}"
+        try:
+            entity_registry.async_update_entity(entity_entry.entity_id, new_unique_id=new_unique_id)
+            migrated_entities += 1
+        except ValueError as e:
+            # Two entities under this SAME entry already sharing a unique_id would be a
+            # different, pre-existing bug - log it but keep migrating the rest.
+            _LOGGER.error(
+                "Could not migrate unique_id for %s (%s -> %s): %s",
+                entity_entry.entity_id, entity_entry.unique_id, new_unique_id, e,
+            )
+
+    device_registry = dr.async_get(hass)
+    migrated_devices = 0
+    for device_entry in dr.async_entries_for_config_entry(device_registry, entry_id):
+        eedomus_identifiers = {ident for ident in device_entry.identifiers if ident[0] == DOMAIN}
+        if not eedomus_identifiers:
+            continue
+        if all(i[1].startswith(prefix) or i[1].startswith(box_prefix) for i in eedomus_identifiers):
+            continue  # Already migrated
+
+        if len(device_entry.config_entries) == 1:
+            # Simple case: device belongs to a single config entry - rename its
+            # eedomus identifier(s) in place, leaving any other identifier untouched.
+            new_identifiers = set(device_entry.identifiers)
+            for ident in eedomus_identifiers:
+                old_id = ident[1]
+                new_id = f"{box_prefix}{entry_id}" if old_id == "eedomus_box_main" else f"{prefix}{old_id}"
+                new_identifiers.discard(ident)
+                new_identifiers.add((DOMAIN, new_id))
+            device_registry.async_update_device(device_entry.id, new_identifiers=new_identifiers)
+            migrated_devices += 1
+        else:
+            # Rare edge case: this device is already shared between two config entries -
+            # itself a symptom of the bug (e.g. the old "Box eedomus" device both boxes
+            # attached to). We can't safely split it automatically without risking mixing
+            # up which entities belong to which box, so we only move THIS entry's own
+            # entities onto a freshly created, correctly-scoped device, and leave the old
+            # shared device in place - it becomes an orphan once every entry has migrated,
+            # safe to delete manually from Settings > Devices at that point.
+            for ident in eedomus_identifiers:
+                old_id = ident[1]
+                new_id = f"{box_prefix}{entry_id}" if old_id == "eedomus_box_main" else f"{prefix}{old_id}"
+                new_device = device_registry.async_get_or_create(
+                    config_entry_id=entry_id,
+                    identifiers={(DOMAIN, new_id)},
+                    name=device_entry.name,
+                    manufacturer=device_entry.manufacturer,
+                    model=device_entry.model,
+                    sw_version=device_entry.sw_version,
+                )
+                for entity_entry in list(entity_registry.entities.values()):
+                    if entity_entry.device_id == device_entry.id and entity_entry.config_entry_id == entry_id:
+                        entity_registry.async_update_entity(entity_entry.entity_id, device_id=new_device.id)
+                migrated_devices += 1
+
+    _LOGGER.info(
+        "Multi-box migration for entry %s: %d entities and %d devices re-scoped",
+        entry_id, migrated_entities, migrated_devices,
+    )
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -832,6 +939,3 @@ async def async_cleanup_unused_entities(hass):
             "success": False,
             "error": str(e)
         }
-
-
-

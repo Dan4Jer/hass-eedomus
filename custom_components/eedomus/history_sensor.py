@@ -12,6 +12,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
+from .entity import get_entry_prefix
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ class EedomusHistorySensor(CoordinatorEntity, SensorEntity):
         super().__init__(coordinator)
         self._periph_id = periph_id
         self._periph_name = periph_name
-        self._attr_unique_id = f"eedomus_{periph_id}_history"
+        self._attr_unique_id = f"{get_entry_prefix(coordinator)}_eedomus_{periph_id}_history"
         self._attr_device_info = device_info
         self._attr_name = f"{periph_name} (History)"
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
@@ -69,7 +70,7 @@ class EedomusHistoryProgressSensor(CoordinatorEntity, SensorEntity):
         super().__init__(coordinator)
         self._periph_id = periph_id
         self._periph_name = periph_name
-        self._attr_unique_id = f"eedomus_history_progress_{periph_id}"
+        self._attr_unique_id = f"{get_entry_prefix(coordinator)}_eedomus_history_progress_{periph_id}"
         self._attr_device_info = device_info
         self._attr_name = f"History Progress: {periph_name}"
         self._attr_device_class = SensorDeviceClass.ENUM
@@ -118,7 +119,7 @@ class EedomusGlobalHistoryProgressSensor(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator, device_info: DeviceInfo):
         """Initialize the global history progress sensor."""
         super().__init__(coordinator)
-        self._attr_unique_id = "eedomus_history_progress_global"
+        self._attr_unique_id = f"{get_entry_prefix(coordinator)}_eedomus_history_progress_global"
         self._attr_device_info = device_info
         self._attr_name = "Eedomus History Retrieval Progress"
         self._attr_device_class = SensorDeviceClass.ENUM
@@ -163,7 +164,7 @@ class EedomusHistoryStatsSensor(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator, device_info: DeviceInfo):
         """Initialize the history stats sensor."""
         super().__init__(coordinator)
-        self._attr_unique_id = "eedomus_history_stats"
+        self._attr_unique_id = f"{get_entry_prefix(coordinator)}_eedomus_history_stats"
         self._attr_device_info = device_info
         self._attr_name = "Eedomus History Retrieval Stats"
         self._attr_device_class = SensorDeviceClass.DATA_SIZE
@@ -207,10 +208,11 @@ class EedomusHistoryStatsSensor(CoordinatorEntity, SensorEntity):
 async def async_setup_history_sensors(hass: HomeAssistant, coordinator, device_registry):
     """Set up history sensors and attach them to the eedomus box device."""
     
-    # Get or create the main eedomus box device
+    # Get or create the main eedomus box device (identifier prefixed per box/entry)
+    box_id = f"eedomus_box_main_{coordinator.config_entry.entry_id}"
     box_device = device_registry.async_get_or_create(
         config_entry_id=coordinator.config_entry.entry_id,
-        identifiers={(DOMAIN, "eedomus_box_main")},
+        identifiers={(DOMAIN, box_id)},
         name="Box eedomus",
         manufacturer="Eedomus",
         model="Eedomus Box",
@@ -218,7 +220,7 @@ async def async_setup_history_sensors(hass: HomeAssistant, coordinator, device_r
     )
     
     device_info = DeviceInfo(
-        identifiers={(DOMAIN, "eedomus_box_main")},
+        identifiers={(DOMAIN, box_id)},
         name="Box eedomus",
         manufacturer="Eedomus",
         model="Eedomus Box",
