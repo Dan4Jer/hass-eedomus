@@ -8,27 +8,106 @@ from typing import Any
 
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_entry_flow
+from homeassistant.helpers import entity_platform as ep
 
-from .const import DOMAIN
+from .const import DOMAIN, COORDINATOR
 
 _LOGGER = logging.getLogger(__name__)
 
 
+def _get_all_coordinators(hass: HomeAssistant) -> list:
+    """Return every eedomus coordinator currently set up, one per configured box.
+
+    hass.data[DOMAIN] holds a mix of per-config-entry dicts (keyed by
+    entry_id, each with a COORDINATOR key) and a few shared service objects
+    stored directly under their own string key (config_manager, data_service,
+    etc.) - the isinstance/get check below skips those safely.
+    """
+    coordinators = []
+    for entry_data in hass.data.get(DOMAIN, {}).values():
+        if isinstance(entry_data, dict):
+            coordinator = entry_data.get(COORDINATOR)
+            if coordinator is not None:
+                coordinators.append(coordinator)
+    return coordinators
+
+
+def _find_coordinator_for_device(hass: HomeAssistant, device_id: str):
+    """Find which box's coordinator currently knows about the given periph_id.
+
+    On multi-box installs a device_id alone doesn't say which box it belongs
+    to. Prior to this fix, every service handler here closed over a single
+    coordinator - whichever box's config entry happened to finish setup last,
+    since hass.services.async_register silently overwrites the previous
+    registration when called again for the same service name (see GitHub
+    issue #102 / bug #12). This looks the device up across every configured
+    box's coordinator data instead.
+    """
+    for coordinator in _get_all_coordinators(hass):
+        if coordinator.data and device_id in coordinator.data:
+            return coordinator
+    return None
+
+
+def _find_live_climate_entity(hass: HomeAssistant, device_id: str):
+    """Find the live EedomusClimate entity object for a given periph_id.
+
+    entity_platform.async_get_platforms(hass, DOMAIN) returns every
+    EntityPlatform Home Assistant's core has set up for this integration -
+    across every entity domain (climate, sensor, switch...) and every
+    config entry (every box) - each with an `.entities` mapping that HA
+    itself keeps in sync whenever async_add_entities() runs. This replaces a
+    prior lookup that searched hass.data[DOMAIN][entry_id]['entities'], a key
+    nothing in this codebase ever populated, so it never found anything - on
+    single-box installs too, not just multi-box.
+    """
+    for platform in ep.async_get_platforms(hass, DOMAIN):
+        for entity in platform.entities.values():
+            if getattr(entity, "_periph_id", None) == device_id:
+                return entity
+    return None
+
+
 async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
-    """Set up eedomus services."""
+    """Set up eedomus services.
+
+    Called once per configured box (once per config entry). The `coordinator`
+    parameter is kept for backward compatibility with the call sites in
+    __init__.py, but the handlers below no longer close over it directly -
+    they look up the right coordinator for a given device_id dynamically at
+    call time via _find_coordinator_for_device(), so that every box's
+    devices are reachable regardless of which box's setup registered the
+    services first. Home Assistant's service registry is global (one
+    "eedomus.set_value" for the whole instance, not one per config entry), so
+    only the FIRST call actually registers anything; later calls (from
+    additional boxes) just join the pool of coordinators the already
+    -registered handlers can dispatch to.
+    """
+    if hass.services.has_service(DOMAIN, "set_value"):
+        _LOGGER.debug(
+            "Eedomus services already registered - this box's coordinator is "
+            "still reachable via hass.data[DOMAIN], nothing more to register"
+        )
+        return
 
     async def handle_refresh(call: ServiceCall) -> None:
-        """Handle refresh service call."""
+        """Handle refresh service call - refreshes every configured eedomus box."""
         _LOGGER.info("🔄 Manual refresh requested via service call")
-        try:
-            if coordinator:
-                await coordinator.async_request_refresh()
-                _LOGGER.info("✅ Eedomus data refreshed successfully")
-            else:
-                _LOGGER.warning("⚠️  No coordinator available for refresh")
-        except Exception as err:
-            _LOGGER.error("❌ Failed to refresh eedomus data: %s", err)
-            raise err
+        coordinators = _get_all_coordinators(hass)
+        if not coordinators:
+            _LOGGER.warning("⚠️  No coordinator available for refresh")
+            return
+        errors = []
+        for coord in coordinators:
+            try:
+                await coord.async_request_refresh()
+            except Exception as err:
+                box_title = getattr(getattr(coord, "config_entry", None), "title", "unknown box")
+                _LOGGER.error("❌ Failed to refresh eedomus data for %s: %s", box_title, err)
+                errors.append(err)
+        _LOGGER.info("✅ Eedomus data refreshed (%d box(es), %d error(s))", len(coordinators), len(errors))
+        if errors and len(errors) == len(coordinators):
+            raise errors[0]
 
     async def handle_set_value(call: ServiceCall) -> None:
         """Handle set_value service call."""
@@ -41,19 +120,20 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
 
         _LOGGER.info("📤 Setting value %s for device %s via service", value, device_id)
 
+        target_coordinator = _find_coordinator_for_device(hass, device_id)
+        if target_coordinator is None:
+            _LOGGER.error("❌ Device %s not found on any configured eedomus box", device_id)
+            raise ValueError(f"Device {device_id} not found on any configured eedomus box")
+
         try:
-            if not coordinator:
-                _LOGGER.error("❌ No coordinator available - cannot set value")
-                raise ValueError("Coordinator not available")
-            
-            # Send the command to eedomus using the coordinator's method
+            # Send the command to eedomus using the owning box's coordinator
             # This ensures proper fallback and retry logic is applied
-            result = await coordinator.async_set_periph_value(device_id, value)
+            result = await target_coordinator.async_set_periph_value(device_id, value)
 
             if result.get("success") == 1:
                 _LOGGER.info("✅ Successfully set value for device %s", device_id)
                 # Force refresh to get updated state
-                await coordinator.async_request_refresh()
+                await target_coordinator.async_request_refresh()
             else:
                 _LOGGER.warning("⚠️ Set value returned non-success: %s", result)
                 raise ValueError(f"Failed to set value: {result.get('error', 'Unknown error')}")
@@ -63,30 +143,23 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
             raise err
 
     async def handle_reload(call: ServiceCall) -> None:
-        """Handle reload service call."""
+        """Handle reload service call - reloads every configured eedomus box."""
         _LOGGER.info("🔄 Reload requested via service call")
-        try:
-            if not coordinator:
-                _LOGGER.error("❌ No coordinator available - cannot reload")
-                raise ValueError("Coordinator not available")
-            
-            # Get the config entry
-            config_entry = None
-            for entry in hass.config_entries.async_entries(DOMAIN):
-                if entry.entry_id == coordinator.config_entry.entry_id:
-                    config_entry = entry
-                    break
-            
-            if config_entry:
-                # Reload the config entry
-                await hass.config_entries.async_reload(config_entry.entry_id)
-                _LOGGER.info("✅ Eedomus integration reloaded successfully")
-            else:
-                _LOGGER.error("❌ Config entry not found")
-                raise ValueError("Config entry not found")
-        except Exception as err:
-            _LOGGER.error("❌ Failed to reload eedomus integration: %s", err)
-            raise err
+        entries = hass.config_entries.async_entries(DOMAIN)
+        if not entries:
+            _LOGGER.error("❌ No eedomus config entry found")
+            raise ValueError("No eedomus config entry found")
+
+        errors = []
+        for entry in entries:
+            try:
+                await hass.config_entries.async_reload(entry.entry_id)
+                _LOGGER.info("✅ Eedomus integration reloaded successfully (%s)", entry.title)
+            except Exception as err:
+                _LOGGER.error("❌ Failed to reload eedomus integration (%s): %s", entry.title, err)
+                errors.append(err)
+        if errors and len(errors) == len(entries):
+            raise errors[0]
 
     async def handle_set_climate_temperature(call: ServiceCall) -> None:
         """Handle set_climate_temperature service call with validation."""
@@ -119,33 +192,24 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
                 raise ValueError(f"Temperature must be a valid number, got {temperature}")
             raise
         
-        # Validate coordinator and find climate entity
-        if not coordinator:
-            _LOGGER.error("❌ No coordinator available - cannot set climate temperature")
-            raise ValueError("Coordinator not available")
-        
-        # Check if device exists and is a climate entity
-        periph_data = coordinator.data.get(device_id)
-        if not periph_data:
-            _LOGGER.error("❌ Device %s not found in coordinator data", device_id)
-            raise ValueError(f"Device {device_id} not found")
-        
+        # Find which box owns this device, and validate it's a climate entity
+        target_coordinator = _find_coordinator_for_device(hass, device_id)
+        if target_coordinator is None:
+            _LOGGER.error("❌ Device %s not found on any configured eedomus box", device_id)
+            raise ValueError(f"Device {device_id} not found on any configured eedomus box")
+
+        periph_data = target_coordinator.data.get(device_id)
         ha_entity = periph_data.get("ha_entity")
         if ha_entity != "climate":
             _LOGGER.error("❌ Device %s is not a climate entity (found: %s)", device_id, ha_entity)
             raise ValueError(f"Device {device_id} is not a climate entity")
         
-        # Find the climate entity and set temperature
-        climate_entity = None
-        if hasattr(hass, 'data') and DOMAIN in hass.data:
-            for entry_data in hass.data[DOMAIN].values():
-                if 'entities' in entry_data:
-                    for entity in entry_data['entities']:
-                        if hasattr(entity, '_periph_id') and entity._periph_id == device_id:
-                            climate_entity = entity
-                            break
-                if climate_entity:
-                    break
+        # Find the live climate entity object and set the temperature through it,
+        # so its own eedomus-specific value translation (acceptable_values /
+        # entity_specifics, see climate.py) is applied rather than sending a raw
+        # number - this was previously broken for everyone (see docstring of
+        # _find_live_climate_entity), not just on multi-box installs.
+        climate_entity = _find_live_climate_entity(hass, device_id)
         
         if not climate_entity:
             _LOGGER.error("❌ No climate entity found for device %s", device_id)
@@ -157,7 +221,7 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
             _LOGGER.info("✅ Successfully set climate temperature to %.1f°C for %s", rounded_temp, device_id)
             
             # Force refresh to get updated state
-            await coordinator.async_request_refresh()
+            await target_coordinator.async_request_refresh()
             
             return {
                 "success": True,
@@ -351,23 +415,6 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
             
         except Exception as err:
             _LOGGER.error("❌ Device cleanup service failed: %s", err)
-            return {
-                "success": False,
-                "error": str(err)
-            }
-
-    # Register services
-
-            return {
-                "success": True,
-                "entities_analyzed": entities_analyzed,
-                "entities_considered": entities_considered,
-                "entities_identified": len(entities_to_remove),
-                "entities_removed": removed_count
-            }
-            
-        except Exception as err:
-            _LOGGER.error("❌ Cleanup service failed: %s", err)
             return {
                 "success": False,
                 "error": str(err)
