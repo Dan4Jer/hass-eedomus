@@ -63,7 +63,8 @@ class EedomusSelect(EedomusEntity, SelectEntity):
         """Initialize the select entity."""
         super().__init__(coordinator, periph_id)
         self._attr_name = self.coordinator.data[periph_id]["name"]
-        self._attr_unique_id = f"{periph_id}_select"
+        from .entity import get_entry_prefix
+        self._attr_unique_id = f"{get_entry_prefix(coordinator)}_{periph_id}_select"
         self._attr_current_option = self.coordinator.data[periph_id].get(
             "last_value", ""
         )

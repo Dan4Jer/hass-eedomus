@@ -15,6 +15,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers.device_registry import async_get as async_get_device_registry
 
 from .const import DOMAIN
+from .entity import get_entry_prefix
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -33,9 +34,9 @@ class EedomusEndpointVolumeSensor(CoordinatorEntity, SensorEntity):
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_has_entity_name = True
         
-        # Set device info to attach to eedomus box
+        # Set device info to attach to eedomus box (identifier prefixed per box/entry)
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, "eedomus_box_main")},
+            identifiers={(DOMAIN, f"eedomus_box_main_{get_entry_prefix(coordinator)}")},
             name="Box eedomus",
             manufacturer="Eedomus",
             model="Eedomus Box",
@@ -50,7 +51,7 @@ class EedomusEndpointVolumeSensor(CoordinatorEntity, SensorEntity):
     @property
     def unique_id(self) -> str:
         """Return the unique ID of the sensor."""
-        return f"eedomus_{self._endpoint_name.lower()}_volume_kb"
+        return f"{get_entry_prefix(self.coordinator)}_eedomus_{self._endpoint_name.lower()}_volume_kb"
 
     @property
     def native_value(self):
@@ -162,10 +163,11 @@ class EedomusTotalDataVolumeSensor(EedomusEndpointVolumeSensor):
 async def async_setup_endpoint_volume_sensors(hass: HomeAssistant, coordinator, device_registry):
     """Set up endpoint volume sensors and attach them to the eedomus box device."""
     
-    # Get or create the main eedomus box device
+    # Get or create the main eedomus box device (identifier prefixed per box/entry)
+    box_id = f"eedomus_box_main_{coordinator.config_entry.entry_id}"
     box_device = device_registry.async_get_or_create(
         config_entry_id=coordinator.config_entry.entry_id,
-        identifiers={(DOMAIN, "eedomus_box_main")},
+        identifiers={(DOMAIN, box_id)},
         name="Box eedomus",
         manufacturer="Eedomus",
         model="Eedomus Box",

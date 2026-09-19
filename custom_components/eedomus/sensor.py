@@ -235,8 +235,10 @@ class EedomusSensor(EedomusEntity, SensorEntity):
         device_mapping = map_device_to_ha_entity(periph_data, all_devices, coordinator=self.coordinator) if periph_data else {}
         
         if is_system_sensor(periph_data, device_mapping):
+            from .entity import get_entry_prefix
+            box_id = f"eedomus_box_main_{get_entry_prefix(coordinator)}"
             self._attr_device_info = DeviceInfo(
-                identifiers={(DOMAIN, "eedomus_box_main")},
+                identifiers={(DOMAIN, box_id)},
                 name="Box eedomus",
                 manufacturer="Eedomus",
                 model="Eedomus Box",
@@ -514,7 +516,8 @@ class EedomusHistoryProgressSensor(EedomusEntity, SensorEntity):
         super().__init__(
             coordinator, periph_id=device_data["periph_id"]  # Simple string
         )
-        self._attr_unique_id = f"eedomus_history_progress_{device_data['periph_id']}"
+        from .entity import get_entry_prefix
+        self._attr_unique_id = f"{get_entry_prefix(coordinator)}_eedomus_history_progress_{device_data['periph_id']}"
         self._attr_name = f"{device_data['name']} (History Progress)"
         self._attr_icon = "mdi:progress-clock"
 
@@ -556,7 +559,8 @@ class EedomusBatterySensor(EedomusEntity, SensorEntity):
         # Configure battery sensor attributes
         device_name = self.coordinator.data[periph_id].get("name", "Unknown Device")
         self._attr_name = f"{device_name} Battery"
-        self._attr_unique_id = f"{periph_id}_battery"
+        from .entity import get_entry_prefix
+        self._attr_unique_id = f"{get_entry_prefix(coordinator)}_{periph_id}_battery"
         self._attr_device_class = "battery"
         self._attr_native_unit_of_measurement = "%"
         self._attr_state_class = "measurement"

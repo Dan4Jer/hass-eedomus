@@ -58,7 +58,8 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
         """Initialize the climate device."""
         super().__init__(coordinator, periph_id)
         self._attr_name = self.coordinator.data[periph_id]["name"]
-        self._attr_unique_id = f"{periph_id}_climate"
+        from .entity import get_entry_prefix
+        self._attr_unique_id = f"{get_entry_prefix(coordinator)}_{periph_id}_climate"
 
         # Load YAML configuration for this device
         yaml_config = coordinator.get_yaml_config_sync() if hasattr(coordinator, 'get_yaml_config_sync') else {}

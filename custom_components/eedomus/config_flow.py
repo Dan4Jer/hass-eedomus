@@ -129,7 +129,7 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for eedomus."""
 
-    VERSION = 4
+    VERSION = 5
 
     def __init__(self):
         """Initialize the config flow."""
