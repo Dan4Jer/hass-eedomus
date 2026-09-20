@@ -11,7 +11,6 @@ import json
 import datetime
 from homeassistant import config_entries
 from homeassistant.core import callback
-from homeassistant.helpers import selector
 from homeassistant.helpers import config_validation as cv
 from .const import (
     UI_OPTIONS_SCHEMA,

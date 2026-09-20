@@ -11,15 +11,12 @@ from homeassistant.components.light import (
     ATTR_RGBW_COLOR,
     ColorMode,
     LightEntity,
-    LightEntityFeature,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.util.color import (  # color_rgb_to_kelvin,; color_rgb_to_xy,; color_rgbw_to_xy,; color_rgbw_to_temperature,; color_xy_to_color_temperature
+from homeassistant.util.color import (
     color_rgb_to_rgbw,
-    color_RGB_to_xy,
     color_rgbw_to_rgb,
-    color_temperature_to_rgb,
     value_to_brightness,
 )
 

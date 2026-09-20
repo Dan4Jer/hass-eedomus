@@ -15,7 +15,6 @@ from .const import (
     YAML_MAPPING_SCHEMA,
     CONF_USE_YAML,
     CONF_CUSTOM_DEVICES,
-    CONF_YAML_CONTENT,
 )
 
 _LOGGER = logging.getLogger(__name__)
