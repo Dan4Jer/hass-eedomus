@@ -6,9 +6,9 @@ import asyncio
 import logging
 from datetime import datetime, timedelta
 
-from homeassistant.core import HomeAssistant, State
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from homeassistant.helpers import service
 
 from .const import (
     CONF_ENABLE_HISTORY,
@@ -33,7 +33,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
     """Eedomus data update coordinator with optimized refresh strategy."""
 
     def __init__(
-        self, hass: HomeAssistant, client, scan_interval=DEFAULT_SCAN_INTERVAL
+        self,
+        hass: HomeAssistant,
+        client,
+        scan_interval=DEFAULT_SCAN_INTERVAL,
+        config_entry=None,
     ):
         """Initialize the coordinator."""
         super().__init__(
@@ -41,6 +45,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER,
             name=DOMAIN,
             update_interval=timedelta(seconds=scan_interval),
+            config_entry=config_entry,
         )
         self.client = client
         self._last_update_start_time = datetime.now()
@@ -86,7 +91,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         self._yaml_config_cache = None  # Cache for YAML configuration
 
     async def async_config_entry_first_refresh(self):
-        """Effectue le premier rafraîchissement des données et charge la progression de l'historique.
+        """Perform the first data refresh and load history progress.
         
         Performs the initial data refresh when the integration is first set up.
         Loads historical progress data and retrieves full device information from the eedomus API.
@@ -98,9 +103,20 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         await self._load_history_progress()
         
         # Perform initial full data retrieval including peripherals list and value list
-        peripherals, peripherals_value_list, peripherals_caract = (
-            await self._async_full_data_retreive()
-        )
+        try:
+            peripherals, peripherals_value_list, peripherals_caract = (
+                await self._async_full_data_retreive()
+            )
+        except Exception as err:
+            _LOGGER.warning(
+                "Unable to contact eedomus box during initialization (error: %s). "
+                "Home Assistant will automatically retry the connection in the background.",
+                err,
+            )
+            raise ConfigEntryNotReady(
+                f"Unable to join eedomus box at address "
+                f"{self.client.host if hasattr(self.client, 'host') else 'configured'}: {err}"
+            ) from None
         
         # Conversion des listes en dictionnaires
         peripherals_dict = {str(periph["periph_id"]): periph for periph in peripherals}
@@ -111,35 +127,35 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             str(it["periph_id"]): it for it in peripherals_caract
         }
 
-        # Initialisation du dictionnaire agrégé
+        # Initialize aggregated dictionary
         aggregated_data = {}
 
-        # Agrégation des données pour chaque périphérique
+        # Aggregate data for each peripheral
         all_periph_ids = (
             set(peripherals_dict.keys())
             | set(peripherals_value_dict.keys())
             | set(peripherals_caract_dict.keys())
         )
 
-        # Phase 1: Construction complète des données SANS mapping
-        # Cela résout le problème de temporalité où les enfants peuvent ne pas être encore dans aggregated_data
+        # Phase 1: Complete data construction WITHOUT mapping
+        # This resolves the timing issue where children may not yet be in aggregated_data
         for periph_id in all_periph_ids:
             aggregated_data[periph_id] = {}
 
-            # Ajout des données de peripherals_dict (si existantes)
+            # Add data from peripherals_dict (if available)
             if periph_id in peripherals_dict:
                 aggregated_data[periph_id].update(peripherals_dict[periph_id])
 
-            # Ajout des données de peripherals_value_dict (si existantes)
+            # Add data from peripherals_value_dict (if available)
             if periph_id in peripherals_value_dict:
                 aggregated_data[periph_id].update(peripherals_value_dict[periph_id])
 
-            # Ajout des données de peripherals_caract_dict (si existantes)
+            # Add data from peripherals_caract_dict (if available)
             if periph_id in peripherals_caract_dict:
                 aggregated_data[periph_id].update(peripherals_caract_dict[periph_id])
 
-        # Phase 2: Détection des relations parent-enfant pour résoudre les dépendances circulaires
-        # Cela permet d'avoir une vue complète des relations avant d'appliquer le mapping
+        # Phase 2: Detect parent-child relationships to resolve circular dependencies
+        # This allows us to have a complete view of relationships before applying mapping
         parent_child_relations = {}
         for periph_id, device_data in aggregated_data.items():
             parent_id = device_data.get("parent_periph_id")
@@ -148,10 +164,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     parent_child_relations[parent_id] = []
                 parent_child_relations[parent_id].append(periph_id)
 
-        # Phase 3: Application du mapping avec gestion explicite des dépendances
-        # Maintenant que toutes les relations sont établies, nous pouvons appliquer le mapping de manière fiable
+        # Phase 3: Apply mapping with explicit dependency management
+        # Now that all relationships are established, we can reliably apply the mapping
         for periph_id, device_data in aggregated_data.items():
-            # Passer les relations parent-enfant complètes au mapping pour éviter les problèmes de timing
+            # Pass complete parent-child relationships to mapping to avoid timing issues
             eedomus_mapping = map_device_to_ha_entity(
                 device_data, 
                 aggregated_data, 
@@ -160,7 +176,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             )
             aggregated_data[periph_id].update(eedomus_mapping)
 
-        # Logs des tailles
+        # Log sizes
         _LOGGER.info(
             "Initial data load summary - peripherals: %d, value_list: %d, caract: %d, total: %d",
             len(peripherals_dict),
@@ -169,12 +185,12 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             len(aggregated_data),
         )
 
-        # Initialisation des attributs
+        # Initialize attributes
         self._all_peripherals = aggregated_data
         self._dynamic_peripherals = {}
         self._full_refresh_needed = False
 
-        # Traitement des périphériques
+        # Process peripherals
         skipped = 0
         dynamic = 0
         for periph_id, periph_data in aggregated_data.items():
@@ -194,7 +210,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 self._dynamic_peripherals[periph_id] = periph_data
                 dynamic += 1
 
-        _LOGGER.info("📊 Device processing summary: %d total peripherals, %d dynamic, %d skipped, %d processed", len(aggregated_data), dynamic, skipped, len(aggregated_data))
+        _LOGGER.info("Device processing summary: %d total peripherals, %d dynamic, %d skipped, %d processed", len(aggregated_data), dynamic, skipped, len(aggregated_data))
 
         # Log final timing summary for initial refresh (consistent with other refresh types)
         endpoint_details = []
@@ -229,14 +245,14 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     rgbw_children += 1
             
             # Display summary at INFO level (always visible)
-            _LOGGER.info("🗺️ Device Mapping Summary: %d total devices, %d unique types", 
+            _LOGGER.info("Device Mapping Summary: %d total devices, %d unique types", 
                         len(aggregated_data), len(device_types))
             if rgbw_lamps > 0:
-                _LOGGER.info("🎨 RGBW Devices: %d lamps with %d brightness channels", 
+                _LOGGER.info("RGBW Devices: %d lamps with %d brightness channels", 
                            rgbw_lamps, rgbw_children)
             
             # Display enhanced mapping table at INFO level for complete visibility
-            _LOGGER.info("🗺️ Enhanced Device Mapping Table:")
+            _LOGGER.info("Enhanced Device Mapping Table:")
             _LOGGER.info("=" * 150)
             _LOGGER.info("| Periph ID   | Device Name                          | Parent ID     | Type       | Subtype         | usage_id | PRODUCT_TYPE_ID | Justification                                  |")
             _LOGGER.info("=" * 150)
@@ -259,9 +275,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 if is_rgbw_parent:
                     children = [child_id for child_id, child in aggregated_data.items() 
                               if child.get('parent_periph_id') == periph_id]
-                    justification = f"🎨 RGBW lamp detected ({len(children)} children)"
+                    justification = f"RGBW lamp detected ({len(children)} children)"
                 elif is_rgbw_child:
-                    justification = f"🎨 RGBW child brightness channel (parent: {parent_id})"
+                    justification = f"RGBW child brightness channel (parent: {parent_id})"
                 else:
                     justification = f"{ha_entity}:{ha_subtype} mapping"
                 
@@ -278,7 +294,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             
             _LOGGER.info("=" * 150)
             _LOGGER.info(f"Total devices mapped: {len(aggregated_data)}")
-            _LOGGER.info("⚠️  Note: This table shows all devices with complete coordinator data")
+            _LOGGER.info("Note: This table shows all devices with complete coordinator data")
             _LOGGER.info("")
             self._mapping_table_displayed = True
         
@@ -583,7 +599,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         """Perform a complete refresh of all peripherals."""
         _LOGGER.debug("Performing full data refresh from eedomus API")
 
-        # Récupération des données - CORRECTED: now calls full data retrieve with all endpoints
+        # Data retrieval - CORRECTED: now calls full data retrieve with all endpoints
         peripherals_caract = await self._async_full_data_retreive()
         
         # SAFE: Ensure peripherals_caract contains dictionaries with periph_id
@@ -611,10 +627,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         if nested_structure_count > 0:
             _LOGGER.debug("🔍 Found %d nested structure(s) in peripherals_caract, flattened successfully", nested_structure_count)
 
-        # Initialisation du dictionnaire agrégé
+        # Initialize aggregated dictionary
         aggregated_data = self.data
 
-        # Agrégation des données pour chaque périphérique
+        # Aggregate data for each peripheral
         all_periph_ids = set(peripherals_caract_dict.keys())
 
         for periph_id in all_periph_ids:
@@ -622,24 +638,24 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 _LOGGER.warn("This periph_id is unknown %d, please do a reload", periph_id)
                 aggregated_data[periph_id] = {}
 
-            # Ajout des données de peripherals_caract_dict (si existantes)
+            # Add data from peripherals_caract_dict (if available)
             if periph_id in peripherals_caract_dict:
                 aggregated_data[periph_id].update(peripherals_caract_dict[periph_id])
 
 
-        # Logs des tailles
+        # Log sizes
         _LOGGER.debug(
             "Data refresh summary - caract: %d, total: %d",
             len(peripherals_caract_dict),
             len(aggregated_data),
         )
 
-        # Initialisation des attributs
+        # Initialize attributes
         self._all_peripherals = aggregated_data
         self._dynamic_peripherals = {}
         self._full_refresh_needed = False
 
-        # Traitement des périphériques
+        # Process peripherals
         skipped = 0
         dynamic = 0
         for periph_id, periph_data in aggregated_data.items():
@@ -659,7 +675,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 self._dynamic_peripherals[periph_id] = periph_data
                 dynamic += 1
 
-        _LOGGER.info("📊 Device processing summary: %d total peripherals, %d dynamic, %d skipped, %d processed", len(aggregated_data), dynamic, skipped, len(aggregated_data))
+        _LOGGER.info("Device processing summary: %d total peripherals, %d dynamic, %d skipped, %d processed", len(aggregated_data), dynamic, skipped, len(aggregated_data))
 
         # Mapping table only displayed on initial startup, not on subsequent refreshes
         # This reduces log volume while maintaining useful startup information
@@ -750,7 +766,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         processed_devices = 0
         for periph_data in peripherals_body:
             periph_id = periph_data.get("periph_id")
-            # Ajout des données de peripherals_caract_dict (si existantes)
+            # Add data from peripherals_caract_dict (if available)
             if self.data and periph_id in self.data:
                 self.data[periph_id].update(periph_data)
                 processed_devices += 1
@@ -827,9 +843,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         await self.async_request_refresh()
 
     async def _load_history_progress(self):
-        """Charge la progression depuis les states Home Assistant.
+        """Load progress from Home Assistant states.
         
-        Cette méthode charge la progression depuis les states existants.
+        This method loads progress from existing states.
         """
         _LOGGER.debug("Loading history progress from Home Assistant states")
         
@@ -856,9 +872,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             )
 
     async def _save_history_progress(self):
-        """Sauvegarde la progression dans les states Home Assistant.
+        """Save progress to Home Assistant states.
         
-        Cette méthode utilise uniquement les states de Home Assistant.
+        This method uses only Home Assistant states.
         """
         _LOGGER.debug("Saving history progress to Home Assistant states")
         
@@ -884,7 +900,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.error("Error saving history progress: %s", e)
 
     def _validate_history_data(self, chunk: list) -> bool:
-        """Valider les données historiques reçues."""
+        """Validate received history data."""
         if not isinstance(chunk, list):
             return False
 
@@ -893,7 +909,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 return False
             if "timestamp" not in entry or "value" not in entry:
                 return False
-            # Vérifier que le timestamp est valide
+            # Validate that the timestamp is valid
             try:
                 datetime.fromisoformat(entry["timestamp"])
             except ValueError:
@@ -902,18 +918,18 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         return True
 
     def _handle_fetch_error(self, periph_id, error_message):
-        """Gérer les erreurs de récupération d'historique."""
+        """Handle history fetch errors."""
         now = datetime.now().timestamp()
 
-        # Initialiser si première erreur
+        # Initialize if first error
         if periph_id not in self._error_count:
             self._error_count[periph_id] = 0
 
         self._error_count[periph_id] += 1
 
-        # Si première erreur, mettre en pause pour la durée configurée
+        # If first error, pause for configured duration
         if self._error_count[periph_id] == 1:
-            # Obtenir la durée de réessai depuis la configuration
+            # Get retry delay from configuration
             retry_delay_hours = self.config_entry.options.get(
                 CONF_HISTORY_RETRY_DELAY,
                 DEFAULT_HISTORY_RETRY_DELAY
@@ -926,16 +942,16 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 "error_message": error_message,
                 "attempts": 1
             }
-            _LOGGER.error(f"❌ Erreur lors de la récupération de l'historique pour {periph_id}: {error_message}")
-            _LOGGER.error(f"   Réessai dans {retry_delay_hours} heures")
+            _LOGGER.error(f"Failed to retrieve history for {periph_id}: {error_message}")
+            _LOGGER.error(f"   Retry in {retry_delay_hours} hours")
         else:
-            # Mettre à jour le compteur d'erreurs
+            # Update error counter
             if periph_id in self._retry_queue:
                 self._retry_queue[periph_id]["attempts"] += 1
 
     async def async_fetch_history_chunk(self, periph_id: str) -> list:
-        """Récupère un chunk de 10 000 points d'historique."""
-        # Vérifier si le périphérique est en queue de réessai
+        """Fetch a chunk of 10,000 history data points."""
+        # Check if the peripheral is in retry queue
         if periph_id in self._retry_queue:
             retry_info = self._retry_queue[periph_id]
             if datetime.now().timestamp() < retry_info["retry_after"]:
@@ -974,13 +990,13 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 self._handle_fetch_error(periph_id, "No data received")
                 return []
 
-            # Valider les données reçues
+            # Validate received data
             if not self._validate_history_data(chunk):
-                _LOGGER.error(f"❌ Données historiques invalides pour {periph_id}")
+                _LOGGER.error(f"Invalid history data for {periph_id}")
                 self._handle_fetch_error(periph_id, "Invalid data format")
                 return []
 
-            if len(chunk) < 10000:  # ⚠️ À adapter selon la réponse réelle de l'API eedomus
+            if len(chunk) < 10000:  # Adjust according to actual eedomus API response
                 progress["completed"] = True
                 _LOGGER.info(
                     "History fully fetched for %s (%s) (received %d entries)",
@@ -1032,17 +1048,17 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             return chunk
             
         except Exception as e:
-            _LOGGER.error(f"❌ Erreur lors de la récupération de l'historique pour {periph_id}: {e}")
+            _LOGGER.error(f"Failed to retrieve history for {periph_id}: {e}")
             self._handle_fetch_error(periph_id, str(e))
             return []
 
     async def _create_error_sensors(self):
-        """Créer des capteurs pour visualiser les erreurs et la queue de réessais."""
+        """Create sensors to visualize errors and retry queue."""
         if not self.hass:
             return
         
         try:
-            # Capteur pour le nombre total de périphériques en erreur
+            # Sensor for total number of devices in error
             self.hass.states.async_set(
                 "sensor.eedomus_history_errors_total",
                 str(len(self._retry_queue)),
@@ -1056,7 +1072,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 },
             )
 
-            # Capteur pour le nombre de périphériques complétés
+            # Sensor for number of completed devices
             completed_count = sum(1 for p in self._history_progress.values() if p.get("completed", False))
             self.hass.states.async_set(
                 "sensor.eedomus_history_completed",
@@ -1071,7 +1087,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 },
             )
 
-            # Capteur pour chaque périphérique en erreur
+            # Sensor for each device in error
             for periph_id, error_info in self._retry_queue.items():
                 periph_name = self.data.get(periph_id, {}).get("name", "Unknown")
                 retry_in_hours = max(0, (error_info["retry_after"] - datetime.now().timestamp()) / 3600)
@@ -1383,16 +1399,16 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 continue
         if not values_list:
             raise ValueError(
-                f"Aucune valeur disponible pour le périphérique {periph_id}"
+                f"No value available for peripheral {periph_id}"
             )
 
         try:
             target_value = int(value)
         except ValueError:
-            raise ValueError(f"La valeur cible '{value}' n'est pas un nombre valide.")
+            raise ValueError(f"Target value '{value}' is not a valid number.")
         if not available_entries:
             raise ValueError(
-                f"Aucune valeur numérique valide trouvée pour le périphérique {periph_id}"
+                f"No valid numeric value found for peripheral {periph_id}"
             )
 
         return min(available_entries, key=lambda x: abs(x[0] - target_value))[1]
