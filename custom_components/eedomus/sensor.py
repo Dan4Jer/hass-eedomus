@@ -378,17 +378,6 @@ class EedomusSensor(EedomusEntity, SensorEntity):
         # But for now, we'll keep it simple
         return None
 
-        if value_type == "float":
-            if unit == "°C":
-                return "temperature"
-            elif unit == "%":
-                return "humidity"
-            elif unit == "Lux":
-                return "illuminance"
-            elif unit in ["W", "Wh"]:
-                return "power" if unit == "W" else "energy"
-        return None
-
     @property
     def native_unit_of_measurement(self):
         """Return the unit of measurement."""

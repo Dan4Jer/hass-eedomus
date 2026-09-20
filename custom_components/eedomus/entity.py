@@ -632,37 +632,6 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     return mapping
 
 
-    """Crée un mapping standardisé avec logging approprié."""
-    # mapping_config peut être soit la section 'mapping' directement, soit la règle complète
-    # avec une section 'mapping' imbriquée
-    if "ha_entity" in mapping_config:
-        # Cas 1: mapping_config est la section 'mapping' directement
-        mapping = {
-            "ha_entity": mapping_config["ha_entity"],
-            "ha_subtype": mapping_config["ha_subtype"],
-            "justification": mapping_config["justification"]
-        }
-    elif "mapping" in mapping_config:
-        # Cas 2: mapping_config est la règle complète avec une section 'mapping' imbriquée
-        mapping = {
-            "ha_entity": mapping_config["mapping"]["ha_entity"],
-            "ha_subtype": mapping_config["mapping"]["ha_subtype"],
-            "justification": mapping_config["mapping"]["justification"]
-        }
-    else:
-        raise ValueError(f"Invalid mapping_config structure: {mapping_config}")
-    
-    log_method = _LOGGER.info if emoji != "❓" else _LOGGER.warning
-    log_method("%s %s mapping: %s (%s) → %s:%s", 
-               emoji, context, periph_name, periph_id, mapping["ha_entity"], mapping["ha_subtype"])
-    
-    # Debug logging pour le suivi du processus de mapping
-    _LOGGER.debug("Mapping decision details for %s (%s): method=%s, result=%s:%s, justification=%s",
-                  periph_name, periph_id, context, mapping["ha_entity"], mapping["ha_subtype"],
-                  mapping["justification"])
-    
-    # Stocker le mapping dans le registre global
-    register_device_mapping(mapping, periph_name, periph_id, device_data)
     async def async_set_value(self, value: str) -> dict | None:
         """Set the value of the peripheral using the eedomus service.
         
