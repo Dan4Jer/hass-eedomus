@@ -11,7 +11,7 @@ yarl==1.24.5
 black==26.5.1
 flake8==7.3.0
 isort==9.0.1
-pytest==9.0.3
+pytest==9.1.1
 pytest-asyncio==1.4.0
 mypy==2.1.0
 pip-audit==2.10.0  # Security: Dependency vulnerability scanning
@@ -27,4 +27,4 @@ mkdocs-material==9.7.7
 
 # Type checking
 types-aiohttp==0.4.11
-types-requests==2.33.0.20260518  # Ajout pour le typage de requests
+types-requests==2.33.0.20260906  # Ajout pour le typage de requests
