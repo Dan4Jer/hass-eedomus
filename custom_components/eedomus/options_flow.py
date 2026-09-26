@@ -169,8 +169,8 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                     CONF_HTTP_REQUEST_TIMEOUT: user_input.get(CONF_HTTP_REQUEST_TIMEOUT, current_config.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)),
                 }
                 
-                # Update config entry options - using async_update_entry as per HA best practices
-                return await self.async_update_entry(data=None, options=options)
+                # Update config entry options - using async_create_entry as per HA best practices
+                return await self.async_create_entry(data=None, options=options)
             
             # Show comprehensive options form
             return self.async_show_form(
@@ -284,7 +284,7 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 
                 # Save options to config entry - using data parameter as per HA best practices
                 _LOGGER.debug("Saving YAML configuration")
-                return await self.async_update_entry(data=None, options=options)
+                return await self.async_create_entry(data=None, options=options)
             except (yaml.YAMLError, vol.Invalid) as e:
                 errors["base"] = f"Invalid YAML: {e}"
                 _LOGGER.error(f"Failed to save YAML configuration: {e}")
