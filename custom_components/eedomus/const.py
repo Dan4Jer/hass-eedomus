@@ -76,7 +76,7 @@ DEFAULT_HTTP_REQUEST_TIMEOUT = 10  # 10 seconds timeout for HTTP requests to eed
 # Rate Limiting Configuration
 CONF_MAX_CONCURRENT_REQUESTS = "max_concurrent_requests"
 CONF_MIN_REQUEST_DELAY = "min_request_delay"
-DEFAULT_MAX_CONCURRENT_REQUESTS = 3  # Maximum concurrent requests to eedomus API
+DEFAULT_MAX_CONCURRENT_REQUESTS = 1  # Maximum concurrent requests to eedomus API (1 to prevent code 26)
 DEFAULT_MIN_REQUEST_DELAY = 0.6  # Minimum delay between requests in seconds (600ms > 500ms eedomus requirement)
 
 # Platforms
