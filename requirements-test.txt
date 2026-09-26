@@ -1,0 +1,4 @@
+# Test dependencies for hass-eedomus
+pytest>=7.0.0
+pytest-timeout>=2.1.0
+requests>=2.31.0
