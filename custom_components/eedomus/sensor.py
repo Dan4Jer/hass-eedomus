@@ -272,7 +272,7 @@ class EedomusSensor(EedomusEntity, SensorEntity):
             self._attr_device_class = "power"
             self._attr_native_unit_of_measurement = "W"
         elif periph_type == "time":
-            self._attr_device_class = "duration"
+            self._attr_device_class = None
             self._attr_native_unit_of_measurement = "h"
         elif periph_type == "cpu_usage" or periph_type == "cpu":
             self._attr_device_class = "cpu"
