@@ -16,6 +16,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 # Import the options flow handler for the async_get_options_flow method
 from .options_flow import EedomusOptionsFlow
+from .entity import _get_config_value
 
 from .const import (
     CONF_API_HOST,
@@ -349,8 +350,8 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_remove(self, user_input=None):
         """Handle the removal of the config entry."""
         # Get the remove_entities option from the config entry
-        remove_entities = self.config_entry.options.get(
-            CONF_REMOVE_ENTITIES, DEFAULT_REMOVE_ENTITIES
+        remove_entities = _get_config_value(
+            self.config_entry, CONF_REMOVE_ENTITIES, DEFAULT_REMOVE_ENTITIES
         )
 
         if remove_entities:

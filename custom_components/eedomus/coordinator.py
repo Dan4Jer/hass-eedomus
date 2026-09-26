@@ -24,7 +24,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
 )
-from .entity import EedomusEntity, map_device_to_ha_entity
+from .entity import EedomusEntity, map_device_to_ha_entity, _get_config_value
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -688,8 +688,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         Updates only devices marked as dynamic (lights, switches, sensors that change frequently).
         More efficient than full refresh as it targets only devices that need frequent updates.
         """
-        history_retrieval = self.client.config_entry.data.get(
-            CONF_ENABLE_HISTORY, False
+        history_retrieval = _get_config_value(
+            self.client.config_entry, CONF_ENABLE_HISTORY, False
         )
         
         # Get all peripherals that need history retrieval
@@ -930,9 +930,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # If first error, pause for configured duration
         if self._error_count[periph_id] == 1:
             # Get retry delay from configuration
-            retry_delay_hours = self.config_entry.options.get(
-                CONF_HISTORY_RETRY_DELAY,
-                DEFAULT_HISTORY_RETRY_DELAY
+            retry_delay_hours = _get_config_value(
+                self.config_entry, CONF_HISTORY_RETRY_DELAY, DEFAULT_HISTORY_RETRY_DELAY
             )
             retry_delay = retry_delay_hours * 3600
             retry_after = now + retry_delay

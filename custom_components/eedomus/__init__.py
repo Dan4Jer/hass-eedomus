@@ -312,8 +312,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # Debug logging to understand the decision process
         _LOGGER.debug(
             "History option decision during init: config=%s, options=%s, final=%s",
-            coordinator.config_entry.data.get(CONF_ENABLE_HISTORY, "not_set"),
-            coordinator.config_entry.options.get(CONF_ENABLE_HISTORY, "not_set"),
+            _get_config_value(coordinator.config_entry, CONF_ENABLE_HISTORY, "not_set"),
+            _get_config_value(coordinator.config_entry, CONF_ENABLE_HISTORY, "not_set"),
             history_enabled
         )
         
@@ -439,7 +439,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     # Define allowed_ips for webhook
-    allowed_ips = [entry.data.get(CONF_API_HOST)]
+    allowed_ips = [_get_config_value(entry, CONF_API_HOST)]
 
     # Setup webhook if enabled
     if webhook_enabled:
@@ -448,7 +448,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.http.register_view(
             EedomusWebhookView(
                 entry.entry_id,
-                allowed_ips=[entry.data.get(CONF_API_HOST)],
+                allowed_ips=[_get_config_value(entry, CONF_API_HOST)],
                 disable_security=disable_security,
             )
         )
@@ -460,7 +460,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.http.register_view(
             EedomusApiProxyView(
                 entry.entry_id,
-                allowed_ips=[entry.data.get(CONF_API_HOST)],
+                allowed_ips=[_get_config_value(entry, CONF_API_HOST)],
                 disable_security=disable_security,
             )
         )

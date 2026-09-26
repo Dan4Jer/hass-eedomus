@@ -20,6 +20,7 @@ from .const import (
     DEFAULT_HTTP_REQUEST_TIMEOUT,
     CONF_HTTP_REQUEST_TIMEOUT,
 )
+from .entity import _get_config_value
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -57,33 +58,27 @@ class EedomusClient:
         """Initialize the client."""
         self.session = session
         self.config_entry = config_entry
-        self.api_user = config_entry.data["api_user"]
-        self.api_secret = config_entry.data["api_secret"]
-        self.api_host = config_entry.data["api_host"]
+        self.api_user = _get_config_value(config_entry, "api_user")
+        self.api_secret = _get_config_value(config_entry, "api_secret")
+        self.api_host = _get_config_value(config_entry, "api_host")
         self.base_url_get = f"http://{self.api_host}/api/get"
         self.base_url_set = f"http://{self.api_host}/api/set"
         self.base_url_script = f"http://{self.api_host}/script/?exec="
 
         # Configuration du PHP fallback
-        self.php_fallback_enabled = config_entry.options.get(
-            "php_fallback_enabled",
-            config_entry.data.get("php_fallback_enabled", DEFAULT_PHP_FALLBACK_ENABLED),
+        self.php_fallback_enabled = _get_config_value(
+            config_entry, "php_fallback_enabled", DEFAULT_PHP_FALLBACK_ENABLED
         )
-        self.php_fallback_script_name = config_entry.options.get(
-            "php_fallback_script_name",
-            config_entry.data.get(
-                "php_fallback_script_name", DEFAULT_PHP_FALLBACK_SCRIPT_NAME
-            ),
+        self.php_fallback_script_name = _get_config_value(
+            config_entry, "php_fallback_script_name", DEFAULT_PHP_FALLBACK_SCRIPT_NAME
         )
-        self.php_fallback_timeout = config_entry.options.get(
-            "php_fallback_timeout",
-            config_entry.data.get("php_fallback_timeout", DEFAULT_PHP_FALLBACK_TIMEOUT),
+        self.php_fallback_timeout = _get_config_value(
+            config_entry, "php_fallback_timeout", DEFAULT_PHP_FALLBACK_TIMEOUT
         )
 
         # Configuration du timeout HTTP
-        self.http_request_timeout = config_entry.options.get(
-            CONF_HTTP_REQUEST_TIMEOUT,
-            config_entry.data.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT),
+        self.http_request_timeout = _get_config_value(
+            config_entry, CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT
         )
 
     async def fetch_data(
