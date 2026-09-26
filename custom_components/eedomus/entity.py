@@ -27,6 +27,38 @@ except Exception as e:
 
 _LOGGER = logging.getLogger(__name__)
 
+
+def _get_config_value(entry, option_name, default_value=None):
+    """Get a configuration value from entry, trying options first, then data, then default.
+    
+    This function handles the Home Assistant bug where entry.options may be empty or None.
+    It provides a consistent fallback mechanism to ensure options work even if HA doesn't
+    persist them correctly.
+    
+    Args:
+        entry: The config entry
+        option_name: The option name to retrieve
+        default_value: The default value if not found in options or data
+        
+    Returns:
+        The value for the option, or default_value if not found
+    """
+    # Try options first (may be empty due to HA bug)
+    if hasattr(entry.options, 'items') and entry.options:
+        value = entry.options.get(option_name)
+        if value is not None:
+            return value
+    
+    # Fall back to data
+    if hasattr(entry.data, 'items') and entry.data:
+        value = entry.data.get(option_name)
+        if value is not None:
+            return value
+    
+    # Return default
+    return default_value
+
+
 # Global variable to store loaded mappings
 # NOTE: DEVICE_MAPPINGS is initialized at module load time using synchronous YAML loading.
 # This triggers a single blocking warning during Home Assistant startup, which is acceptable.

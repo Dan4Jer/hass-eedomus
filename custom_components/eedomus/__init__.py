@@ -39,6 +39,7 @@ from .const import (
     PLATFORMS,
     BOX_DEVICE_ID,
 )
+from .entity import _get_config_value
 from .coordinator import EedomusDataUpdateCoordinator
 
 from .eedomus_client import EedomusClient
@@ -113,37 +114,6 @@ async def _async_init_ui_service(hass: HomeAssistant):
     ui_service = await hass.async_add_executor_job(_init_ui_service, hass)
     await ui_service.async_init()
     return ui_service
-
-
-def _get_config_value(entry: ConfigEntry, option_name: str, default_value=None):
-    """Get a configuration value from entry, trying options first, then data, then default.
-    
-    This function handles the Home Assistant bug where entry.options may be empty or None.
-    It provides a consistent fallback mechanism to ensure options work even if HA doesn't
-    persist them correctly.
-    
-    Args:
-        entry: The config entry
-        option_name: The option name to retrieve
-        default_value: The default value if not found in options or data
-        
-    Returns:
-        The value for the option, or default_value if not found
-    """
-    # Try options first (may be empty due to HA bug)
-    if hasattr(entry.options, 'items') and entry.options:
-        value = entry.options.get(option_name)
-        if value is not None:
-            return value
-    
-    # Fall back to data
-    if hasattr(entry.data, 'items') and entry.data:
-        value = entry.data.get(option_name)
-        if value is not None:
-            return value
-    
-    # Return default
-    return default_value
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
