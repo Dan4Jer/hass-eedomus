@@ -14,7 +14,7 @@ isort==9.0.1
 pytest==9.1.1
 pytest-asyncio==1.4.0
 mypy==2.1.0
-pip-audit==2.10.0  # Security: Dependency vulnerability scanning
+pip-audit==2.10.1  # Security: Dependency vulnerability scanning
 safety==3.8.0     # Security: Known vulnerability checking
 
 
