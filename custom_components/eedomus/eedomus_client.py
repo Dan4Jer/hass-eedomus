@@ -337,11 +337,18 @@ class EedomusClient:
                 params,
             )
 
-            async with async_timeout(self.php_fallback_timeout):
-                async with self.session.get(
-                    php_fallback_script_url, params=params
-                ) as resp:
-                    raw_data = await resp.read()
+            # Apply rate limiting for PHP fallback requests too
+            async with EedomusClient._global_rate_limit_lock:
+                time_since_last = time.time() - EedomusClient._global_last_request_time
+                if time_since_last < self.min_request_delay:
+                    await asyncio.sleep(self.min_request_delay - time_since_last)
+                EedomusClient._global_last_request_time = time.time()
+
+                async with async_timeout(self.php_fallback_timeout):
+                    async with self.session.get(
+                        php_fallback_script_url, params=params
+                    ) as resp:
+                        raw_data = await resp.read()
 
                     if resp.status != 200:
                         error_text = raw_data.decode("utf-8", errors="replace")
