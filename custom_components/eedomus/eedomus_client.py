@@ -57,11 +57,19 @@ HISTORY_API_URL = "https://api.eedomus.com"
 
 class EedomusClient:
     """Client for interacting with eedomus API with proper encoding handling."""
+    
+    # Global request timing for rate limiting across all instances
+    _global_last_request_time = 0.0
+    _global_rate_limit_lock = None
 
     def __init__(self, session: aiohttp.ClientSession, config_entry: ConfigEntry):
         """Initialize the client."""
         self.session = session
         self.config_entry = config_entry
+        
+        # Initialize global rate limiting lock if not already done
+        if EedomusClient._global_rate_limit_lock is None:
+            EedomusClient._global_rate_limit_lock = asyncio.Lock()
         self.api_user = _get_config_value(config_entry, "api_user")
         self.api_secret = _get_config_value(config_entry, "api_secret")
         self.api_host = _get_config_value(config_entry, "api_host")
@@ -115,13 +123,15 @@ class EedomusClient:
         self.url = url
         self.params = params
 
-        # Rate limiting: wait for semaphore and respect minimum delay
-        async with self._request_semaphore:
-            # Calculate time since last request
-            time_since_last = time.time() - self._last_request_time
+        # Rate limiting: use global lock to ensure minimum delay between ALL requests
+        async with EedomusClient._global_rate_limit_lock:
+            # Calculate time since last request (global across all clients/instances)
+            time_since_last = time.time() - EedomusClient._global_last_request_time
             if time_since_last < self.min_request_delay:
                 await asyncio.sleep(self.min_request_delay - time_since_last)
-            self._last_request_time = time.time()
+            
+            # Update global timestamp BEFORE the request starts
+            EedomusClient._global_last_request_time = time.time()
 
             try:
                 async with async_timeout(self.http_request_timeout):
