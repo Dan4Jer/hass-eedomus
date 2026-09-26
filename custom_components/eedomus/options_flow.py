@@ -170,9 +170,7 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 }
                 
                 # Update config entry options - using async_update_entry as per HA best practices
-                return await self.hass.config_entries.options.async_update_entry(
-                    entry=self.config_entry, options=options
-                )
+                return await self.async_update_entry(data=None, options=options)
             
             # Show comprehensive options form
             return self.async_show_form(
@@ -286,9 +284,7 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 
                 # Save options to config entry - using data parameter as per HA best practices
                 _LOGGER.debug("Saving YAML configuration")
-                return await self.hass.config_entries.options.async_update_entry(
-                    entry=self.config_entry, options=options
-                )
+                return await self.async_update_entry(data=None, options=options)
             except (yaml.YAMLError, vol.Invalid) as e:
                 errors["base"] = f"Invalid YAML: {e}"
                 _LOGGER.error(f"Failed to save YAML configuration: {e}")
