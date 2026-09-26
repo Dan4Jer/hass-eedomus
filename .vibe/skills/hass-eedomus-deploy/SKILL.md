@@ -378,7 +378,23 @@ ssh ${REMOTE_IP} "ha core logs | grep -i eedomus | tail -20"
 
 # Check version in logs
 ssh ${REMOTE_IP} "ha core logs | grep 'eedomus integration' | tail -5"
+
+# Run the E2E test suite (functional validation of the deployment)
+python3 -m pytest tests/e2e/ -v
 ```
+
+**Step 6: Post-Deployment E2E Validation (recommended)**
+
+After each deployment, run the E2E suite to validate the integration
+still works end-to-end on the live instance:
+```bash
+python3 -m pytest tests/e2e/ -v
+# 12 tests: connectivity, refresh, set_value, OptionsFlow
+# Passes in ~45s; non-destructive (test peripheral state restored)
+```
+A red suite after a deployment means the deployment introduced a
+regression: check `get_rasp_logs.sh tail` for the failing area and
+roll back (git revert + redeploy) if needed.
 
 ### 2. Branch Switching Deployment
 
@@ -751,13 +767,35 @@ ssh ${REMOTE_IP} "cd ${REMOTE_PATH} && \
    git push origin backup-$(date +%Y%m%d-%H%M%S)
    ```
 
-3. **Test Locally First**: Test changes in development before deploying
+3. **Test Before and After Deployment**: Run the test suite around deployments
    ```bash
-   # Test syntax
+   # Syntax check
    python3 -m py_compile custom_components/eedomus/*.py
-   
-   # Run local tests
+
+   # Fast local tests only (no HA instance required)
+   python3 -m pytest tests/unit/ tests/integration/ -v
+
+   # E2E tests against the live Raspberry Pi instance
+   # (requires HA_TOKEN in .env, exercises real services:
+   #  refresh, set_value on RubanLed Salon, OptionsFlow)
+   python3 -m pytest tests/e2e/ -v
+
+   # Everything (E2E included)
    python3 -m pytest tests/ -v
+   ```
+
+   **E2E prerequisites** (see tests/e2e/conftest.py):
+   - `.env` at project root with `HA_TOKEN=<long-lived access token>`
+   - HA instance reachable at `HA_URL` (default http://192.168.1.5:8123)
+   - The E2E suite is non-destructive: set_value toggles the RubanLed
+     Salon (periph 3485837) and restores its initial state; OptionsFlow
+     tests submit current defaults and restore scan_interval.
+
+   **Deployment workflow with tests:**
+   ```
+   local tests pass → git push → deploy_hass_eedomus.sh
+   → wait 30-60s → E2E suite (post-deployment validation)
+   → get_rasp_logs.sh tail (log check)
    ```
 
 4. **Monitor After Deployment**: Always check logs after deployment

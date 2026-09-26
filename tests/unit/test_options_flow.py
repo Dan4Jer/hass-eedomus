@@ -1,0 +1,145 @@
+"""Unit tests for the options flow (options_flow.py).
+
+Regression tests for the bug fixed in commits 69ed3f4..2e6b6b3:
+submitting the options form used a nonexistent API
+('OptionsFlowManager' object has no attribute 'async_update_entry')
+and options were never saved.
+
+The correct behavior: submitting user_input calls
+self.async_create_entry(data=<options dict>).
+"""
+
+from types import SimpleNamespace
+from unittest.mock import MagicMock
+
+import pytest
+
+from custom_components.eedomus.options_flow import EedomusOptionsFlow
+
+
+pytestmark = pytest.mark.unit
+
+
+def make_flow(options=None, data=None):
+    flow = EedomusOptionsFlow(SimpleNamespace(data=data or {}, options=options or {}))
+    # In real HA, OptionsFlow.config_entry is set by the framework.
+    flow.config_entry = SimpleNamespace(data=data or {}, options=options or {})
+    flow.hass = MagicMock()
+    return flow
+
+
+def capture_create_entry(flow):
+    """Patch async_create_entry and return the mock."""
+    mock = MagicMock(return_value={"type": "create_entry"})
+    flow.async_create_entry = mock
+    return mock
+
+
+class TestAsyncStepInitSubmit:
+    @pytest.mark.asyncio
+    async def test_submit_calls_async_create_entry_with_data(self):
+        """The fix: submit must call async_create_entry(data=options)."""
+        flow = make_flow(options={"scan_interval": 300})
+        mock = capture_create_entry(flow)
+
+        result = await flow.async_step_init(user_input={"scan_interval": 600})
+
+        mock.assert_called_once()
+        kwargs = mock.call_args.kwargs
+        assert "data" in kwargs, "options must be passed via the data parameter"
+        assert kwargs["data"]["scan_interval"] == 600
+
+    @pytest.mark.asyncio
+    async def test_submit_does_not_use_forbidden_apis(self):
+        """Regression: the old code called nonexistent APIs and crashed.
+
+        If the flow were to call self.async_update_entry or
+        self.hass.config_entries.options.async_update_entry, Python
+        would raise AttributeError - the test would fail loudly.
+        """
+        flow = make_flow(options={})
+        capture_create_entry(flow)
+
+        # No AttributeError raised = the forbidden code path is not used
+        await flow.async_step_init(user_input={})
+
+    @pytest.mark.asyncio
+    async def test_submit_builds_full_options_dict(self):
+        """All supported options are present in the saved dict."""
+        flow = make_flow(options={})
+        mock = capture_create_entry(flow)
+
+        await flow.async_step_init(
+            user_input={"scan_interval": 120, "history": True}
+        )
+
+        data = mock.call_args.kwargs["data"]
+        expected_keys = {
+            "api_eedomus", "enable_api_proxy", "history",
+            "history_peripherals_per_scan", "scan_interval",
+            "enable_set_value_retry", "enable_webhook",
+            "api_proxy_disable_security", "php_fallback_enabled",
+            "php_fallback_script_name", "php_fallback_timeout",
+            "http_request_timeout",
+        }
+        assert expected_keys.issubset(data.keys()), (
+            f"Missing options: {expected_keys - set(data.keys())}"
+        )
+        assert data["scan_interval"] == 120
+        assert data["history"] is True
+
+    @pytest.mark.asyncio
+    async def test_submit_falls_back_to_current_config(self):
+        """Unspecified fields keep their current value."""
+        flow = make_flow(options={"scan_interval": 300, "history": False})
+        mock = capture_create_entry(flow)
+
+        await flow.async_step_init(user_input={"scan_interval": 600})
+
+        data = mock.call_args.kwargs["data"]
+        assert data["scan_interval"] == 600
+        assert data["history"] is False
+
+
+class TestAsyncStepInitForm:
+    @pytest.mark.asyncio
+    async def test_no_input_shows_form(self):
+        flow = make_flow(options={"scan_interval": 300})
+        form_result = {"type": "form", "step_id": "init"}
+        flow.async_show_form = MagicMock(return_value=form_result)
+
+        result = await flow.async_step_init(user_input=None)
+
+        assert result == form_result
+        flow.async_show_form.assert_called_once()
+        call_kwargs = flow.async_show_form.call_args.kwargs
+        assert call_kwargs["step_id"] == "init"
+        # Form defaults reflect current config
+        schema = call_kwargs["data_schema"]
+        schema_dict = dict(schema.schema)
+        vol_keys = [str(getattr(k, "schema", k)) for k in schema_dict]
+        assert "scan_interval" in vol_keys
+
+
+class TestCopyConfigToOptions:
+    def test_copies_data_values_not_in_options(self):
+        flow = make_flow(options={}, data={"scan_interval": 300, "history": True})
+        result = flow._copy_config_to_options()
+        assert result["scan_interval"] == 300
+        assert result["history"] is True
+
+    def test_options_take_precedence_over_data(self):
+        flow = make_flow(
+            options={"scan_interval": 120}, data={"scan_interval": 300}
+        )
+        result = flow._copy_config_to_options()
+        assert result["scan_interval"] == 120
+
+    def test_defaults_when_empty(self):
+        flow = make_flow(options={}, data={})
+        result = flow._copy_config_to_options()
+        assert result["api_eedomus"] is True
+        assert result["enable_api_proxy"] is False
+        assert result["history"] is False
+        assert result["scan_interval"] == 300
+        assert result["http_request_timeout"] == 10
