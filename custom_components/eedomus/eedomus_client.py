@@ -19,6 +19,10 @@ from .const import (
     DEFAULT_PHP_FALLBACK_TIMEOUT,
     DEFAULT_HTTP_REQUEST_TIMEOUT,
     CONF_HTTP_REQUEST_TIMEOUT,
+    CONF_MAX_CONCURRENT_REQUESTS,
+    CONF_MIN_REQUEST_DELAY,
+    DEFAULT_MAX_CONCURRENT_REQUESTS,
+    DEFAULT_MIN_REQUEST_DELAY,
 )
 from .entity import _get_config_value
 
@@ -81,6 +85,16 @@ class EedomusClient:
             config_entry, CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT
         )
 
+        # Rate limiting configuration
+        self.max_concurrent_requests = _get_config_value(
+            config_entry, CONF_MAX_CONCURRENT_REQUESTS, DEFAULT_MAX_CONCURRENT_REQUESTS
+        )
+        self.min_request_delay = _get_config_value(
+            config_entry, CONF_MIN_REQUEST_DELAY, DEFAULT_MIN_REQUEST_DELAY
+        )
+        self._request_semaphore = asyncio.Semaphore(self.max_concurrent_requests)
+        self._last_request_time = 0.0
+
     async def fetch_data(
         self,
         endpoint: str,
@@ -101,71 +115,79 @@ class EedomusClient:
         self.url = url
         self.params = params
 
-        try:
-            async with async_timeout(self.http_request_timeout):
-                async with self.session.get(url, params=params) as resp:
-                    # Lire les données brutes
-                    raw_data = await resp.read()
+        # Rate limiting: wait for semaphore and respect minimum delay
+        async with self._request_semaphore:
+            # Calculate time since last request
+            time_since_last = time.time() - self._last_request_time
+            if time_since_last < self.min_request_delay:
+                await asyncio.sleep(self.min_request_delay - time_since_last)
+            self._last_request_time = time.time()
 
-                    # Gestion des statuts HTTP
-                    if resp.status != 200:
-                        try:
-                            error_text = raw_data.decode("utf-8", errors="replace")
-                        except UnicodeDecodeError:
-                            error_text = raw_data.decode("iso-8859-1", errors="replace")
-                        _LOGGER.error(
-                            "HTTP %s error for %s: %s",
-                            resp.status,
-                            endpoint,
-                            error_text,
-                        )
-                        return self._format_error_response(
-                            f"HTTP {resp.status} error", error_text, resp.status
-                        )
+            try:
+                async with async_timeout(self.http_request_timeout):
+                    async with self.session.get(url, params=params) as resp:
+                        # Lire les données brutes
+                        raw_data = await resp.read()
 
-                    # Essayer plusieurs encodages pour la réponse
-                    response_text = self._decode_response(raw_data)
-
-                    # Parsing de la réponse
-                    try:
-                        response_data = json.loads(response_text)
-
-                        # Normalisation de la structure de réponse
-                        if not isinstance(response_data, dict):
+                        # Gestion des statuts HTTP
+                        if resp.status != 200:
+                            try:
+                                error_text = raw_data.decode("utf-8", errors="replace")
+                            except UnicodeDecodeError:
+                                error_text = raw_data.decode("iso-8859-1", errors="replace")
+                            _LOGGER.error(
+                                "HTTP %s error for %s: %s",
+                                resp.status,
+                                endpoint,
+                                error_text,
+                            )
                             return self._format_error_response(
-                                "Invalid response format", response_text
+                                f"HTTP {resp.status} error", error_text, resp.status
                             )
 
-                        # Gestion des réponses d'erreur eedomus
-                        success = response_data.get("success")
-                        if success == "0" or success == 0:
-                            return self._handle_eedomus_error(response_data)
+                        # Essayer plusieurs encodages pour la réponse
+                        response_text = self._decode_response(raw_data)
 
-                        # Normalisation du champ success
-                        response_data["success"] = 1
-                        # Add raw data size for volume tracking
-                        response_data["_raw_data_size_bytes"] = len(raw_data)
-                        return response_data
+                        # Parsing de la réponse
+                        try:
+                            response_data = json.loads(response_text)
 
-                    except json.JSONDecodeError:
-                        _LOGGER.error(
-                            "Invalid JSON response for %s: %s", endpoint, response_text
-                        )
-                        return self._format_error_response(
-                            "Invalid JSON response", response_text
-                        )
+                            # Normalisation de la structure de réponse
+                            if not isinstance(response_data, dict):
+                                return self._format_error_response(
+                                    "Invalid response format", response_text
+                                )
 
-        except asyncio.TimeoutError:
-            _LOGGER.warning("⏳ Request timed out for %s - will retry on next refresh cycle", endpoint)
-            return self._format_error_response("Request timed out", http_status=408)
+                            # Gestion des réponses d'erreur eedomus
+                            success = response_data.get("success")
+                            if success == "0" or success == 0:
+                                return self._handle_eedomus_error(response_data)
 
-        except aiohttp.ClientError as e:
-            _LOGGER.error("Client error for %s: %s", endpoint, str(e))
-            return self._format_error_response(str(e))
+                            # Normalisation du champ success
+                            response_data["success"] = 1
+                            # Add raw data size for volume tracking
+                            response_data["_raw_data_size_bytes"] = len(raw_data)
+                            return response_data
 
-        except Exception as e:
-            _LOGGER.error("Unexpected error for %s: %s", endpoint, str(e))
-            return self._format_error_response(str(e))
+                        except json.JSONDecodeError:
+                            _LOGGER.error(
+                                "Invalid JSON response for %s: %s", endpoint, response_text
+                            )
+                            return self._format_error_response(
+                                "Invalid JSON response", response_text
+                            )
+
+            except asyncio.TimeoutError:
+                _LOGGER.warning("⏳ Request timed out for %s - will retry on next refresh cycle", endpoint)
+                return self._format_error_response("Request timed out", http_status=408)
+
+            except aiohttp.ClientError as e:
+                _LOGGER.error("Client error for %s: %s", endpoint, str(e))
+                return self._format_error_response(str(e))
+
+            except Exception as e:
+                _LOGGER.error("Unexpected error for %s: %s", endpoint, str(e))
+                return self._format_error_response(str(e))
 
     def _decode_response(self, raw_data: bytes) -> str:
         """Try multiple encodings to decode the response."""

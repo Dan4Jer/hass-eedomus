@@ -41,6 +41,8 @@ CONF_ENABLE_SET_VALUE_RETRY = "enable_set_value_retry"
 CONF_ENABLE_WEBHOOK = "enable_webhook"
 CONF_REMOVE_ENTITIES = "remove_entities"
 CONF_HTTP_REQUEST_TIMEOUT = "http_request_timeout"
+CONF_MAX_CONCURRENT_REQUESTS = "max_concurrent_requests"
+CONF_MIN_REQUEST_DELAY = "min_request_delay"
 
 
 CONF_PHP_FALLBACK_ENABLED = "php_fallback_enabled"
@@ -70,6 +72,12 @@ DEFAULT_PHP_FALLBACK_ENABLED = False  # PHP fallback disabled by default
 DEFAULT_PHP_FALLBACK_SCRIPT_NAME = "fallback.php"  # Default script name
 DEFAULT_PHP_FALLBACK_TIMEOUT = 5  # 5 seconds timeout for PHP fallback script
 DEFAULT_HTTP_REQUEST_TIMEOUT = 10  # 10 seconds timeout for HTTP requests to eedomus API
+
+# Rate Limiting Configuration
+CONF_MAX_CONCURRENT_REQUESTS = "max_concurrent_requests"
+CONF_MIN_REQUEST_DELAY = "min_request_delay"
+DEFAULT_MAX_CONCURRENT_REQUESTS = 3  # Maximum concurrent requests to eedomus API
+DEFAULT_MIN_REQUEST_DELAY = 0.6  # Minimum delay between requests in seconds (600ms > 500ms eedomus requirement)
 
 # Platforms
 PLATFORMS = [

@@ -30,6 +30,8 @@ from .const import (
     CONF_ENABLE_SET_VALUE_RETRY,
     CONF_ENABLE_WEBHOOK,
     CONF_HTTP_REQUEST_TIMEOUT,
+    CONF_MAX_CONCURRENT_REQUESTS,
+    CONF_MIN_REQUEST_DELAY,
     CONF_PHP_FALLBACK_ENABLED,
     CONF_PHP_FALLBACK_SCRIPT_NAME,
     CONF_PHP_FALLBACK_TIMEOUT,
@@ -48,6 +50,8 @@ from .const import (
     DEFAULT_PHP_FALLBACK_SCRIPT_NAME,
     DEFAULT_PHP_FALLBACK_TIMEOUT,
     DEFAULT_HTTP_REQUEST_TIMEOUT,
+    DEFAULT_MAX_CONCURRENT_REQUESTS,
+    DEFAULT_MIN_REQUEST_DELAY,
     DEFAULT_REMOVE_ENTITIES,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
@@ -103,6 +107,8 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int,
         vol.Optional(CONF_ENABLE_HISTORY, default=DEFAULT_CONF_ENABLE_HISTORY): bool,
         vol.Optional(CONF_HTTP_REQUEST_TIMEOUT, default=DEFAULT_HTTP_REQUEST_TIMEOUT): int,
+        vol.Optional(CONF_MAX_CONCURRENT_REQUESTS, default=DEFAULT_MAX_CONCURRENT_REQUESTS): int,
+        vol.Optional(CONF_MIN_REQUEST_DELAY, default=DEFAULT_MIN_REQUEST_DELAY): float,
         vol.Optional(
             CONF_ENABLE_SET_VALUE_RETRY, default=DEFAULT_ENABLE_SET_VALUE_RETRY
         ): bool,
@@ -203,6 +209,15 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         http_request_timeout = data.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)
         if http_request_timeout < 5 or http_request_timeout > 120:
             raise vol.Invalid("HTTP request timeout must be between 5 and 120 seconds")
+
+        # Validate rate limiting settings
+        max_concurrent_requests = data.get(CONF_MAX_CONCURRENT_REQUESTS, DEFAULT_MAX_CONCURRENT_REQUESTS)
+        if max_concurrent_requests < 1 or max_concurrent_requests > 20:
+            raise vol.Invalid("Max concurrent requests must be between 1 and 20")
+        
+        min_request_delay = data.get(CONF_MIN_REQUEST_DELAY, DEFAULT_MIN_REQUEST_DELAY)
+        if min_request_delay < 0.1 or min_request_delay > 5.0:
+            raise vol.Invalid("Minimum request delay must be between 0.1 and 5.0 seconds")
 
         # Check which modes are enabled
         api_eedomus_enabled = data.get(

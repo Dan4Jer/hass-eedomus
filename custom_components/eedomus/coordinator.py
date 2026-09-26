@@ -1187,7 +1187,13 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             for entry in chunk:
                 try:
                     timestamp = datetime.fromisoformat(entry["timestamp"])
-                    state_value = float(entry["value"])
+                    raw_value = entry["value"]
+                    
+                    # Convert percentage strings (e.g., "10%" -> 10.0)
+                    if isinstance(raw_value, str) and raw_value.endswith('%'):
+                        state_value = float(raw_value.rstrip('%'))
+                    else:
+                        state_value = float(raw_value)
                     
                     statistics_data.append({
                         "statistic_id": entity_id,
@@ -1199,7 +1205,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                         "sum": None  # Not applicable for temperature
                     })
                 except (ValueError, TypeError) as e:
-                    _LOGGER.warning("Skipping invalid data point: %s", e)
+                    _LOGGER.debug("Skipping non-numeric value for statistics: %s", raw_value)
                     continue
             
             if not statistics_data:
