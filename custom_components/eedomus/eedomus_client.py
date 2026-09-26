@@ -129,9 +129,6 @@ class EedomusClient:
             time_since_last = time.time() - EedomusClient._global_last_request_time
             if time_since_last < self.min_request_delay:
                 await asyncio.sleep(self.min_request_delay - time_since_last)
-            
-            # Update global timestamp BEFORE the request starts
-            EedomusClient._global_last_request_time = time.time()
 
             try:
                 async with async_timeout(self.http_request_timeout):
@@ -198,6 +195,10 @@ class EedomusClient:
             except Exception as e:
                 _LOGGER.error("Unexpected error for %s: %s", endpoint, str(e))
                 return self._format_error_response(str(e))
+            
+            finally:
+                # Update global timestamp AFTER request completes to ensure minimum delay from end of previous request
+                EedomusClient._global_last_request_time = time.time()
 
     def _decode_response(self, raw_data: bytes) -> str:
         """Try multiple encodings to decode the response."""
@@ -342,13 +343,13 @@ class EedomusClient:
                 time_since_last = time.time() - EedomusClient._global_last_request_time
                 if time_since_last < self.min_request_delay:
                     await asyncio.sleep(self.min_request_delay - time_since_last)
-                EedomusClient._global_last_request_time = time.time()
 
-                async with async_timeout(self.php_fallback_timeout):
-                    async with self.session.get(
-                        php_fallback_script_url, params=params
-                    ) as resp:
-                        raw_data = await resp.read()
+                try:
+                    async with async_timeout(self.php_fallback_timeout):
+                        async with self.session.get(
+                            php_fallback_script_url, params=params
+                        ) as resp:
+                            raw_data = await resp.read()
 
                     if resp.status != 200:
                         error_text = raw_data.decode("utf-8", errors="replace")
@@ -400,6 +401,10 @@ class EedomusClient:
                             "error": "Invalid JSON response from PHP fallback script",
                             "details": response_text,
                         }
+                
+                finally:
+                    # Update global timestamp AFTER request completes to ensure minimum delay from end of previous request
+                    EedomusClient._global_last_request_time = time.time()
 
         except asyncio.TimeoutError:
             _LOGGER.error("PHP fallback script request timed out")
