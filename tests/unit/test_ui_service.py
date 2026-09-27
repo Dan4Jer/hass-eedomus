@@ -4,13 +4,20 @@ Covers the P.1.1 fix: the websocket handlers must actually respond on the
 client connection (send_result / send_error) instead of returning dicts,
 and registration must not assume async_register_command returns a
 deregistration handle (it returns None in HA 2026).
+
+The P.1.3 tests cover eedomus/get_peripherals: coordinator.data projected
+into JSON-safe rows with the current mapping (live HA state) and the
+accessible "modified" badge (custom rule name + date).
 """
 
+import json
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 import custom_components.eedomus.ui_service as ui_service_module
+from custom_components.eedomus.const import COORDINATOR
 from custom_components.eedomus.ui_service import (
     WS_TYPE_EEDOMUS_CACHE_STATS,
     WS_TYPE_EEDOMUS_SCHEMA,
@@ -46,7 +53,7 @@ class TestAsyncInit:
 
         await service.async_init()
 
-        assert register.call_count == 4
+        assert register.call_count == 5
         # Handler form: (hass, handler) on the module-level dispatchers -
         # HA calls websocket handlers as plain (hass, connection, msg)
         # functions, so bound methods cannot be dispatched directly
@@ -57,12 +64,14 @@ class TestAsyncInit:
             ui_service_module._ws_get_suggestions,
             ui_service_module._ws_get_schema,
             ui_service_module._ws_get_cache_stats,
+            ui_service_module._ws_get_peripherals,
         ]
         assert service._registered_commands == [
             WS_TYPE_EEDOMUS_VALIDATE,
             WS_TYPE_EEDOMUS_SUGGESTIONS,
             WS_TYPE_EEDOMUS_SCHEMA,
             WS_TYPE_EEDOMUS_CACHE_STATS,
+            ui_service_module.WS_TYPE_EEDOMUS_PERIPHERALS,
         ]
         assert service.is_initialized() is True
 
@@ -102,7 +111,7 @@ class TestAsyncInit:
         await service.async_init()
 
         assert service._registered_commands == first
-        assert register.call_count == 8
+        assert register.call_count == 10
 
     @pytest.mark.asyncio
     async def test_shutdown_resets_state_without_unregistering(self):
@@ -332,3 +341,180 @@ class TestDirectCallHelpers:
 
         assert result["success"] is True
         assert result["result"]["suggestions"] == [{"value": "light", "label": "light"}]
+
+
+class TestGetPeripheralsHandler:
+    """P.1.3: the Périphériques tab reads coordinator.data through the
+    eedomus/get_peripherals command."""
+
+    def make_coordinator(self):
+        coordinator = MagicMock()
+        coordinator.data = {
+            "111": {
+                "periph_id": "111",
+                "name": "Température Salon",
+                "usage_id": "7",
+            },
+            "222": {
+                "periph_id": "222",
+                "name": "Humidité Salle de bain",
+                "usage_id": "24",
+            },
+            "333": {
+                "periph_id": "333",
+                "name": "RubanLED Salon",
+                "usage_id": "133",
+            },
+        }
+        coordinator.get_yaml_config_sync = MagicMock(
+            return_value={
+                "usage_id_mappings": {"24": {"ha_entity": "sensor.humidite"}},
+                "advanced_rules": [
+                    {
+                        "name": "Unité température salon",
+                        "condition": {"usage_id": "7", "state": "any"},
+                        "actions": [{"type": "override", "attributes": {}}],
+                    }
+                ],
+                "metadata": {"last_modified": "2026-09-26 21:04"},
+            }
+        )
+        coordinator._resolve_main_entity_id = MagicMock(
+            side_effect=lambda pid: {
+                "111": "sensor.temperature_salon",
+                "222": "sensor.humidite_salle_de_bain",
+            }.get(pid)
+        )
+        return coordinator
+
+    def make_hass(self, coordinator):
+        hass = MagicMock()
+        hass.data = {"eedomus": {"entry_1": {COORDINATOR: coordinator}}}
+        hass.states.get = MagicMock(
+            side_effect=lambda entity_id: {
+                "sensor.temperature_salon": SimpleNamespace(
+                    attributes={
+                        "device_class": "temperature",
+                        "unit_of_measurement": "°C",
+                    }
+                ),
+                "sensor.humidite_salle_de_bain": SimpleNamespace(
+                    attributes={"device_class": "humidity", "unit_of_measurement": "%"}
+                ),
+            }.get(entity_id)
+        )
+        return hass
+
+    @pytest.mark.asyncio
+    async def test_projects_rows_with_current_mapping(self):
+        coordinator = self.make_coordinator()
+        hass = self.make_hass(coordinator)
+        service = EedomusUIService(hass)
+        connection = MagicMock()
+
+        await service._handle_get_peripherals(hass, connection, {"id": 5})
+
+        result = connection.send_result.call_args.args[1]
+        assert result["total"] == 3
+        row = result["peripherals"][0]
+        assert row == {
+            "periph_id": "111",
+            "name": "Température Salon",
+            "usage_id": "7",
+            "entity_id": "sensor.temperature_salon",
+            "platform": "sensor",
+            "device_class": "temperature",
+            "unit": "°C",
+            "modified": True,
+            "modified_by_rule": "Unité température salon",
+            "modified_date": "2026-09-26 21:04",
+        }
+
+    @pytest.mark.asyncio
+    async def test_badge_distinguishes_rule_and_plain_mapping(self):
+        coordinator = self.make_coordinator()
+        hass = self.make_hass(coordinator)
+        service = EedomusUIService(hass)
+        connection = MagicMock()
+
+        await service._handle_get_peripherals(hass, connection, {"id": 5})
+
+        rows = {
+            row["periph_id"]: row
+            for row in connection.send_result.call_args.args[1]["peripherals"]
+        }
+        # usage_id 24 -> direct usage_id mapping (no named rule)
+        assert rows["222"]["modified"] is True
+        assert rows["222"]["modified_by_rule"] == "mapping personnalisé 24"
+        # usage_id 133 -> untouched
+        assert rows["333"]["modified"] is False
+        assert rows["333"]["modified_by_rule"] is None
+        assert rows["333"]["modified_date"] is None
+
+    @pytest.mark.asyncio
+    async def test_payload_is_json_serializable(self):
+        coordinator = self.make_coordinator()
+        hass = self.make_hass(coordinator)
+        service = EedomusUIService(hass)
+        connection = MagicMock()
+
+        await service._handle_get_peripherals(hass, connection, {"id": 5})
+
+        json.dumps(connection.send_result.call_args.args[1])
+
+    @pytest.mark.asyncio
+    async def test_unresolved_entity_yields_empty_mapping(self):
+        coordinator = self.make_coordinator()
+        coordinator._resolve_main_entity_id.return_value = None
+        coordinator._resolve_main_entity_id.side_effect = None
+        hass = self.make_hass(coordinator)
+        service = EedomusUIService(hass)
+        connection = MagicMock()
+
+        await service._handle_get_peripherals(hass, connection, {"id": 5})
+
+        rows = {
+            row["periph_id"]: row
+            for row in connection.send_result.call_args.args[1]["peripherals"]
+        }
+        assert rows["111"]["entity_id"] is None
+        assert rows["111"]["platform"] is None
+        assert rows["111"]["device_class"] is None
+        assert rows["111"]["unit"] is None
+
+    @pytest.mark.asyncio
+    async def test_yaml_config_failure_degrades_to_unmodified(self):
+        coordinator = self.make_coordinator()
+        coordinator.get_yaml_config_sync = MagicMock(
+            side_effect=Exception("not loaded")
+        )
+        hass = self.make_hass(coordinator)
+        service = EedomusUIService(hass)
+        connection = MagicMock()
+
+        await service._handle_get_peripherals(hass, connection, {"id": 5})
+
+        rows = connection.send_result.call_args.args[1]["peripherals"]
+        assert all(row["modified"] is False for row in rows)
+
+    @pytest.mark.asyncio
+    async def test_no_coordinator_entries_returns_empty_list(self):
+        service, connection = make_service({})
+        connection.send_result = MagicMock()
+
+        await service._handle_get_peripherals(service.hass, connection, {"id": 5})
+
+        result = connection.send_result.call_args.args[1]
+        assert result == {"peripherals": [], "total": 0}
+
+    @pytest.mark.asyncio
+    async def test_exception_sends_error(self):
+        hass = MagicMock()
+        hass.data = {"eedomus": {"entry_1": {COORDINATOR: "not-a-coordinator"}}}
+        service = EedomusUIService(hass)
+        connection = MagicMock()
+
+        await service._handle_get_peripherals(hass, connection, {"id": 5})
+
+        connection.send_error.assert_called_once()
+        connection.send_result.assert_not_called()

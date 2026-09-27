@@ -8,7 +8,7 @@ import voluptuous as vol
 
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN
+from .const import COORDINATOR, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -17,6 +17,7 @@ WS_TYPE_EEDOMUS_VALIDATE = f"{DOMAIN}/validate_config"
 WS_TYPE_EEDOMUS_SUGGESTIONS = f"{DOMAIN}/get_suggestions"
 WS_TYPE_EEDOMUS_SCHEMA = f"{DOMAIN}/get_schema"
 WS_TYPE_EEDOMUS_CACHE_STATS = f"{DOMAIN}/get_cache_stats"
+WS_TYPE_EEDOMUS_PERIPHERALS = f"{DOMAIN}/get_peripherals"
 
 # The handlers are decorated at class-definition time, so the websocket_api
 # imports must happen at module level. When the component is unavailable the
@@ -126,12 +127,27 @@ async def _ws_get_cache_stats(hass: HomeAssistant, connection, msg: dict) -> Non
     await service._handle_get_cache_stats(hass, connection, msg)
 
 
+@require_admin
+@websocket_command({vol.Required("type"): WS_TYPE_EEDOMUS_PERIPHERALS})
+@async_response
+async def _ws_get_peripherals(hass: HomeAssistant, connection, msg: dict) -> None:
+    """Dispatch eedomus/get_peripherals to the UI service."""
+    service = _get_ui_service(hass)
+    if service is None:
+        connection.send_error(
+            msg["id"], "service_unavailable", "Eedomus UI service not initialized"
+        )
+        return
+    await service._handle_get_peripherals(hass, connection, msg)
+
+
 # The commands in registration order: (command type, module dispatcher).
 WS_COMMANDS = (
     (WS_TYPE_EEDOMUS_VALIDATE, _ws_validate_config),
     (WS_TYPE_EEDOMUS_SUGGESTIONS, _ws_get_suggestions),
     (WS_TYPE_EEDOMUS_SCHEMA, _ws_get_schema),
     (WS_TYPE_EEDOMUS_CACHE_STATS, _ws_get_cache_stats),
+    (WS_TYPE_EEDOMUS_PERIPHERALS, _ws_get_peripherals),
 )
 
 
@@ -380,6 +396,120 @@ class EedomusUIService:
         except Exception as e:
             _LOGGER.error(f"Cache stats error: {e}")
             connection.send_error(msg.get("id"), "error", str(e))
+
+    async def _handle_get_peripherals(
+        self,
+        hass: HomeAssistant,
+        connection,
+        msg: dict,
+    ) -> None:
+        """Handle the get peripherals WebSocket command (Périphériques tab)."""
+        try:
+            peripherals = self._collect_peripherals(hass)
+            connection.send_result(
+                msg.get("id"),
+                {"peripherals": peripherals, "total": len(peripherals)},
+            )
+        except Exception as e:
+            _LOGGER.error(f"Peripherals error: {e}")
+            connection.send_error(msg.get("id"), "error", str(e))
+
+    def _collect_peripherals(self, hass: HomeAssistant) -> List[Dict[str, Any]]:
+        """Project coordinator.data into a JSON-safe list for the panel.
+
+        One entry per config entry coordinator (multi-box): hass.data[DOMAIN]
+        mixes domain-level services and per-entry dicts holding COORDINATOR.
+        The current mapping (entity_id, device_class, unit) is read from the
+        live HA state of the registered entity, and the "modified" badge from
+        the merged YAML mapping config (custom rules / usage_id mappings).
+        """
+        peripherals: List[Dict[str, Any]] = []
+        for value in hass.data.get(DOMAIN, {}).values():
+            if not isinstance(value, dict) or COORDINATOR not in value:
+                continue
+            peripherals.extend(self._project_coordinator(hass, value[COORDINATOR]))
+        return peripherals
+
+    def _project_coordinator(
+        self, hass: HomeAssistant, coordinator
+    ) -> List[Dict[str, Any]]:
+        """Project one coordinator's data into panel rows."""
+        try:
+            yaml_config = coordinator.get_yaml_config_sync()
+        except Exception as e:
+            _LOGGER.debug("YAML config unavailable for peripherals: %s", e)
+            yaml_config = {}
+
+        usage_id_mappings = yaml_config.get("usage_id_mappings")
+        if not isinstance(usage_id_mappings, dict):
+            usage_id_mappings = {}
+        advanced_rules = yaml_config.get("advanced_rules")
+        if not isinstance(advanced_rules, list):
+            advanced_rules = []
+        metadata = yaml_config.get("metadata")
+        modified_date = (
+            metadata.get("last_modified") if isinstance(metadata, dict) else None
+        )
+
+        rows: List[Dict[str, Any]] = []
+        for periph_id, periph in (coordinator.data or {}).items():
+            if not isinstance(periph, dict):
+                continue
+            usage_id = periph.get("usage_id")
+            rule_name = self._matching_rule_name(
+                usage_id, usage_id_mappings, advanced_rules
+            )
+            entity_id = self._resolve_entity_id(coordinator, periph_id)
+            state = hass.states.get(entity_id) if entity_id else None
+            attributes = state.attributes if state else {}
+            rows.append(
+                {
+                    "periph_id": str(periph_id),
+                    "name": periph.get("name") or "",
+                    "usage_id": str(usage_id) if usage_id is not None else "",
+                    "entity_id": entity_id,
+                    "platform": entity_id.split(".")[0] if entity_id else None,
+                    "device_class": attributes.get("device_class"),
+                    "unit": attributes.get("unit_of_measurement"),
+                    "modified": rule_name is not None,
+                    "modified_by_rule": rule_name,
+                    "modified_date": modified_date if rule_name else None,
+                }
+            )
+        return rows
+
+    @staticmethod
+    def _resolve_entity_id(coordinator, periph_id) -> Optional[str]:
+        """Resolve the HA entity_id of a peripheral via the registry."""
+        try:
+            return coordinator._resolve_main_entity_id(str(periph_id))
+        except Exception as e:
+            _LOGGER.debug("Entity resolution failed for %s: %s", periph_id, e)
+            return None
+
+    @staticmethod
+    def _matching_rule_name(
+        usage_id, usage_id_mappings: dict, advanced_rules: list
+    ) -> Optional[str]:
+        """Name of the custom rule or mapping currently applied to a usage_id.
+
+        Powers the accessible "modifié par la règle {nom}, {date}" badge.
+        """
+        if usage_id is None or usage_id == "":
+            return None
+        key = str(usage_id)
+        if key in usage_id_mappings:
+            return f"mapping personnalisé {key}"
+        for rule in advanced_rules:
+            if not isinstance(rule, dict):
+                continue
+            condition = rule.get("condition")
+            rule_usage_id = (
+                condition.get("usage_id") if isinstance(condition, dict) else None
+            )
+            if rule_usage_id is not None and str(rule_usage_id) == key:
+                return rule.get("name") or f"règle {key}"
+        return None
 
     def _get_schema_service(self):
         """Get SchemaService instance."""
