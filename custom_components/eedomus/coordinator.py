@@ -21,7 +21,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
 )
-from .entity import map_device_to_ha_entity
+from .entity import _get_config_value, map_device_to_ha_entity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -822,8 +822,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         Updates only devices marked as dynamic (lights, switches, sensors that change frequently).
         More efficient than full refresh as it targets only devices that need frequent updates.
         """
-        history_retrieval = self.client.config_entry.data.get(
-            CONF_ENABLE_HISTORY, False
+        # Options take precedence over config data, then default (False):
+        # an explicit value in options must be honored in either direction.
+        history_retrieval = _get_config_value(
+            self.client.config_entry, CONF_ENABLE_HISTORY, False
         )
 
         # Get all peripherals that need history retrieval

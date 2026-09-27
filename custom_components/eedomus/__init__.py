@@ -38,6 +38,7 @@ from .const import (
 )
 from .coordinator import EedomusDataUpdateCoordinator
 from .eedomus_client import EedomusClient
+from .entity import _get_config_value
 
 # Import service setup
 from .services import async_setup_services
@@ -315,31 +316,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         except Exception as err:
             _LOGGER.error("Failed to setup eedomus services: %s", err)
 
-        # Create history progress sensors if history is enabled
-        # Check both config_entry.data and options
-        history_from_config = coordinator.config_entry.data.get(
-            CONF_ENABLE_HISTORY, False
+        # Create history progress sensors if history is enabled.
+        # Options take precedence over config data, then default (False).
+        # _get_config_value handles the fallback chain so an explicit
+        # False in options correctly disables history.
+        history_enabled = _get_config_value(
+            coordinator.config_entry, CONF_ENABLE_HISTORY, False
         )
-
-        # Check if history option is explicitly set in options
-        if CONF_ENABLE_HISTORY in coordinator.config_entry.options:
-            history_from_options = coordinator.config_entry.options[CONF_ENABLE_HISTORY]
-            # Only use options if they're different from the default
-            if (
-                history_from_options is not False
-            ):  # Only use options if explicitly enabled
-                history_enabled = history_from_options
-            else:
-                # If options has False, check if config has True (options might have been reset)
-                history_enabled = history_from_config
-        else:
-            # No options set, use config
-            history_enabled = history_from_config
 
         # Debug logging to understand the decision process
         _LOGGER.debug(
             "History option decision during init: config=%s, options=%s, final=%s",
-            history_from_config,
+            coordinator.config_entry.data.get(CONF_ENABLE_HISTORY, "not_set"),
             coordinator.config_entry.options.get(CONF_ENABLE_HISTORY, "not_set"),
             history_enabled,
         )
