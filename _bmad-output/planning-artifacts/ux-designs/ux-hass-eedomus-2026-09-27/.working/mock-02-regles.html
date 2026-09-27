@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Eedomus Config — Mock 02 : Règles</title>
+<style>
+  /* ---- Variables du thème HA (thème clair par défaut) ---- */
+  :root {
+    --primary-text-color: #212121;
+    --secondary-text-color: #727272;
+    --primary-color: #03a9f4;
+    --accent-color: #03a9f4;
+    --text-accent-color: #ffffff;
+    --success-color: #43a047;
+    --warning-color: #ff9800;
+    --error-color: #db4437;
+    --card-background-color: #ffffff;
+    --primary-background-color: #fafafa;
+    --divider-color: #e0e0e0;
+    --input-fill-color: #f5f5f5;
+    --input-ink-color: #212121;
+    --ha-card-border-radius: 12px;
+    --ha-card-box-shadow: none;
+    --code-font-family: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  /* ---- Mêmes variables, thème sombre HA ---- */
+  [data-theme="dark"] {
+    --primary-text-color: #e1e1e1;
+    --secondary-text-color: #9b9b9b;
+    --primary-color: #03a9f4;
+    --accent-color: #03a9f4;
+    --text-accent-color: #042838;
+    --success-color: #43a047;
+    --warning-color: #ff9800;
+    --error-color: #db4437;
+    --card-background-color: #1c1c1c;
+    --primary-background-color: #111111;
+    --divider-color: #292929;
+    --input-fill-color: #1f1f1f;
+    --input-ink-color: #e1e1e1;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Roboto, 'Noto Sans', sans-serif;
+    color: var(--primary-text-color);
+    background: var(--primary-background-color);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .panel { max-width: 1040px; margin: 0 auto; padding: 16px 24px 48px; }
+
+  /* ---- Chrome du panneau ---- */
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 0 16px;
+    border-bottom: 1px solid var(--divider-color);
+  }
+  .panel-header h1 { font-size: 20px; font-weight: 400; margin: 0; }
+  .theme-toggle {
+    font: inherit; color: var(--primary-text-color);
+    background: var(--card-background-color);
+    border: 1px solid var(--divider-color);
+    border-radius: var(--ha-card-border-radius);
+    padding: 8px 16px; min-height: 44px; cursor: pointer;
+  }
+  .theme-toggle:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+
+  .tabs { display: flex; gap: 8px; padding: 12px 0 20px; }
+  .tab {
+    min-height: 44px; padding: 10px 20px; cursor: pointer;
+    font: inherit; text-decoration: none;
+    color: var(--secondary-text-color);
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+  }
+  .tab[aria-selected="true"] {
+    color: var(--primary-text-color);
+    font-weight: 500;
+    border-bottom-color: var(--primary-color);
+  }
+  .tab:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+
+  /* ---- Bascule Formulaire / YAML ---- */
+  .mode-toggle {
+    display: inline-flex; margin-bottom: 16px;
+    border: 1px solid var(--divider-color);
+    border-radius: var(--ha-card-border-radius);
+    overflow: hidden;
+    background: var(--card-background-color);
+  }
+  .mode-toggle button {
+    font: inherit; min-height: 44px; padding: 8px 20px; cursor: pointer;
+    color: var(--secondary-text-color);
+    background: transparent; border: none;
+  }
+  .mode-toggle button[aria-pressed="true"] {
+    color: var(--primary-text-color); font-weight: 500;
+    background: var(--input-fill-color);
+  }
+  .mode-toggle button:focus-visible { outline: 2px solid var(--primary-color); outline-offset: -2px; }
+
+  /* ---- Formulaire ---- */
+  .rule-form {
+    max-width: 760px;
+    background: var(--card-background-color);
+    border: 1px solid var(--divider-color);
+    border-radius: var(--ha-card-border-radius);
+    padding: 24px;
+  }
+  .rule-form h2 { font-size: 16px; font-weight: 500; margin: 0 0 16px; }
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-weight: 500; margin-bottom: 6px; }
+  .field .hint { color: var(--secondary-text-color); font-size: 12.5px; margin-top: 6px; }
+  .field input {
+    width: 100%; font: inherit; min-height: 44px; padding: 8px 12px;
+    color: var(--input-ink-color);
+    background: var(--input-fill-color);
+    border: 1px solid var(--divider-color);
+    border-radius: var(--ha-card-border-radius);
+  }
+  .field input:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 1px; }
+  .field.invalid input { border-color: var(--error-color); }
+  .field .error-msg {
+    display: flex; align-items: center; gap: 6px;
+    color: var(--error-color); font-size: 13px; margin-top: 6px;
+    font-weight: 500;
+  }
+  .field.invalid input:focus-visible { outline: 2px solid var(--error-color); }
+
+  .field-row { display: flex; gap: 16px; }
+  .field-row .field { flex: 1; }
+
+  .field-group-title {
+    font-weight: 500; margin: 24px 0 12px;
+    padding-top: 16px; border-top: 1px solid var(--divider-color);
+  }
+
+  /* ---- Autocomplete usage_id ---- */
+  .autocomplete { position: relative; }
+  .autocomplete-list {
+    position: absolute; top: 100%; left: 0; right: 0; z-index: 2;
+    margin-top: 4px; padding: 4px;
+    list-style: none;
+    background: var(--card-background-color);
+    border: 1px solid var(--divider-color);
+    border-radius: var(--ha-card-border-radius);
+  }
+  .autocomplete-list li {
+    display: flex; justify-content: space-between; gap: 8px;
+    padding: 10px 12px; border-radius: 8px; cursor: pointer;
+    font-size: 13.5px;
+  }
+  .autocomplete-list li[aria-selected="true"] { background: var(--input-fill-color); font-weight: 500; }
+  .autocomplete-list li:focus-visible { outline: 2px solid var(--primary-color); }
+  .autocomplete-list .usage-id { font-family: var(--code-font-family); }
+
+  /* ---- Pied de formulaire ---- */
+  .form-footer {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    margin-top: 24px; padding-top: 16px;
+    border-top: 1px solid var(--divider-color);
+  }
+  .form-footer .hint { color: var(--secondary-text-color); font-size: 13px; flex: 1; }
+  .save-btn {
+    font: inherit; font-weight: 500; cursor: not-allowed;
+    min-height: 44px; padding: 8px 24px;
+    color: var(--secondary-text-color);
+    background: var(--input-fill-color);
+    border: 1px solid var(--divider-color);
+    border-radius: var(--ha-card-border-radius);
+  }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+  }
+
+  /* ---- Aperçu mobile simulé (mono-colonne 360 px, reflow) ---- */
+  .mobile-section {
+    margin-top: 48px; padding-top: 24px;
+    border-top: 1px solid var(--divider-color);
+  }
+  .mobile-section h2 { font-size: 16px; font-weight: 500; margin: 0 0 4px; }
+  .mobile-section > p { color: var(--secondary-text-color); font-size: 13px; margin: 0 0 16px; }
+  .mobile-frame {
+    width: 360px; max-width: 100%;
+    border: 1px solid var(--divider-color);
+    border-radius: var(--ha-card-border-radius);
+    background: var(--primary-background-color);
+    padding: 16px 12px;
+  }
+  .mobile-frame .rule-form { padding: 16px; }
+  .mobile-frame .field-row { flex-direction: column; gap: 0; }
+  .mobile-frame .form-footer { flex-direction: column-reverse; align-items: stretch; }
+  .mobile-frame .save-btn { width: 100%; }
+</style>
+</head>
+<body>
+<div class="panel">
+
+  <header class="panel-header">
+    <h1>Eedomus Config</h1>
+    <button class="theme-toggle" type="button">Passer en thème sombre</button>
+  </header>
+
+  <nav class="tabs" aria-label="Sections du panneau">
+    <button class="tab" aria-selected="false">Périphériques</button>
+    <button class="tab" aria-selected="true">Règles</button>
+    <button class="tab" aria-selected="false">Historique</button>
+  </nav>
+
+  <div class="mode-toggle" role="group" aria-label="Mode d'édition">
+    <button type="button" aria-pressed="true">Formulaire</button>
+    <button type="button" aria-pressed="false">YAML</button>
+  </div>
+  <p class="sr-only" role="status" aria-live="polite">Mode formulaire actif.</p>
+
+  <form class="rule-form" novalidate>
+    <h2>Règle « Unité température salon »</h2>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="rule-name">Nom de la règle</label>
+        <input id="rule-name" type="text" value="Unité température salon">
+      </div>
+      <div class="field">
+        <label for="rule-priority">Priorité</label>
+        <input id="rule-priority" type="number" value="10" aria-describedby="priority-hint">
+        <p class="hint" id="priority-hint">Les règles de priorité haute s'appliquent en premier.</p>
+      </div>
+    </div>
+
+    <p class="field-group-title">Condition</p>
+    <div class="field">
+      <label for="rule-usage-id">usage_id</label>
+      <div class="autocomplete">
+        <input id="rule-usage-id" type="text" value="7" role="combobox"
+               aria-expanded="true" aria-controls="usage-suggestions"
+               aria-autocomplete="list" autocomplete="off">
+        <ul class="autocomplete-list" id="usage-suggestions" role="listbox" aria-label="Suggestions usage_id">
+          <li role="option" aria-selected="true"><span>Température Salon</span> <span class="usage-id">7</span></li>
+          <li role="option" aria-selected="false"><span>Humidité Salle de bain</span> <span class="usage-id">12</span></li>
+          <li role="option" aria-selected="false"><span>Température Chambre</span> <span class="usage-id">24</span></li>
+          <li role="option" aria-selected="false"><span>Température Extérieure</span> <span class="usage-id">58</span></li>
+        </ul>
+      </div>
+      <p class="hint">Accepte un usage_id exact ou une expression régulière.</p>
+    </div>
+
+    <p class="field-group-title">Mapping</p>
+    <div class="field-row">
+      <div class="field">
+        <label for="rule-entity">Entité HA</label>
+        <input id="rule-entity" type="text" value="sensor.temperature_salon">
+      </div>
+      <div class="field">
+        <label for="rule-device-class">device_class</label>
+        <input id="rule-device-class" type="text" value="temperature" list="device-classes">
+        <datalist id="device-classes">
+          <option value="temperature"></option>
+          <option value="humidity"></option>
+          <option value="energy"></option>
+          <option value="illuminance"></option>
+        </datalist>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field invalid">
+        <label for="rule-unit">Unité</label>
+        <input id="rule-unit" type="text" value="degres" aria-invalid="true" aria-describedby="unit-error">
+        <p class="error-msg" id="unit-error" role="alert">
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12 2 1 21h22L12 2zm1 14h-2v2h2v-2zm0-6h-2v4h2v-4z"/></svg>
+          Unité invalide : « degré » attendu, « degres » saisi.
+        </p>
+      </div>
+      <div class="field">
+        <label for="rule-state-class">state_class</label>
+        <input id="rule-state-class" type="text" value="measurement" list="state-classes">
+        <datalist id="state-classes">
+          <option value="measurement"></option>
+          <option value="total"></option>
+          <option value="total_increasing"></option>
+        </datalist>
+      </div>
+    </div>
+
+    <div class="form-footer">
+      <p class="hint">La sauvegarde applique la règle immédiatement : l'entité est corrigée sans redémarrage.</p>
+      <button class="save-btn" type="submit" disabled title="Corrigez les erreurs de validation avant de sauvegarder">Sauvegarder</button>
+    </div>
+  </form>
+
+  <p class="sr-only" role="alert" aria-live="polite">1 erreur de validation : champ Unité — « degré » attendu, « degres » saisi. Sauvegarde désactivée.</p>
+
+  <!-- ================= Aperçu mobile 360 px : formulaire en mono-colonne ================= -->
+  <section class="mobile-section">
+    <h2>Aperçu mobile — 360 px</h2>
+    <p>Le formulaire passe en mono-colonne, l'autocomplete et la sauvegarde restent confortables au pouce (cibles ≥ 44 px).</p>
+    <div class="mobile-frame">
+      <div class="mode-toggle" role="group" aria-label="Mode d'édition">
+        <button type="button" aria-pressed="true">Formulaire</button>
+        <button type="button" aria-pressed="false">YAML</button>
+      </div>
+      <form class="rule-form" novalidate>
+        <h2>Règle « Unité température salon »</h2>
+        <div class="field">
+          <label for="m-rule-name">Nom de la règle</label>
+          <input id="m-rule-name" type="text" value="Unité température salon">
+        </div>
+        <div class="field">
+          <label for="m-rule-priority">Priorité</label>
+          <input id="m-rule-priority" type="number" value="10">
+        </div>
+        <div class="field">
+          <label for="m-rule-usage-id">usage_id</label>
+          <input id="m-rule-usage-id" type="text" value="7">
+          <p class="hint">Température Salon</p>
+        </div>
+        <div class="field">
+          <label for="m-rule-entity">Entité HA</label>
+          <input id="m-rule-entity" type="text" value="sensor.temperature_salon">
+        </div>
+        <div class="field invalid">
+          <label for="m-rule-unit">Unité</label>
+          <input id="m-rule-unit" type="text" value="degres" aria-invalid="true" aria-describedby="m-unit-error">
+          <p class="error-msg" id="m-unit-error" role="alert">
+            <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12 2 1 21h22L12 2zm1 14h-2v2h2v-2zm0-6h-2v4h2v-4z"/></svg>
+            Unité invalide : « degré » attendu, « degres » saisi.
+          </p>
+        </div>
+        <div class="form-footer">
+          <p class="hint">La sauvegarde applique la règle immédiatement.</p>
+          <button class="save-btn" type="submit" disabled title="Corrigez les erreurs de validation avant de sauvegarder">Sauvegarder</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+</div>
+<script>
+  const btn = document.querySelector('.theme-toggle');
+  btn.addEventListener('click', () => {
+    const dark = document.documentElement.dataset.theme === 'dark';
+    document.documentElement.dataset.theme = dark ? '' : 'dark';
+    btn.textContent = dark ? 'Passer en thème sombre' : 'Passer en thème clair';
+  });
+</script>
+</body>
+</html>

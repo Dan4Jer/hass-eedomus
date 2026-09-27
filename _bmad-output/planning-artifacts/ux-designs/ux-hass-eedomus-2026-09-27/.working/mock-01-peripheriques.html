@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Eedomus Config — Mock 01 : Périphériques</title>
+<style>
+  /* ---- Variables du thème HA (thème clair par défaut) ---- */
+  :root {
+    --primary-text-color: #212121;
+    --secondary-text-color: #727272;
+    --primary-color: #03a9f4;
+    --accent-color: #03a9f4;
+    --text-accent-color: #ffffff;
+    --success-color: #43a047;
+    --warning-color: #ff9800;
+    --error-color: #db4437;
+    --card-background-color: #ffffff;
+    --primary-background-color: #fafafa;
+    --divider-color: #e0e0e0;
+    --input-fill-color: #f5f5f5;
+    --input-ink-color: #212121;
+    --ha-card-border-radius: 12px;
+    --ha-card-box-shadow: none;
+    --code-font-family: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  /* ---- Mêmes variables, thème sombre HA ---- */
+  [data-theme="dark"] {
+    --primary-text-color: #e1e1e1;
+    --secondary-text-color: #9b9b9b;
+    --primary-color: #03a9f4;
+    --accent-color: #03a9f4;
+    --text-accent-color: #042838;
+    --success-color: #43a047;
+    --warning-color: #ff9800;
+    --error-color: #db4437;
+    --card-background-color: #1c1c1c;
+    --primary-background-color: #111111;
+    --divider-color: #292929;
+    --input-fill-color: #1f1f1f;
+    --input-ink-color: #e1e1e1;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Roboto, 'Noto Sans', sans-serif;
+    color: var(--primary-text-color);
+    background: var(--primary-background-color);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .panel { max-width: 1040px; margin: 0 auto; padding: 16px 24px 48px; }
+
+  /* ---- Chrome du panneau ---- */
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 0 16px;
+    border-bottom: 1px solid var(--divider-color);
+  }
+  .panel-header h1 { font-size: 20px; font-weight: 400; margin: 0; }
+  .theme-toggle {
+    font: inherit; color: var(--primary-text-color);
+    background: var(--card-background-color);
+    border: 1px solid var(--divider-color);
+    border-radius: var(--ha-card-border-radius);
+    padding: 8px 16px; min-height: 44px; cursor: pointer;
+  }
+  .theme-toggle:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+
+  .tabs { display: flex; gap: 8px; padding: 12px 0 20px; }
+  .tab {
+    min-height: 44px; padding: 10px 20px; cursor: pointer;
+    font: inherit; text-decoration: none;
+    color: var(--secondary-text-color);
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+  }
+  .tab[aria-selected="true"] {
+    color: var(--primary-text-color);
+    font-weight: 500;
+    border-bottom-color: var(--primary-color);
+  }
+  .tab:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+
+  /* ---- Barre de recherche + filtre ---- */
+  .toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 8px; }
+  .search {
+    flex: 1 1 320px;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--input-fill-color);
+    border: 1px solid var(--divider-color);
+    border-radius: var(--ha-card-border-radius);
+    padding: 0 12px; min-height: 44px;
+  }
+  .search svg { flex: none; color: var(--secondary-text-color); }
+  .search input {
+    flex: 1; border: none; background: transparent;
+    color: var(--input-ink-color); font: inherit; min-height: 42px;
+  }
+  .search input:focus-visible { outline: none; }
+  .search:focus-within { outline: 2px solid var(--primary-color); }
+
+  .filter-touches {
+    display: inline-flex; align-items: center; gap: 8px;
+    font: inherit; min-height: 44px; padding: 0 16px; cursor: pointer;
+    color: var(--primary-text-color);
+    background: var(--card-background-color);
+    border: 1px solid var(--divider-color);
+    border-radius: 9999px;
+  }
+  .filter-touches[aria-pressed="true"] {
+    border-color: var(--primary-color);
+    font-weight: 500;
+  }
+  .filter-touches .count { color: var(--secondary-text-color); }
+  .result-count { color: var(--secondary-text-color); font-size: 13px; margin: 0 0 12px; }
+
+  /* ---- Ligne de périphérique ---- */
+  .periph-list { display: flex; flex-direction: column; gap: 8px; }
+  .periph-row {
+    display: grid;
+    grid-template-columns: 1.4fr 0.6fr 1.6fr 1fr auto auto;
+    gap: 16px; align-items: center;
+    background: var(--card-background-color);
+    border: 1px solid var(--divider-color);
+    border-radius: var(--ha-card-border-radius);
+    padding: 12px 16px;
+  }
+  .periph-name { font-weight: 500; }
+  .periph-meta { color: var(--secondary-text-color); font-size: 13px; }
+  .periph-meta code, .mapping-meta { font-family: var(--code-font-family); font-size: 12.5px; }
+  .periph-mapping .mapping-meta { color: var(--secondary-text-color); display: block; font-size: 13px; }
+  .ha-entity { font-family: var(--code-font-family); font-size: 12.5px; word-break: break-all; }
+
+  /* ---- Badge de modification : accent HA réservé à ce composant ---- */
+  .badge-modified {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--accent-color);
+    color: var(--text-accent-color);
+    border-radius: 9999px;
+    padding: 3px 10px;
+    font-size: 12px; font-weight: 500;
+    white-space: nowrap; cursor: help;
+  }
+  .badge-modified .dot {
+    width: 6px; height: 6px; border-radius: 9999px;
+    background: var(--text-accent-color);
+  }
+
+  .row-action {
+    font: inherit; font-size: 13px; cursor: pointer;
+    min-height: 44px; padding: 8px 14px;
+    color: var(--primary-text-color);
+    background: transparent;
+    border: 1px solid var(--divider-color);
+    border-radius: var(--ha-card-border-radius);
+    white-space: nowrap;
+  }
+  .row-action:hover { background: var(--input-fill-color); }
+  .row-action:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+  }
+
+  /* ---- Aperçu mobile simulé (mono-colonne 360 px, reflow) ---- */
+  .mobile-section {
+    margin-top: 48px; padding-top: 24px;
+    border-top: 1px solid var(--divider-color);
+  }
+  .mobile-section h2 { font-size: 16px; font-weight: 500; margin: 0 0 4px; }
+  .mobile-section p { color: var(--secondary-text-color); font-size: 13px; margin: 0 0 16px; }
+  .mobile-frame {
+    width: 360px; max-width: 100%;
+    border: 1px solid var(--divider-color);
+    border-radius: var(--ha-card-border-radius);
+    background: var(--primary-background-color);
+    padding: 16px 12px;
+  }
+  .mobile-frame .periph-row {
+    display: flex; flex-direction: column; align-items: stretch; gap: 8px;
+  }
+  .mobile-frame .row-top { display: flex; align-items: center; gap: 8px; }
+  .mobile-frame .row-top .periph-identity { flex: 1; }
+  .mobile-frame .periph-identity .periph-meta { display: block; }
+  .mobile-frame .periph-mapping { border-top: 1px solid var(--divider-color); padding-top: 8px; }
+  .mobile-frame .row-action { width: 100%; }
+
+  @media (max-width: 900px) {
+    .periph-row { grid-template-columns: 1fr auto; grid-auto-rows: auto; }
+  }
+</style>
+</head>
+<body>
+<div class="panel">
+
+  <header class="panel-header">
+    <h1>Eedomus Config</h1>
+    <button class="theme-toggle" type="button">Passer en thème sombre</button>
+  </header>
+
+  <nav class="tabs" aria-label="Sections du panneau">
+    <button class="tab" aria-selected="true">Périphériques</button>
+    <button class="tab" aria-selected="false">Règles</button>
+    <button class="tab" aria-selected="false">Historique</button>
+  </nav>
+
+  <div class="toolbar">
+    <div class="search">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>
+      <input type="search" placeholder="Rechercher par nom ou usage_id" aria-label="Rechercher un périphérique par nom ou usage_id">
+    </div>
+    <button class="filter-touches" type="button" aria-pressed="true">
+      Périphériques touchés <span class="count">(2)</span>
+    </button>
+  </div>
+  <p class="result-count" role="status" aria-live="polite">8 périphériques — filtre « Périphériques touchés » actif : 2 résultats</p>
+
+  <div class="periph-list">
+
+    <div class="periph-row">
+      <div class="periph-identity">
+        <span class="periph-name">Température Salon</span>
+      </div>
+      <div class="periph-meta">usage_id <code>7</code></div>
+      <div class="periph-mapping">
+        <span class="ha-entity">sensor.temperature_salon</span>
+        <span class="mapping-meta">temperature · °C</span>
+      </div>
+      <span></span>
+      <span class="badge-modified"
+            title="Modifié par la règle « Unité température salon », 26/09/2026 21:04"
+            aria-label="Modifié par la règle « Unité température salon », 26/09/2026 21:04">
+        <span class="dot" aria-hidden="true"></span>
+        <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+        modifié
+      </span>
+      <button class="row-action" type="button">Créer une règle pour ce périphérique</button>
+    </div>
+
+    <div class="periph-row">
+      <div class="periph-identity">
+        <span class="periph-name">Température Chambre</span>
+      </div>
+      <div class="periph-meta">usage_id <code>24</code></div>
+      <div class="periph-mapping">
+        <span class="ha-entity">sensor.temperature_chambre</span>
+        <span class="mapping-meta">temperature · °C</span>
+      </div>
+      <span></span>
+      <span class="badge-modified"
+            title="Modifié par la règle « device_class Thermostat Chambre », 24/09/2026 09:30"
+            aria-label="Modifié par la règle « device_class Thermostat Chambre », 24/09/2026 09:30">
+        <span class="dot" aria-hidden="true"></span>
+        <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+        modifié
+      </span>
+      <button class="row-action" type="button">Créer une règle pour ce périphérique</button>
+    </div>
+
+    <div class="periph-row">
+      <div class="periph-identity">
+        <span class="periph-name">Humidité Salle de bain</span>
+      </div>
+      <div class="periph-meta">usage_id <code>12</code></div>
+      <div class="periph-mapping">
+        <span class="ha-entity">sensor.humidite_salle_de_bain</span>
+        <span class="mapping-meta">humidity · %</span>
+      </div>
+      <span></span>
+      <button class="row-action" type="button">Créer une règle pour ce périphérique</button>
+    </div>
+
+    <div class="periph-row">
+      <div class="periph-identity">
+        <span class="periph-name">Volet Chambre</span>
+      </div>
+      <div class="periph-meta">usage_id <code>109</code></div>
+      <div class="periph-mapping">
+        <span class="ha-entity">cover.volet_chambre</span>
+        <span class="mapping-meta">cover · %</span>
+      </div>
+      <span></span>
+      <button class="row-action" type="button">Créer une règle pour ce périphérique</button>
+    </div>
+
+    <div class="periph-row">
+      <div class="periph-identity">
+        <span class="periph-name">RubanLED Salon</span>
+      </div>
+      <div class="periph-meta">usage_id <code>133</code></div>
+      <div class="periph-mapping">
+        <span class="ha-entity">light.rubanled_salon</span>
+        <span class="mapping-meta">light</span>
+      </div>
+      <span></span>
+      <button class="row-action" type="button">Créer une règle pour ce périphérique</button>
+    </div>
+
+    <div class="periph-row">
+      <div class="periph-identity">
+        <span class="periph-name">Consommation totale</span>
+      </div>
+      <div class="periph-meta">usage_id <code>26</code></div>
+      <div class="periph-mapping">
+        <span class="ha-entity">sensor.consommation_totale</span>
+        <span class="mapping-meta">energy · kWh</span>
+      </div>
+      <span></span>
+      <button class="row-action" type="button">Créer une règle pour ce périphérique</button>
+    </div>
+
+    <div class="periph-row">
+      <div class="periph-identity">
+        <span class="periph-name">Température Extérieure</span>
+      </div>
+      <div class="periph-meta">usage_id <code>58</code></div>
+      <div class="periph-mapping">
+        <span class="ha-entity">sensor.temperature_exterieure</span>
+        <span class="mapping-meta">temperature · °C</span>
+      </div>
+      <span></span>
+      <button class="row-action" type="button">Créer une règle pour ce périphérique</button>
+    </div>
+
+    <div class="periph-row">
+      <div class="periph-identity">
+        <span class="periph-name">Luminosité Bureau</span>
+      </div>
+      <div class="periph-meta">usage_id <code>41</code></div>
+      <div class="periph-mapping">
+        <span class="ha-entity">sensor.luminosite_bureau</span>
+        <span class="mapping-meta">illuminance · lx</span>
+      </div>
+      <span></span>
+      <button class="row-action" type="button">Créer une règle pour ce périphérique</button>
+    </div>
+
+  </div>
+
+  <!-- ================= Aperçu mobile 360 px : reflow de la ligne ================= -->
+  <section class="mobile-section">
+    <h2>Aperçu mobile — 360 px</h2>
+    <p>La ligne se replie en deux niveaux (identité / mapping), le badge reste visible, l'action couvre la pleine largeur.</p>
+    <div class="mobile-frame">
+      <div class="toolbar">
+        <div class="search">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>
+          <input type="search" placeholder="Rechercher par nom ou usage_id" aria-label="Rechercher un périphérique par nom ou usage_id">
+        </div>
+      </div>
+      <div class="filter-touches" style="margin-bottom:12px" aria-pressed="true">Périphériques touchés <span class="count">(2)</span></div>
+      <p class="result-count" role="status" aria-live="polite">8 périphériques — filtre actif : 2 résultats</p>
+
+      <div class="periph-list">
+        <div class="periph-row">
+          <div class="row-top">
+            <div class="periph-identity">
+              <span class="periph-name">Température Salon</span>
+              <span class="periph-meta">usage_id <code>7</code></span>
+            </div>
+            <span class="badge-modified"
+                  title="Modifié par la règle « Unité température salon », 26/09/2026 21:04"
+                  aria-label="Modifié par la règle « Unité température salon », 26/09/2026 21:04">
+              <span class="dot" aria-hidden="true"></span>
+              <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+              modifié
+            </span>
+          </div>
+          <div class="periph-mapping">
+            <span class="ha-entity">sensor.temperature_salon</span>
+            <span class="mapping-meta">temperature · °C</span>
+          </div>
+          <button class="row-action" type="button">Créer une règle pour ce périphérique</button>
+        </div>
+
+        <div class="periph-row">
+          <div class="row-top">
+            <div class="periph-identity">
+              <span class="periph-name">Volet Chambre</span>
+              <span class="periph-meta">usage_id <code>109</code></span>
+            </div>
+          </div>
+          <div class="periph-mapping">
+            <span class="ha-entity">cover.volet_chambre</span>
+            <span class="mapping-meta">cover · %</span>
+          </div>
+          <button class="row-action" type="button">Créer une règle pour ce périphérique</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+<script>
+  const btn = document.querySelector('.theme-toggle');
+  btn.addEventListener('click', () => {
+    const dark = document.documentElement.dataset.theme === 'dark';
+    document.documentElement.dataset.theme = dark ? '' : 'dark';
+    btn.textContent = dark ? 'Passer en thème sombre' : 'Passer en thème clair';
+  });
+</script>
+</body>
+</html>

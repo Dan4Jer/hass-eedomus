@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Eedomus Config — Mock 03 : Historique</title>
+<style>
+  /* ---- Variables du thème HA (thème clair par défaut) ---- */
+  :root {
+    --primary-text-color: #212121;
+    --secondary-text-color: #727272;
+    --primary-color: #03a9f4;
+    --accent-color: #03a9f4;
+    --text-accent-color: #ffffff;
+    --success-color: #43a047;
+    --warning-color: #ff9800;
+    --error-color: #db4437;
+    --card-background-color: #ffffff;
+    --primary-background-color: #fafafa;
+    --divider-color: #e0e0e0;
+    --input-fill-color: #f5f5f5;
+    --input-ink-color: #212121;
+    --ha-card-border-radius: 12px;
+    --ha-card-box-shadow: none;
+    --code-font-family: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  /* ---- Mêmes variables, thème sombre HA ---- */
+  [data-theme="dark"] {
+    --primary-text-color: #e1e1e1;
+    --secondary-text-color: #9b9b9b;
+    --primary-color: #03a9f4;
+    --accent-color: #03a9f4;
+    --text-accent-color: #042838;
+    --success-color: #43a047;
+    --warning-color: #ff9800;
+    --error-color: #db4437;
+    --card-background-color: #1c1c1c;
+    --primary-background-color: #111111;
+    --divider-color: #292929;
+    --input-fill-color: #1f1f1f;
+    --input-ink-color: #e1e1e1;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Roboto, 'Noto Sans', sans-serif;
+    color: var(--primary-text-color);
+    background: var(--primary-background-color);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .panel { max-width: 1040px; margin: 0 auto; padding: 16px 24px 48px; }
+
+  /* ---- Chrome du panneau ---- */
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 0 16px;
+    border-bottom: 1px solid var(--divider-color);
+  }
+  .panel-header h1 { font-size: 20px; font-weight: 400; margin: 0; }
+  .theme-toggle {
+    font: inherit; color: var(--primary-text-color);
+    background: var(--card-background-color);
+    border: 1px solid var(--divider-color);
+    border-radius: var(--ha-card-border-radius);
+    padding: 8px 16px; min-height: 44px; cursor: pointer;
+  }
+  .theme-toggle:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+
+  .tabs { display: flex; gap: 8px; padding: 12px 0 20px; }
+  .tab {
+    min-height: 44px; padding: 10px 20px; cursor: pointer;
+    font: inherit; text-decoration: none;
+    color: var(--secondary-text-color);
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+  }
+  .tab[aria-selected="true"] {
+    color: var(--primary-text-color);
+    font-weight: 500;
+    border-bottom-color: var(--primary-color);
+  }
+  .tab:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+
+  .section-note { color: var(--secondary-text-color); font-size: 13px; margin: 0 0 16px; }
+
+  /* ---- Cartes de version ---- */
+  .version-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 32px; }
+  .version-card {
+    background: var(--card-background-color);
+    border: 1px solid var(--divider-color);
+    border-radius: var(--ha-card-border-radius);
+    padding: 16px;
+  }
+  .version-card.current { border-color: var(--primary-color); }
+  .version-head {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  .version-date { font-weight: 500; }
+  .version-summary { flex: 1 1 240px; color: var(--secondary-text-color); font-size: 13.5px; }
+  .current-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 500;
+    color: var(--secondary-text-color);
+    border: 1px solid var(--divider-color);
+    border-radius: 9999px;
+    padding: 3px 10px;
+  }
+  .restore-btn {
+    font: inherit; min-height: 44px; padding: 8px 20px; cursor: pointer;
+    color: var(--primary-text-color);
+    background: transparent;
+    border: 1px solid var(--divider-color);
+    border-radius: var(--ha-card-border-radius);
+  }
+  .restore-btn:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+  .restore-btn:hover { background: var(--input-fill-color); }
+
+  /* ---- Confirmation de restauration (deux gestes) ---- */
+  .restore-confirm {
+    margin-top: 12px; padding: 12px 16px;
+    background: var(--input-fill-color);
+    border: 1px solid var(--divider-color);
+    border-radius: var(--ha-card-border-radius);
+  }
+  .restore-confirm p { margin: 0 0 12px; font-size: 13.5px; }
+  .confirm-actions { display: flex; gap: 8px; }
+  .confirm-yes {
+    font: inherit; font-weight: 500; min-height: 44px; padding: 8px 20px; cursor: pointer;
+    color: var(--primary-text-color);
+    background: var(--card-background-color);
+    border: 1px solid var(--primary-color);
+    border-radius: var(--ha-card-border-radius);
+  }
+  .confirm-no {
+    font: inherit; min-height: 44px; padding: 8px 20px; cursor: pointer;
+    color: var(--secondary-text-color);
+    background: transparent;
+    border: 1px solid var(--divider-color);
+    border-radius: var(--ha-card-border-radius);
+  }
+  .confirm-yes:focus-visible, .confirm-no:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+
+  /* ---- Diff type git — traitement CORRIGÉ ----
+       Texte en --primary-text-color ; sémantique portée par :
+       fond teinté color-mix (success/error/warning), préfixe texte + / - / ~,
+       barre gauche 3 px en couleur sémantique. Jamais la couleur sémantique
+       comme couleur de texte. */
+  .diff-section h2 { font-size: 16px; font-weight: 500; margin: 0 0 4px; }
+  .diff-subtitle { color: var(--secondary-text-color); font-size: 13px; margin: 0 0 12px; }
+  .diff-legend {
+    display: flex; flex-wrap: wrap; gap: 16px; margin: 0 0 8px;
+    color: var(--secondary-text-color); font-size: 12.5px;
+  }
+  .diff-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend-swatch { width: 14px; height: 10px; border-radius: 3px; }
+
+  .diff {
+    font-family: var(--code-font-family);
+    font-size: 12.5px;
+    background: var(--card-background-color);
+    border: 1px solid var(--divider-color);
+    border-radius: var(--ha-card-border-radius);
+    overflow-x: auto;
+  }
+  .diff-line {
+    display: flex; align-items: stretch;
+    color: var(--primary-text-color);
+    padding: 1px 12px 1px 0;
+    white-space: pre;
+  }
+  .diff-line .prefix {
+    flex: none; width: 32px; text-align: center;
+    user-select: none;
+    color: var(--primary-text-color);
+  }
+  .diff-line .text { padding: 1px 0; }
+  .diff-line-added {
+    background: color-mix(in srgb, var(--success-color) 12%, var(--card-background-color));
+    border-left: 3px solid var(--success-color);
+  }
+  .diff-line-removed {
+    background: color-mix(in srgb, var(--error-color) 12%, var(--card-background-color));
+    border-left: 3px solid var(--error-color);
+  }
+  .diff-line-modified {
+    background: color-mix(in srgb, var(--warning-color) 12%, var(--card-background-color));
+    border-left: 3px solid var(--warning-color);
+  }
+  .diff-line-context { border-left: 3px solid transparent; }
+
+  /* ---- Aperçu mobile simulé (mono-colonne 360 px, reflow) ---- */
+  .mobile-section {
+    margin-top: 48px; padding-top: 24px;
+    border-top: 1px solid var(--divider-color);
+  }
+  .mobile-section h2 { font-size: 16px; font-weight: 500; margin: 0 0 4px; }
+  .mobile-section > p { color: var(--secondary-text-color); font-size: 13px; margin: 0 0 16px; }
+  .mobile-columns { display: flex; gap: 16px; flex-wrap: wrap; }
+  .mobile-frame {
+    width: 360px; max-width: 100%;
+    border: 1px solid var(--divider-color);
+    border-radius: var(--ha-card-border-radius);
+    background: var(--primary-background-color);
+    padding: 16px 12px;
+  }
+  .mobile-frame .version-head { flex-wrap: wrap; }
+  .mobile-frame .restore-btn { width: 100%; margin-top: 8px; }
+  .mobile-frame .diff { font-size: 11.5px; }
+</style>
+</head>
+<body>
+<div class="panel">
+
+  <header class="panel-header">
+    <h1>Eedomus Config</h1>
+    <button class="theme-toggle" type="button">Passer en thème sombre</button>
+  </header>
+
+  <nav class="tabs" aria-label="Sections du panneau">
+    <button class="tab" aria-selected="false">Périphériques</button>
+    <button class="tab" aria-selected="false">Règles</button>
+    <button class="tab" aria-selected="true">Historique</button>
+  </nav>
+
+  <p class="section-note">3 versions conservées. La plus ancienne est purgée à la prochaine sauvegarde.</p>
+
+  <!-- ---- Cartes de version ---- -->
+  <div class="version-list">
+
+    <div class="version-card current">
+      <div class="version-head">
+        <span class="version-date">26/09/2026 21:04</span>
+        <span class="version-summary">Correction de l'unité de Température Salon : sensor.temperature_salon est maintenant en °C.</span>
+        <span class="current-pill">actuelle</span>
+      </div>
+    </div>
+
+    <div class="version-card">
+      <div class="version-head">
+        <span class="version-date">25/09/2026 18:12</span>
+        <span class="version-summary">Règle « RubanLED Salon » : entité renommée en light.rubanled_salon, priorité 10.</span>
+        <button class="restore-btn" type="button" aria-expanded="true" aria-controls="confirm-v2">Restaurer</button>
+      </div>
+      <div class="restore-confirm" id="confirm-v2" role="dialog" aria-label="Confirmer la restauration">
+        <p>Restaurer la version du 25/09 18:12 ? Le mapping actuel sera archivé.</p>
+        <div class="confirm-actions">
+          <button class="confirm-yes" type="button">Restaurer</button>
+          <button class="confirm-no" type="button">Annuler</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="version-card">
+      <div class="version-head">
+        <span class="version-date">24/09/2026 09:30</span>
+        <span class="version-summary">Règle « device_class Thermostat Chambre » : temperature sur l'usage_id 24.</span>
+        <button class="restore-btn" type="button">Restaurer</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ---- Diff type git entre 2 versions ---- -->
+  <section class="diff-section">
+    <h2>Diff — version du 25/09/2026 18:12</h2>
+    <p class="diff-subtitle">Comparée à la version précédente du 24/09/2026 09:30</p>
+    <div class="diff-legend" aria-hidden="false">
+      <span><span class="legend-swatch" style="background: color-mix(in srgb, var(--success-color) 12%, var(--card-background-color)); border-left: 3px solid var(--success-color)"></span> + ajouté</span>
+      <span><span class="legend-swatch" style="background: color-mix(in srgb, var(--error-color) 12%, var(--card-background-color)); border-left: 3px solid var(--error-color)"></span> − supprimé</span>
+      <span><span class="legend-swatch" style="background: color-mix(in srgb, var(--warning-color) 12%, var(--card-background-color)); border-left: 3px solid var(--warning-color)"></span> ~ modifié</span>
+    </div>
+
+    <div class="diff" role="region" aria-label="Diff du mapping entre les deux versions" tabindex="0">
+      <div class="diff-line diff-line-context"><span class="prefix"> </span><span class="text">rules:</span></div>
+      <div class="diff-line diff-line-context"><span class="prefix"> </span><span class="text">  - nom: RubanLED Salon</span></div>
+      <div class="diff-line diff-line-context"><span class="prefix"> </span><span class="text">    usage_id: "133"</span></div>
+      <div class="diff-line diff-line-removed"><span class="prefix">-</span><span class="text">    ha_entity: light.ruban_led_salon</span></div>
+      <div class="diff-line diff-line-added"><span class="prefix">+</span><span class="text">    ha_entity: light.rubanled_salon</span></div>
+      <div class="diff-line diff-line-added"><span class="prefix">+</span><span class="text">    device_class: light</span></div>
+      <div class="diff-line diff-line-modified"><span class="prefix">~</span><span class="text">    priorite: 10</span></div>
+      <div class="diff-line diff-line-context"><span class="prefix"> </span><span class="text"></span></div>
+      <div class="diff-line diff-line-context"><span class="prefix"> </span><span class="text">  - nom: device_class Thermostat Chambre</span></div>
+      <div class="diff-line diff-line-context"><span class="prefix"> </span><span class="text">    usage_id: "24"</span></div>
+      <div class="diff-line diff-line-modified"><span class="prefix">~</span><span class="text">    device_class: temperature</span></div>
+      <div class="diff-line diff-line-context"><span class="prefix"> </span><span class="text">    state_class: measurement</span></div>
+    </div>
+  </section>
+
+  <!-- ================= Aperçu mobile 360 px : reflow côte à côte ================= -->
+  <section class="mobile-section">
+    <h2>Aperçu mobile — 360 px</h2>
+    <p>Cartes reflowées à gauche, diff reflowé à droite : le scroll horizontal est admis sur les lignes longues, préfixes et barres gauche toujours visibles.</p>
+    <div class="mobile-columns">
+
+      <div class="mobile-frame">
+        <div class="version-list" style="margin-bottom:0">
+          <div class="version-card current">
+            <div class="version-head">
+              <span class="version-date">26/09/2026 21:04</span>
+              <span class="current-pill">actuelle</span>
+              <span class="version-summary" style="flex-basis:100%">Correction de l'unité de Température Salon (°C).</span>
+            </div>
+          </div>
+          <div class="version-card">
+            <div class="version-head">
+              <span class="version-date">25/09/2026 18:12</span>
+              <span class="version-summary" style="flex-basis:100%">Règle « RubanLED Salon ».</span>
+              <button class="restore-btn" type="button">Restaurer</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mobile-frame">
+        <div class="diff" tabindex="0" aria-label="Diff du mapping — version mobile">
+          <div class="diff-line diff-line-context"><span class="prefix"> </span><span class="text">rules:</span></div>
+          <div class="diff-line diff-line-context"><span class="prefix"> </span><span class="text">  - nom: RubanLED Salon</span></div>
+          <div class="diff-line diff-line-removed"><span class="prefix">-</span><span class="text">    ha_entity: light.ruban_led_salon</span></div>
+          <div class="diff-line diff-line-added"><span class="prefix">+</span><span class="text">    ha_entity: light.rubanled_salon</span></div>
+          <div class="diff-line diff-line-modified"><span class="prefix">~</span><span class="text">    priorite: 10</span></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</div>
+<script>
+  const btn = document.querySelector('.theme-toggle');
+  btn.addEventListener('click', () => {
+    const dark = document.documentElement.dataset.theme === 'dark';
+    document.documentElement.dataset.theme = dark ? '' : 'dark';
+    btn.textContent = dark ? 'Passer en thème sombre' : 'Passer en thème clair';
+  });
+</script>
+</body>
+</html>

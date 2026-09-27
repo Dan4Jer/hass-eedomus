@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>UX Design Validation: hass-eedomus</title>
+<style>
+  :root {
+    --bg: #fafaf9;
+    --surface: #ffffff;
+    --border: #e7e5e4;
+    --text: #1c1917;
+    --muted: #78716c;
+
+    --verdict-strong: #16a34a;
+    --verdict-adequate: #65a30d;
+    --verdict-thin: #d97706;
+    --verdict-broken: #dc2626;
+
+    --sev-low: #64748b;
+    --sev-medium: #ca8a04;
+    --sev-high: #ea580c;
+    --sev-critical: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    font-size: 15px;
+  }
+  .container { max-width: 960px; margin: 0 auto; padding: 32px 24px 64px; }
+
+  header.report-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  .title h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  .title .subtitle { color: var(--muted); font-size: 13px; margin-top: 4px; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+
+  .synthesis {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--muted);
+    border-radius: 8px;
+    padding: 18px 22px;
+    margin-bottom: 24px;
+    font-size: 15.5px;
+  }
+  .synthesis p { margin: 0 0 10px; }
+  .synthesis p:last-child { margin-bottom: 0; }
+
+  .dimension-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .dim-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .dim-card .dim-name { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .dim-card .dim-verdict { font-size: 14px; font-weight: 600; }
+
+  section.dimension, section.reviewer-section { margin-bottom: 14px; }
+  section.dimension details, section.reviewer-section details {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  section summary {
+    padding: 14px 20px;
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  section summary::-webkit-details-marker { display: none; }
+  section summary::before {
+    content: "▸";
+    display: inline-block;
+    color: var(--muted);
+    transition: transform 0.15s ease;
+  }
+  section details[open] summary::before { transform: rotate(90deg); }
+  section summary h2 {
+    display: inline;
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    flex: 1;
+  }
+  .verdict-pill {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: white;
+  }
+  .verdict-strong { background: var(--verdict-strong); }
+  .verdict-adequate { background: var(--verdict-adequate); }
+  .verdict-thin { background: var(--verdict-thin); }
+  .verdict-broken { background: var(--verdict-broken); }
+
+  .dim-body { padding: 4px 20px 18px; }
+  .dim-judgment { color: var(--text); font-size: 14.5px; }
+  .dim-judgment p { margin: 0 0 10px; }
+
+  .findings-list { padding: 0 20px 4px; }
+  article.finding {
+    padding: 14px 0;
+    border-top: 1px solid var(--border);
+  }
+  article.finding:first-child { border-top: none; }
+  article.finding header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+  .badge {
+    font-size: 10.5px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1.4;
+  }
+  .badge-sev-low { background: rgba(100, 116, 139, 0.12); color: var(--sev-low); }
+  .badge-sev-medium { background: rgba(202, 138, 4, 0.14); color: var(--sev-medium); }
+  .badge-sev-high { background: rgba(234, 88, 12, 0.14); color: var(--sev-high); }
+  .badge-sev-critical { background: rgba(220, 38, 38, 0.14); color: var(--sev-critical); }
+  .finding-title { margin: 0; font-size: 15px; font-weight: 500; flex: 1; min-width: 200px; }
+  .finding-location { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; color: var(--muted); }
+  .finding-note, .finding-fix { margin-top: 6px; font-size: 14px; }
+  .finding-fix strong { color: var(--muted); font-weight: 500; }
+
+  .reviewer-source {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  .mechanical {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-top: 24px;
+    font-size: 14px;
+  }
+  .mechanical h3 { margin: 0 0 10px; font-size: 14px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .mechanical ul { margin: 0; padding-left: 20px; }
+  .mechanical li { margin-bottom: 4px; color: var(--text); }
+
+  footer.report-footer {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  footer .meta { display: flex; gap: 24px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+  <div class="container">
+
+    <header class="report-header">
+      <div class="title">
+        <h1>hass-eedomus — UX Design Validation Report</h1>
+        <div class="subtitle">_bmad-output/planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/ — DESIGN.md + EXPERIENCE.md</div>
+      </div>
+    </header>
+
+    <div class="synthesis">
+      <p>La paire <code>DESIGN.md</code> + <code>EXPERIENCE.md</code> est proche d'un contrat consommable (« near-consumable ») : la discipline des tokens est excellente (toute référence <code>{path.to.token}</code> des deux fichiers résout vers un token du frontmatter de DESIGN.md, y compris les références croisées d'EXPERIENCE.md), et la posture delta-only « le thème HA est le design system » est tenue de bout en bout. Elle n'est toutefois pas complète : EXPERIENCE.md manque sa section <strong>Responsive &amp; Platform</strong> alors que la parité desktop + mobile est une décision engagée et porteuse, les tables de composants des deux fichiers ne partagent pas leurs noms, et le mode d'édition YAML — la moitié de CAP-3 — n'a aucun key flow. Une addition structurelle plus un alignement de nommage avant de passer à l'architecture / story-dev.</p>
+      <p>La lens accessibilité décale ce verdict vers le bas : le floor d'accessibilité déclaré dans EXPERIENCE.md repose sur une hypothèse fausse (« les couleurs sémantiques standard [du thème HA] sont assumées conformes ») — HA n'utilise ces couleurs que pour icônes et badges graphiques, jamais comme couleur de texte courant. Utilisées comme couleur de texte de diff, elles échouent AA 4.5:1 en thème clair par défaut. Par ailleurs, les lignes « modifiées » n'ont aucun signal redondant (exigence produit violée pour les daltoniens), le badge de modification n'a aucun équivalent textuel pour lecteurs d'écran, et aucun pattern ARIA (tabs, combobox, diff) n'est spécifié.</p>
+      <p><strong>Verdict global : ne pas implémenter tel quel.</strong> Le critical <strong>C1</strong> (contraste du texte de diff) doit être résolu <strong>avant l'implémentation</strong>, avec H2 (préfixe <code>~</code> sur les lignes modifiées), H3 (nom accessible du badge) et H4 (plan de contraste du badge). Les findings medium sont spécifiables dans les deux spines en une passe ; les low peuvent attendre le floor d'implémentation, sauf M9 (critère de sélection de la lib YAML) à trancher avant vendorisation. Comptes : rubric — 0 critical, 1 high, 5 medium, 7 low (8 findings de niveau low listés, tous repris ici) ; accessibilité — 1 critical, 3 high, 10 medium, 3 low.</p>
+    </div>
+
+    <div class="dimension-summary">
+      <div class="dim-card">
+        <div class="dim-name">Flow coverage</div>
+        <div class="dim-verdict" style="color: var(--verdict-adequate)">adequate</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">Token completeness</div>
+        <div class="dim-verdict" style="color: var(--verdict-strong)">strong</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">Component coverage</div>
+        <div class="dim-verdict" style="color: var(--verdict-adequate)">adequate</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">State coverage</div>
+        <div class="dim-verdict" style="color: var(--verdict-adequate)">adequate</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">Visual reference coverage</div>
+        <div class="dim-verdict" style="color: var(--verdict-strong)">strong</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">Bloat &amp; overspecification</div>
+        <div class="dim-verdict" style="color: var(--verdict-strong)">strong</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">Inheritance discipline</div>
+        <div class="dim-verdict" style="color: var(--verdict-adequate)">adequate</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">Shape fit</div>
+        <div class="dim-verdict" style="color: var(--verdict-thin)">thin</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">Accessibilité (lens)</div>
+        <div class="dim-verdict" style="color: var(--verdict-broken)">ne pas implémenter tel quel</div>
+      </div>
+    </div>
+
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>Flow coverage</h2>
+          <span class="verdict-pill verdict-adequate">adequate</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>Un Key Flow (« Flow 1 — Corriger une unité erronée », protagoniste nommé par référence persona, étapes 1–7, climax à l'étape 6, chemin d'échec présent) exerce CAP-1 (panneau latéral), CAP-2 (liste + recherche), CAP-3-form (création de règle + validation), CAP-4 (sauvegarde + application auto + feedback) et CAP-5 (historique + restauration conditionnelle). Protagoniste, étapes numérotées, climax et chemin d'échec présents. Le mode YAML — l'autre moitié de CAP-3 — reste sans parcours témoin.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Aucun key flow n'exerce le mode d'édition YAML brut ni l'aller-retour formulaire ↔ YAML</h3>
+              <span class="finding-location">EXPERIENCE.md › Component Patterns › Éditeur YAML</span>
+            </header>
+            <div class="finding-note">« Bascule formulaire ↔ YAML sans perte » est la moitié de CAP-3 et une garantie comportementale engagée ; un story-dev n'a aucun parcours témoin montrant le roundtrip préservant l'état ou gérant un YAML qui ne round-trip pas proprement. Le gap d'édition mobile est plié dans le finding high de Shape fit (même cause racine).</div>
+            <div class="finding-fix"><strong>Fix:</strong> ajouter un Flow 2 compact (édition YAML → validation → sauvegarde), ou une annexe de chemin d'échec à Flow 1.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">La restauration n'apparaît que conditionnellement (subjonctif) au Flow 1, étape 7</h3>
+              <span class="finding-location">EXPERIENCE.md › Key Flows › Flow 1, étape 7</span>
+            </header>
+            <div class="finding-note">« S'il s'était trompé, un clic sur "Restaurer" remettrait la version précédente » — non démontré, alors que la restauration de CAP-5 est une action de premier plan avec sémantique d'archive.</div>
+            <div class="finding-fix"><strong>Fix:</strong> faire de l'étape 7 une vraie action du flow, ou ajouter un flow de restauration en deux étapes.</div>
+          </article>
+        </div>
+      </details>
+    </section>
+
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>Token completeness</h2>
+          <span class="verdict-pill verdict-strong">strong</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>Le frontmatter définit 15 couleurs, 3 rôles typographiques, 2 rounded, 5 spacing, 8 composants. Toute référence <code>{path.to.token}</code> — prose DESIGN.md, objets <code>components</code>, références croisées EXPERIENCE.md (<code>{components.badge-modified}</code>, <code>{colors.diff-*}</code>, <code>{colors.error}</code>…) — résout vers un token défini. Le contraste des couleurs héritées du thème est délégué au thème avec déclaration explicite — acceptable sous la décision d'héritage.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">La combinaison critique pour le contraste créée par le panneau — texte de diff sur fond teinté 12 % — n'a aucune cible de contraste</h3>
+              <span class="finding-location">DESIGN.md › components.diff-line-* + Colors › Sémantique diff</span>
+            </header>
+            <div class="finding-note">Texte en <code>{colors.diff-*}</code> sur fond <code>color-mix(… 12%, var(--card-background-color))</code>. L'héritage du thème ne peut pas se porter garant de cette paire car la teinte est inventée par le panneau. Le ratio 12 % est marqué <code>[ASSUMPTION]</code> mais aucun seuil d'acceptance (ex. WCAG AA 4.5:1) n'est énoncé, donc un story-dev ne peut pas écrire de test.</div>
+            <div class="finding-fix"><strong>Fix:</strong> ajouter une cible de contraste à la spec du composant diff-line et la nommer comme vérification à l'implémentation de l'hypothèse 12 %.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">{colors.success} et {colors.warning} sont définis mais jamais référencés ; ils dupliquent {colors.diff-added} / {colors.diff-modified}</h3>
+              <span class="finding-location">DESIGN.md › frontmatter colors</span>
+            </header>
+            <div class="finding-note">Un consommateur ne peut pas dire quel token utiliser pour un signal succès/warning hors diff.</div>
+            <div class="finding-fix"><strong>Fix:</strong> les supprimer, ou une ligne stating qu'ils sont les alias sémantiques panneau-wide, <code>diff-*</code> réservé à la vue historique.</div>
+          </article>
+        </div>
+      </details>
+    </section>
+
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>Component coverage</h2>
+          <span class="verdict-pill verdict-adequate">adequate</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>DESIGN.md.Components : periph-row, badge-modified, rule-form-field, yaml-editor, diff-line-added/removed/modified, version-card. EXPERIENCE.md Component Patterns : Liste de périphériques, Formulaire de règle, Éditeur YAML, Vue diff type git, Carte de version avec restauration. Toutes les lignes portent de vraies règles (règles comportementales multi-clauses ; specs visuelles multi-tokens) — pas de descriptions d'un mot. Mais les noms ne sont pas partagés entre les deux fichiers.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Les noms de composants ne sont pas identiques entre les deux fichiers, et la granularité diffère</h3>
+              <span class="finding-location">DESIGN.md › Components vs EXPERIENCE.md › Component Patterns</span>
+            </header>
+            <div class="finding-note"><code>periph-row</code> (« Ligne de périphérique ») vs « Liste de périphériques » ; <code>rule-form-field</code> (« Champ de formulaire de règle ») vs « Formulaire de règle » ; <code>diff-line-*</code> vs « Vue diff type git ». Un consommateur partant de la table EXPERIENCE doit deviner l'appariement vers les specs visuelles DESIGN. Seuls <code>yaml-editor</code> ↔ « Éditeur YAML » et <code>version-card</code> ↔ « Carte de version » sont quasi verbatim.</div>
+            <div class="finding-fix"><strong>Fix:</strong> ajouter le nom de token DESIGN entre parenthèses à chaque ligne EXPERIENCE (ou aligner les noms outright).</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">badge-modified a une ligne visuelle dans DESIGN.md mais pas de ligne comportementale dédiée dans EXPERIENCE.md</h3>
+              <span class="finding-location">EXPERIENCE.md › Component Patterns › Liste de périphériques</span>
+            </header>
+            <div class="finding-note">Son comportement est plié dans la ligne « Liste de périphériques ». Le badge porte la sémantique porteuse « touché par la dernière règle » (décision memlog 1).</div>
+            <div class="finding-fix"><strong>Fix:</strong> extraire une ligne badge avec règles d'apparition, de disparition et de survie au reload.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Le champ de recherche a un comportement spécifié mais aucun foyer visuel — absent de DESIGN.md.Components</h3>
+              <span class="finding-location">EXPERIENCE.md › Interaction Primitives › Recherche</span>
+            </header>
+            <div class="finding-note">Filtre temps réel, insensible à la casse, résultats comptés — mais son héritage du style input HA (via <code>rule-form-field</code>) est impliqué sans être énoncé.</div>
+            <div class="finding-fix"><strong>Fix:</strong> une ligne dans DESIGN.md — le champ de recherche hérite du style input HA (tokens <code>rule-form-field</code>).</div>
+          </article>
+        </div>
+      </details>
+    </section>
+
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>State coverage</h2>
+          <span class="verdict-pill verdict-adequate">adequate</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>Marche des surfaces IA : Périphériques (vide, cold-load via skeletons « Tous », search-empty « Aucun périphérique ne correspond »), Règles (vide, erreur de validation, saving, application post-save, erreur de sauvegarde, erreur websocket), Historique (vide, erreur websocket), plus focus clavier (Accessibility Floor). L'état à une version de l'Historique manque.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">L'état à une version de l'Historique n'est pas spécifié</h3>
+              <span class="finding-location">EXPERIENCE.md › IA › Historique + State Patterns</span>
+            </header>
+            <div class="finding-note">Le diff est défini « entre la version sélectionnée et la précédente » ; avec exactement une version archivée il n'y a pas de précédent, et State Patterns ne couvre que zéro version (« Aucune sauvegarde encore »). Un story-dev rencontrera ce cas dès la première vraie sauvegarde.</div>
+            <div class="finding-fix"><strong>Fix:</strong> ajouter une ligne d'état : 1 version → pas de diff disponible, carte en résumé seul (ou diff désactivé avec explication).</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Permission-denied n'est pas couvert comme état</h3>
+              <span class="finding-location">EXPERIENCE.md › Foundation (require_admin)</span>
+            </header>
+            <div class="finding-note">Le panneau est <code>require_admin</code> et HA masque vraisemblablement l'entrée, mais la spine ne le dit jamais — un consommateur ne peut distinguer « géré par HA » de « non considéré ».</div>
+            <div class="finding-fix"><strong>Fix:</strong> une ligne dans State Patterns : les non-admins ne voient jamais le panneau ; <code>require_admin</code> gère l'accès ; pas d'écran de refus in-panel.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Offline n'est jamais nommé comme état ; implicitement plié dans « Erreur de commande websocket »</h3>
+              <span class="finding-location">EXPERIENCE.md › State Patterns</span>
+            </header>
+            <div class="finding-note">Message + retry, pas de spinner infini — adéquat par construction, mais le mapping est laissé à l'inférence.</div>
+            <div class="finding-fix"><strong>Fix:</strong> une clause nommant la perte réseau comme cas websocket-error.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">La suppression de règle n'a aucun comportement spécifié</h3>
+              <span class="finding-location">EXPERIENCE.md › IA › Règles</span>
+            </header>
+            <div class="finding-note">Création couverte, modification implicite, suppression nommée seulement dans l'IA (« création, modification, suppression »). Pas de règle de confirmation ni d'annulation, pas de state pattern.</div>
+            <div class="finding-fix"><strong>Fix:</strong> ajouter le comportement de suppression à la ligne Formulaire de règle (confirm ou trust-the-user, précédent Drift).</div>
+          </article>
+        </div>
+      </details>
+    </section>
+
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>Visual reference coverage</h2>
+          <span class="verdict-pill verdict-strong">strong</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p><code>mockups/</code> et <code>wireframes/</code> n'existent pas ; <code>imports/</code> existe et est vide (les mocks suivent le gate, per scope note). Aucun spine ne référence de fichier visuel : pas de références pendantes, pas d'orphelins, pas de références non spécifiques. Clean par construction (vacuously clean).</p>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>Bloat &amp; overspecification</h2>
+          <span class="verdict-pill verdict-strong">strong</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>DESIGN.md est rigoureusement delta-only : il spécifie exactement les deux couches que HA ne fournit pas (langage diff, badge modifié) et refuse le reste par écrit (Do's and Don'ts, clauses « Interdit »). EXPERIENCE.md porte des identifiants backend (<code>eedomus/get_suggestions</code>, <code>eedomus/get_schema</code>, <code>eedomus/validate_config</code>, <code>.storage</code>, <code>custom_mapping.yaml</code>, « chemin CAP-4 ») — c'est de la traçabilité vers le contrat SPEC, pas du bloat ; c'est ce qui rend la spine consommable par story-dev. Les choix différés sont systématiquement marqués <code>[ASSUMPTION]</code> (échelle de spacing, police mono, teinte 12 %, mapping de tokens de coloration YAML, lib vendorisée) plutôt que overspecifiés.</p>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>Inheritance discipline</h2>
+          <span class="verdict-pill verdict-adequate">adequate</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>Le frontmatter sources résout (<code>_bmad-output/specs/spec-eedomus-mapping-panel/SPEC.md</code>, vérifié présent). Les références de tokens EXPERIENCE.md → DESIGN.md résolvent à 100 % (voir Token completeness). DESIGN.md omet correctement la clé <code>sources</code> per design-md spec. Noms de composants divergents entre fichiers — compté une fois en Component coverage.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Les noms de capacités du SPEC ne sont pas repris verbatim</h3>
+              <span class="finding-location">EXPERIENCE.md vs SPEC.md (CAP-1..CAP-5)</span>
+            </header>
+            <div class="finding-note">Seul CAP-4 est nommé dans EXPERIENCE.md (« Restaurer applique le chemin CAP-4 ») ; CAP-1/2/3/5 sont couverts comportementalement mais un consommateur ne peut mapper capacité → surface/flow sans inférer.</div>
+            <div class="finding-fix"><strong>Fix:</strong> note de traçabilité de quatre lignes (CAP-N → onglet/section) dans IA ou Foundation.</div>
+          </article>
+        </div>
+      </details>
+    </section>
+
+    <section class="dimension">
+      <details open>
+        <summary>
+          <h2>Shape fit</h2>
+          <span class="verdict-pill verdict-thin">thin</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>DESIGN.md : sections présentes dans l'ordre canonique (Brand &amp; Style → Colors → Typography → Layout &amp; Spacing → Elevation &amp; Depth → Shapes → Components → Do's and Don'ts) — conforme ; clés frontmatter supplémentaires (<code>status</code>, <code>updated</code>), métadonnées inoffensives. EXPERIENCE.md : les huit défauts requis présents (Foundation, IA, Voice and Tone, Component Patterns, State Patterns, Interaction Primitives, Accessibility Floor, Key Flows) — mais deux defaults requis-when-applicable manquent : <strong>Responsive &amp; Platform</strong> et <strong>Inspiration &amp; Anti-patterns</strong>.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">Responsive &amp; Platform manquant d'EXPERIENCE.md — alors que la parité desktop + mobile est une décision engagée et porteuse</h3>
+              <span class="finding-location">EXPERIENCE.md › section absente ; Foundation (parité en gras)</span>
+            </header>
+            <div class="finding-note">« L'édition de mapping doit être confortable sur téléphone aussi, pas seulement consultable » (memlog). Ce qui existe est dispersé et partiel : reflow mobile de periph-row, onglets conservés sur mobile, cibles 44 px. Pas de contrat de breakpoints, pas de comportement mobile par surface, et surtout aucun traitement mobile des deux surfaces les plus dures : l'éditeur YAML et le popup d'autocomplete au clavier tactile. Ce gap avale aussi le parcours témoin mobile (aucun flow n'édite sur téléphone). Un story-dev chargé de livrer « confortable sur téléphone » n'a rien à construire ni à tester.</div>
+            <div class="finding-fix"><strong>Fix:</strong> ajouter la section Responsive &amp; Platform : breakpoints (ou comportement de largeur de panneau HA), layout mobile par onglet, éditeur YAML sur petits viewports, autocomplete au toucher, et ce qui est explicitement différé en lecture seule mobile le cas échéant.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Inspiration &amp; Anti-patterns manquant</h3>
+              <span class="finding-location">EXPERIENCE.md › section absente</span>
+            </header>
+            <div class="finding-note">Sa moitié anti-patterns est partiellement couverte par « Interdit partout » (Interaction Primitives) et le Do/Don't de Voice, mais les inspirations/précédents qui ancrent les jugements (précédents diff-view, conventions de panneau HA suivies) sont absents.</div>
+            <div class="finding-fix"><strong>Fix:</strong> courte section — même trois puces (conventions de panneau HA reprises ; convention git-diff ; alternatives rejetées) — ou plier « Interdit partout » dedans explicitement.</div>
+          </article>
+        </div>
+      </details>
+    </section>
+
+    <section class="reviewer-section">
+      <details open>
+        <summary>
+          <h2>Accessibilité</h2>
+          <span class="verdict-pill verdict-broken">ne pas implémenter tel quel</span>
+          <span class="reviewer-source">review-accessibility.md</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>Revue adverse des spines (documents, pas du code). Référentiels : WCAG 2.2 niveau AA (contraste 1.4.3/1.4.11, clavier 2.1.1, cibles 2.5.8, statuts 4.1.3), WAI-ARIA Authoring Practices (tabs, combobox), cible tactile 44 px. L'héritage du thème HA est le bon choix architectural ; le problème n'est pas l'héritage — c'est ce que les spines demandent <em>au</em> thème.</p>
+            <p>Le floor déclaré repose sur une hypothèse fausse : HA n'utilise <code>--success-color</code> / <code>--error-color</code> / <code>--warning-color</code> que pour icônes et badges graphiques (seuil 3:1), jamais comme couleur de texte courant. Trois autres trous majeurs : les lignes « modifiées » n'ont aucun signal redondant, le badge n'a aucun équivalent textuel pour lecteurs d'écran, et aucun pattern ARIA (tabs, combobox, diff) n'est spécifié.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-critical">critical</span>
+              <h3 class="finding-title">C1 — Le texte de diff en couleur sémantique n'est pas lisible AA, en clair surtout ; le fond teinté aggrave le delta</h3>
+              <span class="finding-location">DESIGN.md › components.diff-line-* + Colors ; EXPERIENCE.md › Accessibility Floor</span>
+            </header>
+            <div class="finding-note">Le texte des lignes de diff est rendu en <code>var(--success/error/warning-color)</code> sur un fond <code>color-mix(… 12%, var(--card-background-color))</code>. Ces couleurs sémantiques HA ne sont pas calibrées pour du texte (warning ≈ 2:1, success ≈ 3:1, error ≈ 4:1 sur le thème clair par défaut — tous sous le 4.5:1 AA), et teinter le fond avec la même teinte que le texte <em>réduit</em> le contraste en rapprochant leurs luminances. La construction « lisibles en clair et en sombre par construction » est fausse dans les deux sens ; c'est le contenu principal de l'onglet Historique.</div>
+            <div class="finding-fix"><strong>Fix:</strong> option A recommandée — texte du diff en <code>var(--primary-text-color)</code> (contraste hérité garanti), sémantique portée par fond teinté + préfixe + barre gauche 3 px. Option B : garde à l'exécution éclaircissant/assombrissant jusqu'à ≥ 4.5:1 mesuré contre le fond rendu. Dans tous les cas, remplacer « assumées conformes » par un critère testable : « contraste mesuré ≥ 4.5:1 sur les thèmes clair et sombre par défaut de HA ≥ 2026, plus 2 thèmes tiers populaires ».</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">H2 — Lignes « modifiées » : la couleur est le SEUL signal (préfixe ~ absent)</h3>
+              <span class="finding-location">EXPERIENCE.md › Vue diff type git + Accessibility Floor ; DESIGN.md › Lignes de diff</span>
+            </header>
+            <div class="finding-note">Les spines spécifient des préfixes <code>+</code>/<code>-</code> mais rien pour les modifications : <code>{colors.diff-modified}</code> ne reçoit ni préfixe, ni icône, ni soulignement. Une ligne modifiée est indistinguable d'une ligne de contexte au balayage rapide ; la seule différenciation est chromatique ; le floor affirme « jamais la couleur seule » alors que sa propre spec ne le garantit que pour 2 types sur 3. Pour les ~8 % d'hommes daltoniens, « modifié » reste invisible.</div>
+            <div class="finding-fix"><strong>Fix:</strong> préfixe <code>~</code> (ou <code>↻</code>) sur les lignes modifiées, rendu visuellement et dans l'arbre accessible (vrai nœud texte, pas un pseudo-élément <code>::before</code> muet). Compléter le floor : « chaque type de ligne porte un glyphe distinct : <code>+</code>, <code>-</code>, <code>~</code> ».</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">H3 — Badge de modification sans nom accessible : lecteur d'écran = zéro information</h3>
+              <span class="finding-location">DESIGN.md › Badge de modification ; EXPERIENCE.md › IA › Périphériques</span>
+            </header>
+            <div class="finding-note">Le badge est spécifié comme pur signal visuel — forme, couleur, position — sans aucun équivalent textuel. Un utilisateur lecteur d'écran ne saura jamais quels périphériques sont touchés par la dernière règle, alors que c'est un des deux signaux originaux du produit. « Se remarque au balayage visuel » exclut de fait les non-voyants du balayage.</div>
+            <div class="finding-fix"><strong>Fix:</strong> contenu accessible obligatoire : <code>role="img"</code> ou <code>role="status"</code> + <code>aria-label="Touché par la dernière modification"</code> (texte visible court ou <code>sr-only</code> + icône). Plus un équivalent de liste : filtre « Périphériques touchés par la dernière règle » et/ou phrase résumée en tête d'onglet, annoncée <code>aria-live</code>.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">H4 — Badge : contraste accent/texte et accent/fond de carte non garantis, signal uniquement chromatique</h3>
+              <span class="finding-location">DESIGN.md › components.badge-modified + Colors › Accent</span>
+            </header>
+            <div class="finding-note">(a) Le couple <code>--accent-color</code>/<code>--text-accent-color</code> dépend entièrement du thème : HA ne force aucun ratio, et de nombreux thèmes tiers populaires définissent un accent décoratif sans lisibilité du texte posé dessus. (b) Contraste non textuel (WCAG 1.4.11) : un accent pastel peut être &lt; 3:1 contre <code>--card-background-color</code> — badge quasi invisible pour la basse vision. (c) Point de teinte unique, sans icône ni texte : pas de redondance de forme.</div>
+            <div class="finding-fix"><strong>Fix:</strong> critère mesurable au floor (« badge ≥ 4.5:1 texte/fond et ≥ 3:1 fond/carte sur les thèmes par défaut + 2 thèmes tiers ») avec garde à l'exécution si requis ; icône adaptée dans la pill (redondance de forme) ; repli sur filet <code>--divider</code> + icône <code>--primary-text-color</code> si le thème rend le badge illisible.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">M5 — Diff sans équivalent structuré pour lecteurs d'écran</h3>
+              <span class="finding-location">EXPERIENCE.md › IA › Historique + Vue diff type git</span>
+            </header>
+            <div class="finding-note">Le diff est spécifié comme rendu visuel uniquement : préfixes lus caractère par caractère sans sémantique de ligne, aucun résumé (« 2 ajouts, 1 suppression, 3 modifications »), pas de structure de liste annoncée, pas de lien ligne ↔ périphérique concerné.</div>
+            <div class="finding-fix"><strong>Fix:</strong> résumé <code>sr-only</code> en tête de diff (<code>role="status"</code>), libellé accessible par ligne (« ligne ajoutée : … »), <code>list</code> sémantique ou tableau avec en-têtes <code>sr-only</code> (type de changement / contenu).</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">M6 — Onglets : pattern ARIA APG non spécifié</h3>
+              <span class="finding-location">EXPERIENCE.md › IA › Onglets + Interaction Primitives</span>
+            </header>
+            <div class="finding-note">« Trois onglets, état reflété dans l'URL, opérable au clavier » — mais rien sur <code>tablist</code>/<code>tab</code>/<code>tabpanel</code>, <code>aria-selected</code>, <code>aria-controls</code>, ni la navigation par flèches du pattern APG. Si les onglets sont des liens d'URL stylés, <code>Tab</code> seul ne révèle pas la surface active à un lecteur d'écran.</div>
+            <div class="finding-fix"><strong>Fix:</strong> spécifier le pattern APG tabs complet (flèches gauche/droite, <code>aria-selected</code>, <code>tabpanel</code> associé, focus déplacé sur le panneau) ou l'usage d'un composant natif HA équivalent ; URL synchronisée sans piéger le focus.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">M7 — Autocomplete : pattern combobox non spécifié (et Échap ambigu)</h3>
+              <span class="finding-location">EXPERIENCE.md › Interaction Primitives › Autocomplete + Clavier</span>
+            </header>
+            <div class="finding-note">Pas d'<code>aria-expanded</code>, pas de <code>role="listbox"</code>/<code>option</code>, pas d'<code>aria-activedescendant</code>, pas de restitution du focus. « <code>Échap</code> referme/annule » est dangereusement vague : annule quoi ? Un <code>Échap</code> mal scopé pendant l'autocomplete peut vider le champ ou fermer le panneau.</div>
+            <div class="finding-fix"><strong>Fix:</strong> pattern APG combobox avec listbox (<code>aria-expanded</code>, <code>aria-controls</code>, <code>aria-activedescendant</code>, <code>role="option"</code> + <code>aria-selected</code>) ; <code>Échap</code> referme la liste uniquement, focus et saisie conservés ; <code>Home</code>/<code>End</code> sur la liste. Documenter dans Interaction Primitives.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">M8 — Validation de formulaire : câblage ARIA non spécifié</h3>
+              <span class="finding-location">EXPERIENCE.md › Formulaire de règle + State Patterns › Erreur de validation</span>
+            </header>
+            <div class="finding-note">L'erreur temps réel est annoncée <code>aria-live</code> (bon point), mais rien sur l'association <code>&lt;label for&gt;</code>/<code>aria-label</code> par champ, <code>aria-invalid="true"</code> sur le champ en erreur, <code>aria-describedby</code> liant le message au champ, ni la gestion du focus à l'apparition d'erreur / à la soumission. Un message en <code>aria-live</code> global sans association reste désynchronisé pour NVDA/VoiceOver naviguant champ par champ.</div>
+            <div class="finding-fix"><strong>Fix:</strong> compléter State Patterns — label persistant par champ ; à l'erreur : <code>aria-invalid</code> + <code>aria-describedby</code> → message ; à la soumission bloquée : focus sur le premier champ en erreur ; le message ne repose jamais sur la couleur seule.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">M9 — Éditeur YAML : accessibilité lecteur d'écran non garantie par la lib vendorisée</h3>
+              <span class="finding-location">EXPERIENCE.md › Component Patterns › Éditeur YAML</span>
+            </header>
+            <div class="finding-note">Les éditeurs de code légers (CodeMirror-like, contenteditable) sont notoirement inaccessibles aux lecteurs d'écran : curseur non annoncé, navigation caractière impossible, erreurs muettes. La spine rejette CodeMirror pour son poids sans poser de critère d'accessibilité pour la lib de remplacement, ni de repli. Le mode YAML est l'échappatoire fonctionnel au formulaire — s'il est SR-hostile, l'édition complète l'est aussi. À trancher avant vendorisation.</div>
+            <div class="finding-fix"><strong>Fix:</strong> ajouter au critère de sélection de la lib : opérable au clavier complet, texte accessible à l'AT (ou repli <code>&lt;textarea&gt;</code>), erreurs annoncées via <code>aria-live</code> avec numéro de ligne ; le toggle formulaire ↔ YAML préserve le focus et annonce le changement de mode.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">M10 — Recherche : le compteur et le refiltrage temps réel ne sont pas annoncés</h3>
+              <span class="finding-location">EXPERIENCE.md › Interaction Primitives › Recherche</span>
+            </header>
+            <div class="finding-note">Pendant la frappe, la liste se réécrit à chaque touche. Sans <code>role="status"</code>/<code>aria-live</code> sur le compteur ni <code>aria-busy</code> sur la liste, un lecteur d'écran ne sait ni que la liste a changé, ni combien de résultats il y a — il tape dans le vide.</div>
+            <div class="finding-fix"><strong>Fix:</strong> compteur en <code>role="status"</code> (polite) annoncé à l'arrivée des résultats ; liste filtrée <code>aria-label="Périphériques filtrés"</code> ; ne pas déplacer le focus pendant la frappe.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">M11 — Skeletons de chargement : silence pour lecteurs d'écran</h3>
+              <span class="finding-location">EXPERIENCE.md › State Patterns › Chargement</span>
+            </header>
+            <div class="finding-note">Les skeletons sont purement visuels. Sans <code>aria-busy="true"</code> ni annonce textuelle, un lecteur d'écran présente un panneau vide — indistinguable de l'état « Vide — aucun périphérique ».</div>
+            <div class="finding-fix"><strong>Fix:</strong> <code>aria-busy</code> + texte <code>sr-only</code> « Chargement des périphériques… » en <code>role="status"</code> par zone ; skeletons décoratifs (<code>aria-hidden</code>). Distinguer explicitement chargé-vide vs chargement-en-cours dans le DOM.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">M12 — Restauration en un clic : ni confirmation ni annulation, activation accidentelle non couverte</h3>
+              <span class="finding-location">EXPERIENCE.md › IA › Historique + Carte de version avec restauration</span>
+            </header>
+            <div class="finding-note">Restaurer remplace le mapping en vigueur et archive — action à fort impact sur un système domestique, sans confirmation ni annulation, sur mobile, sur un bouton voisin d'autres cibles. Pour les utilisateurs à motricité réduite, une activation accidentelle écrase l'état courant ; la seule protection (l'archive) purge la 4e version — deux erreurs successives détruisent l'historique.</div>
+            <div class="finding-fix"><strong>Fix:</strong> confirmation explicite avec gestion du focus (dialog ARIA, focus piégé, retour au bouton), <strong>ou</strong> pattern undo : toast <code>role="status"</code> « Version restaurée — Annuler ». Bouton ≥ 44 px avec espacement des cibles voisines.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">M13 — Cibles tactiles : le floor dit ≥ 44 px mais les specs composants ne le garantissent pas</h3>
+              <span class="finding-location">EXPERIENCE.md › Accessibility Floor vs DESIGN.md › Badge de modification ; Component Patterns</span>
+            </header>
+            <div class="finding-note">Le floor est déclaratif et aucune spec de composant ne l'applique ; certaines le contredisent : badge « point discret » s'il devient interactif ; suggestions d'autocomplete sans hauteur spécifiée ; action « Créer une règle pour ce périphérique » du repli mobile sans taille ni position ; barre d'onglets mobile sans hauteur.</div>
+            <div class="finding-fix"><strong>Fix:</strong> épingler par composant : badge non interactif <strong>ou</strong> zone d'impact ≥ 44 px (padding transparent) ; suggestions autocomplete ≥ 44 px ; action de ligne = pleine hauteur de zone tactile avec <code>aria-label</code> nominatif ; onglets et « Restaurer » ≥ 44 px + 8 px d'espacement.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">M14 — Fond de ligne teinté à 12 % : possiblement imperceptible (contraste non textuel)</h3>
+              <span class="finding-location">DESIGN.md › diff-line-* + Colors › Sémantique diff</span>
+            </header>
+            <div class="finding-note">12 % d'une couleur sémantique dans un fond de carte peut passer sous le seuil 3:1 de WCAG 1.4.11 — surtout en thème sombre. Le surlignage du bloc modifié devient invisible pour la basse vision ; il ne resterait que le préfixe et la couleur du texte (déjà en échec, cf. C1). L'<code>[ASSUMPTION]</code> « point de départ » n'est suivie d'aucun critère de vérification.</div>
+            <div class="finding-fix"><strong>Fix:</strong> doubler le teintage d'une barre gauche 3 px en couleur sémantique (signal de forme + position, insensible au thème) ; remplacer l'assumption par un critère : teinte ≥ 3:1 contre le fond de carte sur les thèmes clair et sombre par défaut, sinon monter à 16–20 %.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">L15 — prefers-reduced-motion non spécifié</h3>
+              <span class="finding-location">EXPERIENCE.md › State Patterns › Chargement / Sauvegarde, toasts</span>
+            </header>
+            <div class="finding-note">Skeletons animés (pulse), spinner, apparition des toasts : aucune mention de <code>prefers-reduced-motion</code>. Le vertige vestibulaire (WCAG 2.3.3, grand public inclus) n'est pas couvert par le floor.</div>
+            <div class="finding-fix"><strong>Fix:</strong> une ligne au floor : toute animation décorative se désactive sous <code>prefers-reduced-motion: reduce</code> ; skeletons en blocs statiques, spinner en texte d'état.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">L16 — Zoom 200 % / reflow mobile non testés</h3>
+              <span class="finding-location">DESIGN.md › Layout &amp; Spacing ; EXPERIENCE.md › Foundation, Éditeur YAML</span>
+            </header>
+            <div class="finding-note">WCAG 1.4.4 (zoom 200 %) et 1.4.10 (reflow 320 px sans scroll bidimensionnel) ne figurent nulle part, ni dans le floor ni comme critère de test. L'éditeur YAML sur mobile pose un scroll horizontal par nature (mono non-retour à la ligne) — acceptable <em>si</em> spécifié.</div>
+            <div class="finding-fix"><strong>Fix:</strong> ajouter au floor : utilisable à 200 % de zoom ; reflow à 320 px sauf éditeur YAML/diff où le scroll horizontal est explicitement admis avec focus visible en débordement.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">L17 — Mécanisme de sélection de version du diff non spécifié</h3>
+              <span class="finding-location">EXPERIENCE.md › IA › Historique (« la version sélectionnée »)</span>
+            </header>
+            <div class="finding-note">« La version sélectionnée » suppose un sélecteur non décrit. Un widget custom mal balisé serait inopérable au clavier et muet pour l'AT.</div>
+            <div class="finding-fix"><strong>Fix:</strong> spécifier un contrôle natif (<code>&lt;select&gt;</code> ou radio group ARIA) reliant version ↔ diff affiché, avec annonce du changement.</div>
+          </article>
+        </div>
+      </details>
+    </section>
+
+    <div class="mechanical">
+      <h3>Mechanical notes</h3>
+      <ul>
+        <li>Sévérité = impact downstream sur la consommation architecture / story-dev (rubric, per brief) ; impact WCAG/AT pour la lens accessibilité.</li>
+        <li>Scope note honorée : l'absence de couleurs hex est une décision d'héritage acceptée (variables de thème HA) — pas comptée comme finding.</li>
+        <li>Les deux spines sont <code>status: draft</code> — les findings supposent une passe de review pre-final ; rien ne bloque le mockup gate.</li>
+        <li>Le rubric annonce 7 findings low ; 8 findings de niveau low y figurent — tous repris dans ce rapport.</li>
+        <li>Chevauchement de cause racine : le rubric medium (cible de contraste du diff) et M14 (teinte 12 % imperceptible) portent sur la même construction <code>color-mix</code> — traiter ensemble.</li>
+        <li>Flow 1 coverage map inférée (pas de traçabilité CAP — voir finding Inheritance) : étape 2 → CAP-1/2 ; étapes 3–4 → CAP-2/3 ; étapes 5–6 → CAP-4 ; étape 7 → CAP-5.</li>
+        <li>Recommandation de sortie (accessibilité) : bloquer le passage à l'implémentation jusqu'à C1 + H2 + H3 + H4 ; les medium en une passe dans les deux spines ; les low au floor d'implémentation, sauf M9 (critère de sélection de la lib YAML) à trancher avant vendorisation.</li>
+        <li>À conserver (déjà correct côté accessibilité) : héritage total du thème, préfixes <code>+</code>/<code>-</code>, focus visible jamais supprimé, <code>aria-live</code> prévu sur validation/save/erreurs, floor ≥ 44 px déclaré, erreurs textuelles et nominatives, aucun spinner sans issue.</li>
+      </ul>
+    </div>
+
+    <footer class="report-footer">
+      <div class="meta">
+        <span>Rubric: _bmad-output/planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/review-rubric.md</span>
+        <span>Accessibility: _bmad-output/planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/review-accessibility.md</span>
+        <span>Generated: 2026-09-27</span>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>
