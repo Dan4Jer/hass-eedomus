@@ -46,6 +46,8 @@ Review quick (self), itération 1 :
 - [checked] Performance : `_resolve_main_entity_id` scanne le registry par périph (~165 × registry) — un appel one-shot au chargement de l'onglet, acceptable ; à optimiser en index unique si la commande devient un poll.
 - [checked] XSS : toutes les valeurs dynamiques passent par `_escapeHtml` (nom de périphérique, entity_id, aria-label du badge).
 
+- [high, patch — découvert en vérification LIVE] 165/165 périphs marqués « modifiés » : le badge lisait le config **mergé** (`get_yaml_config_sync`), dont `usage_id_mappings` contient aussi le mapping par défaut — donc tout match. Corrigé : le handler charge maintenant le custom mapping **brut** (`device_mapping.load_custom_yaml_mappings_async`, une fois par appel) et le badge ne reflète plus que les overrides utilisateur (`custom_usage_id_mappings` / `custom_rules`). Test ajouté : un custom mapping vide → aucun badge, quel que soit le défaut. Leçon : « mergé » ≠ « ce que l'utilisateur a modifié ».
+
 ## Verification
 
 **Commands:**

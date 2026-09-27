@@ -16,6 +16,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+import custom_components.eedomus.device_mapping as device_mapping_module
 import custom_components.eedomus.ui_service as ui_service_module
 from custom_components.eedomus.const import COORDINATOR
 from custom_components.eedomus.ui_service import (
@@ -345,7 +346,21 @@ class TestDirectCallHelpers:
 
 class TestGetPeripheralsHandler:
     """P.1.3: the Périphériques tab reads coordinator.data through the
-    eedomus/get_peripherals command."""
+    eedomus/get_peripherals command, with the modified badge driven by the
+    raw custom mapping (never the merged config, which mixes in the
+    default mapping and would flag every peripheral)."""
+
+    CUSTOM_CONFIG = {
+        "custom_usage_id_mappings": {"24": {"ha_entity": "sensor.humidite"}},
+        "custom_rules": [
+            {
+                "name": "Unité température salon",
+                "condition": {"usage_id": "7", "state": "any"},
+                "actions": [{"type": "override", "attributes": {}}],
+            }
+        ],
+        "metadata": {"last_modified": "2026-09-26 21:04"},
+    }
 
     def make_coordinator(self):
         coordinator = MagicMock()
@@ -366,19 +381,6 @@ class TestGetPeripheralsHandler:
                 "usage_id": "133",
             },
         }
-        coordinator.get_yaml_config_sync = MagicMock(
-            return_value={
-                "usage_id_mappings": {"24": {"ha_entity": "sensor.humidite"}},
-                "advanced_rules": [
-                    {
-                        "name": "Unité température salon",
-                        "condition": {"usage_id": "7", "state": "any"},
-                        "actions": [{"type": "override", "attributes": {}}],
-                    }
-                ],
-                "metadata": {"last_modified": "2026-09-26 21:04"},
-            }
-        )
         coordinator._resolve_main_entity_id = MagicMock(
             side_effect=lambda pid: {
                 "111": "sensor.temperature_salon",
@@ -405,12 +407,25 @@ class TestGetPeripheralsHandler:
         )
         return hass
 
+    def patch_custom_mapping(self, monkeypatch, config=None, side_effect=None):
+        """Patch the raw custom mapping loader used by the handler."""
+        loader = AsyncMock(
+            return_value=self.CUSTOM_CONFIG if config is None else config
+        )
+        if side_effect is not None:
+            loader.side_effect = side_effect
+        monkeypatch.setattr(
+            device_mapping_module, "load_custom_yaml_mappings_async", loader
+        )
+        return loader
+
     @pytest.mark.asyncio
-    async def test_projects_rows_with_current_mapping(self):
+    async def test_projects_rows_with_current_mapping(self, monkeypatch):
         coordinator = self.make_coordinator()
         hass = self.make_hass(coordinator)
         service = EedomusUIService(hass)
         connection = MagicMock()
+        self.patch_custom_mapping(monkeypatch)
 
         await service._handle_get_peripherals(hass, connection, {"id": 5})
 
@@ -431,11 +446,12 @@ class TestGetPeripheralsHandler:
         }
 
     @pytest.mark.asyncio
-    async def test_badge_distinguishes_rule_and_plain_mapping(self):
+    async def test_badge_distinguishes_rule_and_plain_mapping(self, monkeypatch):
         coordinator = self.make_coordinator()
         hass = self.make_hass(coordinator)
         service = EedomusUIService(hass)
         connection = MagicMock()
+        self.patch_custom_mapping(monkeypatch)
 
         await service._handle_get_peripherals(hass, connection, {"id": 5})
 
@@ -452,24 +468,44 @@ class TestGetPeripheralsHandler:
         assert rows["333"]["modified_date"] is None
 
     @pytest.mark.asyncio
-    async def test_payload_is_json_serializable(self):
+    async def test_default_mapping_entries_are_not_modified(self, monkeypatch):
+        """The badge must not light up from the default mapping."""
         coordinator = self.make_coordinator()
         hass = self.make_hass(coordinator)
         service = EedomusUIService(hass)
         connection = MagicMock()
+        # Only the custom file content drives the badge: an empty custom
+        # mapping means no peripheral is touched, whatever the default
+        # mapping contains.
+        self.patch_custom_mapping(monkeypatch, config={})
+
+        await service._handle_get_peripherals(hass, connection, {"id": 5})
+
+        rows = connection.send_result.call_args.args[1]["peripherals"]
+        assert all(row["modified"] is False for row in rows)
+        assert all(row["modified_by_rule"] is None for row in rows)
+
+    @pytest.mark.asyncio
+    async def test_payload_is_json_serializable(self, monkeypatch):
+        coordinator = self.make_coordinator()
+        hass = self.make_hass(coordinator)
+        service = EedomusUIService(hass)
+        connection = MagicMock()
+        self.patch_custom_mapping(monkeypatch)
 
         await service._handle_get_peripherals(hass, connection, {"id": 5})
 
         json.dumps(connection.send_result.call_args.args[1])
 
     @pytest.mark.asyncio
-    async def test_unresolved_entity_yields_empty_mapping(self):
+    async def test_unresolved_entity_yields_empty_mapping(self, monkeypatch):
         coordinator = self.make_coordinator()
         coordinator._resolve_main_entity_id.return_value = None
         coordinator._resolve_main_entity_id.side_effect = None
         hass = self.make_hass(coordinator)
         service = EedomusUIService(hass)
         connection = MagicMock()
+        self.patch_custom_mapping(monkeypatch)
 
         await service._handle_get_peripherals(hass, connection, {"id": 5})
 
@@ -483,14 +519,14 @@ class TestGetPeripheralsHandler:
         assert rows["111"]["unit"] is None
 
     @pytest.mark.asyncio
-    async def test_yaml_config_failure_degrades_to_unmodified(self):
+    async def test_custom_mapping_load_failure_degrades_to_unmodified(
+        self, monkeypatch
+    ):
         coordinator = self.make_coordinator()
-        coordinator.get_yaml_config_sync = MagicMock(
-            side_effect=Exception("not loaded")
-        )
         hass = self.make_hass(coordinator)
         service = EedomusUIService(hass)
         connection = MagicMock()
+        self.patch_custom_mapping(monkeypatch, side_effect=Exception("file not found"))
 
         await service._handle_get_peripherals(hass, connection, {"id": 5})
 
@@ -498,9 +534,10 @@ class TestGetPeripheralsHandler:
         assert all(row["modified"] is False for row in rows)
 
     @pytest.mark.asyncio
-    async def test_no_coordinator_entries_returns_empty_list(self):
+    async def test_no_coordinator_entries_returns_empty_list(self, monkeypatch):
         service, connection = make_service({})
         connection.send_result = MagicMock()
+        self.patch_custom_mapping(monkeypatch)
 
         await service._handle_get_peripherals(service.hass, connection, {"id": 5})
 

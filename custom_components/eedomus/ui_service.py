@@ -405,7 +405,8 @@ class EedomusUIService:
     ) -> None:
         """Handle the get peripherals WebSocket command (Périphériques tab)."""
         try:
-            peripherals = self._collect_peripherals(hass)
+            custom_config = await self._load_custom_mapping(hass)
+            peripherals = self._collect_peripherals(hass, custom_config)
             connection.send_result(
                 msg.get("id"),
                 {"peripherals": peripherals, "total": len(peripherals)},
@@ -414,39 +415,52 @@ class EedomusUIService:
             _LOGGER.error(f"Peripherals error: {e}")
             connection.send_error(msg.get("id"), "error", str(e))
 
-    def _collect_peripherals(self, hass: HomeAssistant) -> List[Dict[str, Any]]:
+    async def _load_custom_mapping(self, hass: HomeAssistant) -> Dict[str, Any]:
+        """Load the raw custom_mapping.yaml content (not the merged config).
+
+        The merged config mixes the default mapping into usage_id_mappings,
+        which would flag every peripheral as "modified": the badge must only
+        reflect user-defined overrides.
+        """
+        try:
+            from .device_mapping import load_custom_yaml_mappings_async
+
+            return await load_custom_yaml_mappings_async(hass) or {}
+        except Exception as e:
+            _LOGGER.debug("Custom mapping unavailable for peripherals: %s", e)
+            return {}
+
+    def _collect_peripherals(
+        self, hass: HomeAssistant, custom_config: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
         """Project coordinator.data into a JSON-safe list for the panel.
 
         One entry per config entry coordinator (multi-box): hass.data[DOMAIN]
         mixes domain-level services and per-entry dicts holding COORDINATOR.
         The current mapping (entity_id, device_class, unit) is read from the
         live HA state of the registered entity, and the "modified" badge from
-        the merged YAML mapping config (custom rules / usage_id mappings).
+        the custom mapping overrides (custom rules / usage_id mappings).
         """
         peripherals: List[Dict[str, Any]] = []
         for value in hass.data.get(DOMAIN, {}).values():
             if not isinstance(value, dict) or COORDINATOR not in value:
                 continue
-            peripherals.extend(self._project_coordinator(hass, value[COORDINATOR]))
+            peripherals.extend(
+                self._project_coordinator(hass, value[COORDINATOR], custom_config)
+            )
         return peripherals
 
     def _project_coordinator(
-        self, hass: HomeAssistant, coordinator
+        self, hass: HomeAssistant, coordinator, custom_config: Dict[str, Any]
     ) -> List[Dict[str, Any]]:
         """Project one coordinator's data into panel rows."""
-        try:
-            yaml_config = coordinator.get_yaml_config_sync()
-        except Exception as e:
-            _LOGGER.debug("YAML config unavailable for peripherals: %s", e)
-            yaml_config = {}
-
-        usage_id_mappings = yaml_config.get("usage_id_mappings")
+        usage_id_mappings = custom_config.get("custom_usage_id_mappings")
         if not isinstance(usage_id_mappings, dict):
             usage_id_mappings = {}
-        advanced_rules = yaml_config.get("advanced_rules")
-        if not isinstance(advanced_rules, list):
-            advanced_rules = []
-        metadata = yaml_config.get("metadata")
+        custom_rules = custom_config.get("custom_rules")
+        if not isinstance(custom_rules, list):
+            custom_rules = []
+        metadata = custom_config.get("metadata")
         modified_date = (
             metadata.get("last_modified") if isinstance(metadata, dict) else None
         )
@@ -457,7 +471,7 @@ class EedomusUIService:
                 continue
             usage_id = periph.get("usage_id")
             rule_name = self._matching_rule_name(
-                usage_id, usage_id_mappings, advanced_rules
+                usage_id, usage_id_mappings, custom_rules
             )
             entity_id = self._resolve_entity_id(coordinator, periph_id)
             state = hass.states.get(entity_id) if entity_id else None
@@ -489,7 +503,7 @@ class EedomusUIService:
 
     @staticmethod
     def _matching_rule_name(
-        usage_id, usage_id_mappings: dict, advanced_rules: list
+        usage_id, usage_id_mappings: dict, custom_rules: list
     ) -> Optional[str]:
         """Name of the custom rule or mapping currently applied to a usage_id.
 
@@ -500,7 +514,7 @@ class EedomusUIService:
         key = str(usage_id)
         if key in usage_id_mappings:
             return f"mapping personnalisé {key}"
-        for rule in advanced_rules:
+        for rule in custom_rules:
             if not isinstance(rule, dict):
                 continue
             condition = rule.get("condition")
