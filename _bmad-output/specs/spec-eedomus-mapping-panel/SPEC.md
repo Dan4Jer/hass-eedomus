@@ -30,6 +30,10 @@ sources: []
   - **intent:** La sauvegarde persiste les règles dans `custom_mapping.yaml` via `config_manager` puis auto-applique : le rechargement de l'intégration est déclenché, le mapping prend effet immédiatement.
   - **success:** Une règle sauvée survit à un redémarrage HA et change effectivement l'entité concernée (ex. : une unité corrigée s'affiche corrigée dans HA après sauvegarde).
 
+- **CAP-5 — Historique et restauration des 3 dernières versions**
+  - **intent:** Chaque sauvegarde archive la version précédente du mapping (horodatée) dans le `.storage` HA ; le panel affiche les 3 dernières versions et permet de restaurer l'une d'elles en un clic — la restauration emprunte le chemin d'application de CAP-4 et archive la version qu'elle remplace ; seules les 3 dernières sont conservées.
+  - **success:** Après 3+ sauvegardes, le panel montre exactement 3 versions horodatées ; restaurer la version précédente remet son contenu et l'applique ; la 4e sauvegarde purge la plus ancienne.
+
 ## Constraints
 
 - Enregistrement du panneau **exclusivement** via l'API supportée HA 2026.9.3 — `async_register_built_in_panel(component_name="custom", config={"_panel_custom": {"module_url": ...}})` + `StaticPathConfig` pour servir les assets depuis le répertoire de l'intégration. Jamais d'API inventée ; `panel.py` actuel et `frontend.yaml` sont remplacés.
