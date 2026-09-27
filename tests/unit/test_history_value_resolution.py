@@ -7,6 +7,7 @@ peripheral's value_list (data[periph_id]["values"], from periph.value_list).
 """
 
 import logging
+from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -163,25 +164,63 @@ async def test_statistics_import_skips_unresolvable_label(caplog):
 
 
 @pytest.mark.asyncio
-async def test_async_set_fallback_resolves_labels():
-    """The async_set fallback converts labels to numeric states too."""
+async def test_statistics_failure_never_writes_states(caplog):
+    """A failed statistics import is skipped; no state is ever written.
+
+    Regression test for the recorder lock-up: replaying backdated history
+    points through hass.states.async_set flooded the recorder with writes
+    that never committed.
+    """
     coordinator = make_coordinator()
     coordinator.hass.services.async_call = AsyncMock(
         side_effect=Exception("service not found")
     )
     coordinator.hass.states.async_set = MagicMock()
+    caplog.set_level(logging.WARNING, logger="custom_components.eedomus.coordinator")
     chunk = [
         {"value": "Confort", "timestamp": "2026-09-27T09:00:00"},
         {"value": "20.5", "timestamp": "2026-09-27T09:30:00"},
     ]
 
-    await coordinator._fallback_import_history_chunk(PERIPH_ID, chunk)
+    await coordinator.async_import_history_chunk(PERIPH_ID, chunk)
 
-    states_set = coordinator.hass.states.async_set.call_args_list
-    assert len(states_set) == 2
-    # Integer list values stay readable ("100", not "100.0")
-    assert states_set[0].args[1] == "100"
-    assert states_set[1].args[1] == "20.5"
+    coordinator.hass.services.async_call.assert_awaited_once()
+    coordinator.hass.states.async_set.assert_not_called()
+    skip_warnings = [
+        record
+        for record in caplog.records
+        if "skipping" in record.getMessage() and "history points" in record.getMessage()
+    ]
+    assert len(skip_warnings) == 1
+
+
+@pytest.mark.asyncio
+async def test_fetch_history_chunk_writes_no_historical_states():
+    """The fetch step must not replay history points as states.
+
+    Regression test for the recorder lock-up: the inline async_set loop
+    wrote every fetched point to sensor.eedomus_<periph_id> with a backdated
+    timestamp, flooding the recorder at every boot.
+    """
+    coordinator = make_coordinator()
+    chunk = [
+        {"value": "100", "timestamp": "2026-09-27T09:00:00"},
+        {"value": "100", "timestamp": "2026-09-27T09:30:00"},
+    ]
+    coordinator.client.get_device_history = AsyncMock(return_value=chunk)
+    coordinator.hass.states.async_set = MagicMock()
+    coordinator._save_history_progress = AsyncMock()
+    coordinator._create_error_sensors = AsyncMock()
+
+    result = await coordinator.async_fetch_history_chunk(PERIPH_ID)
+
+    assert result == chunk
+    coordinator.hass.states.async_set.assert_not_called()
+    progress = coordinator._history_progress[PERIPH_ID]
+    assert progress["completed"] is True
+    assert progress["last_timestamp"] == int(
+        datetime.fromisoformat("2026-09-27T09:30:00").timestamp()
+    )
 
 
 def _fake_registry(monkeypatch, entries):
@@ -245,17 +284,19 @@ async def test_import_targets_real_entity_when_registered(monkeypatch):
     coordinator.hass.services.async_call = AsyncMock()
     chunk = [{"value": "100", "timestamp": "2026-09-27T09:00:00"}]
 
-    await coordinator._fallback_import_history_chunk(PERIPH_ID, chunk)
+    await coordinator.async_import_history_chunk(PERIPH_ID, chunk)
 
     service_data = coordinator.hass.services.async_call.await_args.kwargs[
         "service_data"
     ]
     assert service_data["statistic_id"] == "light.rubanled_salon_2"
+    # The success path must never write historical states either
+    coordinator.hass.states.async_set.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_async_set_fallback_targets_real_entity(monkeypatch):
-    """When Statistics fails, async_set also targets the real entity."""
+async def test_statistics_failure_targets_real_entity_but_skips(monkeypatch):
+    """A failing import resolves the real entity, then skips without writing."""
     _fake_registry(
         monkeypatch,
         [("eedomus", "01TEST_72762", "light.rubanled_salon_2")],
@@ -268,8 +309,8 @@ async def test_async_set_fallback_targets_real_entity(monkeypatch):
     coordinator.hass.states.async_set = MagicMock()
     chunk = [{"value": "100", "timestamp": "2026-09-27T09:00:00"}]
 
-    await coordinator._fallback_import_history_chunk(PERIPH_ID, chunk)
+    await coordinator.async_import_history_chunk(PERIPH_ID, chunk)
 
-    states_set = coordinator.hass.states.async_set.call_args_list
-    assert len(states_set) == 1
-    assert states_set[0].args[0] == "light.rubanled_salon_2"
+    call = coordinator.hass.services.async_call.await_args
+    assert call.kwargs["service_data"]["statistic_id"] == "light.rubanled_salon_2"
+    coordinator.hass.states.async_set.assert_not_called()

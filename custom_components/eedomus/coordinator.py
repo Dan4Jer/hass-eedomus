@@ -1245,50 +1245,19 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     len(chunk),
                 )
 
-            if chunk:
-                # Import the history data into Home Assistant states
-                _LOGGER.info(
-                    "Importing %d historical states for %s (%s)",
-                    len(chunk),
-                    (
-                        self.data[periph_id]["name"]
-                        if periph_id in self.data
-                        else "Unknown"
-                    ),
-                    periph_id,
-                )
-
-                # Create states for each historical data point
-                for entry in chunk:
-                    timestamp = datetime.fromisoformat(entry["timestamp"])
-                    state_value = entry["value"]
-
-                    # Create a state with the historical data
-                    self.hass.states.async_set(
-                        f"sensor.eedomus_{periph_id}",
-                        str(state_value),
-                        {
-                            "last_updated": timestamp.isoformat(),
-                            "friendly_name": (
-                                self.data[periph_id]["name"]
-                                if periph_id in self.data
-                                else "Unknown"
-                            ),
-                            "device_class": "timestamp",
-                            "state_class": "measurement",
-                        },
-                        timestamp,
-                    )
-
-                progress["last_timestamp"] = max(
-                    int(datetime.fromisoformat(entry["timestamp"]).timestamp())
-                    for entry in chunk
-                )
-                _LOGGER.debug(
-                    "Updated last_timestamp for %s to %s",
-                    periph_id,
-                    progress["last_timestamp"],
-                )
+            # Historical data points are imported via the Statistics API
+            # (async_import_history_chunk). Replaying them as states
+            # flooded the recorder with backdated writes that never
+            # committed ("database is locked").
+            progress["last_timestamp"] = max(
+                int(datetime.fromisoformat(entry["timestamp"]).timestamp())
+                for entry in chunk
+            )
+            _LOGGER.debug(
+                "Updated last_timestamp for %s to %s",
+                periph_id,
+                progress["last_timestamp"],
+            )
 
             await self._save_history_progress()
             # History sensors are now proper entities, no need to recreate them here
@@ -1374,35 +1343,17 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
     async def async_import_history_chunk(
         self, periph_id: str, chunk: list, main_entity_id: str = None
     ) -> None:
-        """Import historical data using the most reliable method available.
+        """Import historical data via the recorder Statistics API.
 
-        This method attempts to use the Recorder API for optimal performance,
-        but falls back to async_set if the Recorder API is not available or fails.
+        A failed statistics import is logged as a warning and skipped:
+        backdated data points must never be written to the state machine,
+        as replaying them floods the recorder with writes that never
+        commit ("database is locked").
         """
         if not chunk:
             _LOGGER.debug("No history data to import for %s", periph_id)
             return
 
-        # For HA 2026.2+, the Recorder API models have changed significantly
-        # and direct insertion is complex. Use the reliable async_set method
-        # which has been proven to work correctly.
-
-        try:
-            await self._fallback_import_history_chunk(periph_id, chunk, main_entity_id)
-            _LOGGER.info(
-                "Successfully imported %d historical data points for %s",
-                len(chunk),
-                periph_id,
-            )
-
-        except Exception as err:
-            _LOGGER.error("Failed to import history chunk for %s: %s", periph_id, err)
-            raise
-
-    async def _fallback_import_history_chunk(
-        self, periph_id: str, chunk: list, main_entity_id: str = None
-    ) -> None:
-        """Import historical data using Statistics API for HA 2026.2+."""
         periph_data = self.data.get(periph_id, {})
         periph_name = periph_data.get("name", f"Device {periph_id}")
         # Prefer the explicitly provided entity, then the peripheral's real
@@ -1415,43 +1366,21 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         _LOGGER.info("Importing historical data using Statistics API for %s", entity_id)
 
         try:
-            # Try the Statistics API approach first (HA 2026.2+ recommended method)
             await self._import_via_statistics(entity_id, chunk, periph_name, periph_id)
-            return
-        except Exception as err:
-            _LOGGER.warning(
-                "Statistics API import failed, falling back to async_set: %s", err
+            _LOGGER.info(
+                "Successfully imported %d historical data points for %s",
+                len(chunk),
+                periph_id,
             )
 
-            # Fallback to async_set if Statistics API fails
-            for entry in chunk:
-                # HA requires timezone-aware datetimes; eedomus history
-                # dates are naive local time
-                timestamp = dt_util.as_local(datetime.fromisoformat(entry["timestamp"]))
-                state_value = self._resolve_history_value(periph_id, entry["value"])
-                if state_value is None:
-                    _LOGGER.warning(
-                        "Skipping invalid data point: could not convert "
-                        "to float: %r (periph %s)",
-                        entry["value"],
-                        periph_id,
-                    )
-                    continue
-                # Keep list values readable: eedomus numeric values are
-                # integers ("0", "100"), avoid "100.0" states in HA
-                if state_value.is_integer():
-                    state_value = int(state_value)
-
-                # Create a state with the historical data
-                self.hass.states.async_set(
-                    entity_id,
-                    str(state_value),
-                    {
-                        "last_updated": timestamp.isoformat(),
-                        "friendly_name": periph_name,
-                    },
-                    timestamp,
-                )
+        except Exception as err:
+            # Skip, never fall back to writing historical states
+            _LOGGER.warning(
+                "Statistics import failed for %s: skipping %d history points: %s",
+                entity_id,
+                len(chunk),
+                err,
+            )
 
     def _resolve_main_entity_id(self, periph_id: str) -> str | None:
         """Résoudre l'entity_id HA réel du périphérique via l'entity registry.
@@ -1594,15 +1523,15 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             )
 
         except Exception as e:
+            # The caller (async_import_history_chunk) owns the single
+            # user-facing warning; these are diagnostic details only
             if (
                 "service not found" in str(e).lower()
                 or "import_statistics" in str(e).lower()
             ):
-                _LOGGER.warning(
-                    "recorder.import_statistics service not available: %s", e
-                )
+                _LOGGER.debug("recorder.import_statistics service not available: %s", e)
             else:
-                _LOGGER.error("Failed to import statistics for %s: %s", entity_id, e)
+                _LOGGER.debug("Failed to import statistics for %s: %s", entity_id, e)
             raise
 
     # Add method to set value for a specific peripheral
