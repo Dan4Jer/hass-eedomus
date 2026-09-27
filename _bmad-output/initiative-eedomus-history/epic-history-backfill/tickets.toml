@@ -34,6 +34,7 @@ covers = ["CAP-1"]
 after = [2]
 hitl = false
 risk = "medium"
+notes = ["Purger aussi la statistic de test sensor.eedomus_test_import (statistics_meta id 573, posée lors du repair recorder)."]
 
 [[entry]]
 id = 4
