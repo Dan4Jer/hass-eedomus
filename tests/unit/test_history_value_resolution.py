@@ -7,6 +7,7 @@ peripheral's value_list (data[periph_id]["values"], from periph.value_list).
 """
 
 import logging
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -84,10 +85,18 @@ async def test_statistics_import_resolves_labels():
 
     coordinator.hass.services.async_call.assert_awaited_once()
     call = coordinator.hass.services.async_call.await_args
-    statistics = call.kwargs["service_data"]["statistics"]
+    service_data = call.kwargs["service_data"]
+    # Spook's recorder.import_statistics schema: no "entity_id" field
+    assert service_data["statistic_id"] == f"sensor.eedomus_{PERIPH_ID}"
+    assert service_data["source"] == "recorder"
+    assert service_data["name"] == "Thermostat Salon"
+    assert service_data["has_mean"] is True
+    assert service_data["has_sum"] is False
+    statistics = service_data["stats"]
     assert len(statistics) == 2
     assert statistics[0]["mean"] == 100.0
     assert statistics[0]["state"] == 100.0
+    assert "entity_id" not in statistics[0]
     assert statistics[1]["mean"] == 20.5
 
 
@@ -115,7 +124,7 @@ async def test_statistics_import_skips_unresolvable_label(caplog):
     assert "Hors-Gel" in skip_warnings[0].getMessage()
     # The valid point is still imported
     call = coordinator.hass.services.async_call.await_args
-    statistics = call.kwargs["service_data"]["statistics"]
+    statistics = call.kwargs["service_data"]["stats"]
     assert len(statistics) == 1
     assert statistics[0]["mean"] == 0.0
 
@@ -140,3 +149,94 @@ async def test_async_set_fallback_resolves_labels():
     # Integer list values stay readable ("100", not "100.0")
     assert states_set[0].args[1] == "100"
     assert states_set[1].args[1] == "20.5"
+
+
+def _fake_registry(monkeypatch, entries):
+    """Patch the entity_registry stub with fake registry entries."""
+    from homeassistant.helpers import entity_registry as er
+
+    registry = SimpleNamespace(
+        entities={
+            str(i): SimpleNamespace(
+                platform=platform, unique_id=unique_id, entity_id=entity_id
+            )
+            for i, (platform, unique_id, entity_id) in enumerate(entries)
+        }
+    )
+    monkeypatch.setattr(er, "async_get", lambda hass: registry)
+
+
+def test_resolve_main_entity_id_exact_match(monkeypatch):
+    """The peripheral's main entity is found by its base unique_id."""
+    _fake_registry(
+        monkeypatch,
+        [
+            ("other", "01TEST_999", "sensor.other"),
+            ("eedomus", "01TEST_72762", "sensor.temperature_salon"),
+            ("eedomus", "01TEST_72762_select", "select.mode_salon"),
+        ],
+    )
+    coordinator = make_coordinator()
+    coordinator.config_entry = SimpleNamespace(entry_id="01TEST")
+    assert coordinator._resolve_main_entity_id(PERIPH_ID) == "sensor.temperature_salon"
+
+
+def test_resolve_main_entity_id_suffixed_fallback(monkeypatch):
+    """Without an exact match, a suffixed unique_id (e.g. _select) is used."""
+    _fake_registry(
+        monkeypatch,
+        [("eedomus", "01TEST_72762_select", "select.mode_salon")],
+    )
+    coordinator = make_coordinator()
+    coordinator.config_entry = SimpleNamespace(entry_id="01TEST")
+    assert coordinator._resolve_main_entity_id(PERIPH_ID) == "select.mode_salon"
+
+
+def test_resolve_main_entity_id_no_match(monkeypatch):
+    """No eedomus entry for the peripheral returns None."""
+    _fake_registry(monkeypatch, [("other", "01TEST_999", "sensor.other")])
+    coordinator = make_coordinator()
+    coordinator.config_entry = SimpleNamespace(entry_id="01TEST")
+    assert coordinator._resolve_main_entity_id(PERIPH_ID) is None
+
+
+@pytest.mark.asyncio
+async def test_import_targets_real_entity_when_registered(monkeypatch):
+    """The Statistics import uses the peripheral's real entity_id when found."""
+    _fake_registry(
+        monkeypatch,
+        [("eedomus", "01TEST_72762", "light.rubanled_salon_2")],
+    )
+    coordinator = make_coordinator()
+    coordinator.config_entry = SimpleNamespace(entry_id="01TEST")
+    coordinator.hass.services.async_call = AsyncMock()
+    chunk = [{"value": "100", "timestamp": "2026-09-27T09:00:00"}]
+
+    await coordinator._fallback_import_history_chunk(PERIPH_ID, chunk)
+
+    service_data = coordinator.hass.services.async_call.await_args.kwargs[
+        "service_data"
+    ]
+    assert service_data["statistic_id"] == "light.rubanled_salon_2"
+
+
+@pytest.mark.asyncio
+async def test_async_set_fallback_targets_real_entity(monkeypatch):
+    """When Statistics fails, async_set also targets the real entity."""
+    _fake_registry(
+        monkeypatch,
+        [("eedomus", "01TEST_72762", "light.rubanled_salon_2")],
+    )
+    coordinator = make_coordinator()
+    coordinator.config_entry = SimpleNamespace(entry_id="01TEST")
+    coordinator.hass.services.async_call = AsyncMock(
+        side_effect=Exception("service not found")
+    )
+    coordinator.hass.states.async_set = MagicMock()
+    chunk = [{"value": "100", "timestamp": "2026-09-27T09:00:00"}]
+
+    await coordinator._fallback_import_history_chunk(PERIPH_ID, chunk)
+
+    states_set = coordinator.hass.states.async_set.call_args_list
+    assert len(states_set) == 1
+    assert states_set[0].args[0] == "light.rubanled_salon_2"

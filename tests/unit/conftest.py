@@ -9,6 +9,7 @@ tested in isolation.
 
 import sys
 import types
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 
@@ -29,8 +30,16 @@ def _install_homeassistant_stubs():
     # homeassistant.const - Platform enum-like stub
     ha_const = module("homeassistant.const")
     platform_names = [
-        "LIGHT", "SWITCH", "COVER", "SENSOR", "BINARY_SENSOR",
-        "CLIMATE", "SELECT", "SCENE", "FAN", "LOCK",
+        "LIGHT",
+        "SWITCH",
+        "COVER",
+        "SENSOR",
+        "BINARY_SENSOR",
+        "CLIMATE",
+        "SELECT",
+        "SCENE",
+        "FAN",
+        "LOCK",
     ]
     ha_const.Platform = types.SimpleNamespace(**{n: n.lower() for n in platform_names})
 
@@ -103,6 +112,11 @@ def _install_homeassistant_stubs():
     ha_ep = module("homeassistant.helpers.entity_platform")
     ha_ep.async_get_current_platform = MagicMock
     ha_ep.entity_platform = MagicMock
+
+    # homeassistant.helpers.entity_registry - registry lookup used by the
+    # coordinator to resolve real entity_ids (entity_registry.async_get)
+    ha_er = module("homeassistant.helpers.entity_registry")
+    ha_er.async_get = lambda hass: SimpleNamespace(entities={})
 
 
 _install_homeassistant_stubs()
