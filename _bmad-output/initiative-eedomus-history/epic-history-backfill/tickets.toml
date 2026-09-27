@@ -1,0 +1,70 @@
+# tickets.toml — epic-history-backfill : 6 entrées, ordre de build.
+
+[[entry]]
+id = 1
+type = "story"
+title = "Réparer le recorder HA (verrou SQLite depuis 2026-09-27 09:01)"
+description = "Exécute la maintenance WAL à froid : arrêt complet de HA, wal_checkpoint(TRUNCATE) sur la base à froid, redémarrage laissé terminer sans interruption. Valide que states, events et statistics s'écrivent à nouveau (compteur de lignes qui croît)."
+verify = "Après redémarrage, les compteurs states/events augmentent dans la base et un import de test de statistics atterrit."
+covers = []
+after = []
+hitl = true
+risk = "high"
+notes = ["Option 1 retenue : maintenance WAL, pas de base neuve (décision utilisateur 2026-09-27)."]
+
+[[entry]]
+id = 2
+type = "story"
+title = "Import statistics direct via async_import_statistics"
+description = "Remplace l'appel au service Spook par l'API Python recorder.statistics sur le statistic_id de l'entité réelle, après résolution exacte dans l'entity registry (AD-8bis) ; horizon strictement antérieur à la première statistique native du capteur (AD-11). S'appuie sur l'agrégation horaire déjà en branche locale (a263d65). Tracer : un capteur de température visible en graph long-terme."
+verify = "Un capteur de température affiche en graph long-terme des heures antérieures à son installation HA, sans doublon sur les heures natives."
+covers = ["CAP-1"]
+after = [1]
+hitl = false
+risk = "medium"
+references = ["../../planning-artifacts/architecture/architecture-hass-eedomus-2026-09-27/ARCHITECTURE-SPINE.md#ad-11"]
+
+[[entry]]
+id = 3
+type = "story"
+title = "Supprimer le double-import et les entités fantômes"
+description = "Retire l'écriture inline d'états dans async_fetch_history_chunk et le fallback async_set de l'import ; nettoie les entités et statistics fantômes sensor.eedomus_* existantes (state machine + statistics_meta)."
+verify = "Un cycle complet de backfill ne crée aucune entité sensor.eedomus_* et les fantômes préexistantes ont disparu."
+covers = ["CAP-1"]
+after = [2]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 4
+type = "story"
+title = "Tâche de fond et progression .storage scopée"
+description = "Sort le fetch/import du cycle de partial refresh : tâche de fond cadencée par history_peripherals_per_scan, progression et retry persistés en .storage sous la clé <config_entry_id>_<periph_id>, value_list figée au fetch du chunk (AD-6bis), unload = await + flush, au plus un importer actif par entry."
+verify = "Un partial refresh reste ~1 s pendant un backfill complet ; après redémarrage HA en cours de backfill, la reprise repart de la progression persistée."
+covers = ["CAP-2", "CAP-3"]
+after = [3]
+hitl = false
+risk = "medium"
+references = ["../../planning-artifacts/architecture/architecture-hass-eedomus-2026-09-27/ARCHITECTURE-SPINE.md#ad-2"]
+
+[[entry]]
+id = 5
+type = "story"
+title = "Documenter l'activation de l'option history"
+description = "Documente (options flow + doc utilisateur) : comportement à l'activation, durée attendue de la première activation, reprise après redémarrage, visibilité dans HA (statistics/graphs long terme) et limites (pas de panel History)."
+verify = "La doc de l'option décrit les quatre points sans ouvrir le code ; un lecteur peut décider d'activer en connaissance de cause."
+covers = ["CAP-4"]
+after = [4]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 6
+type = "story"
+title = "Valider en production et mesurer la première activation"
+description = "Déploie sur le RPi (git-only, restart), déroule une première activation complète, mesure sa durée réelle (boucle avec le ticket 5 si l'estimation diverge), vérifie les success signals : graphs au-delà de l'installation, refresh ~1 s pendant backfill, zéro fantôme. Étend la suite E2E avec un test history/statistics."
+verify = "Première activation complète mesurée et documentée ; suite E2E étendue verte sur l'instance live ; aucun warning 'not a valid option' ni entité fantôme dans les logs."
+covers = ["CAP-1", "CAP-2", "CAP-3", "CAP-4"]
+after = [5]
+hitl = false
+risk = "low"
