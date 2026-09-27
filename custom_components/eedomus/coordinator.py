@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_ENABLE_HISTORY,
@@ -1424,7 +1425,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
             # Fallback to async_set if Statistics API fails
             for entry in chunk:
-                timestamp = datetime.fromisoformat(entry["timestamp"])
+                # HA requires timezone-aware datetimes; eedomus history
+                # dates are naive local time
+                timestamp = dt_util.as_local(datetime.fromisoformat(entry["timestamp"]))
                 state_value = self._resolve_history_value(periph_id, entry["value"])
                 if state_value is None:
                     _LOGGER.warning(
@@ -1516,7 +1519,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             statistics_data = []
             for entry in chunk:
                 try:
-                    timestamp = datetime.fromisoformat(entry["timestamp"])
+                    # HA statistics require timezone-aware start datetimes;
+                    # eedomus history dates are naive local time
+                    timestamp = dt_util.as_local(
+                        datetime.fromisoformat(entry["timestamp"])
+                    )
                     state_value = self._resolve_history_value(periph_id, entry["value"])
                     if state_value is None:
                         raise ValueError(

@@ -98,6 +98,8 @@ async def test_statistics_import_resolves_labels():
     assert statistics[0]["state"] == 100.0
     assert "entity_id" not in statistics[0]
     assert statistics[1]["mean"] == 20.5
+    # HA statistics require timezone-aware start datetimes
+    assert statistics[0]["start"].tzinfo is not None
 
 
 @pytest.mark.asyncio

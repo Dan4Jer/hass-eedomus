@@ -9,6 +9,7 @@ tested in isolation.
 
 import sys
 import types
+from datetime import timezone
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -117,6 +118,18 @@ def _install_homeassistant_stubs():
     # coordinator to resolve real entity_ids (entity_registry.async_get)
     ha_er = module("homeassistant.helpers.entity_registry")
     ha_er.async_get = lambda hass: SimpleNamespace(entities={})
+
+    # homeassistant.util.dt - timezone helpers (as_local attaches the HA
+    # timezone to naive datetimes; the stub mimics that with UTC)
+    ha_util = module("homeassistant.util")
+    ha_util.__path__ = []
+    ha_dt = module("homeassistant.util.dt")
+    ha_dt.as_local = lambda dt: (
+        dt if getattr(dt, "tzinfo", None) else dt.replace(tzinfo=timezone.utc)
+    )
+    ha_dt.as_utc = lambda dt: (
+        dt if getattr(dt, "tzinfo", None) else dt.replace(tzinfo=timezone.utc)
+    )
 
 
 _install_homeassistant_stubs()
