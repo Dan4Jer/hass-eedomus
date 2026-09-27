@@ -1516,7 +1516,12 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             # Prepare statistics data in the format expected by the
             # recorder.import_statistics service (Spook ectoplasm):
             # statistic_id / source / has_mean / has_sum / stats[{start,...}]
-            statistics_data = []
+            # HA long-term statistics are hourly: start must be from the top
+            # of the hour, so the raw data points are aggregated per hour.
+            hourly_values: dict[datetime, list[float]] = {}
+            last_state: dict[datetime, float] = {}
+            last_ts: dict[datetime, datetime] = {}
+            skipped_points = 0
             for entry in chunk:
                 try:
                     # HA statistics require timezone-aware start datetimes;
@@ -1531,18 +1536,29 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                             f"(periph {periph_id})"
                         )
 
-                    statistics_data.append(
-                        {
-                            "start": timestamp,
-                            "mean": state_value,
-                            "min": state_value,
-                            "max": state_value,
-                            "state": state_value,
-                        }
-                    )
+                    hour = timestamp.replace(minute=0, second=0, microsecond=0)
+                    hourly_values.setdefault(hour, []).append(state_value)
+                    # "state" is the most recent value within the hour
+                    if hour not in last_ts or timestamp >= last_ts[hour]:
+                        last_ts[hour] = timestamp
+                        last_state[hour] = state_value
                 except (ValueError, TypeError) as e:
                     _LOGGER.warning("Skipping invalid data point: %s", e)
+                    skipped_points += 1
                     continue
+
+            statistics_data = []
+            for hour in sorted(hourly_values):
+                values = hourly_values[hour]
+                statistics_data.append(
+                    {
+                        "start": hour,
+                        "mean": sum(values) / len(values),
+                        "min": min(values),
+                        "max": max(values),
+                        "state": last_state.get(hour, values[-1]),
+                    }
+                )
 
             if not statistics_data:
                 _LOGGER.warning("No valid statistics data to import for %s", entity_id)
@@ -1550,7 +1566,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
             # Import using the Statistics API
             _LOGGER.info(
-                "Calling recorder.import_statistics for %d data points",
+                "Calling recorder.import_statistics for %d data points "
+                "(%d hourly statistics)",
+                len(chunk) - skipped_points,
                 len(statistics_data),
             )
 

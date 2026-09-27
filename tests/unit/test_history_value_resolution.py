@@ -93,13 +93,44 @@ async def test_statistics_import_resolves_labels():
     assert service_data["has_mean"] is True
     assert service_data["has_sum"] is False
     statistics = service_data["stats"]
-    assert len(statistics) == 2
-    assert statistics[0]["mean"] == 100.0
-    assert statistics[0]["state"] == 100.0
-    assert "entity_id" not in statistics[0]
-    assert statistics[1]["mean"] == 20.5
+    # Both points fall in hour 09:00: they are aggregated into ONE
+    # hourly statistic (mean/min/max), HA requires top-of-the-hour starts
+    assert len(statistics) == 1
+    assert statistics[0]["mean"] == 60.25
+    assert statistics[0]["min"] == 20.5
+    assert statistics[0]["max"] == 100.0
+    # "state" is the most recent value within the hour
+    assert statistics[0]["state"] == 20.5
+    assert statistics[0]["start"].minute == 0
     # HA statistics require timezone-aware start datetimes
     assert statistics[0]["start"].tzinfo is not None
+    assert "entity_id" not in statistics[0]
+
+
+@pytest.mark.asyncio
+async def test_statistics_import_aggregates_per_hour():
+    """Points in different hours produce one statistic per hour."""
+    coordinator = make_coordinator()
+    coordinator.hass.services.async_call = AsyncMock()
+    chunk = [
+        {"value": "10", "timestamp": "2026-09-27T08:15:00"},
+        {"value": "30", "timestamp": "2026-09-27T08:45:00"},
+        {"value": "50", "timestamp": "2026-09-27T09:10:00"},
+    ]
+
+    await coordinator._import_via_statistics(
+        f"sensor.eedomus_{PERIPH_ID}", chunk, "Thermostat Salon", PERIPH_ID
+    )
+
+    stats = coordinator.hass.services.async_call.await_args.kwargs["service_data"][
+        "stats"
+    ]
+    assert len(stats) == 2
+    assert stats[0]["start"].hour == 8
+    assert stats[0]["mean"] == 20.0
+    assert stats[0]["state"] == 30.0
+    assert stats[1]["start"].hour == 9
+    assert stats[1]["mean"] == 50.0
 
 
 @pytest.mark.asyncio
