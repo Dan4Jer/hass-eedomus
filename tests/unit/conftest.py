@@ -105,6 +105,12 @@ def _install_homeassistant_stubs():
     ha_sensor = module("homeassistant.components.sensor")
     ha_sensor.SensorEntity = MagicMock
 
+    # homeassistant.components.websocket_api - async_register_command is used
+    # by ui_service to register the panel commands. In real HA it returns
+    # None (no deregistration handle), so the stub mirrors that.
+    ha_ws = module("homeassistant.components.websocket_api")
+    ha_ws.async_register_command = MagicMock(return_value=None)
+
     # homeassistant.helpers.aiohttp_client
     ha_aiohttp = module("homeassistant.helpers.aiohttp_client")
     ha_aiohttp.async_get_clientsession = MagicMock

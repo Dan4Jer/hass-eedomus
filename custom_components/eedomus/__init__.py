@@ -76,7 +76,10 @@ def get_clean_box_name(entry: ConfigEntry) -> str:
 async def _async_init_config_manager(hass: HomeAssistant):
     """Initialize ConfigManager with lazy import using executor to avoid blocking."""
     config_manager = await hass.async_add_executor_job(
-        lambda: __import__('custom_components.eedomus.config_manager', fromlist=['EedomusConfigManager']).EedomusConfigManager(hass)
+        lambda: __import__(
+            "custom_components.eedomus.config_manager",
+            fromlist=["EedomusConfigManager"],
+        ).EedomusConfigManager(hass)
     )
     await config_manager.async_init()
     return config_manager
@@ -85,7 +88,9 @@ async def _async_init_config_manager(hass: HomeAssistant):
 async def _async_init_data_service(hass: HomeAssistant):
     """Initialize DataService with lazy import using executor to avoid blocking."""
     data_service = await hass.async_add_executor_job(
-        lambda: __import__('custom_components.eedomus.data_service', fromlist=['EedomusDataService']).EedomusDataService(hass)
+        lambda: __import__(
+            "custom_components.eedomus.data_service", fromlist=["EedomusDataService"]
+        ).EedomusDataService(hass)
     )
     await data_service.async_init()
     return data_service
@@ -94,7 +99,9 @@ async def _async_init_data_service(hass: HomeAssistant):
 async def _async_init_schema_service(hass: HomeAssistant):
     """Initialize SchemaService with lazy import using executor to avoid blocking."""
     schema_service = await hass.async_add_executor_job(
-        lambda: __import__('custom_components.eedomus.schema_service', fromlist=['SchemaService']).SchemaService(hass)
+        lambda: __import__(
+            "custom_components.eedomus.schema_service", fromlist=["SchemaService"]
+        ).SchemaService(hass)
     )
     await schema_service.async_init()
     return schema_service
@@ -103,6 +110,7 @@ async def _async_init_schema_service(hass: HomeAssistant):
 def _init_ui_service(hass: HomeAssistant):
     """Initialize UIService with lazy import."""
     from .ui_service import EedomusUIService
+
     ui_service = EedomusUIService(hass)
     return ui_service
 
@@ -112,6 +120,59 @@ async def _async_init_ui_service(hass: HomeAssistant):
     ui_service = await hass.async_add_executor_job(_init_ui_service, hass)
     await ui_service.async_init()
     return ui_service
+
+
+async def _async_setup_domain_services(hass: HomeAssistant) -> None:
+    """Set up the domain-level services backing the panel WebSocket API.
+
+    The services (config_manager, data_service, schema_service, ui_service)
+    live at the domain level in hass.data[DOMAIN], not per config entry.
+    Setup is idempotent: on entry reload the existing instances are reused,
+    which also guarantees the websocket commands are only registered once
+    (HA raises when re-registering an existing command).
+    """
+    if DOMAIN not in hass.data:
+        hass.data[DOMAIN] = {}
+    domain_data = hass.data[DOMAIN]
+
+    # Order matters: schema_service reads config_manager and data_service,
+    # and ui_service reads schema_service and data_service.
+    if "config_manager" not in domain_data:
+        try:
+            domain_data["config_manager"] = await _async_init_config_manager(hass)
+        except Exception as err:
+            _LOGGER.error("Failed to initialize Eedomus ConfigManager: %s", err)
+
+    if "data_service" not in domain_data:
+        try:
+            domain_data["data_service"] = await _async_init_data_service(hass)
+        except Exception as err:
+            _LOGGER.error("Failed to initialize Eedomus DataService: %s", err)
+
+    if "schema_service" not in domain_data:
+        try:
+            domain_data["schema_service"] = await _async_init_schema_service(hass)
+        except Exception as err:
+            _LOGGER.error("Failed to initialize Eedomus SchemaService: %s", err)
+
+    if "ui_service" not in domain_data:
+        try:
+            domain_data["ui_service"] = await _async_init_ui_service(hass)
+        except Exception as err:
+            _LOGGER.error("Failed to initialize Eedomus UIService: %s", err)
+
+    ui_service = domain_data.get("ui_service")
+    if ui_service is not None and not ui_service.is_initialized():
+        # A previous registration attempt failed (async_init swallows its
+        # errors): retry it on the stored instance instead of skipping
+        # initialization forever.
+        try:
+            await ui_service.async_init()
+        except Exception as err:
+            _LOGGER.error("Failed to initialize Eedomus UIService: %s", err)
+
+    if ui_service is not None and ui_service.is_initialized():
+        _LOGGER.info("Eedomus panel services ready - websocket commands registered")
 
 
 # ---------------------------------------------------
@@ -454,6 +515,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _LOGGER.info("No coordinator stored - running in proxy mode only")
 
     hass.data[DOMAIN][entry.entry_id] = entry_data
+
+    # Set up the domain-level panel services (config_manager, data_service,
+    # schema_service, ui_service). Idempotent across entry reloads.
+    await _async_setup_domain_services(hass)
 
     # Enregistrement du webhook et service (always register webhooks)
     disable_security = entry.options.get(
