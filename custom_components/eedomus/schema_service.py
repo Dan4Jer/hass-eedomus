@@ -263,38 +263,66 @@ class SchemaService:
         
         return errors
     
+    @staticmethod
+    def _key_name(key: Any) -> str:
+        """Return the string name of a schema key.
+
+        The base schema is keyed by vol.Optional/vol.Required markers whose
+        .schema attribute holds the actual name; JSON requires string keys.
+        """
+        if isinstance(key, str):
+            return key
+        marker_name = getattr(key, 'schema', None)
+        if isinstance(marker_name, str):
+            return marker_name
+        return str(key)
+
     def generate_schema_documentation(self) -> Dict[str, Any]:
-        """Generate documentation for the configuration schema."""
+        """Generate JSON-serializable documentation for the schema."""
         documentation = {
             'sections': {},
             'field_types': {}
         }
-        
+
         # Document each section
         for section_name in self.base_schema.schema:
             section_def = self.base_schema.schema[section_name]
             section_info = {'type': 'unknown', 'description': '', 'fields': {}}
-            
+
             # Determine section type
             if isinstance(section_def, vol.Optional):
                 section_info['type'] = 'optional'
                 section_def = section_def.schema
-            
+
             if isinstance(section_def, list):
                 section_info['type'] = 'array'
                 if len(section_def) > 0:
                     item_schema = section_def[0]
                     if hasattr(item_schema, 'schema') and isinstance(item_schema.schema, dict):
                         for field_name, field_def in item_schema.schema.items():
-                            section_info['fields'][field_name] = self._get_field_documentation(field_name, field_def)
-            elif isinstance(section_def, dict) and 'schema' in section_def:
-                section_info['type'] = 'object'
-                if isinstance(section_def['schema'], dict):
-                    for field_name, field_def in section_def['schema'].items():
-                        section_info['fields'][field_name] = self._get_field_documentation(field_name, field_def)
-            
-            documentation['sections'][section_name] = section_info
-        
+                            key = self._key_name(field_name)
+                            field_info = self._get_field_documentation(key, field_def)
+                            # Required-ness is carried by the marker key
+                            field_info['required'] = isinstance(field_name, vol.Required)
+                            section_info['fields'][key] = field_info
+            elif isinstance(section_def, dict):
+                # A dict keyed by vol markers documents fixed fields; a
+                # free-form mapping ({str: ...}) exposes no field names.
+                if any(isinstance(field_name, vol.Marker) for field_name in section_def):
+                    section_info['type'] = 'object'
+                    for field_name, field_def in section_def.items():
+                        key = self._key_name(field_name)
+                        field_info = self._get_field_documentation(key, field_def)
+                        field_info['required'] = isinstance(field_name, vol.Required)
+                        section_info['fields'][key] = field_info
+                else:
+                    section_info['type'] = 'map'
+                    section_info['description'] = (
+                        'Free-form mapping keyed by user-defined identifier.'
+                    )
+
+            documentation['sections'][self._key_name(section_name)] = section_info
+
         return documentation
     
     def _get_field_documentation(self, field_name: str, field_def) -> Dict[str, Any]:
@@ -317,9 +345,17 @@ class SchemaService:
             field_info['type'] = 'float'
         elif field_def is bool:
             field_info['type'] = 'boolean'
+        elif field_def is dict:
+            field_info['type'] = 'object'
         elif isinstance(field_def, list):
             field_info['type'] = 'array'
         elif isinstance(field_def, dict):
+            field_info['type'] = 'object'
+        elif isinstance(field_def, vol.In):
+            field_info['type'] = 'enum'
+        elif isinstance(field_def, vol.Any):
+            field_info['type'] = 'union'
+        elif isinstance(field_def, vol.Schema):
             field_info['type'] = 'object'
         elif hasattr(field_def, '__name__'):
             field_info['type'] = field_def.__name__
