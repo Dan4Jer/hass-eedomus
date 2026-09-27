@@ -47,15 +47,16 @@ class TestAsyncInit:
         await service.async_init()
 
         assert register.call_count == 4
-        # Handler form: (hass, handler) - the command type and schema come
-        # from the handler's _ws_command/_ws_schema attributes
+        # Handler form: (hass, handler) on the module-level dispatchers -
+        # HA calls websocket handlers as plain (hass, connection, msg)
+        # functions, so bound methods cannot be dispatched directly
         assert all(call.args[0] is service.hass for call in register.call_args_list)
         handlers = [call.args[1] for call in register.call_args_list]
         assert handlers == [
-            service._handle_validate_config,
-            service._handle_get_suggestions,
-            service._handle_get_schema,
-            service._handle_get_cache_stats,
+            ui_service_module._ws_validate_config,
+            ui_service_module._ws_get_suggestions,
+            ui_service_module._ws_get_schema,
+            ui_service_module._ws_get_cache_stats,
         ]
         assert service._registered_commands == [
             WS_TYPE_EEDOMUS_VALIDATE,

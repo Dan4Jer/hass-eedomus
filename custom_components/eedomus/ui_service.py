@@ -44,6 +44,88 @@ except ImportError:  # pragma: no cover
         return decorate
 
 
+def _get_ui_service(hass: HomeAssistant) -> Optional["EedomusUIService"]:
+    """Fetch the domain-level UI service instance from hass.data."""
+    return hass.data.get(DOMAIN, {}).get("ui_service")
+
+
+# Module-level dispatch functions: HA calls websocket handlers as plain
+# functions (hass, connection, msg) - bound methods would receive a spurious
+# extra `self` argument and crash at dispatch. Each dispatcher looks the
+# service up in hass.data at call time, so a reload that replaces the
+# instance needs no re-registration.
+@require_admin
+@websocket_command(
+    {
+        vol.Required("type"): WS_TYPE_EEDOMUS_VALIDATE,
+        vol.Optional("yaml_content", default=""): str,
+    }
+)
+async def _ws_validate_config(hass: HomeAssistant, connection, msg: dict) -> None:
+    """Dispatch eedomus/validate_config to the UI service."""
+    service = _get_ui_service(hass)
+    if service is None:
+        connection.send_error(
+            msg["id"], "service_unavailable", "Eedomus UI service not initialized"
+        )
+        return
+    await service._handle_validate_config(hass, connection, msg)
+
+
+@require_admin
+@websocket_command(
+    {
+        vol.Required("type"): WS_TYPE_EEDOMUS_SUGGESTIONS,
+        vol.Optional("field_type", default=""): str,
+        vol.Optional("query", default=""): str,
+    }
+)
+async def _ws_get_suggestions(hass: HomeAssistant, connection, msg: dict) -> None:
+    """Dispatch eedomus/get_suggestions to the UI service."""
+    service = _get_ui_service(hass)
+    if service is None:
+        connection.send_error(
+            msg["id"], "service_unavailable", "Eedomus UI service not initialized"
+        )
+        return
+    await service._handle_get_suggestions(hass, connection, msg)
+
+
+@require_admin
+@websocket_command({vol.Required("type"): WS_TYPE_EEDOMUS_SCHEMA})
+async def _ws_get_schema(hass: HomeAssistant, connection, msg: dict) -> None:
+    """Dispatch eedomus/get_schema to the UI service."""
+    service = _get_ui_service(hass)
+    if service is None:
+        connection.send_error(
+            msg["id"], "service_unavailable", "Eedomus UI service not initialized"
+        )
+        return
+    await service._handle_get_schema(hass, connection, msg)
+
+
+@require_admin
+@websocket_command({vol.Required("type"): WS_TYPE_EEDOMUS_CACHE_STATS})
+async def _ws_get_cache_stats(hass: HomeAssistant, connection, msg: dict) -> None:
+    """Dispatch eedomus/get_cache_stats to the UI service."""
+    service = _get_ui_service(hass)
+    if service is None:
+        connection.send_error(
+            msg["id"], "service_unavailable", "Eedomus UI service not initialized"
+        )
+        return
+    await service._handle_get_cache_stats(hass, connection, msg)
+
+
+# The commands in registration order: (command type, module dispatcher).
+WS_COMMANDS = (
+    (WS_TYPE_EEDOMUS_VALIDATE, _ws_validate_config),
+    (WS_TYPE_EEDOMUS_SUGGESTIONS, _ws_get_suggestions),
+    (WS_TYPE_EEDOMUS_SCHEMA, _ws_get_schema),
+    (WS_TYPE_EEDOMUS_CACHE_STATS, _ws_get_cache_stats),
+)
+
+
 class _LocalConnection:
     """Fake websocket connection capturing responses.
 
@@ -85,21 +167,18 @@ class EedomusUIService:
             self._initialized = True
             return
         try:
-            # Registration uses the handler form: async_register_command
-            # reads the _ws_command/_ws_schema attributes set on the handler
-            # by @websocket_command (dispatched through the bound method).
-            # HA 2026 dispatch validates the message against that schema on
-            # every call, so a command registered without one would crash.
-            # async_register_command returns None: the tracked command types
-            # are kept here. The list is reset so a retried init never
-            # records duplicate entries.
+            # Registration uses the handler form on the module-level
+            # dispatchers: async_register_command reads the _ws_command/
+            # _ws_schema attributes set by @websocket_command. HA calls
+            # websocket handlers as plain (hass, connection, msg) functions,
+            # which is why the dispatchers live at module level instead of
+            # the bound methods. The dispatchers resolve the service from
+            # hass.data at call time, so a reload swapping the instance
+            # needs no re-registration. async_register_command returns
+            # None: the tracked command types are kept here, reset so a
+            # retried init never records duplicate entries.
             self._registered_commands = []
-            for command_type, handler in (
-                (WS_TYPE_EEDOMUS_VALIDATE, self._handle_validate_config),
-                (WS_TYPE_EEDOMUS_SUGGESTIONS, self._handle_get_suggestions),
-                (WS_TYPE_EEDOMUS_SCHEMA, self._handle_get_schema),
-                (WS_TYPE_EEDOMUS_CACHE_STATS, self._handle_get_cache_stats),
-            ):
+            for command_type, handler in WS_COMMANDS:
                 async_register_command(self.hass, handler)
                 self._registered_commands.append(command_type)
 
@@ -126,13 +205,6 @@ class EedomusUIService:
         self._initialized = False
         _LOGGER.debug("Eedomus UIService shutdown complete")
 
-    @require_admin
-    @websocket_command(
-        {
-            vol.Required("type"): WS_TYPE_EEDOMUS_VALIDATE,
-            vol.Optional("yaml_content", default=""): str,
-        }
-    )
     async def _handle_validate_config(
         self,
         hass: HomeAssistant,
@@ -175,14 +247,6 @@ class EedomusUIService:
             _LOGGER.error(f"Validation error: {e}")
             connection.send_error(msg.get("id"), "error", str(e))
 
-    @require_admin
-    @websocket_command(
-        {
-            vol.Required("type"): WS_TYPE_EEDOMUS_SUGGESTIONS,
-            vol.Optional("field_type", default=""): str,
-            vol.Optional("query", default=""): str,
-        }
-    )
     async def _handle_get_suggestions(
         self,
         hass: HomeAssistant,
@@ -223,8 +287,6 @@ class EedomusUIService:
             _LOGGER.error(f"Suggestions error: {e}")
             connection.send_error(msg.get("id"), "error", str(e))
 
-    @require_admin
-    @websocket_command({vol.Required("type"): WS_TYPE_EEDOMUS_SCHEMA})
     async def _handle_get_schema(
         self,
         hass: HomeAssistant,
@@ -277,8 +339,6 @@ class EedomusUIService:
             _LOGGER.error(f"Schema error: {e}")
             connection.send_error(msg.get("id"), "error", str(e))
 
-    @require_admin
-    @websocket_command({vol.Required("type"): WS_TYPE_EEDOMUS_CACHE_STATS})
     async def _handle_get_cache_stats(
         self,
         hass: HomeAssistant,
