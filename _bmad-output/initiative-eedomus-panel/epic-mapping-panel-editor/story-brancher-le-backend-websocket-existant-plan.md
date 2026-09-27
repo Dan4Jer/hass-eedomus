@@ -45,6 +45,8 @@ Review quick, 1 lens, itération 1 (7 findings) :
 - [low, defer→P.1.7] async_shutdown jamais appelé : timers 30min/5min et listener persistent après retrait de la dernière entry — cohérent avec la décision « commandes non désenregistrées », à vérifier au déploiement.
 - [false] « Diff sans les nouveaux tests » — artefact de staging, pas un défaut de code : les tests existent et sont committés avec le reste.
 
+- [high, patch — découvert en vérification LIVE] La réfutation « false » du finding signature était INCOMPLÈTE : l'enregistrement avec schema=None passe, mais HA appelle schema(msg) inconditionnellement au dispatch (connection.py:251) — chaque commande levait TypeError au premier appel live (unknown_error). Corrigé : décorateurs @require_admin + @websocket_command({...}) par commande, enregistrement en forme handler async_register_command(hass, handler) ; schemas par commande, admin-only conforme au spec. Leçon : la vérification de la signature d'enregistrement ne vaut pas la vérification du dispatch.
+
 ## Verification
 
 **Commands:**

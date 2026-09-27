@@ -107,9 +107,24 @@ def _install_homeassistant_stubs():
 
     # homeassistant.components.websocket_api - async_register_command is used
     # by ui_service to register the panel commands. In real HA it returns
-    # None (no deregistration handle), so the stub mirrors that.
+    # None (no deregistration handle) and is called in the handler form
+    # (async_register_command(hass, handler)), where it reads the
+    # _ws_command/_ws_schema attributes set by the real decorators. The
+    # decorator stubs are identities so decorated handlers stay callable.
     ha_ws = module("homeassistant.components.websocket_api")
     ha_ws.async_register_command = MagicMock(return_value=None)
+
+    def _ws_identity_decorator(func):
+        return func
+
+    def _ws_websocket_command(schema):
+        def decorate(func):
+            return func
+
+        return decorate
+
+    ha_ws.require_admin = _ws_identity_decorator
+    ha_ws.websocket_command = _ws_websocket_command
 
     # homeassistant.helpers.aiohttp_client
     ha_aiohttp = module("homeassistant.helpers.aiohttp_client")

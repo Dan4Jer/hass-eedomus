@@ -10,8 +10,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from homeassistant.components import websocket_api
-
+import custom_components.eedomus.ui_service as ui_service_module
 from custom_components.eedomus.ui_service import (
     WS_TYPE_EEDOMUS_CACHE_STATS,
     WS_TYPE_EEDOMUS_SCHEMA,
@@ -35,27 +34,35 @@ def make_service(domain_data=None):
 class TestAsyncInit:
     @pytest.mark.asyncio
     async def test_registers_all_four_commands_once(self, monkeypatch):
-        """async_register_command is called once per command, no handle kept."""
+        """async_register_command is called once per command, no handle kept.
+
+        Registration uses the handler form: the command type and schema are
+        read from the handler's _ws_command/_ws_schema attributes (set by the
+        @websocket_command decorators), so only the handler is passed.
+        """
         service, _ = make_service()
         register = MagicMock(return_value=None)
-        monkeypatch.setattr(websocket_api, "async_register_command", register)
+        monkeypatch.setattr(ui_service_module, "async_register_command", register)
 
         await service.async_init()
 
         assert register.call_count == 4
-        command_types = [call.args[1] for call in register.call_args_list]
-        assert command_types == [
+        # Handler form: (hass, handler) - the command type and schema come
+        # from the handler's _ws_command/_ws_schema attributes
+        assert all(call.args[0] is service.hass for call in register.call_args_list)
+        handlers = [call.args[1] for call in register.call_args_list]
+        assert handlers == [
+            service._handle_validate_config,
+            service._handle_get_suggestions,
+            service._handle_get_schema,
+            service._handle_get_cache_stats,
+        ]
+        assert service._registered_commands == [
             WS_TYPE_EEDOMUS_VALIDATE,
             WS_TYPE_EEDOMUS_SUGGESTIONS,
             WS_TYPE_EEDOMUS_SCHEMA,
             WS_TYPE_EEDOMUS_CACHE_STATS,
         ]
-        handlers = [call.args[2] for call in register.call_args_list]
-        assert handlers[0] == service._handle_validate_config
-        assert handlers[1] == service._handle_get_suggestions
-        assert handlers[2] == service._handle_get_schema
-        assert handlers[3] == service._handle_get_cache_stats
-        assert service._registered_commands == command_types
         assert service.is_initialized() is True
 
     @pytest.mark.asyncio
@@ -63,11 +70,22 @@ class TestAsyncInit:
         """A registration error must not crash setup (limited mode)."""
         service, _ = make_service()
         register = MagicMock(side_effect=RuntimeError("already registered"))
-        monkeypatch.setattr(websocket_api, "async_register_command", register)
+        monkeypatch.setattr(ui_service_module, "async_register_command", register)
 
         await service.async_init()
 
         assert service.is_initialized() is False
+
+    @pytest.mark.asyncio
+    async def test_no_websocket_api_runs_in_limited_mode(self, monkeypatch):
+        """Without websocket_api the service reports initialized, registers nothing."""
+        service, _ = make_service()
+        monkeypatch.setattr(ui_service_module, "async_register_command", None)
+
+        await service.async_init()
+
+        assert service.is_initialized() is True
+        assert service._registered_commands == []
 
     @pytest.mark.asyncio
     async def test_retried_init_does_not_duplicate_registered_commands(
@@ -76,7 +94,7 @@ class TestAsyncInit:
         """A retry resets the tracked command list instead of appending."""
         service, _ = make_service()
         register = MagicMock(return_value=None)
-        monkeypatch.setattr(websocket_api, "async_register_command", register)
+        monkeypatch.setattr(ui_service_module, "async_register_command", register)
 
         await service.async_init()
         first = list(service._registered_commands)

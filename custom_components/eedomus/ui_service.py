@@ -4,6 +4,8 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+import voluptuous as vol
+
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN
@@ -15,6 +17,31 @@ WS_TYPE_EEDOMUS_VALIDATE = f"{DOMAIN}/validate_config"
 WS_TYPE_EEDOMUS_SUGGESTIONS = f"{DOMAIN}/get_suggestions"
 WS_TYPE_EEDOMUS_SCHEMA = f"{DOMAIN}/get_schema"
 WS_TYPE_EEDOMUS_CACHE_STATS = f"{DOMAIN}/get_cache_stats"
+
+# The handlers are decorated at class-definition time, so the websocket_api
+# imports must happen at module level. When the component is unavailable the
+# module still imports (limited mode) with identity decorator fallbacks and
+# no way to register commands.
+try:
+    from homeassistant.components.websocket_api import (
+        async_register_command,
+        require_admin,
+        websocket_command,
+    )
+except ImportError:  # pragma: no cover
+    async_register_command = None
+
+    def require_admin(func):
+        """Identity fallback - no admin check without websocket_api."""
+        return func
+
+    def websocket_command(schema):
+        """Identity fallback - no schema validation without websocket_api."""
+
+        def decorate(func):
+            return func
+
+        return decorate
 
 
 class _LocalConnection:
@@ -51,24 +78,21 @@ class EedomusUIService:
 
     async def async_init(self) -> None:
         """Initialize the UI service and register WebSocket commands."""
+        if async_register_command is None:
+            _LOGGER.warning(
+                "WebSocket API not available - UIService will run in limited mode"
+            )
+            self._initialized = True
+            return
         try:
-            # Import WebSocket API components - this might fail in some HA versions
-            try:
-                from homeassistant.components.websocket_api import (
-                    async_register_command,
-                )
-            except ImportError:
-                _LOGGER.warning(
-                    "WebSocket API not available - UIService will run in limited mode"
-                )
-                self._initialized = True
-                return
-
-            # async_register_command returns None in HA 2026: keep track of
-            # the command types ourselves. The single instance stored in
-            # hass.data[DOMAIN]['ui_service'] guarantees each command is only
-            # registered once per HA session. The list is reset here so a
-            # retried init never records duplicate entries.
+            # Registration uses the handler form: async_register_command
+            # reads the _ws_command/_ws_schema attributes set on the handler
+            # by @websocket_command (dispatched through the bound method).
+            # HA 2026 dispatch validates the message against that schema on
+            # every call, so a command registered without one would crash.
+            # async_register_command returns None: the tracked command types
+            # are kept here. The list is reset so a retried init never
+            # records duplicate entries.
             self._registered_commands = []
             for command_type, handler in (
                 (WS_TYPE_EEDOMUS_VALIDATE, self._handle_validate_config),
@@ -76,7 +100,7 @@ class EedomusUIService:
                 (WS_TYPE_EEDOMUS_SCHEMA, self._handle_get_schema),
                 (WS_TYPE_EEDOMUS_CACHE_STATS, self._handle_get_cache_stats),
             ):
-                async_register_command(self.hass, command_type, handler)
+                async_register_command(self.hass, handler)
                 self._registered_commands.append(command_type)
 
             self._initialized = True
@@ -102,6 +126,13 @@ class EedomusUIService:
         self._initialized = False
         _LOGGER.debug("Eedomus UIService shutdown complete")
 
+    @require_admin
+    @websocket_command(
+        {
+            vol.Required("type"): WS_TYPE_EEDOMUS_VALIDATE,
+            vol.Optional("yaml_content", default=""): str,
+        }
+    )
     async def _handle_validate_config(
         self,
         hass: HomeAssistant,
@@ -144,6 +175,14 @@ class EedomusUIService:
             _LOGGER.error(f"Validation error: {e}")
             connection.send_error(msg.get("id"), "error", str(e))
 
+    @require_admin
+    @websocket_command(
+        {
+            vol.Required("type"): WS_TYPE_EEDOMUS_SUGGESTIONS,
+            vol.Optional("field_type", default=""): str,
+            vol.Optional("query", default=""): str,
+        }
+    )
     async def _handle_get_suggestions(
         self,
         hass: HomeAssistant,
@@ -184,6 +223,8 @@ class EedomusUIService:
             _LOGGER.error(f"Suggestions error: {e}")
             connection.send_error(msg.get("id"), "error", str(e))
 
+    @require_admin
+    @websocket_command({vol.Required("type"): WS_TYPE_EEDOMUS_SCHEMA})
     async def _handle_get_schema(
         self,
         hass: HomeAssistant,
@@ -236,6 +277,8 @@ class EedomusUIService:
             _LOGGER.error(f"Schema error: {e}")
             connection.send_error(msg.get("id"), "error", str(e))
 
+    @require_admin
+    @websocket_command({vol.Required("type"): WS_TYPE_EEDOMUS_CACHE_STATS})
     async def _handle_get_cache_stats(
         self,
         hass: HomeAssistant,
