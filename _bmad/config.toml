@@ -1,0 +1,7 @@
+[core]
+project_name = "hass-eedomus"
+output_folder = "{project-root}/_bmad-output"
+
+[modules.bmm]
+planning_artifacts = "{project-root}/_bmad-output/planning-artifacts"
+implementation_artifacts = "{project-root}/_bmad-output/implementation-artifacts"
