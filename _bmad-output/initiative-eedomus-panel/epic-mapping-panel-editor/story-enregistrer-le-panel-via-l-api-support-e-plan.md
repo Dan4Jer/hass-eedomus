@@ -3,7 +3,7 @@ title: "P.1.2 Enregistrer le panel via l'API supportée"
 type: 'feature'
 ticket: 2
 created: '2026-09-27'
-status: 'built'
+status: done
 route: 'oneshot'
 route_source: 'auto'
 review: 'quick'
