@@ -69,8 +69,9 @@ def _install_homeassistant_stubs():
         this plain stub instead.
         """
 
-        def __init__(self, *args, **kwargs):
-            pass
+        def __init__(self, hass=None, *args, **kwargs):
+            # Mirror the real DataUpdateCoordinator: expose self.hass
+            self.hass = hass
 
     ha_coord.DataUpdateCoordinator = _StubDataUpdateCoordinator
     ha_coord.UpdateFailed = type("UpdateFailed", (Exception,), {})
