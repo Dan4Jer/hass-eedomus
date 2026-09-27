@@ -60,7 +60,19 @@ def _install_homeassistant_stubs():
     # homeassistant.helpers.update_coordinator
     ha_coord = module("homeassistant.helpers.update_coordinator")
     ha_coord.CoordinatorEntity = MagicMock
-    ha_coord.DataUpdateCoordinator = MagicMock
+
+    class _StubDataUpdateCoordinator:
+        """Minimal base class.
+
+        A MagicMock base breaks subclass instantiation (real coordinator's
+        super().__init__ calls plus attribute assignments), so unit tests use
+        this plain stub instead.
+        """
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+    ha_coord.DataUpdateCoordinator = _StubDataUpdateCoordinator
     ha_coord.UpdateFailed = type("UpdateFailed", (Exception,), {})
 
     # homeassistant.config_entries
