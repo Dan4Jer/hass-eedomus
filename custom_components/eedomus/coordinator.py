@@ -1411,7 +1411,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
         try:
             # Try the Statistics API approach first (HA 2026.2+ recommended method)
-            await self._import_via_statistics(entity_id, chunk, periph_name)
+            await self._import_via_statistics(entity_id, chunk, periph_name, periph_id)
             return
         except Exception as err:
             _LOGGER.warning(
@@ -1421,7 +1421,19 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             # Fallback to async_set if Statistics API fails
             for entry in chunk:
                 timestamp = datetime.fromisoformat(entry["timestamp"])
-                state_value = entry["value"]
+                state_value = self._resolve_history_value(periph_id, entry["value"])
+                if state_value is None:
+                    _LOGGER.warning(
+                        "Skipping invalid data point: could not convert "
+                        "to float: %r (periph %s)",
+                        entry["value"],
+                        periph_id,
+                    )
+                    continue
+                # Keep list values readable: eedomus numeric values are
+                # integers ("0", "100"), avoid "100.0" states in HA
+                if state_value.is_integer():
+                    state_value = int(state_value)
 
                 # Create a state with the historical data
                 self.hass.states.async_set(
@@ -1437,8 +1449,32 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     timestamp,
                 )
 
+    def _resolve_history_value(self, periph_id: str, value) -> float | None:
+        """Convertir une valeur d'historique en float.
+
+        L'API periph.history renvoie le libellé (ex. 'Confort') pour les
+        périphériques de type Liste. La valeur numérique correspondante est
+        disponible dans self.data[periph_id]["values"] (API periph.value_list,
+        fusionnée à l'initialisation du coordinator).
+
+        Returns:
+            La valeur numérique, ou None si la valeur ne peut être convertie.
+        """
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            pass
+        values_list = (self.data.get(periph_id) or {}).get("values") or []
+        for item in values_list:
+            if isinstance(item, dict) and item.get("description") == value:
+                try:
+                    return float(item["value"])
+                except (ValueError, TypeError):
+                    return None
+        return None
+
     async def _import_via_statistics(
-        self, entity_id: str, chunk: list, periph_name: str
+        self, entity_id: str, chunk: list, periph_name: str, periph_id: str
     ) -> None:
         """Import historical data using the Statistics API (HA 2026.2+ recommended method)."""
         try:
@@ -1447,7 +1483,12 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             for entry in chunk:
                 try:
                     timestamp = datetime.fromisoformat(entry["timestamp"])
-                    state_value = float(entry["value"])
+                    state_value = self._resolve_history_value(periph_id, entry["value"])
+                    if state_value is None:
+                        raise ValueError(
+                            f"could not convert to float: {entry['value']!r} "
+                            f"(periph {periph_id})"
+                        )
 
                     statistics_data.append(
                         {
