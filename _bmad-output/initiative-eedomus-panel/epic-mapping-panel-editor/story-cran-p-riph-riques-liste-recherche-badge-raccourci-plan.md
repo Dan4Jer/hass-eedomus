@@ -3,7 +3,7 @@ title: "P.1.3 Écran Périphériques (liste, recherche, badge, raccourci)"
 type: 'feature'
 ticket: 3
 created: '2026-09-27'
-status: 'built'
+status: done
 route: 'oneshot'
 route_source: 'auto'
 review: 'quick'
