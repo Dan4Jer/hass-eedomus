@@ -1,0 +1,84 @@
+{
+  "generation_hash": "fec34359eae40d1fb14e",
+  "inputs": {
+    "jinja2_version": "3.1.6",
+    "project_root": "/Users/danjer/mistral/hass-eedomus",
+    "renderer_sha256": "a622fd5d9f633690323bdecf6cc9dc28625ef0d7b9d971fcc3cd101ed271fa19",
+    "resolved_values": {
+      "config.modules.bmm.implementation_artifacts": "/Users/danjer/mistral/hass-eedomus/_bmad-output/implementation-artifacts",
+      "config.modules.bmm.planning_artifacts": "/Users/danjer/mistral/hass-eedomus/_bmad-output/planning-artifacts",
+      "customization.workflow.activation_steps_append": [],
+      "customization.workflow.activation_steps_prepend": [],
+      "customization.workflow.implementation_handoff": "Launch a subagent with no prior conversation context, with this prompt:\n\n> Read {plan_file} fully and implement it — the plan is the sole source of truth. Load every file listed in its frontmatter `context:` before you start.\n>\n> When done, report what you changed, how you verified it, and anything left incomplete or risky.\n",
+      "customization.workflow.on_complete": "",
+      "customization.workflow.open_plan": "",
+      "customization.workflow.persistent_facts": [],
+      "customization.workflow.quick_lenses": [
+        {
+          "id": "quick",
+          "instruction": "Launch a context-free subagent with this prompt:\n\nRead `{plan_file}` — the plan holding the acceptance criteria and intent — and the files its frontmatter `context:` lists. Read the agent instruction files (`AGENTS.md`, `CLAUDE.md`, or equivalents) at the repository root and in the directories the diff touches; those are the rules. Then read the unified diff at `{diff_file}` — it is the change under review.\n\nReport unmet acceptance criteria, broken rules, and bugs. Each finding: the location, what goes wrong, and evidence checked against the surrounding code. Output a Markdown list of findings only — no severity, priority, or ranking.\n\nDo not invoke any skill, and do not spawn subagents of your own — you are the reviewer. Return your findings as text in your final message; do not route them through any findings-reporting tool the host may offer.\n\n",
+          "name": "Quick"
+        }
+      ],
+      "customization.workflow.review": "auto",
+      "customization.workflow.route": "auto",
+      "customization.workflow.route_selection": "Decide whether to use a coding subagent (full) or implement directly (oneshot).\nUsing the information already gathered, with no further reading and minimal\nextra reasoning, estimate the lines of code to add or modify.\n100 lines or fewer: oneshot. Otherwise: full.\nIf the change touches more than five files and is not simple or mechanical,\nconsider upgrading to full.\n",
+      "customization.workflow.thorough_lenses": [
+        {
+          "id": "blind-hunter",
+          "instruction": "Launch a context-free subagent with this prompt:\n\nConduct a review of CONTENT.\nLook for what's missing, not only what's wrong.\nCompute your finding floor N from the diff file's size: N = min(floor(sqrt(kB) + 1), 10), where kB is the file's size in kilobytes. State the arithmetic in one line, then find at least N issues to fix or improve.\nOutput a Markdown list of findings only — no severity, priority, or ranking.\nIf the content is empty, stop and say so.\nIf you have zero findings, re-check and keep thinking; do not stop with an empty list.\n\nCONTENT: the unified diff at `{diff_file}`. Read that file — it is the content under review.\n\nDo not invoke any skill, and do not spawn subagents of your own — you are the reviewer. Return your findings as text in your final message; do not route them through any findings-reporting tool the host may offer.\n\n",
+          "name": "Blind Hunter"
+        },
+        {
+          "id": "edge-case-hunter",
+          "instruction": "Launch a context-free subagent with this prompt:\n\nRead `{skill-root}/review-prompts/edge-case-hunter.md` completely and follow it as your review instructions.\n\nclaims_file (leave unread until your instructions call for it): {claims_file}\n\nReview content: the unified diff at `{diff_file}`. Read that file — it is the content under review.\n\nDo not invoke any skill, and do not spawn subagents of your own — you are the reviewer. If the instruction file is unreadable, report that exact failure and stop. Return your findings as text in your final message; do not route them through any findings-reporting tool the host may offer.\n\n",
+          "name": "Edge Case Hunter"
+        },
+        {
+          "id": "verification-gap",
+          "instruction": "Launch a context-free subagent with this prompt:\n\nRead `{skill-root}/review-prompts/verification-gap.md` completely and follow it as your review instructions.\n\nReview content: the unified diff at `{diff_file}`. Read that file — it is the content under review.\n\nDo not invoke any skill, and do not spawn subagents of your own — you are the reviewer. If the instruction file is unreadable, report that exact failure and stop. Return your findings as text in your final message; do not route them through any findings-reporting tool the host may offer.\n\n",
+          "name": "Verification Gap Reviewer"
+        },
+        {
+          "id": "intent-alignment",
+          "instruction": "Launch a subagent with this prompt:\n\nYou are an intent-alignment auditor. You have no other context about how this change was produced. Here is the verbatim intent this work started from:\n\n{verbatim_intent}\n\nThe diff is the unified diff at `{diff_file}`. Read that file — it is the change under review.\n\nYour task is strictly descriptive — do not prescribe additional work. Report: (1) the defensible readings of the intent, enumerated; (2) which reading this diff implements; (3) where the readings and the diff diverge — specifically, which surface the intent's expectations live at versus which surface the diff's changes and its tests exercise.\n\nDo not invoke any skill, and do not spawn subagents of your own — you are the reviewer. Return your findings as text in your final message; do not route them through any findings-reporting tool the host may offer.\n\n",
+          "name": "Intent Alignment Auditor"
+        }
+      ]
+    },
+    "skill_root": "/Users/danjer/.vibe/skills/bmad-build",
+    "source_sha256": {
+      "plan-template.md": "e23e478344054c1f86f08f467df623f4db2a8c4fdf0e5f7be1738dde550fe33e",
+      "references/claims-check.md": "6cb20a86d819b95272876bca0dffef59ca07ba6a373d804295066751043867c0",
+      "references/deletion-check.md": "0f1f124e4e957147e89164a272b10bedc694ad0d9ad2618c8610ac74ee9cb0da",
+      "review-prompts/edge-case-hunter.md": "b909fe0ec8e4daaf2550d0ec783618c5146261d0dbc0e054698ce00d0905a3d1",
+      "review-prompts/verification-gap.md": "45ab0b8c4c56c5c055c97a293a8591a67e256d0b1a2058ce1f093cd866be8d03",
+      "step-01-clarify-and-route.md": "ccd25dc894c24bc25f3b8e317c7afa88eeedb12ed18c940f3f6ea034c6a95691",
+      "step-02-plan.md": "e13e215a0ef8f3181f8881beb2f6079a0d9de9a6242c0a665cc34f431231cb9b",
+      "step-03-implement.md": "aa285ac97fdaa6e66f273edf5363c98ddf0252bf965d51a9a336d194aeafdad1",
+      "step-04-review.md": "ca8cfc9944ae504d248bc48d561a96c2a45dad851cdd8fc2cf18719c7a599338",
+      "step-05-present.md": "8c3a4f5e627524b05c3f1db4850b6ab68ae6930d8046c340a3e1590dccc4ed61",
+      "step-oneshot.md": "9d16a2b08a3c3a427a6d30356ef6f8577e023b9a0e2f9ad3d78bfccb7271537a",
+      "workflow.md": "0e9c7fb386d6d32f3f70701ba011ba99a1ed43e891fc7c23876a9d37af132ed8"
+    }
+  },
+  "outputs": {
+    "plan-template.md": "e23e478344054c1f86f08f467df623f4db2a8c4fdf0e5f7be1738dde550fe33e",
+    "references/claims-check.md": "6cb20a86d819b95272876bca0dffef59ca07ba6a373d804295066751043867c0",
+    "references/deletion-check.md": "0f1f124e4e957147e89164a272b10bedc694ad0d9ad2618c8610ac74ee9cb0da",
+    "review-prompts/edge-case-hunter.md": "b909fe0ec8e4daaf2550d0ec783618c5146261d0dbc0e054698ce00d0905a3d1",
+    "review-prompts/verification-gap.md": "45ab0b8c4c56c5c055c97a293a8591a67e256d0b1a2058ce1f093cd866be8d03",
+    "step-01-clarify-and-route.md": "981b2f49489ee1b17d3f700b66dd106d9305c18c681dbca7680372d6044eb7e3",
+    "step-02-plan.md": "364323764f60a9dab4f876da20e49ed1177aa09d5a1ce116e4e1bec8e6e2b685",
+    "step-03-implement.md": "b6f9dbd16eedc7934fa40286368b8c60332c04ac52e96480adc639d9d9f60327",
+    "step-04-review.md": "4824c8d955487a5a38e0b4f320aad78aed5dd236e31c26ed984c3be30e6c6161",
+    "step-05-present.md": "edda56d0325a599734fef653501c2e56cd45ace615343113768b6a3f4f1b3540",
+    "step-oneshot.md": "65dd89a9087e0296717cf054b30c77f7adc25914f76748128de41274308eeef8",
+    "workflow.md": "ae7921f5c8700187791a7e5fea2c7262990e4c64d88bc55aa9baf2404fb53fe7"
+  },
+  "project_root": "/Users/danjer/mistral/hass-eedomus",
+  "project_slug": "hass-eedomus",
+  "root_hash": "45b27f24ce2b",
+  "schema_version": 1,
+  "skill": "bmad-build"
+}
