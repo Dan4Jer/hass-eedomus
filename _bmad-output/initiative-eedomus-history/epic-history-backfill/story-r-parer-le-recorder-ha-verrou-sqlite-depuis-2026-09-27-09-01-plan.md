@@ -3,7 +3,7 @@ title: "1.1 Réparer le recorder HA (verrou SQLite) — maintenance WAL + suppre
 type: 'bugfix'
 ticket: 1
 created: '2026-09-27'
-status: 'built'
+status: done
 route: 'full'
 route_source: 'auto'
 review: 'thorough'
