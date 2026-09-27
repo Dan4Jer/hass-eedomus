@@ -1,6 +1,6 @@
 ---
 id: SPEC-eedomus-mapping-panel
-companions: [../../planning-artifacts/architecture/architecture-hass-eedomus-2026-09-27/ARCHITECTURE-SPINE.md]
+companions: [../../planning-artifacts/architecture/architecture-hass-eedomus-2026-09-27/ARCHITECTURE-SPINE.md, ../../planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/DESIGN.md, ../../planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/EXPERIENCE.md]
 sources: []
 ---
 
