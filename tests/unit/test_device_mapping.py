@@ -61,15 +61,23 @@ class TestMergeYamlMappings:
         merged = merge_yaml_mappings(default, custom)
         assert merged["usage_id_mappings"]["10"] == "light"
 
-    def test_advanced_rules_from_default_only(self):
-        """Current behavior: only the default's advanced_rules survive;
-        custom rules are not merged into the list."""
-        default = {"advanced_rules": [{"name": "d1"}]}
-        custom = {"custom_rules": [{"name": "c1"}]}
+    def test_custom_rules_merged_over_default(self):
+        """Custom rules are merged: same-name rules override the default,
+        new custom rules are appended."""
+        default = {"advanced_rules": [{"name": "d1"}, {"name": "d2"}]}
+        custom = {"custom_rules": [{"name": "d2", "mapping": {}}, {"name": "c1"}]}
         merged = merge_yaml_mappings(default, custom)
         names = [r.get("name") for r in merged["advanced_rules"]]
-        assert "d1" in names
-        assert "c1" not in names
+        assert names == ["d1", "d2", "c1"]
+        # The overridden d2 is the custom one
+        d2 = next(r for r in merged["advanced_rules"] if r["name"] == "d2")
+        assert "mapping" in d2
+
+    def test_custom_rules_only_added_when_present(self):
+        default = {"advanced_rules": [{"name": "d1"}]}
+        merged = merge_yaml_mappings(default, {})
+        names = [r.get("name") for r in merged["advanced_rules"]]
+        assert names == ["d1"]
 
     def test_advanced_rules_always_a_list(self):
         merged = merge_yaml_mappings({}, {})

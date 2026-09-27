@@ -420,6 +420,36 @@ def merge_yaml_mappings(default_mapping: Dict[str, Any], custom_mapping: Dict[st
     if not isinstance(advanced_rules, list):
         _LOGGER.error("Advanced rules is not a list: %s", type(advanced_rules))
         advanced_rules = []
+
+    # Merge custom rules over the default ones (custom takes precedence):
+    # a custom rule with the same name overrides the default rule,
+    # new custom rules are appended to the list.
+    custom_advanced_rules = custom_mapping.get('advanced_rules', [])
+    if not isinstance(custom_advanced_rules, list):
+        _LOGGER.error("Custom advanced rules is not a list: %s", type(custom_advanced_rules))
+        custom_advanced_rules = []
+    if custom_advanced_rules:
+        default_rule_names = {
+            rule.get('name') for rule in advanced_rules
+            if isinstance(rule, dict) and rule.get('name')
+        }
+        kept_defaults = [
+            rule for rule in advanced_rules
+            if not (isinstance(rule, dict) and rule.get('name')
+                    and rule.get('name') in {
+                        cr.get('name') for cr in custom_advanced_rules
+                        if isinstance(cr, dict)
+                    })
+        ]
+        _LOGGER.debug(
+            "🔄 Merging custom advanced rules: %d default kept, %d custom added "
+            "(overridden names: %s)",
+            len(kept_defaults),
+            len(custom_advanced_rules),
+            [cr.get('name') for cr in custom_advanced_rules
+             if isinstance(cr, dict) and cr.get('name') in default_rule_names],
+        )
+        advanced_rules = kept_defaults + custom_advanced_rules
     
     # Convert list format to dict format for compatibility with entity.py
     # This is critical for the mapping system to work correctly
