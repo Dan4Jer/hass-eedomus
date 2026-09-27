@@ -1,0 +1,83 @@
+# tickets.toml — epic-mapping-panel-editor : 7 entrées, ordre de build.
+
+[[entry]]
+id = 1
+type = "story"
+title = "Brancher le backend websocket existant"
+description = "Appelle _async_init_ui_service au setup de l'intégration (et le shutdown à l'unload) : les 4 commandes websocket ui_service (validate_config, get_suggestions, get_schema, cache_stats) deviennent vivantes. Aucune nouvelle commande."
+verify = "Après setup, les commandes websocket eedomus répondent (test unitaire + vérification live via websocket) ; après unload elles sont désenregistrées."
+covers = ["CAP-3"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 2
+type = "story"
+title = "Enregistrer le panel via l'API supportée"
+description = "Réécrit panel.py sur async_register_built_in_panel(component_name=custom, _panel_custom.module_url) + StaticPathConfig servant www/ ; appel au setup, async_remove_panel à l'unload ; supprime frontend.yaml et le vieux code à API inventée."
+verify = "Le panneau Eedomus Config apparaît dans la sidebar (admin only) après le setup, disparaît à l'unload, aucun frontend.yaml, aucune erreur dans les logs."
+covers = ["CAP-1"]
+after = [1]
+hitl = false
+risk = "medium"
+references = ["../../specs/spec-eedomus-mapping-panel/SPEC.md", "../../planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/EXPERIENCE.md#foundation"]
+
+[[entry]]
+id = 3
+type = "story"
+title = "Écran Périphériques (liste, recherche, badge, raccourci)"
+description = "Onglet Périphériques conforme au mock-01 et à EXPERIENCE.md : liste des périphs (nom, usage_id, entité HA, mapping courant) depuis coordinator.data, recherche nom/usage_id, filtre 'Périphériques touchés' (aria-live), badge modifié accessible (aria-label nominatif), action 'Créer une règle pour ce périphérique' basculant sur Règles avec usage_id pré-rempli."
+verify = "Les ~165 périphs s'affichent avec recherche fonctionnelle ; le badge annonce la règle au lecteur d'écran ; le raccourci pré-remplit l'usage_id ; thémé HA (variables), reflow mobile 360px."
+covers = ["CAP-2"]
+after = [2]
+hitl = false
+risk = "medium"
+references = ["../../planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/mockups/mock-01-peripheriques.html"]
+
+[[entry]]
+id = 4
+type = "story"
+title = "Éditeur Règles — formulaire + validation + save auto-apply"
+description = "Onglet Règles mode Formulaire conforme au mock-02 : formulaire structuré (nom, priorité, conditions usage_id avec autocomplete, mapping ha_entity/device_class/unit/state_class), validation temps réel via websocket, save → config_manager → auto-apply (reload de l'intégration) avec feedback nominatif sur l'entité."
+verify = "La règle 'capteur de température' de la discussion #28 se crée par l'UI, une erreur de schema est signalée avant save (save désactivé), et après save l'entité change effectivement (unité corrigée visible)."
+covers = ["CAP-3", "CAP-4"]
+after = [3]
+hitl = false
+risk = "high"
+references = ["../../planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/mockups/mock-02-regles.html", "../../planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/EXPERIENCE.md#component-patterns"]
+
+[[entry]]
+id = 5
+type = "story"
+title = "Éditeur Règles — mode YAML avec coloration"
+description = "Mode YAML brut conforme à EXPERIENCE.md : lib vendorisée légère sélectionnée selon le critère M9 (clavier complet, texte exposé à l'AT, erreurs aria-live avec numéro de ligne ; repli textarea sinon), coloration syntaxique, validation temps réel, bascule Formulaire↔YAML sans perte."
+verify = "Un bloc YAML collé avec une erreur est signalé ligne par ligne en aria-live ; la bascule formulaire→YAML→formulaire préserve le contenu ; le focus est conservé à la bascule."
+covers = ["CAP-3"]
+after = [4]
+hitl = false
+risk = "medium"
+unknown = "Lib YAML exacte à sélectionner (critère M9) - repli textarea si aucune candidate légère ne passe."
+
+[[entry]]
+id = 6
+type = "story"
+title = "Historique, diff coloré et restauration"
+description = "Onglet Historique conforme au mock-03 : archivage .storage à chaque save (version horodatée, retention 3, purge à la 4e), cartes de version, diff type git avec le traitement C1 (texte --primary-text-color, fond teinté + préfixes +/-/~ + barre gauche), restauration avec confirmation 'Le mapping actuel sera archivé', passage par le chemin auto-apply de CAP-4."
+verify = "Après 3 saves, 3 versions horodatées visibles ; restaurer la précédente remet son contenu et l'applique ; le 4e save purge la plus ancienne ; contraste du diff ≥4.5:1 en thème clair ET sombre (vérifié sur les variables)."
+covers = ["CAP-5"]
+after = [4]
+hitl = false
+risk = "medium"
+references = ["../../planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/mockups/mock-03-historique.html", "../../planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/DESIGN.md#colors"]
+
+[[entry]]
+id = 7
+type = "story"
+title = "Validation E2E et production"
+description = "Étend la suite E2E (panel présent, websocket répond, parcours save+auto-apply, historique/diff/restauration), déploie sur le RPi (git-only), déroule le parcours #28 bout en bout en production, vérifie le contraste clair/sombre réel."
+verify = "Suite E2E étendue verte sur l'instance live ; parcours #28 démontré ; aucun avertissement d'accessibilité majeur ; aucun fantôme."
+covers = ["CAP-1", "CAP-2", "CAP-3", "CAP-4", "CAP-5"]
+after = [5, 6]
+hitl = false
+risk = "low"
