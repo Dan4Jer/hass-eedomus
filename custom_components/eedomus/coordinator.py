@@ -21,7 +21,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
 )
-from .entity import _get_config_value, map_device_to_ha_entity
+from .entity import _get_config_value, get_entry_prefix, map_device_to_ha_entity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -1404,8 +1404,12 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         """Import historical data using Statistics API for HA 2026.2+."""
         periph_data = self.data.get(periph_id, {})
         periph_name = periph_data.get("name", f"Device {periph_id}")
-        # Use the provided main entity ID if available, otherwise use the default
-        entity_id = main_entity_id if main_entity_id else f"sensor.eedomus_{periph_id}"
+        # Prefer the explicitly provided entity, then the peripheral's real
+        # registered entity; sensor.eedomus_<periph_id> is the last resort
+        # (legacy target, not present in the entity registry)
+        entity_id = main_entity_id or self._resolve_main_entity_id(periph_id)
+        if not entity_id:
+            entity_id = f"sensor.eedomus_{periph_id}"
 
         _LOGGER.info("Importing historical data using Statistics API for %s", entity_id)
 
@@ -1442,12 +1446,40 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     {
                         "last_updated": timestamp.isoformat(),
                         "friendly_name": periph_name,
-                        "device_class": "temperature",
-                        "state_class": "measurement",
-                        "unit_of_measurement": "°C",
                     },
                     timestamp,
                 )
+
+    def _resolve_main_entity_id(self, periph_id: str) -> str | None:
+        """Résoudre l'entity_id HA réel du périphérique via l'entity registry.
+
+        Les entités eedomus utilisent le unique_id "<entry_id>_<periph_id>"
+        (voir EedomusEntity). Certaines variantes ajoutent un suffixe
+        (ex. "_select") ; l'entité principale est la correspondance exacte.
+
+        Returns:
+            L'entity_id enregistré, ou None si introuvable.
+        """
+        try:
+            from homeassistant.helpers import entity_registry as er
+
+            registry = er.async_get(self.hass)
+        except Exception as err:
+            _LOGGER.debug("Entity registry unavailable: %s", err)
+            return None
+        prefix = get_entry_prefix(self)
+        base_unique_id = f"{prefix}_{periph_id}"
+        suffixed_fallback = None
+        for entry in registry.entities.values():
+            if entry.platform != DOMAIN or not entry.unique_id:
+                continue
+            if entry.unique_id == base_unique_id:
+                return entry.entity_id
+            if entry.unique_id.startswith(f"{base_unique_id}_") and (
+                suffixed_fallback is None
+            ):
+                suffixed_fallback = entry.entity_id
+        return suffixed_fallback
 
     def _resolve_history_value(self, periph_id: str, value) -> float | None:
         """Convertir une valeur d'historique en float.
@@ -1478,7 +1510,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
     ) -> None:
         """Import historical data using the Statistics API (HA 2026.2+ recommended method)."""
         try:
-            # Prepare statistics data in the format expected by Home Assistant
+            # Prepare statistics data in the format expected by the
+            # recorder.import_statistics service (Spook ectoplasm):
+            # statistic_id / source / has_mean / has_sum / stats[{start,...}]
             statistics_data = []
             for entry in chunk:
                 try:
@@ -1492,13 +1526,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
                     statistics_data.append(
                         {
-                            "entity_id": entity_id,
-                            "start": timestamp.isoformat(),
+                            "start": timestamp,
                             "mean": state_value,
                             "min": state_value,
                             "max": state_value,
                             "state": state_value,
-                            "sum": None,  # Not applicable for temperature
                         }
                     )
                 except (ValueError, TypeError) as e:
@@ -1519,7 +1551,14 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             await self.hass.services.async_call(
                 domain="recorder",
                 service="import_statistics",
-                service_data={"entity_id": entity_id, "statistics": statistics_data},
+                service_data={
+                    "statistic_id": entity_id,
+                    "source": "recorder",
+                    "name": periph_name,
+                    "has_mean": True,
+                    "has_sum": False,
+                    "stats": statistics_data,
+                },
                 blocking=True,
             )
 
@@ -1539,9 +1578,6 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 )
             else:
                 _LOGGER.error("Failed to import statistics for %s: %s", entity_id, e)
-            raise
-        except Exception as e:
-            _LOGGER.error("Failed to import statistics for %s: %s", entity_id, e)
             raise
 
     # Add method to set value for a specific peripheral
