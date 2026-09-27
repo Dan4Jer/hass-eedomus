@@ -25,11 +25,16 @@ WS_TYPE_EEDOMUS_CACHE_STATS = f"{DOMAIN}/get_cache_stats"
 try:
     from homeassistant.components.websocket_api import (
         async_register_command,
+        async_response,
         require_admin,
         websocket_command,
     )
 except ImportError:  # pragma: no cover
     async_register_command = None
+
+    def async_response(func):
+        """Identity fallback - no task scheduling without websocket_api."""
+        return func
 
     def require_admin(func):
         """Identity fallback - no admin check without websocket_api."""
@@ -61,6 +66,7 @@ def _get_ui_service(hass: HomeAssistant) -> Optional["EedomusUIService"]:
         vol.Optional("yaml_content", default=""): str,
     }
 )
+@async_response
 async def _ws_validate_config(hass: HomeAssistant, connection, msg: dict) -> None:
     """Dispatch eedomus/validate_config to the UI service."""
     service = _get_ui_service(hass)
@@ -80,6 +86,7 @@ async def _ws_validate_config(hass: HomeAssistant, connection, msg: dict) -> Non
         vol.Optional("query", default=""): str,
     }
 )
+@async_response
 async def _ws_get_suggestions(hass: HomeAssistant, connection, msg: dict) -> None:
     """Dispatch eedomus/get_suggestions to the UI service."""
     service = _get_ui_service(hass)
@@ -93,6 +100,7 @@ async def _ws_get_suggestions(hass: HomeAssistant, connection, msg: dict) -> Non
 
 @require_admin
 @websocket_command({vol.Required("type"): WS_TYPE_EEDOMUS_SCHEMA})
+@async_response
 async def _ws_get_schema(hass: HomeAssistant, connection, msg: dict) -> None:
     """Dispatch eedomus/get_schema to the UI service."""
     service = _get_ui_service(hass)
@@ -106,6 +114,7 @@ async def _ws_get_schema(hass: HomeAssistant, connection, msg: dict) -> None:
 
 @require_admin
 @websocket_command({vol.Required("type"): WS_TYPE_EEDOMUS_CACHE_STATS})
+@async_response
 async def _ws_get_cache_stats(hass: HomeAssistant, connection, msg: dict) -> None:
     """Dispatch eedomus/get_cache_stats to the UI service."""
     service = _get_ui_service(hass)

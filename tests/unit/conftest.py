@@ -124,6 +124,7 @@ def _install_homeassistant_stubs():
         return decorate
 
     ha_ws.require_admin = _ws_identity_decorator
+    ha_ws.async_response = _ws_identity_decorator
     ha_ws.websocket_command = _ws_websocket_command
 
     # homeassistant.helpers.aiohttp_client
