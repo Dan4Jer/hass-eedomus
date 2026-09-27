@@ -41,6 +41,7 @@ from .eedomus_client import EedomusClient
 from .entity import _get_config_value
 
 # Import service setup
+from .panel import async_setup_panel, async_unload_panel
 from .services import async_setup_services
 from .webhook import EedomusWebhookView
 
@@ -520,6 +521,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # schema_service, ui_service). Idempotent across entry reloads.
     await _async_setup_domain_services(hass)
 
+    # Register the sidebar panel (domain-level, idempotent)
+    await async_setup_panel(hass)
+
     # Enregistrement du webhook et service (always register webhooks)
     disable_security = entry.options.get(
         CONF_API_PROXY_DISABLE_SECURITY,
@@ -578,8 +582,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     # Note: Configuration manager has been removed - using YAML-based configuration only
-    # using the modern frontend.async_register_built_in_panel() method
-    # This ensures compatibility with HA 2026.02+ and avoids double registration
     _LOGGER.info("Eedomus integration initialized successfully")
     _LOGGER.debug("eedomus integration setup completed")
     return True
@@ -724,3 +726,12 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
     # Remove the config entry
     _LOGGER.info("Removing eedomus integration config entry")
+
+    # Tear down the domain-level panel when this was the last entry
+    remaining_entries = [
+        e
+        for e in hass.config_entries.async_entries(DOMAIN)
+        if e.entry_id != entry.entry_id
+    ]
+    if not remaining_entries:
+        await async_unload_panel(hass)

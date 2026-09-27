@@ -3,7 +3,7 @@ title: "P.1.1 Brancher le backend websocket existant"
 type: 'feature'
 ticket: 1
 created: '2026-09-27'
-status: 'built'
+status: done
 route: 'oneshot'
 route_source: 'auto'
 review: 'quick'

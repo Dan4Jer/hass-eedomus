@@ -202,8 +202,46 @@ class TestAsyncSetupEntryWiring:
         monkeypatch.setattr(
             eedomus_init, "_async_setup_domain_services", setup_domain_services
         )
+        setup_panel = AsyncMock()
+        monkeypatch.setattr(eedomus_init, "async_setup_panel", setup_panel)
 
         assert await eedomus_init.async_setup_entry(hass, entry) is True
 
         setup_domain_services.assert_awaited_once_with(hass)
+        setup_panel.assert_awaited_once_with(hass)
         hass.config_entries.async_forward_entry_setups.assert_awaited_once()
+
+
+class TestAsyncRemoveEntryTeardown:
+    @pytest.mark.asyncio
+    async def test_remove_last_entry_tears_down_panel(self, monkeypatch):
+        """Removing the last entry must remove the sidebar panel."""
+        hass = make_hass()
+        hass.data[DOMAIN] = {"panel_registered": True}
+        hass.config_entries.async_entries = MagicMock(return_value=[])
+        unload_panel = AsyncMock()
+        monkeypatch.setattr(eedomus_init, "async_unload_panel", unload_panel)
+
+        entry = MagicMock()
+        entry.options = {}
+        await eedomus_init.async_remove_entry(hass, entry)
+
+        unload_panel.assert_awaited_once_with(hass)
+
+    @pytest.mark.asyncio
+    async def test_remove_entry_with_sibling_keeps_panel(self, monkeypatch):
+        """With another entry remaining, the panel must stay registered."""
+        hass = make_hass()
+        hass.data[DOMAIN] = {"panel_registered": True}
+        sibling = MagicMock()
+        sibling.entry_id = "sibling_entry"
+        hass.config_entries.async_entries = MagicMock(return_value=[sibling])
+        unload_panel = AsyncMock()
+        monkeypatch.setattr(eedomus_init, "async_unload_panel", unload_panel)
+
+        entry = MagicMock()
+        entry.options = {}
+        entry.entry_id = "last_entry"
+        await eedomus_init.async_remove_entry(hass, entry)
+
+        unload_panel.assert_not_awaited()

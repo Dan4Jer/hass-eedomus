@@ -11,7 +11,7 @@ import sys
 import types
 from datetime import timezone
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 
 def _install_homeassistant_stubs():
@@ -126,6 +126,27 @@ def _install_homeassistant_stubs():
     ha_ws.require_admin = _ws_identity_decorator
     ha_ws.async_response = _ws_identity_decorator
     ha_ws.websocket_command = _ws_websocket_command
+
+    # homeassistant.components.frontend - async_remove_panel removes the
+    # sidebar panel at integration teardown
+    ha_frontend = module("homeassistant.components.frontend")
+    ha_frontend.async_remove_panel = MagicMock(return_value=None)
+
+    # homeassistant.components.panel_custom - async_register_panel registers
+    # the sidebar panel; in real HA it wraps
+    # frontend.async_register_built_in_panel (component_name="custom")
+    ha_pc = module("homeassistant.components.panel_custom")
+    ha_pc.async_register_panel = AsyncMock(return_value=None)
+
+    # StaticPathConfig (re-exported by homeassistant.components.http from
+    # http/server.py): serves the integration's www/ folder
+    class _StubStaticPathConfig:
+        def __init__(self, url_path, path, cache_headers=True):
+            self.url_path = url_path
+            self.path = path
+            self.cache_headers = cache_headers
+
+    ha_http.StaticPathConfig = _StubStaticPathConfig
 
     # homeassistant.helpers.aiohttp_client
     ha_aiohttp = module("homeassistant.helpers.aiohttp_client")
