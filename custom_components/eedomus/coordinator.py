@@ -58,6 +58,13 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         self._last_refresh_time = 0.0
         self._last_processed_devices = 0
 
+        # History import timing metrics (partial refresh decomposition)
+        self._last_history_time = 0.0
+        self._last_history_fetch_time = 0.0
+        self._last_history_import_time = 0.0
+        self._last_history_periphs = 0
+        self._last_history_states = 0
+
         # Endpoint-specific timing metrics
         self._endpoint_timings = {
             "get_periph_list": 0.0,
@@ -521,10 +528,24 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     for periph_data in self._dynamic_peripherals.values()
                     if self._is_dynamic_peripheral(periph_data)
                 )
+                # Residual local processing time (loop updates, error sensors),
+                # computed for the log only: history is measured separately in
+                # _async_partial_refresh, the rest is time not spent in API/history.
+                history_time = getattr(self, "_last_history_time", 0.0)
+                processing_time_log = max(
+                    total_time - actual_api_time - history_time, 0.0
+                )
                 _LOGGER.info(
-                    "🔄 PARTIAL REFRESH: %d dynamic, %.3fs total (Endpoints: %s)",
+                    "🔄 PARTIAL REFRESH: %d dynamic, %.3fs total "
+                    "(API: %.3fs, History: %.3fs [%d periphs, %d states], "
+                    "Processing: %.3fs, Endpoints: %s)",
                     partial_dynamic_count,
                     total_time,
+                    actual_api_time,
+                    history_time,
+                    self._last_history_periphs,
+                    self._last_history_states,
+                    processing_time_log,
                     endpoint_log,
                 )
                 return ret
@@ -845,6 +866,14 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # Start API timing
         api_start_time = datetime.now()
 
+        # Reset history metrics for this cycle so early returns below do not
+        # leak stale values from a previous cycle into the refresh log
+        self._last_history_time = 0.0
+        self._last_history_fetch_time = 0.0
+        self._last_history_import_time = 0.0
+        self._last_history_periphs = 0
+        self._last_history_states = 0
+
         # Skip API call if no dynamic peripherals to refresh
         if not self._dynamic_peripherals:
             _LOGGER.warning(
@@ -915,6 +944,12 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         processing_start_time = datetime.now()
 
         processed_devices = 0
+        # History import metrics for this cycle (exposed in the refresh log)
+        history_time = 0.0
+        history_fetch_time = 0.0
+        history_import_time = 0.0
+        history_periphs = 0
+        history_states = 0
         for periph_data in peripherals_body:
             periph_id = periph_data.get("periph_id")
             # Ajout des données de peripherals_caract_dict (si existantes)
@@ -931,7 +966,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             if history_retrieval and periph_id in peripherals_for_history:
                 if not self._history_progress.get(periph_id, {}).get("completed"):
                     _LOGGER.debug("Retrieving data history %s", periph_id)
+                    fetch_start = datetime.now()
                     chunk = await self.async_fetch_history_chunk(periph_id)
+                    fetch_time = (datetime.now() - fetch_start).total_seconds()
+                    import_time = 0.0
                     if chunk:
                         _LOGGER.debug(
                             "Retrieved %d history data points for %s",
@@ -939,13 +977,37 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                             periph_id,
                         )
                         # Import the historical data using the optimized Recorder API method
+                        import_start = datetime.now()
                         await self.async_import_history_chunk(periph_id, chunk)
+                        import_time = (datetime.now() - import_start).total_seconds()
+                        history_periphs += 1
+                        history_states += len(chunk)
+                    history_fetch_time += fetch_time
+                    history_import_time += import_time
+                    history_time += fetch_time + import_time
 
         # Create/update error sensors
         await self._create_error_sensors()
 
         # End processing timing
         processing_time = (datetime.now() - processing_start_time).total_seconds()
+
+        # Store history timing metrics for the refresh log
+        self._last_history_time = history_time
+        self._last_history_fetch_time = history_fetch_time
+        self._last_history_import_time = history_import_time
+        self._last_history_periphs = history_periphs
+        self._last_history_states = history_states
+        if history_periphs:
+            _LOGGER.debug(
+                "History metrics: %.3fs for %d peripherals, %d states "
+                "(fetch: %.3fs, import: %.3fs)",
+                history_time,
+                history_periphs,
+                history_states,
+                history_fetch_time,
+                history_import_time,
+            )
 
         # Store timing metrics for sensors
         self._last_api_time = api_time
