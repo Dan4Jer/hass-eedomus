@@ -1596,6 +1596,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             # Immediately update local state to reflect the change
             # This ensures UI updates instantly without waiting for coordinator refresh
             self.data[periph_id]["last_value"] = value
+            # Notify entities so the new state is rendered immediately
+            self.async_update_listeners()
             return {"success": 1, "value_used": value, "original_value": value}
 
     def next_best_value(self, periph_id: str, value: str):
