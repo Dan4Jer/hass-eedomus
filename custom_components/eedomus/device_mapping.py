@@ -258,7 +258,12 @@ async def load_yaml_mappings_async(hass, base_path: str = "") -> Dict[str, Any]:
         _LOGGER.error("❌ Check file permissions and YAML syntax")
     
     _LOGGER.debug("📖 Loading custom mapping asynchronously...")
-    custom_mapping = await load_yaml_file_async(hass, custom_file) or {}
+    if base_path:
+        custom_mapping = await load_yaml_file_async(hass, custom_file) or {}
+    else:
+        # The config-dir file (the panel's save target) takes priority over
+        # the integrated file: the merged config must reflect panel saves.
+        custom_mapping = await load_custom_yaml_mappings_async(hass) or {}
     _LOGGER.debug("Custom mapping loaded: %s", bool(custom_mapping))
     
     # Merge mappings (custom overrides default)
@@ -318,7 +323,12 @@ def load_yaml_mappings(base_path: str = "") -> Dict[str, Any]:
     
     _LOGGER.info("📖 Loading custom mapping...")
     _LOGGER.debug("⚠️  Using synchronous loading - blocking warnings may appear during initialization")
-    custom_mapping = load_yaml_file(custom_file) or {}
+    if base_path:
+        custom_mapping = load_yaml_file(custom_file) or {}
+    else:
+        # The config-dir file (the panel's save target) takes priority over
+        # the integrated file: the merged config must reflect panel saves.
+        custom_mapping = load_custom_yaml_mappings() or {}
     _LOGGER.debug("Custom mapping loaded: %s", bool(custom_mapping))
     
     # Merge mappings (custom overrides default)

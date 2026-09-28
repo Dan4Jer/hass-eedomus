@@ -189,3 +189,33 @@ class TestCustomMappingPaths:
         loaded = device_mapping_module.load_custom_yaml_mappings()
 
         assert loaded == {"custom_rules": [], "metadata": {"version": "config-dir"}}
+
+
+class TestMergedLoaderUsesConfigDir:
+    def test_merged_config_reflects_config_dir_file(self, tmp_path, monkeypatch):
+        """The merge loader (driving the real mapping) must read the
+        config-dir custom file, not only the integrated one."""
+        import sys
+
+        import custom_components.eedomus.device_mapping as device_mapping_module
+
+        target = tmp_path / "eedomus"
+        target.mkdir()
+        (target / "custom_mapping.yaml").write_text(
+            "custom_usage_id_mappings:\n  '999':\n    ha_entity: sensor\n"
+            "    ha_subtype: temperature\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(
+            sys.modules["homeassistant.core"],
+            "async_get_hass",
+            lambda: SimpleNamespace(
+                config=SimpleNamespace(config_dir=str(tmp_path))
+            ),
+            raising=False,
+        )
+
+        merged = device_mapping_module.load_yaml_mappings()
+
+        assert merged["usage_id_mappings"]["999"]["ha_entity"] == "sensor"
+        assert merged["usage_id_mappings"]["999"]["ha_subtype"] == "temperature"
