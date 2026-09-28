@@ -3,7 +3,7 @@ title: "P.1.8 Rework AD-13 — le HA storage devient le canon du mapping custom"
 type: 'feature'
 ticket: 8
 created: '2026-09-28'
-status: 'built'
+status: done
 route: 'oneshot'
 route_source: 'auto'
 review: 'quick'
