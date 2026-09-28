@@ -3,7 +3,7 @@ title: "P.1.10 Option d'activation du panneau dans l'OptionsFlow"
 type: 'feature'
 ticket: 10
 created: '2026-09-28'
-status: 'built'
+status: done
 route: 'oneshot'
 route_source: 'auto'
 review: 'quick'
