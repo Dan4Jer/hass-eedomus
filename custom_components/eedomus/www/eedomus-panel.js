@@ -1540,8 +1540,12 @@ class EedomusConfigPanel extends HTMLElement {
         this._yamlValidated = null;
       }
     } catch (err) {
+      // Syntax errors arrive as websocket errors carrying "line N"
       const message = (err && (err.message || err.code)) || 'validation impossible';
-      this._yamlError = { message, line: null };
+      this._yamlError = {
+        message,
+        line: this._yamlLineFromError(message, editor.value),
+      };
       this._yamlValidated = null;
     }
     if (editor.value === text) {
