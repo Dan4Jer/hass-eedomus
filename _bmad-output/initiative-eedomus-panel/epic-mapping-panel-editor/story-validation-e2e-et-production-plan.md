@@ -1,9 +1,9 @@
 ---
 title: "P.1.7 Validation E2E et production"
-type: 'story'
+type: 'feature'
 ticket: 7
 created: '2026-09-28'
-status: 'built'
+status: done
 route: 'oneshot'
 route_source: 'auto'
 review: 'quick'
