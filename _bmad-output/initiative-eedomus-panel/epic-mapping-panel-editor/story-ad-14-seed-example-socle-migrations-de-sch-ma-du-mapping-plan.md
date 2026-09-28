@@ -3,7 +3,7 @@ title: "P.1.9 AD-14 — seed .example + socle migrations de schéma"
 type: 'feature'
 ticket: 9
 created: '2026-09-28'
-status: 'built'
+status: done
 route: 'oneshot'
 route_source: 'auto'
 review: 'quick'
