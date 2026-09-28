@@ -40,6 +40,18 @@ class EedomusConfigPanel extends HTMLElement {
     this._validation = { valid: false, message: '' };
     this._confirmDelete = null;
     this._validateTimer = null;
+    // YAML mode state (P.1.5)
+    this._rulesMode = 'form'; // 'form' | 'yaml'
+    this._yamlText = null;
+    this._yamlError = null; // {message, line}
+    this._yamlValidated = null; // last validated config
+    this._yamlTimer = null;
+    // Historique tab state (P.1.6)
+    this._versions = null;
+    this._currentMapping = null;
+    this._versionsError = null;
+    this._confirmRestore = null;
+    this._historyStatus = '';
   }
 
   set hass(hass) {
@@ -326,6 +338,128 @@ class EedomusConfigPanel extends HTMLElement {
         .form-actions { display: flex; gap: 12px; flex-wrap: wrap; }
         .rule-save[disabled] { opacity: 0.5; cursor: not-allowed; }
 
+        .mode-toggle { display: inline-flex; gap: 0; margin-bottom: 8px; }
+        .mode-toggle button {
+          font: inherit; font-size: 13px; cursor: pointer;
+          min-height: 44px; padding: 8px 18px;
+          color: var(--primary-text-color);
+          background: var(--card-background-color);
+          border: 1px solid var(--divider-color);
+        }
+        .mode-toggle button:first-child {
+          border-radius: var(--ha-card-border-radius, 12px) 0 0 var(--ha-card-border-radius, 12px);
+        }
+        .mode-toggle button:last-child {
+          border-radius: 0 var(--ha-card-border-radius, 12px) var(--ha-card-border-radius, 12px) 0;
+          border-left: none;
+        }
+        .mode-toggle button[aria-pressed="true"] {
+          color: var(--text-accent-color, #fff);
+          background: var(--primary-color);
+          border-color: var(--primary-color);
+        }
+        .mode-toggle button:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+
+        .yaml-editor-wrap {
+          position: relative;
+          display: flex;
+          background: var(--card-background-color);
+          border: 1px solid var(--divider-color);
+          border-radius: var(--ha-card-border-radius, 12px);
+          overflow: hidden;
+        }
+        .yaml-editor-wrap:focus-within { outline: 2px solid var(--primary-color); }
+        .yaml-gutter {
+          flex: none; padding: 12px 8px 12px 12px;
+          text-align: right; user-select: none;
+          color: var(--secondary-text-color);
+          background: var(--input-fill-color, var(--card-background-color));
+          font-family: var(--code-font-family, ui-monospace, Menlo, monospace);
+          font-size: 12.5px; line-height: 1.5;
+          white-space: pre;
+          border-right: 1px solid var(--divider-color);
+        }
+        .yaml-code-area { position: relative; flex: 1; min-width: 0; }
+        .yaml-highlight {
+          position: absolute; inset: 0;
+          margin: 0; padding: 12px;
+          font-family: var(--code-font-family, ui-monospace, Menlo, monospace);
+          font-size: 12.5px; line-height: 1.5;
+          white-space: pre; overflow: auto;
+          color: var(--primary-text-color);
+          pointer-events: none;
+        }
+        .yaml-editor {
+          position: relative;
+          display: block; width: 100%;
+          min-height: 420px;
+          margin: 0; padding: 12px;
+          border: none; resize: vertical;
+          background: transparent;
+          color: transparent; caret-color: var(--primary-text-color);
+          font-family: var(--code-font-family, ui-monospace, Menlo, monospace);
+          font-size: 12.5px; line-height: 1.5;
+          white-space: pre; overflow-wrap: normal; overflow: auto;
+        }
+        .yaml-editor:focus-visible { outline: none; }
+        .yaml-highlight .tok-key { color: var(--primary-color); }
+        .yaml-highlight .tok-str { color: var(--success-color, #43a047); }
+        .yaml-highlight .tok-num { color: var(--warning-color, #ff9800); }
+        .yaml-highlight .tok-bool { color: var(--warning-color, #ff9800); }
+        .yaml-highlight .tok-comment { color: var(--secondary-text-color); font-style: italic; }
+
+        .version-card {
+          background: var(--card-background-color);
+          border: 1px solid var(--divider-color);
+          border-radius: var(--ha-card-border-radius, 12px);
+          padding: 14px 16px;
+          margin-bottom: 12px;
+        }
+        .version-head {
+          display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+        }
+        .version-title { font-weight: 500; }
+        .version-meta { color: var(--secondary-text-color); font-size: 13px; }
+        .version-active {
+          display: inline-block;
+          background: var(--primary-color);
+          color: var(--text-accent-color, #fff);
+          border-radius: 9999px;
+          padding: 2px 10px;
+          font-size: 12px; font-weight: 500;
+        }
+        .diff {
+          margin: 12px 0 0;
+          border: 1px solid var(--divider-color);
+          border-radius: var(--ha-card-border-radius, 12px);
+          overflow: auto;
+          max-height: 320px;
+          font-family: var(--code-font-family, ui-monospace, Menlo, monospace);
+          font-size: 12.5px; line-height: 1.45;
+        }
+        .diff-line {
+          display: flex; gap: 8px; padding: 1px 10px 1px 6px;
+          white-space: pre;
+          color: var(--primary-text-color);
+        }
+        .diff-line .prefix {
+          flex: none; width: 14px; text-align: center;
+          color: var(--secondary-text-color);
+        }
+        .diff-line .content { flex: 1; }
+        .diff-line-added {
+          background: color-mix(in srgb, var(--success-color, #43a047) 16%, transparent);
+          border-left: 3px solid var(--success-color, #43a047);
+        }
+        .diff-line-removed {
+          background: color-mix(in srgb, var(--error-color, #db4437) 16%, transparent);
+          border-left: 3px solid var(--error-color, #db4437);
+        }
+        .diff-line-modified {
+          background: color-mix(in srgb, var(--warning-color, #ff9800) 16%, transparent);
+          border-left: 3px solid var(--warning-color, #ff9800);
+        }
+
         @media (max-width: 900px) {
           .periph-row {
             display: flex; flex-direction: column; align-items: stretch; gap: 8px;
@@ -368,7 +502,12 @@ class EedomusConfigPanel extends HTMLElement {
     }
     const retry = ev.target.closest('.retry');
     if (retry && retry.dataset.retry !== 'mapping') {
-      this._loadPeripherals();
+      if (retry.dataset.retry === 'versions') {
+        this._versionsError = null;
+        this._loadVersions();
+      } else {
+        this._loadPeripherals();
+      }
       return;
     }
     const filterBtn = ev.target.closest('.filter-touches');
@@ -384,6 +523,13 @@ class EedomusConfigPanel extends HTMLElement {
     }
     if (this._tab === 'regles') {
       this._onRulesEvent(ev);
+      return;
+    }
+    if (this._tab === 'historique') {
+      const restoreBtn = ev.target.closest('[data-restore]');
+      if (restoreBtn) {
+        this._restoreVersion(parseInt(restoreBtn.dataset.restore, 10));
+      }
     }
   }
 
@@ -391,6 +537,13 @@ class EedomusConfigPanel extends HTMLElement {
     if (ev.target.id === 'periph-search') {
       this._search = ev.target.value;
       this._renderPeriphList();
+    } else if (ev.target.id === 'yaml-editor') {
+      this._yamlText = ev.target.value;
+      this._renderYamlHighlight();
+      this._yamlValidated = null;
+      this._yamlError = null;
+      this._updateYamlState();
+      this._scheduleYamlValidation();
     } else if (this._tab === 'regles') {
       this._onRulesInput(ev);
     }
@@ -449,14 +602,272 @@ class EedomusConfigPanel extends HTMLElement {
       if (this._mapping === null && !this._mappingError) {
         this._loadMapping();
       }
+    } else if (this._tab === 'historique') {
+      content.innerHTML = this._renderHistoryTab();
+      this._wireHistoryTab();
+      if (this._versions === null && !this._versionsError) {
+        this._loadVersions();
+      }
     } else {
       content.innerHTML = `
         <p class="placeholder">
-          Aucune sauvegarde encore. La première sauvegarde archivera la version
-          courante. (Les cartes de version et le diff arrivent au ticket
-          Historique.)
+          Onglet inconnu.
         </p>
       `;
+    }
+  }
+
+  // ================= Historique (P.1.6) =================
+
+  async _loadVersions() {
+    if (!this._hass) {
+      return;
+    }
+    this._versionsError = null;
+    try {
+      const result = await this._hass.callWS({
+        type: 'eedomus/get_mapping_versions',
+      });
+      this._versions = (result && result.versions) || [];
+      this._currentMapping = (result && result.current) || {};
+    } catch (err) {
+      this._versionsError = (err && (err.message || err.code)) || 'commande refusée';
+    }
+    if (this._tab === 'historique') {
+      const content = this.shadowRoot.getElementById('tab-content');
+      if (content) {
+        content.innerHTML = this._renderHistoryTab();
+        this._wireHistoryTab();
+      }
+    }
+  }
+
+  _formatTimestamp(ts) {
+    if (!ts) {
+      return 'date inconnue';
+    }
+    // Storage format: 2026-09-28T09:19:00
+    const [datePart, timePart] = String(ts).split('T');
+    if (!timePart) {
+      return datePart;
+    }
+    return `${datePart} ${timePart.slice(0, 5)}`;
+  }
+
+  _reasonLabel(reason) {
+    if (reason === 'ingestion') {
+      return 'édition manuelle du fichier';
+    }
+    if (reason === 'migration') {
+      return 'migration de schéma';
+    }
+    return 'sauvegarde depuis le panneau';
+  }
+
+  _renderHistoryTab() {
+    if (this._versionsError) {
+      return `
+        <div class="state-message" role="alert">
+          Impossible de charger l'historique : ${this._escapeHtml(this._versionsError)}.
+          <br>
+          <button class="retry" type="button" data-retry="versions">Réessayer</button>
+        </div>
+      `;
+    }
+    if (this._versions === null) {
+      return '<div class="skeleton-row"></div>'.repeat(3);
+    }
+    if (this._versions.length === 0) {
+      return `
+        <div class="state-message">
+          Aucune sauvegarde encore. La première sauvegarde archivera la version
+          courante.
+        </div>
+      `;
+    }
+
+    const statusHtml = `
+      <p class="result-count" id="history-status" role="status"></p>
+    `;
+
+    const cards = [];
+    // Current canonical mapping: the active state, not restorable on itself
+    cards.push(`
+      <div class="version-card">
+        <div class="version-head">
+          <span class="version-title">Configuration actuelle</span>
+          <span class="version-active">actuelle</span>
+          <span class="version-meta">en vigueur</span>
+        </div>
+      </div>
+    `);
+    // Archived versions, newest first, max three
+    this._versions.slice(0, 3).forEach((version, index) => {
+      const confirm = this._confirmRestore === index;
+      const diffHtml =
+        this._versions.length === 1
+          ? '<p class="version-meta">Première version — le diff apparaîtra à la prochaine sauvegarde.</p>'
+          : this._renderDiff(index);
+      cards.push(`
+        <div class="version-card">
+          <div class="version-head">
+            <span class="version-title">Version du ${this._escapeHtml(this._formatTimestamp(version.timestamp))}</span>
+            <span class="version-meta">${this._escapeHtml(this._reasonLabel(version.reason))}</span>
+            <button class="row-action" type="button" data-restore="${index}">
+              ${confirm ? 'Confirmer la restauration ?' : 'Restaurer'}
+            </button>
+          </div>
+          ${confirm ? `<p class="form-validation" role="alert">Restaurer la version du ${this._escapeHtml(this._formatTimestamp(version.timestamp))} ? Le mapping actuel sera archivé.</p>` : ''}
+          ${diffHtml}
+        </div>
+      `);
+    });
+
+    return `${statusHtml}<div class="versions">${cards.join('')}</div>`;
+  }
+
+  _wireHistoryTab() {
+    const status = this.shadowRoot.getElementById('history-status');
+    if (status) {
+      status.textContent = this._historyStatus;
+    }
+  }
+
+  _renderDiff(index) {
+    // Diff between the selected version and the previous (older) one
+    const newer = this._versions[index];
+    const older = this._versions[index + 1];
+    const newText = this._yamlDumpFull(newer.config || {});
+    const oldText = older ? this._yamlDumpFull(older.config || {}) : '';
+    const ops = this._diffLines(oldText.split('\n'), newText.split('\n'));
+    const html = ops
+      .map((op) => {
+        const cls = { added: 'diff-line-added', removed: 'diff-line-removed', modified: 'diff-line-modified' }[op.type];
+        const prefix = { added: '+', removed: '-', modified: '~' }[op.type];
+        if (!cls) {
+          return `<div class="diff-line"><span class="prefix"> </span><span class="content">${this._escapeHtml(op.line)}</span></div>`;
+        }
+        return `<div class="diff-line ${cls}" aria-label="${op.type === 'added' ? 'ligne ajoutée' : op.type === 'removed' ? 'ligne supprimée' : 'ligne modifiée'}"><span class="prefix" aria-hidden="true">${prefix}</span><span class="content">${this._escapeHtml(op.line)}</span></div>`;
+      })
+      .join('');
+    return `<div class="diff" tabindex="0" role="region" aria-label="Différences avec la version précédente">${html}</div>`;
+  }
+
+  _diffLines(a, b) {
+    // Longest-common-subsequence line diff: O(n*m), fine for a mapping
+    // document (a few hundred lines).
+    const n = a.length;
+    const m = b.length;
+    const dp = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+    for (let i = n - 1; i >= 0; i--) {
+      for (let j = m - 1; j >= 0; j--) {
+        dp[i][j] =
+          a[i] === b[j]
+            ? dp[i + 1][j + 1] + 1
+            : Math.max(dp[i + 1][j], dp[i][j + 1]);
+      }
+    }
+    const raw = [];
+    let i = 0;
+    let j = 0;
+    while (i < n && j < m) {
+      if (a[i] === b[j]) {
+        raw.push({ type: 'same', line: a[i] });
+        i++;
+        j++;
+      } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+        raw.push({ type: 'removed', line: a[i] });
+        i++;
+      } else {
+        raw.push({ type: 'added', line: b[j] });
+        j++;
+      }
+    }
+    while (i < n) {
+      raw.push({ type: 'removed', line: a[i] });
+      i++;
+    }
+    while (j < m) {
+      raw.push({ type: 'added', line: b[j] });
+      j++;
+    }
+    // A removed run followed by an added run contains the changed lines:
+    // pairs whose key (the text before ':') matches become a modified
+    // line; the rest stay honest additions/removals.
+    const ops = [];
+    const keyOf = (line) => {
+      const idx = line.indexOf(':');
+      return idx === -1 ? line.trim() : line.slice(0, idx).trim();
+    };
+    let k = 0;
+    while (k < raw.length) {
+      if (raw[k].type !== 'removed') {
+        ops.push(raw[k]);
+        k++;
+        continue;
+      }
+      const removedRun = [];
+      const addedRun = [];
+      while (k < raw.length && raw[k].type === 'removed') {
+        removedRun.push(raw[k]);
+        k++;
+      }
+      while (k < raw.length && raw[k].type === 'added') {
+        addedRun.push(raw[k]);
+        k++;
+      }
+      const used = new Set();
+      for (const rem of removedRun) {
+        const p = addedRun.findIndex(
+          (add, idx) => !used.has(idx) && keyOf(add.line) === keyOf(rem.line)
+        );
+        if (p !== -1) {
+          used.add(p);
+          ops.push({ type: 'modified', line: addedRun[p].line });
+        } else {
+          ops.push(rem);
+        }
+      }
+      addedRun.forEach((add, idx) => {
+        if (!used.has(idx)) {
+          ops.push(add);
+        }
+      });
+    }
+    return ops;
+  }
+
+  async _restoreVersion(index) {
+    const version = this._versions[index];
+    if (!version || !this._hass) {
+      return;
+    }
+    if (this._confirmRestore !== index) {
+      // Two-gesture restore: first click asks for confirmation
+      this._confirmRestore = index;
+      const content = this.shadowRoot.getElementById('tab-content');
+      content.innerHTML = this._renderHistoryTab();
+      this._wireHistoryTab();
+      return;
+    }
+    this._confirmRestore = null;
+    this._historyStatus = 'Sauvegarde… puis Application…';
+    const content = this.shadowRoot.getElementById('tab-content');
+    if (content) {
+      content.innerHTML = this._renderHistoryTab();
+      this._wireHistoryTab();
+    }
+    const ok = await this._persistMapping(version.config || {});
+    if (ok) {
+      this._historyStatus = `Version du ${this._formatTimestamp(version.timestamp)} restaurée. Le mapping remplacé est archivé.`;
+      this._versions = null;
+      await this._loadVersions();
+    } else {
+      this._historyStatus = 'Échec de la restauration. Le mapping courant est conservé.';
+    }
+    const status = this.shadowRoot.getElementById('history-status');
+    if (status) {
+      status.textContent = this._historyStatus;
     }
   }
 
@@ -731,6 +1142,8 @@ class EedomusConfigPanel extends HTMLElement {
       status.textContent = 'Sauvegarde…';
     } else if (this._saveState === 'applying') {
       status.textContent = 'Application…';
+    } else if (this._saveState && this._saveState.applied === true) {
+      status.textContent = 'Configuration appliquée.';
     } else if (this._saveState && this._saveState.applied) {
       const applied = this._saveState.applied;
       status.textContent = `Règle appliquée. ${applied.entity_id} est maintenant en ${applied.unit}.`;
@@ -743,13 +1156,37 @@ class EedomusConfigPanel extends HTMLElement {
     }
   }
 
+  async _persistMapping(mapping) {
+    // Shared save path: persist through eedomus/save_mapping, then the
+    // reloaded peripherals power the nominative feedback.
+    this._saveState = 'saving';
+    this._updateYamlState();
+    this._updateRuleFormState();
+    try {
+      await this._hass.callWS({
+        type: 'eedomus/save_mapping',
+        mapping,
+      });
+      this._saveState = 'applying';
+      this._mapping = mapping;
+      this._updateYamlState();
+      this._updateRuleFormState();
+      await this._loadPeripherals();
+      this._saveState = { applied: true };
+      return true;
+    } catch (err) {
+      this._saveState = {
+        error: (err && (err.message || err.code)) || 'erreur inconnue',
+      };
+      return false;
+    }
+  }
+
   async _saveRules() {
     const form = this._ruleForm;
     if (!form || !this._mapping) {
       return;
     }
-    this._saveState = 'saving';
-    this._updateRuleFormState();
     const mapping = JSON.parse(JSON.stringify(this._mapping));
     mapping.custom_usage_id_mappings = mapping.custom_usage_id_mappings || {};
     mapping.custom_usage_id_mappings[form.usage_id] = {
@@ -759,17 +1196,8 @@ class EedomusConfigPanel extends HTMLElement {
     };
     mapping.metadata = mapping.metadata || {};
     mapping.metadata.last_modified = new Date().toISOString().slice(0, 16).replace('T', ' ');
-    try {
-      await this._hass.callWS({
-        type: 'eedomus/save_mapping',
-        mapping,
-      });
-      this._saveState = 'applying';
-      this._mapping = mapping;
-      this._updateRuleFormState();
-      // The save command reloads the entries: re-read the peripherals to
-      // reflect the new mapping and produce the nominative feedback.
-      await this._loadPeripherals();
+    const ok = await this._persistMapping(mapping);
+    if (ok) {
       const rule = form.usage_id;
       const row = (this._periphs || []).find((p) => p.usage_id === rule);
       this._saveState = {
@@ -779,10 +1207,6 @@ class EedomusConfigPanel extends HTMLElement {
         },
       };
       this._ruleForm = null;
-    } catch (err) {
-      this._saveState = {
-        error: (err && (err.message || err.code)) || 'erreur inconnue',
-      };
     }
     const content = this.shadowRoot.getElementById('tab-content');
     if (content && this._tab === 'regles') {
@@ -880,17 +1304,47 @@ class EedomusConfigPanel extends HTMLElement {
       return '<div class="skeleton-row"></div>'.repeat(4);
     }
 
-    const rules = this._usageIdRules();
     const rulesListHtml = `
       <p class="result-count" id="rules-status" role="status"></p>
       <div class="periph-list" id="rules-list"></div>
     `;
+
+    const modeToggle = `
+      <div class="mode-toggle" role="group" aria-label="Mode d'édition des règles">
+        <button type="button" data-rule-mode="form" aria-pressed="${this._rulesMode === 'form'}">Formulaire</button>
+        <button type="button" data-rule-mode="yaml" aria-pressed="${this._rulesMode === 'yaml'}">YAML</button>
+      </div>
+    `;
+
+    if (this._rulesMode === 'yaml') {
+      const errorHtml = this._yamlError
+        ? `<p class="form-validation" role="alert">${this._escapeHtml(this._yamlError.message)}</p>`
+        : '';
+      return `
+        ${modeToggle}
+        <div class="yaml-editor-wrap">
+          <div class="yaml-gutter" id="yaml-gutter" aria-hidden="true"></div>
+          <div class="yaml-code-area">
+            <pre class="yaml-highlight" id="yaml-highlight" aria-hidden="true"></pre>
+            <textarea class="yaml-editor" id="yaml-editor" spellcheck="false"
+              aria-label="Éditeur YAML du mapping custom"
+              aria-describedby="yaml-error"></textarea>
+          </div>
+        </div>
+        <p class="form-validation" id="yaml-error" role="alert">${errorHtml ? this._escapeHtml(this._yamlError.message) : ''}</p>
+        <div class="form-actions">
+          <button class="row-action" id="yaml-save" type="button" disabled>Enregistrer</button>
+        </div>
+        <p class="result-count" id="rules-status" role="status"></p>
+      `;
+    }
 
     if (!this._ruleForm) {
       const prefillNote = this._pendingRuleUsageId
         ? `<p class="result-count">usage_id pré-rempli : <code>${this._escapeHtml(this._pendingRuleUsageId)}</code></p>`
         : '';
       return `
+        ${modeToggle}
         ${prefillNote}
         <div class="toolbar">
           <button class="row-action" type="button" data-new-rule="${this._escapeAttr(this._pendingRuleUsageId || '')}">
@@ -968,6 +1422,37 @@ class EedomusConfigPanel extends HTMLElement {
     if (!content) {
       return;
     }
+    if (this._rulesMode === 'yaml') {
+      const editor = this.shadowRoot.getElementById('yaml-editor');
+      if (editor) {
+        if (this._yamlText === null) {
+          this._yamlText = this._yamlDumpFull(this._mapping || {});
+        }
+        if (editor.value !== this._yamlText) {
+          editor.value = this._yamlText;
+        }
+        this._renderYamlHighlight();
+        this._updateYamlState();
+        editor.addEventListener('scroll', () => this._syncYamlScroll());
+        editor.addEventListener('keydown', (ev) => {
+          // Tab inserts spaces in the editor instead of leaving it
+          if (ev.key === 'Tab') {
+            ev.preventDefault();
+            const start = editor.selectionStart;
+            const end = editor.selectionEnd;
+            editor.value = editor.value.slice(0, start) + '  ' + editor.value.slice(end);
+            editor.selectionStart = editor.selectionEnd = start + 2;
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        });
+        if (this._yamlFocusPending) {
+          this._yamlFocusPending = false;
+          editor.focus();
+        }
+      }
+      this._updateRulesStatus();
+      return;
+    }
     this._renderRulesList();
     if (this._ruleForm) {
       this._updateRuleFormState();
@@ -980,7 +1465,260 @@ class EedomusConfigPanel extends HTMLElement {
     }
   }
 
+  _setRulesMode(mode) {
+    if (mode === this._rulesMode) {
+      return;
+    }
+    if (mode === 'yaml') {
+      // form -> yaml: the YAML reflects the current mapping state
+      this._yamlText = this._yamlDumpFull(this._mapping || {});
+      this._yamlError = null;
+      this._yamlValidated = null;
+      this._yamlFocusPending = true;
+      this._rulesMode = 'yaml';
+      const content = this.shadowRoot.getElementById('tab-content');
+      content.innerHTML = this._renderRulesTab();
+      this._wireRulesTab();
+      this._scheduleYamlValidation();
+      this._announceMode('YAML');
+    } else {
+      // yaml -> form: allowed only when the text validates - never lose
+      // content silently. The validated config becomes the mapping.
+      if (!this._yamlValidated) {
+        this._announceMode(
+          'Formulaire',
+          this._yamlError && this._yamlError.message
+            ? `bascule refusée : ${this._yamlError.message}`
+            : 'bascule refusée : corrigez les erreurs YAML ou revenez au texte validé'
+        );
+        return;
+      }
+      this._mapping = this._yamlValidated;
+      this._ruleForm = null;
+      this._rulesMode = 'form';
+      const content = this.shadowRoot.getElementById('tab-content');
+      content.innerHTML = this._renderRulesTab();
+      this._wireRulesTab();
+      this._announceMode('Formulaire');
+    }
+  }
+
+  _announceMode(mode, extra = '') {
+    const status = this.shadowRoot.getElementById('rules-status');
+    if (status) {
+      status.textContent = `Mode ${mode}${extra ? ` — ${extra}` : ''}.`;
+    }
+  }
+
+  _scheduleYamlValidation() {
+    if (this._yamlTimer) {
+      clearTimeout(this._yamlTimer);
+    }
+    this._yamlTimer = setTimeout(() => this._validateYaml(), 400);
+  }
+
+  async _validateYaml() {
+    const editor = this.shadowRoot.getElementById('yaml-editor');
+    if (!editor || !this._hass || this._rulesMode !== 'yaml') {
+      return;
+    }
+    const text = editor.value;
+    try {
+      const result = await this._hass.callWS({
+        type: 'eedomus/validate_config',
+        yaml_content: text,
+      });
+      if (result && result.valid) {
+        this._yamlError = null;
+        this._yamlValidated = (result.validated_config || null);
+      } else {
+        const raw = (result && result.error) || {};
+        const message =
+          (typeof raw === 'string' ? raw : raw.error || raw.message) ||
+          'configuration invalide';
+        this._yamlError = { message, line: this._yamlLineFromError(message, text) };
+        this._yamlValidated = null;
+      }
+    } catch (err) {
+      const message = (err && (err.message || err.code)) || 'validation impossible';
+      this._yamlError = { message, line: null };
+      this._yamlValidated = null;
+    }
+    if (editor.value === text) {
+      this._updateYamlState();
+      this._updateRulesStatus();
+    }
+  }
+
+  _yamlLineFromError(message, text) {
+    // PyYAML syntax errors carry "line N"; schema errors carry a path
+    // whose last key can be located in the text.
+    const m = /line (\d+)/.exec(message);
+    if (m) {
+      return parseInt(m[1], 10);
+    }
+    const keyMatch = /at '([^']+)'/m.exec(message);
+    if (keyMatch) {
+      const parts = keyMatch[1].split('.');
+      const last = parts[parts.length - 1].replace(/\[.*?\]/g, '');
+      if (last) {
+        const lines = text.split('\n');
+        for (let i = 0; i < lines.length; i++) {
+          if (lines[i].includes(last)) {
+            return i + 1;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  _updateYamlState() {
+    const errEl = this.shadowRoot.getElementById('yaml-error');
+    const saveBtn = this.shadowRoot.getElementById('yaml-save');
+    if (errEl) {
+      errEl.textContent = this._yamlError
+        ? `ligne ${this._yamlError.line || '?'} : ${this._yamlError.message}`
+        : '';
+    }
+    if (saveBtn) {
+      saveBtn.disabled = !this._yamlValidated ||
+        this._saveState === 'saving' ||
+        this._saveState === 'applying';
+      saveBtn.textContent =
+        this._saveState === 'saving'
+          ? 'Sauvegarde…'
+          : this._saveState === 'applying'
+            ? 'Application…'
+            : 'Enregistrer';
+    }
+  }
+
+  async _saveYamlMapping() {
+    if (!this._yamlValidated) {
+      return;
+    }
+    await this._persistMapping(this._yamlValidated);
+    if (this._saveState && this._saveState.applied) {
+      // The saved mapping becomes the new YAML baseline
+      this._yamlText = this._yamlDumpFull(this._mapping || {});
+      const editor = this.shadowRoot.getElementById('yaml-editor');
+      if (editor) {
+        editor.value = this._yamlText;
+        this._renderYamlHighlight();
+      }
+    }
+    this._updateYamlState();
+    this._updateRulesStatus();
+  }
+
+  _renderYamlHighlight() {
+    const editor = this.shadowRoot.getElementById('yaml-editor');
+    const pre = this.shadowRoot.getElementById('yaml-highlight');
+    const gutter = this.shadowRoot.getElementById('yaml-gutter');
+    if (!editor || !pre || !gutter) {
+      return;
+    }
+    const text = editor.value;
+    const lines = text.split('\n');
+    gutter.textContent = lines.map((_, i) => i + 1).join('\n') + '\n';
+    const esc = this._escapeHtml(text);
+    // Coloration: comments first, then keys, then quoted strings, then
+    // numbers/booleans - applied on the escaped text.
+    let html = esc
+      .replace(/(#.*)$/gm, '<span class="tok-comment">$1</span>')
+      .replace(/^(\s*)([^#\n]+?)(:(\s|$))/gm,
+        (match, indent, key, colon) =>
+          `${indent}<span class="tok-key">${key}</span>${colon}`)
+      .replace(/&quot;([^&]|&(?!quot;))*?&quot;|&#39;([^&]|&(?!#39;))*?&#39;/g,
+        (match) => `<span class="tok-str">${match}</span>`)
+      .replace(/\b(true|false|null)\b/g,
+        '<span class="tok-bool">$1</span>')
+      .replace(/(:\s|^)(-?\d+(\.\d+)?)(\s|$)/gm,
+        (match, prefix, num, dec, suffix) =>
+          `${prefix}<span class="tok-num">${num}</span>${suffix}`);
+    pre.innerHTML = html;
+    this._syncYamlScroll();
+  }
+
+  _syncYamlScroll() {
+    const editor = this.shadowRoot.getElementById('yaml-editor');
+    const pre = this.shadowRoot.getElementById('yaml-highlight');
+    const gutter = this.shadowRoot.getElementById('yaml-gutter');
+    if (!editor || !pre || !gutter) {
+      return;
+    }
+    pre.scrollTop = editor.scrollTop;
+    pre.scrollLeft = editor.scrollLeft;
+    gutter.scrollTop = editor.scrollTop;
+  }
+
+  _yamlDumpFull(obj, indent = 0) {
+    /** Serialize the full custom mapping grammar to YAML: nested dicts,
+     * lists, scalars. Strings are quoted unless they are plain words -
+     * JSON string escaping is valid YAML double-quoted scalar syntax. */
+    const pad = ' '.repeat(indent);
+    const scalar = (value) => {
+      if (value === null || value === undefined) {
+        return 'null';
+      }
+      if (typeof value === 'boolean') {
+        return value ? 'true' : 'false';
+      }
+      if (typeof value === 'number') {
+        return String(value);
+      }
+      const str = String(value);
+      if (/^[A-Za-z_][A-Za-z0-9_\-]*$/.test(str)) {
+        return str;
+      }
+      return JSON.stringify(str);
+    };
+    const lines = [];
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+        const entries = Object.entries(value);
+        if (entries.length === 0) {
+          lines.push(`${pad}${scalar(key)}: {}`);
+        } else {
+          lines.push(`${pad}${scalar(key)}:`);
+          lines.push(this._yamlDumpFull(value, indent + 2));
+        }
+      } else if (Array.isArray(value)) {
+        if (value.length === 0) {
+          lines.push(`${pad}${scalar(key)}: []`);
+        } else {
+          lines.push(`${pad}${scalar(key)}:`);
+          for (const item of value) {
+            if (item !== null && typeof item === 'object') {
+              // list item as inline mapping, nested keys at indent + 4
+              const itemLines = this._yamlDumpFull(item, indent + 4);
+              lines.push(itemLines.replace(
+                new RegExp(`^${' '.repeat(indent + 4)}`),
+                `${' '.repeat(indent + 2)}- `
+              ));
+            } else {
+              lines.push(`${pad}- ${scalar(item)}`);
+            }
+          }
+        }
+      } else {
+        lines.push(`${pad}${scalar(key)}: ${scalar(value)}`);
+      }
+    }
+    return lines.join('\n') + (indent === 0 ? '\n' : '');
+  }
+
   _onRulesEvent(ev) {
+    const modeBtn = ev.target.closest('[data-rule-mode]');
+    if (modeBtn) {
+      this._setRulesMode(modeBtn.dataset.ruleMode);
+      return;
+    }
+    if (ev.target.id === 'yaml-save') {
+      this._saveYamlMapping();
+      return;
+    }
     const newRule = ev.target.closest('[data-new-rule]');
     if (newRule) {
       this._openRuleForm(newRule.dataset.newRule || this._pendingRuleUsageId || '');

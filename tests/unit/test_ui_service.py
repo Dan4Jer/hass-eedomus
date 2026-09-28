@@ -54,7 +54,7 @@ class TestAsyncInit:
 
         await service.async_init()
 
-        assert register.call_count == 7
+        assert register.call_count == 8
         # Handler form: (hass, handler) on the module-level dispatchers -
         # HA calls websocket handlers as plain (hass, connection, msg)
         # functions, so bound methods cannot be dispatched directly
@@ -68,6 +68,7 @@ class TestAsyncInit:
             ui_service_module._ws_get_peripherals,
             ui_service_module._ws_get_mapping,
             ui_service_module._ws_save_mapping,
+            ui_service_module._ws_get_mapping_versions,
         ]
         assert service._registered_commands == [
             WS_TYPE_EEDOMUS_VALIDATE,
@@ -77,6 +78,7 @@ class TestAsyncInit:
             ui_service_module.WS_TYPE_EEDOMUS_PERIPHERALS,
             ui_service_module.WS_TYPE_EEDOMUS_GET_MAPPING,
             ui_service_module.WS_TYPE_EEDOMUS_SAVE_MAPPING,
+            ui_service_module.WS_TYPE_EEDOMUS_GET_VERSIONS,
         ]
         assert service.is_initialized() is True
 
@@ -116,7 +118,7 @@ class TestAsyncInit:
         await service.async_init()
 
         assert service._registered_commands == first
-        assert register.call_count == 14
+        assert register.call_count == 16
 
     @pytest.mark.asyncio
     async def test_shutdown_resets_state_without_unregistering(self):
@@ -667,4 +669,55 @@ class TestMappingHandlers:
 
         connection.send_error.assert_called_once_with(
             7, "service_unavailable", "ConfigManager not available"
+        )
+
+
+class TestGetMappingVersionsHandler:
+    """P.1.6: the Historique tab reads the archived versions and the
+    current canonical mapping through eedomus/get_mapping_versions."""
+
+    @pytest.mark.asyncio
+    async def test_returns_versions_and_current(self):
+        manager = MagicMock()
+        manager.async_get_mapping_versions = AsyncMock(
+            return_value=[
+                {
+                    "timestamp": "2026-09-28T09:19:00",
+                    "config": {"custom_rules": []},
+                    "reason": "ingestion",
+                }
+            ]
+        )
+        manager.async_get_custom_mapping = AsyncMock(
+            return_value={"custom_usage_id_mappings": {}}
+        )
+        hass = MagicMock()
+        hass.data = {"eedomus": {"config_manager": manager}}
+        service = EedomusUIService(hass)
+        connection = MagicMock()
+
+        await service._handle_get_mapping_versions(hass, connection, {"id": 8})
+
+        connection.send_result.assert_called_once_with(
+            8,
+            {
+                "versions": [
+                    {
+                        "timestamp": "2026-09-28T09:19:00",
+                        "config": {"custom_rules": []},
+                        "reason": "ingestion",
+                    }
+                ],
+                "current": {"custom_usage_id_mappings": {}},
+            },
+        )
+
+    @pytest.mark.asyncio
+    async def test_without_manager_sends_error(self):
+        service, connection = make_service({})
+
+        await service._handle_get_mapping_versions(service.hass, connection, {"id": 8})
+
+        connection.send_error.assert_called_once_with(
+            8, "service_unavailable", "ConfigManager not available"
         )

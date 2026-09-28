@@ -20,6 +20,7 @@ WS_TYPE_EEDOMUS_CACHE_STATS = f"{DOMAIN}/get_cache_stats"
 WS_TYPE_EEDOMUS_PERIPHERALS = f"{DOMAIN}/get_peripherals"
 WS_TYPE_EEDOMUS_GET_MAPPING = f"{DOMAIN}/get_mapping"
 WS_TYPE_EEDOMUS_SAVE_MAPPING = f"{DOMAIN}/save_mapping"
+WS_TYPE_EEDOMUS_GET_VERSIONS = f"{DOMAIN}/get_mapping_versions"
 
 # The handlers are decorated at class-definition time, so the websocket_api
 # imports must happen at module level. When the component is unavailable the
@@ -176,6 +177,20 @@ async def _ws_save_mapping(hass: HomeAssistant, connection, msg: dict) -> None:
     await service._handle_save_mapping(hass, connection, msg)
 
 
+@require_admin
+@websocket_command({vol.Required("type"): WS_TYPE_EEDOMUS_GET_VERSIONS})
+@async_response
+async def _ws_get_mapping_versions(hass: HomeAssistant, connection, msg: dict) -> None:
+    """Dispatch eedomus/get_mapping_versions to the UI service."""
+    service = _get_ui_service(hass)
+    if service is None:
+        connection.send_error(
+            msg["id"], "service_unavailable", "Eedomus UI service not initialized"
+        )
+        return
+    await service._handle_get_mapping_versions(hass, connection, msg)
+
+
 # The commands in registration order: (command type, module dispatcher).
 WS_COMMANDS = (
     (WS_TYPE_EEDOMUS_VALIDATE, _ws_validate_config),
@@ -185,6 +200,7 @@ WS_COMMANDS = (
     (WS_TYPE_EEDOMUS_PERIPHERALS, _ws_get_peripherals),
     (WS_TYPE_EEDOMUS_GET_MAPPING, _ws_get_mapping),
     (WS_TYPE_EEDOMUS_SAVE_MAPPING, _ws_save_mapping),
+    (WS_TYPE_EEDOMUS_GET_VERSIONS, _ws_get_mapping_versions),
 )
 
 
@@ -616,6 +632,39 @@ class EedomusUIService:
 
         except Exception as e:
             _LOGGER.error(f"Save mapping error: {e}")
+            connection.send_error(msg.get("id"), "error", str(e))
+
+    async def _handle_get_mapping_versions(
+        self,
+        hass: HomeAssistant,
+        connection,
+        msg: dict,
+    ) -> None:
+        """Handle the get mapping versions command (Historique tab, CAP-5).
+
+        Returns the archived versions (newest first, three kept) and the
+        current canonical mapping: the panel shows the current state as
+        the active card and the archives as restorable versions.
+        """
+        try:
+            config_manager = self._get_config_manager()
+            if not config_manager:
+                connection.send_error(
+                    msg.get("id"),
+                    "service_unavailable",
+                    "ConfigManager not available",
+                )
+                return
+
+            versions = await config_manager.async_get_mapping_versions()
+            current = await config_manager.async_get_custom_mapping()
+            connection.send_result(
+                msg.get("id"),
+                {"versions": versions, "current": current},
+            )
+
+        except Exception as e:
+            _LOGGER.error(f"Get mapping versions error: {e}")
             connection.send_error(msg.get("id"), "error", str(e))
 
     @staticmethod
