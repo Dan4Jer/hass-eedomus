@@ -1,4 +1,4 @@
-# tickets.toml — epic-mapping-panel-editor : 8 entrées, ordre de build.
+# tickets.toml — epic-mapping-panel-editor : 9 entrées, ordre de build.
 
 [[entry]]
 id = 1
@@ -72,13 +72,25 @@ risk = "medium"
 unknown = "Lib YAML exacte à sélectionner (critère M9) - repli textarea si aucune candidate légère ne passe."
 
 [[entry]]
+id = 9
+type = "story"
+title = "AD-14 — seed .example + socle migrations de schéma du mapping"
+description = "Implémente AD-14 du spine : le fichier intégré devient custom_mapping.yaml.example (en-tête « ne pas éditer ») ; config_schema_version dans le storage eedomus.mapping (absent = 1) + chaîne ordonnée de migrations pures appliquées au chargement ; une migration réussie archive l'ancien canon comme version (reason migration) et régénère miroir+fingerprint ; un échec conserve le canon + warning ; le save estampille la version."
+verify = "Le storage existant est estampillé config_schema_version=1 au boot sans version archivée ; une migration simulée (chaîne v2) archive l'ancien canon avec reason=migration et régénère miroir+fingerprint ; une migration qui échoue conserve le canon ; le seed .example existe avec l'avertissement et sert toujours le bootstrap des installations fraîches."
+covers = ["CAP-4"]
+after = [8]
+hitl = false
+risk = "medium"
+references = ["../../planning-artifacts/architecture/architecture-hass-eedomus-2026-09-27/ARCHITECTURE-SPINE.md#ad-14"]
+
+[[entry]]
 id = 6
 type = "story"
 title = "Historique, diff coloré et restauration"
 description = "Onglet Historique conforme au mock-03 : archivage .storage à chaque save (version horodatée, retention 3, purge à la 4e), cartes de version, diff type git avec le traitement C1 (texte --primary-text-color, fond teinté + préfixes +/-/~ + barre gauche), restauration avec confirmation 'Le mapping actuel sera archivé', passage par le chemin auto-apply de CAP-4."
 verify = "Après 3 saves, 3 versions horodatées visibles ; restaurer la précédente remet son contenu et l'applique ; le 4e save purge la plus ancienne ; contraste du diff ≥4.5:1 en thème clair ET sombre (vérifié sur les variables)."
 covers = ["CAP-5"]
-after = [8]
+after = [9]
 hitl = false
 risk = "medium"
 references = ["../../planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/mockups/mock-03-historique.html", "../../planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/DESIGN.md#colors"]

@@ -22,7 +22,10 @@ _LOGGER = logging.getLogger(__name__)
 
 # Default YAML configuration paths (relative to the module directory)
 DEFAULT_MAPPING_FILE = "config/device_mapping.yaml"
-CUSTOM_MAPPING_FILE = "config/custom_mapping.yaml"
+# AD-14: the integrated custom mapping is an EXAMPLE/seed only. Users edit
+# the config-dir mirror (<config HA>/eedomus/custom_mapping.yaml) or the
+# panel; the code tree file is overwritten by every update.
+CUSTOM_MAPPING_FILE = "config/custom_mapping.yaml.example"
 
 
 def get_absolute_path(relative_path: str) -> str:
@@ -719,7 +722,10 @@ def get_custom_mapping_paths():
         paths.append(os.path.join(config_dir, 'eedomus', 'custom_mapping.yaml'))
     except Exception:
         pass
-    paths.append(os.path.join(current_dir, 'config', 'custom_mapping.yaml'))
+    # AD-14: the integrated file is an example/seed, never an edit target.
+    paths.append(
+        os.path.join(current_dir, 'config', 'custom_mapping.yaml.example')
+    )
     return paths
 
 

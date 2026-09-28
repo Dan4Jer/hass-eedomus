@@ -1,3 +1,14 @@
+# =========================================================================
+# EXEMPLE / SEED - NE PAS EDITER.
+# Ce fichier appartient a l'arbre de code : il est ecrase a chaque mise a
+# jour de l'integration. Il ne sert qu'a l'initialisation d'une installation
+# fraiche (premier demarrage sans storage HA ni fichier miroir).
+# Pour editer votre mapping custom :
+#   - fichier editable : <config HA>/eedomus/custom_mapping.yaml
+#     (ingere comme nouvelle version au chargement)
+#   - ou le panneau « Eedomus Config » dans la barre laterale HA.
+# =========================================================================
+
 # Custom device mapping configuration in new dict format
 # This format supports dynamic entity properties and advanced rules
 

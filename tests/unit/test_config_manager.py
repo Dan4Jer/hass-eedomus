@@ -189,7 +189,7 @@ class TestCustomMappingPaths:
 
         assert paths[0] == str(Path(tmp_path) / "eedomus" / "custom_mapping.yaml")
         # Integrated file stays as the fallback
-        assert paths[1].endswith("config/custom_mapping.yaml")
+        assert paths[1].endswith("config/custom_mapping.yaml.example")
 
     def test_without_hass_falls_back_to_integrated_file(self, monkeypatch):
         import custom_components.eedomus.device_mapping as device_mapping_module
@@ -197,7 +197,7 @@ class TestCustomMappingPaths:
         paths = device_mapping_module.get_custom_mapping_paths()
 
         assert paths == [paths[0]]
-        assert paths[0].endswith("config/custom_mapping.yaml")
+        assert paths[0].endswith("config/custom_mapping.yaml.example")
 
     def test_loader_prefers_config_dir_file(self, tmp_path, monkeypatch):
         import sys
@@ -404,3 +404,120 @@ class TestIngestCustomMapping:
         stored = RecordingStore.registry["eedomus.mapping"]
         assert stored["current"] == canon
         assert mirror.read_text(encoding="utf-8") == "custom_rules: []\n"
+
+
+class TestSchemaMigrations:
+    """AD-14bis: config_schema_version stamping and the migration chain."""
+
+    def make_ingest_manager(self, tmp_path, monkeypatch):
+        import custom_components.eedomus.config_manager as config_manager_module
+
+        monkeypatch.setattr(config_manager_module, "Store", RecordingStore)
+        RecordingStore.registry.clear()
+        hass = MagicMock()
+        hass.config = SimpleNamespace(config_dir=str(tmp_path))
+
+        async def _exec(fn, *args, **kwargs):
+            return fn(*args, **kwargs)
+
+        hass.async_add_executor_job = MagicMock(side_effect=_exec)
+        return config_manager_module, EedomusConfigManager(hass)
+
+    @pytest.mark.asyncio
+    async def test_absent_version_is_stamped_not_migrated(self, tmp_path, monkeypatch):
+        """A pre-AD-14 document is the birth version: stamped, untouched."""
+        module, manager = self.make_ingest_manager(tmp_path, monkeypatch)
+        canon = {"custom_rules": []}
+        RecordingStore.registry["eedomus.mapping"] = {
+            "current": canon,
+            "file_fingerprint": "custom_rules: []\n",
+        }
+
+        await module._async_migrate_mapping_document(manager.hass)
+
+        stored = RecordingStore.registry["eedomus.mapping"]
+        assert stored["current"] == canon
+        assert stored["config_schema_version"] == 1
+        assert "eedomus.mapping_versions" not in RecordingStore.registry
+
+    @pytest.mark.asyncio
+    async def test_migration_chain_runs_and_archives_as_version(
+        self, tmp_path, monkeypatch
+    ):
+        """A pending migration archives the old canon with reason=migration."""
+        module, manager = self.make_ingest_manager(tmp_path, monkeypatch)
+        monkeypatch.setattr(module, "MAPPING_CONFIG_SCHEMA_VERSION", 2)
+        monkeypatch.setattr(
+            module,
+            "_MAPPING_MIGRATIONS",
+            {2: lambda config: {**config, "custom_name_patterns": []}},
+        )
+        old = {"custom_rules": []}
+        RecordingStore.registry["eedomus.mapping"] = {
+            "current": old,
+            "file_fingerprint": "custom_rules: []\n",
+            "config_schema_version": 1,
+        }
+
+        await module._async_migrate_mapping_document(manager.hass)
+
+        stored = RecordingStore.registry["eedomus.mapping"]
+        assert stored["config_schema_version"] == 2
+        assert stored["current"]["custom_name_patterns"] == []
+        assert stored["current"]["custom_rules"] == []
+        versions = RecordingStore.registry["eedomus.mapping_versions"]["versions"]
+        assert versions[0]["config"] == old
+        assert versions[0]["reason"] == "migration"
+        mirror = tmp_path / "eedomus" / "custom_mapping.yaml"
+        assert mirror.read_text(encoding="utf-8") == stored["file_fingerprint"]
+
+    @pytest.mark.asyncio
+    async def test_failed_migration_keeps_the_canon(self, tmp_path, monkeypatch):
+        module, manager = self.make_ingest_manager(tmp_path, monkeypatch)
+        monkeypatch.setattr(module, "MAPPING_CONFIG_SCHEMA_VERSION", 2)
+
+        def _boom(config):
+            raise ValueError("unsupported structure")
+
+        monkeypatch.setattr(module, "_MAPPING_MIGRATIONS", {2: _boom})
+        canon = {"custom_rules": []}
+        RecordingStore.registry["eedomus.mapping"] = {
+            "current": canon,
+            "file_fingerprint": "custom_rules: []\n",
+            "config_schema_version": 1,
+        }
+
+        await module._async_migrate_mapping_document(manager.hass)
+
+        stored = RecordingStore.registry["eedomus.mapping"]
+        assert stored["current"] == canon
+        assert stored["config_schema_version"] == 1
+        assert "eedomus.mapping_versions" not in RecordingStore.registry
+
+    @pytest.mark.asyncio
+    async def test_current_version_runs_nothing(self, tmp_path, monkeypatch):
+        module, manager = self.make_ingest_manager(tmp_path, monkeypatch)
+        RecordingStore.registry["eedomus.mapping"] = {
+            "current": {"custom_rules": []},
+            "file_fingerprint": "text",
+            "config_schema_version": 1,
+        }
+
+        await module._async_migrate_mapping_document(manager.hass)
+
+        assert RecordingStore.registry["eedomus.mapping"]["file_fingerprint"] == "text"
+        assert "eedomus.mapping_versions" not in RecordingStore.registry
+
+    def test_integrated_seed_is_an_example_with_header(self):
+        import custom_components.eedomus.device_mapping as device_mapping_module
+
+        seed = (
+            Path(device_mapping_module.__file__).parent
+            / "config"
+            / ("custom_mapping.yaml.example")
+        )
+        assert seed.is_file()
+        head = seed.read_text(encoding="utf-8")[:400]
+        assert "NE PAS EDITER" in head
+        # The pre-AD-14 integrated file must no longer exist as an edit target
+        assert not (seed.parent / "custom_mapping.yaml").exists()

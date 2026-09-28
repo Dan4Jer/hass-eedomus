@@ -151,6 +151,15 @@ flowchart TD
     current --> versions[archive 3 versions\n.p. P.1.6]
 ```
 
+### AD-14 — Montée de version : la config utilisateur est hors de l'arbre de code ; le schéma versionné migre explicitement [CIBLE]
+
+- **Binds :** stockage `eedomus.mapping` (AD-13), fichier intégré seed, montées de version (HACS/git)
+- **Prevents :** la perte silencieuse de config utilisateur à l'update (cas HACS) et des configs stockées réinterprétées sans migration après évolution du schéma
+- **Rule :**
+  - Canon + miroir config-dir vivent hors de l'arbre de code : un update ne peut pas les écraser ; le seed intégré ne s'applique qu'aux installations fraîches — un canon existant prime toujours sur les nouveaux défauts.
+  - Le fichier intégré est un **exemple** (`custom_mapping.yaml.example`, en-tête « ne pas éditer ») : plus personne n'édite un fichier que l'update écrase.
+  - `config_schema_version` dans le storage (absent = 1, version de naissance) + **chaîne ordonnée de migrations pures** (dict→dict, testables une par une), appliquées au chargement tant que la version stockée < la version courante. Une migration réussie **archive l'ancien canon comme version** (`reason: migration`, traçable dans l'Historique) et régénère miroir + fingerprint. Un échec conserve le canon + warning — jamais destructif.
+
 ## Consistency Conventions
 
 | Concern | Convention |

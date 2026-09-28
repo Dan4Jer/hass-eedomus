@@ -19,6 +19,17 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+# AD-14bis: schema version of the stored custom mapping. A document saved
+# before this field existed is the birth version (1): stamped, never
+# migrated. Bump this and add a migration to _MAPPING_MIGRATIONS when the
+# config grammar evolves.
+MAPPING_CONFIG_SCHEMA_VERSION = 1
+
+# Ordered schema migrations: target_version -> pure transform (dict) -> dict.
+# A migration for target N upgrades the stored document from N-1 to N.
+# Empty until the first real grammar change; the mechanism is the deliverable.
+_MAPPING_MIGRATIONS: Dict[int, Any] = {}
+
 
 class EedomusConfigManager:
     """Central configuration management with HA 2026 features."""
@@ -318,7 +329,11 @@ class EedomusConfigManager:
 
         text = yaml.safe_dump(config, sort_keys=False, allow_unicode=True)
         await self.mapping_store.async_save(
-            {"current": config, "file_fingerprint": text}
+            {
+                "current": config,
+                "file_fingerprint": text,
+                "config_schema_version": MAPPING_CONFIG_SCHEMA_VERSION,
+            }
         )
         try:
             await self._async_write_mirror(text)
@@ -337,25 +352,16 @@ class EedomusConfigManager:
         """Write the editable mirror file from the canon."""
         await _write_mapping_mirror(self.hass, text)
 
-    async def async_archive_mapping_version(self, config: Dict[str, Any]) -> bool:
+    async def async_archive_mapping_version(
+        self, config: Dict[str, Any], reason: str = "save"
+    ) -> bool:
         """Archive a mapping version in HA storage (three kept).
 
         The fourth save purges the oldest. The panel Historique tab
-        (P.1.6) reads these versions back.
+        (P.1.6) reads these versions back; the reason labels the origin
+        (save / ingestion / migration).
         """
-        from datetime import datetime
-
-        data = await self.versions_store.async_load() or {}
-        versions = list(data.get("versions") or [])
-        versions.insert(
-            0,
-            {
-                "timestamp": datetime.now().isoformat(timespec="seconds"),
-                "config": config,
-            },
-        )
-        versions = versions[:3]
-        await self.versions_store.async_save({"versions": versions})
+        await _archive_mapping_version(self.hass, config, reason)
         return True
 
     async def async_get_mapping_versions(self) -> list:
@@ -369,8 +375,77 @@ def _validate_mapping_config(config: Dict[str, Any]) -> None:
     YAML_MAPPING_SCHEMA(config)
 
 
-async def _archive_mapping_version(hass: HomeAssistant, config: Dict[str, Any]) -> None:
-    """Archive a mapping version in HA storage (three kept, oldest purged)."""
+async def _async_migrate_mapping_document(hass: HomeAssistant) -> None:
+    """AD-14bis: run pending schema migrations on the stored mapping.
+
+    A document without config_schema_version predates the field: it is the
+    birth version (1) - stamped, never migrated. Migrations run in target
+    order while the stored version is below the current one. A successful
+    migration archives the pre-migration canon as a version (reason
+    "migration", traceable in the Historique) and regenerates the mirror
+    and fingerprint from the migrated content. A failed migration keeps the
+    canon untouched with an explicit warning - never destructive.
+    """
+    import copy
+
+    import yaml
+
+    store = Store(hass, 1, f"{DOMAIN}.mapping")
+    data = await store.async_load() or {}
+    current = data.get("current")
+    if not isinstance(current, dict):
+        # No canon yet: the bootstrap handles it (seed or empty).
+        return
+
+    version = data.get("config_schema_version")
+    if version is None:
+        # Birth version: stamp it, nothing to migrate.
+        await store.async_save(
+            {**data, "config_schema_version": MAPPING_CONFIG_SCHEMA_VERSION}
+        )
+        return
+
+    if version >= MAPPING_CONFIG_SCHEMA_VERSION:
+        return
+
+    migrated = copy.deepcopy(current)
+    for target in sorted(_MAPPING_MIGRATIONS):
+        if version < target <= MAPPING_CONFIG_SCHEMA_VERSION:
+            try:
+                migrated = _MAPPING_MIGRATIONS[target](migrated)
+            except Exception as e:
+                _LOGGER.warning(
+                    "Mapping schema migration to v%d failed (%s) - the "
+                    "stored canon is kept as is",
+                    target,
+                    e,
+                )
+                return
+            version = target
+
+    await _archive_mapping_version(hass, current, reason="migration")
+    dumped = yaml.safe_dump(migrated, sort_keys=False, allow_unicode=True)
+    await store.async_save(
+        {
+            "current": migrated,
+            "file_fingerprint": dumped,
+            "config_schema_version": version,
+        }
+    )
+    await _write_mapping_mirror(hass, dumped)
+    _LOGGER.info(
+        "Mapping schema migrated to v%d (previous canon archived)", version
+    )
+
+
+async def _archive_mapping_version(
+    hass: HomeAssistant, config: Dict[str, Any], reason: str = "save"
+) -> None:
+    """Archive a mapping version in HA storage (three kept, oldest purged).
+
+    The reason labels the archive for the Historique UI: save (panel),
+    ingestion (manual file edit), migration (schema upgrade).
+    """
     from datetime import datetime
 
     store = Store(hass, 1, f"{DOMAIN}.mapping_versions")
@@ -381,6 +456,7 @@ async def _archive_mapping_version(hass: HomeAssistant, config: Dict[str, Any]) 
         {
             "timestamp": datetime.now().isoformat(timespec="seconds"),
             "config": config,
+            "reason": reason,
         },
     )
     await store.async_save({"versions": versions[:3]})
@@ -425,6 +501,10 @@ async def async_ingest_custom_mapping(hass: HomeAssistant) -> None:
         get_custom_mapping_paths,
         read_custom_mapping_file,
     )
+
+    # AD-14bis: migrations first - the comparison below must see the
+    # migrated canon and its regenerated fingerprint.
+    await _async_migrate_mapping_document(hass)
 
     store = Store(hass, 1, f"{DOMAIN}.mapping")
     data = await store.async_load() or {}
@@ -479,6 +559,6 @@ async def async_ingest_custom_mapping(hass: HomeAssistant) -> None:
         await _write_mapping_mirror(hass, canon_text)
         return
 
-    await _archive_mapping_version(hass, current)
+    await _archive_mapping_version(hass, current, reason="ingestion")
     await store.async_save({"current": parsed, "file_fingerprint": text})
     _LOGGER.info("Custom mapping file ingested as a new version")
