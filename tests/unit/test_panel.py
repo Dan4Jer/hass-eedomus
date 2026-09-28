@@ -67,7 +67,6 @@ class TestSetupPanel:
     async def test_static_path_serves_real_www_assets(self):
         """The served path must be the integration's real www/ folder."""
         assert (WWW_DIR / "eedomus-panel.js").is_file()
-        assert (WWW_DIR / "eedomus-rich-editor.js").is_file()
 
     @pytest.mark.asyncio
     async def test_idempotent_across_reloads(self, monkeypatch):

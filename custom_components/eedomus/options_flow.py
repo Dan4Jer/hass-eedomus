@@ -20,6 +20,7 @@ from .const import (
     CONF_YAML_CONTENT,
     CONF_ENABLE_API_EEDOMUS,
     CONF_ENABLE_API_PROXY,
+    CONF_ENABLE_PANEL,
     CONF_ENABLE_HISTORY,
     CONF_HISTORY_RETRY_DELAY,
     CONF_HISTORY_PERIPHERALS_PER_SCAN,
@@ -35,6 +36,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_CONF_ENABLE_API_EEDOMUS,
     DEFAULT_CONF_ENABLE_API_PROXY,
+    DEFAULT_ENABLE_PANEL,
     DEFAULT_CONF_ENABLE_HISTORY,
     DEFAULT_ENABLE_SET_VALUE_RETRY,
     DEFAULT_ENABLE_WEBHOOK,
@@ -157,6 +159,7 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 options = {
                     CONF_ENABLE_API_EEDOMUS: user_input.get(CONF_ENABLE_API_EEDOMUS, current_config.get(CONF_ENABLE_API_EEDOMUS, DEFAULT_CONF_ENABLE_API_EEDOMUS)),
                     CONF_ENABLE_API_PROXY: user_input.get(CONF_ENABLE_API_PROXY, current_config.get(CONF_ENABLE_API_PROXY, DEFAULT_CONF_ENABLE_API_PROXY)),
+                    CONF_ENABLE_PANEL: user_input.get(CONF_ENABLE_PANEL, current_config.get(CONF_ENABLE_PANEL, DEFAULT_ENABLE_PANEL)),
                     CONF_ENABLE_HISTORY: user_input.get(CONF_ENABLE_HISTORY, current_config.get(CONF_ENABLE_HISTORY, DEFAULT_CONF_ENABLE_HISTORY)),
                     CONF_HISTORY_PERIPHERALS_PER_SCAN: user_input.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, current_config.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, DEFAULT_HISTORY_PERIPHERALS_PER_SCAN)),
                     CONF_SCAN_INTERVAL: user_input.get(CONF_SCAN_INTERVAL, current_config.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)),
@@ -178,6 +181,7 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 data_schema=vol.Schema({
                     vol.Optional(CONF_ENABLE_API_EEDOMUS, default=current_config.get(CONF_ENABLE_API_EEDOMUS, True)): bool,
                     vol.Optional(CONF_ENABLE_API_PROXY, default=current_config.get(CONF_ENABLE_API_PROXY, False)): bool,
+                    vol.Optional(CONF_ENABLE_PANEL, default=current_config.get(CONF_ENABLE_PANEL, DEFAULT_ENABLE_PANEL)): bool,
                     vol.Optional(CONF_HISTORY_PERIPHERALS_PER_SCAN, default=current_config.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, 5)): int,
                     vol.Optional(CONF_SCAN_INTERVAL, default=current_config.get(CONF_SCAN_INTERVAL, 300)): int,
                     vol.Optional(CONF_ENABLE_HISTORY, default=current_config.get(CONF_ENABLE_HISTORY, DEFAULT_CONF_ENABLE_HISTORY)): bool,

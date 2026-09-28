@@ -1,7 +1,6 @@
 """UI Service for Eedomus Integration with WebSocket API for frontend communication."""
 
 import logging
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import voluptuous as vol
@@ -16,7 +15,6 @@ _LOGGER = logging.getLogger(__name__)
 WS_TYPE_EEDOMUS_VALIDATE = f"{DOMAIN}/validate_config"
 WS_TYPE_EEDOMUS_SUGGESTIONS = f"{DOMAIN}/get_suggestions"
 WS_TYPE_EEDOMUS_SCHEMA = f"{DOMAIN}/get_schema"
-WS_TYPE_EEDOMUS_CACHE_STATS = f"{DOMAIN}/get_cache_stats"
 WS_TYPE_EEDOMUS_PERIPHERALS = f"{DOMAIN}/get_peripherals"
 WS_TYPE_EEDOMUS_GET_MAPPING = f"{DOMAIN}/get_mapping"
 WS_TYPE_EEDOMUS_SAVE_MAPPING = f"{DOMAIN}/save_mapping"
@@ -117,20 +115,6 @@ async def _ws_get_schema(hass: HomeAssistant, connection, msg: dict) -> None:
 
 
 @require_admin
-@websocket_command({vol.Required("type"): WS_TYPE_EEDOMUS_CACHE_STATS})
-@async_response
-async def _ws_get_cache_stats(hass: HomeAssistant, connection, msg: dict) -> None:
-    """Dispatch eedomus/get_cache_stats to the UI service."""
-    service = _get_ui_service(hass)
-    if service is None:
-        connection.send_error(
-            msg["id"], "service_unavailable", "Eedomus UI service not initialized"
-        )
-        return
-    await service._handle_get_cache_stats(hass, connection, msg)
-
-
-@require_admin
 @websocket_command({vol.Required("type"): WS_TYPE_EEDOMUS_PERIPHERALS})
 @async_response
 async def _ws_get_peripherals(hass: HomeAssistant, connection, msg: dict) -> None:
@@ -196,7 +180,6 @@ WS_COMMANDS = (
     (WS_TYPE_EEDOMUS_VALIDATE, _ws_validate_config),
     (WS_TYPE_EEDOMUS_SUGGESTIONS, _ws_get_suggestions),
     (WS_TYPE_EEDOMUS_SCHEMA, _ws_get_schema),
-    (WS_TYPE_EEDOMUS_CACHE_STATS, _ws_get_cache_stats),
     (WS_TYPE_EEDOMUS_PERIPHERALS, _ws_get_peripherals),
     (WS_TYPE_EEDOMUS_GET_MAPPING, _ws_get_mapping),
     (WS_TYPE_EEDOMUS_SAVE_MAPPING, _ws_save_mapping),
@@ -415,39 +398,6 @@ class EedomusUIService:
 
         except Exception as e:
             _LOGGER.error(f"Schema error: {e}")
-            connection.send_error(msg.get("id"), "error", str(e))
-
-    async def _handle_get_cache_stats(
-        self,
-        hass: HomeAssistant,
-        connection,
-        msg: dict,
-    ) -> None:
-        """Handle get cache statistics WebSocket command."""
-        try:
-            # Get DataService
-            data_service = self._get_data_service()
-            if not data_service:
-                connection.send_error(
-                    msg.get("id"),
-                    "service_unavailable",
-                    "DataService not available",
-                )
-                return
-
-            # Get cache statistics
-            stats = data_service.get_cache_stats()
-
-            connection.send_result(
-                msg.get("id"),
-                {
-                    "cache_stats": stats,
-                    "timestamp": datetime.now().isoformat(),
-                },
-            )
-
-        except Exception as e:
-            _LOGGER.error(f"Cache stats error: {e}")
             connection.send_error(msg.get("id"), "error", str(e))
 
     async def _handle_get_peripherals(
@@ -697,12 +647,6 @@ class EedomusUIService:
             return self.hass.data[DOMAIN]["schema_service"]
         return None
 
-    def _get_data_service(self):
-        """Get DataService instance."""
-        if DOMAIN in self.hass.data and "data_service" in self.hass.data[DOMAIN]:
-            return self.hass.data[DOMAIN]["data_service"]
-        return None
-
     def _get_config_manager(self):
         """Get ConfigManager instance."""
         if DOMAIN in self.hass.data and "config_manager" in self.hass.data[DOMAIN]:
@@ -737,10 +681,6 @@ class EedomusUIService:
     async def get_schema_endpoint(self) -> str:
         """Get the WebSocket endpoint for schema information."""
         return WS_TYPE_EEDOMUS_SCHEMA
-
-    async def get_cache_stats_endpoint(self) -> str:
-        """Get the WebSocket endpoint for cache statistics."""
-        return WS_TYPE_EEDOMUS_CACHE_STATS
 
     async def validate_config_via_websocket(self, yaml_content: str) -> Dict:
         """Validate configuration and return the response payload directly."""
@@ -791,11 +731,6 @@ class EedomusUIService:
             if not schema_service:
                 return False
 
-            # Test DataService
-            data_service = self._get_data_service()
-            if not data_service:
-                return False
-
             # Test ConfigManager
             config_manager = self._get_config_manager()
             if not config_manager:
@@ -823,11 +758,6 @@ class EedomusUIService:
                 "name": "Get Schema",
                 "endpoint": WS_TYPE_EEDOMUS_SCHEMA,
                 "description": "Get schema information and documentation",
-            },
-            {
-                "name": "Get Cache Stats",
-                "endpoint": WS_TYPE_EEDOMUS_CACHE_STATS,
-                "description": "Get data cache statistics",
             },
         ]
 

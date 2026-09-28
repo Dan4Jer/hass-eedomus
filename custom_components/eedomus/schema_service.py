@@ -28,9 +28,6 @@ class SchemaService:
             # Register custom validators
             self._register_custom_validators()
             
-            # Load any additional schemas from config
-            await self._async_load_custom_schemas()
-            
             self._initialized = True
             _LOGGER.info("Eedomus SchemaService initialized successfully")
             
@@ -73,20 +70,6 @@ class SchemaService:
             'device_type': validate_device_type,
             'usage_id': validate_usage_id
         }
-    
-    async def _async_load_custom_schemas(self) -> None:
-        """Load custom schemas from configuration if available."""
-        try:
-            # Check if ConfigManager is available
-            if DOMAIN in self.hass.data and 'config_manager' in self.hass.data[DOMAIN]:
-                config_manager = self.hass.data[DOMAIN]['config_manager']
-                config = await config_manager.async_get_configuration()
-                
-                # Check for custom schemas in configuration
-                if 'custom_schemas' in config:
-                    _LOGGER.debug(f"Loaded {len(config['custom_schemas'])} custom schemas")
-        except Exception as e:
-            _LOGGER.error(f"Failed to load custom schemas: {e}")
     
     def validate_configuration(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """Validate configuration against base schema."""
@@ -186,32 +169,9 @@ class SchemaService:
         return []
     
     async def get_dynamic_suggestions(self, field_type: str, query: str = "", context: Dict = None) -> List[Dict[str, Any]]:
-        """Get dynamic suggestions based on current configuration and data."""
-        suggestions = []
-        
-        try:
-            # Get suggestions from DataService if available
-            if DOMAIN in self.hass.data and 'data_service' in self.hass.data[DOMAIN]:
-                data_service = self.hass.data[DOMAIN]['data_service']
-                
-                if field_type == 'device_id':
-                    suggestions = await data_service.get_device_suggestions(query)
-                elif field_type == 'usage_id':
-                    suggestions = await data_service.get_usage_id_suggestions(query)
-                elif field_type == 'device_type':
-                    device_types = await data_service.get_device_types_summary()
-                    suggestions = [{'value': dt, 'label': f"{dt} ({count})"} 
-                                  for dt, count in device_types.items()]
-            
-            # Add static suggestions as fallback
-            if not suggestions:
-                suggestions = self.get_suggestions(field_type, query)
-            
-            return suggestions
-        except Exception as e:
-            _LOGGER.error(f"Failed to get dynamic suggestions for {field_type}: {e}")
-            return self.get_suggestions(field_type, query)
-    
+        """Get autocompletion suggestions for a field type."""
+        return self.get_suggestions(field_type, query)
+
     def validate_yaml_content(self, yaml_content: str) -> Tuple[bool, Dict[str, Any]]:
         """Validate YAML content and return validation result."""
         import yaml

@@ -1,4 +1,4 @@
-# tickets.toml — epic-mapping-panel-editor : 9 entrées, ordre de build.
+# tickets.toml — epic-mapping-panel-editor : 10 entrées, ordre de build.
 
 [[entry]]
 id = 1
@@ -96,12 +96,24 @@ risk = "medium"
 references = ["../../planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/mockups/mock-03-historique.html", "../../planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/DESIGN.md#colors"]
 
 [[entry]]
+id = 10
+type = "story"
+title = "Option d'activation du panneau dans l'OptionsFlow"
+description = "Ajoute l'option enable_panel dans l'OptionsFlow (AD-9 : options > data > défaut, False explicite honoré, défaut activé) : active/désactive l'enregistrement du panneau Eedomus Config au chargement de l'entry ; désactivée, le panneau enregistré est retiré."
+verify = "L'option apparaît dans l'OptionsFlow ; activée par défaut le panneau reste en place ; désactivée le panneau disparaît de la sidebar (et réapparaît à la réactivation), sans erreur au reload."
+covers = ["CAP-1"]
+after = [9]
+hitl = false
+risk = "low"
+references = ["../../specs/spec-eedomus-mapping-panel/SPEC.md"]
+
+[[entry]]
 id = 7
 type = "story"
 title = "Validation E2E et production"
 description = "Étend la suite E2E (panel présent, websocket répond, parcours save+auto-apply, historique/diff/restauration), déploie sur le RPi (git-only), déroule le parcours #28 bout en bout en production, vérifie le contraste clair/sombre réel."
 verify = "Suite E2E étendue verte sur l'instance live ; parcours #28 démontré ; aucun avertissement d'accessibilité majeur ; aucun fantôme."
 covers = ["CAP-1", "CAP-2", "CAP-3", "CAP-4", "CAP-5"]
-after = [5, 6]
+after = [10]
 hitl = false
 risk = "low"

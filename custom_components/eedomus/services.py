@@ -19,7 +19,7 @@ def _get_all_coordinators(hass: HomeAssistant) -> list:
 
     hass.data[DOMAIN] holds a mix of per-config-entry dicts (keyed by
     entry_id, each with a COORDINATOR key) and a few shared service objects
-    stored directly under their own string key (config_manager, data_service,
+    stored directly under their own string key (config_manager,
     etc.) - the isinstance/get check below skips those safely.
     """
     coordinators = []

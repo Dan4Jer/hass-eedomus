@@ -20,7 +20,6 @@ import custom_components.eedomus.device_mapping as device_mapping_module
 import custom_components.eedomus.ui_service as ui_service_module
 from custom_components.eedomus.const import COORDINATOR
 from custom_components.eedomus.ui_service import (
-    WS_TYPE_EEDOMUS_CACHE_STATS,
     WS_TYPE_EEDOMUS_SCHEMA,
     WS_TYPE_EEDOMUS_SUGGESTIONS,
     WS_TYPE_EEDOMUS_VALIDATE,
@@ -54,7 +53,7 @@ class TestAsyncInit:
 
         await service.async_init()
 
-        assert register.call_count == 8
+        assert register.call_count == 7
         # Handler form: (hass, handler) on the module-level dispatchers -
         # HA calls websocket handlers as plain (hass, connection, msg)
         # functions, so bound methods cannot be dispatched directly
@@ -64,7 +63,6 @@ class TestAsyncInit:
             ui_service_module._ws_validate_config,
             ui_service_module._ws_get_suggestions,
             ui_service_module._ws_get_schema,
-            ui_service_module._ws_get_cache_stats,
             ui_service_module._ws_get_peripherals,
             ui_service_module._ws_get_mapping,
             ui_service_module._ws_save_mapping,
@@ -74,7 +72,6 @@ class TestAsyncInit:
             WS_TYPE_EEDOMUS_VALIDATE,
             WS_TYPE_EEDOMUS_SUGGESTIONS,
             WS_TYPE_EEDOMUS_SCHEMA,
-            WS_TYPE_EEDOMUS_CACHE_STATS,
             ui_service_module.WS_TYPE_EEDOMUS_PERIPHERALS,
             ui_service_module.WS_TYPE_EEDOMUS_GET_MAPPING,
             ui_service_module.WS_TYPE_EEDOMUS_SAVE_MAPPING,
@@ -118,7 +115,7 @@ class TestAsyncInit:
         await service.async_init()
 
         assert service._registered_commands == first
-        assert register.call_count == 16
+        assert register.call_count == 14
 
     @pytest.mark.asyncio
     async def test_shutdown_resets_state_without_unregistering(self):
@@ -277,35 +274,6 @@ class TestGetSchemaHandler:
 
         connection.send_error.assert_called_once_with(
             4, "not_found", "Section 'nope' not found"
-        )
-
-
-class TestGetCacheStatsHandler:
-    @pytest.mark.asyncio
-    async def test_success_sends_result(self):
-        data_service = MagicMock()
-        data_service.get_cache_stats = MagicMock(
-            return_value={"refresh_count": 3, "devices": 10}
-        )
-        service, connection = make_service({"data_service": data_service})
-
-        await service._handle_get_cache_stats(service.hass, connection, {"id": 2})
-
-        connection.send_result.assert_called_once()
-        call_args = connection.send_result.call_args
-        assert call_args.args[0] == 2
-        payload = call_args.args[1]
-        assert payload["cache_stats"] == {"refresh_count": 3, "devices": 10}
-        assert "timestamp" in payload
-
-    @pytest.mark.asyncio
-    async def test_missing_data_service_sends_error(self):
-        service, connection = make_service({})
-
-        await service._handle_get_cache_stats(service.hass, connection, {"id": 2})
-
-        connection.send_error.assert_called_once_with(
-            2, "service_unavailable", "DataService not available"
         )
 
 

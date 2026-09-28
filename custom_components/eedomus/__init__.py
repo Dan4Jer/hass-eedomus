@@ -23,6 +23,7 @@ from .const import (
     CONF_ENABLE_API_PROXY,
     CONF_ENABLE_HISTORY,
     CONF_ENABLE_WEBHOOK,
+    CONF_ENABLE_PANEL,
     CONF_REMOVE_ENTITIES,
     CONF_SCAN_INTERVAL,
     COORDINATOR,
@@ -31,6 +32,7 @@ from .const import (
     DEFAULT_CONF_ENABLE_API_PROXY,
     DEFAULT_ENABLE_HISTORY,
     DEFAULT_ENABLE_WEBHOOK,
+    DEFAULT_ENABLE_PANEL,
     DEFAULT_REMOVE_ENTITIES,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
@@ -86,17 +88,6 @@ async def _async_init_config_manager(hass: HomeAssistant):
     return config_manager
 
 
-async def _async_init_data_service(hass: HomeAssistant):
-    """Initialize DataService with lazy import using executor to avoid blocking."""
-    data_service = await hass.async_add_executor_job(
-        lambda: __import__(
-            "custom_components.eedomus.data_service", fromlist=["EedomusDataService"]
-        ).EedomusDataService(hass)
-    )
-    await data_service.async_init()
-    return data_service
-
-
 async def _async_init_schema_service(hass: HomeAssistant):
     """Initialize SchemaService with lazy import using executor to avoid blocking."""
     schema_service = await hass.async_add_executor_job(
@@ -126,7 +117,7 @@ async def _async_init_ui_service(hass: HomeAssistant):
 async def _async_setup_domain_services(hass: HomeAssistant) -> None:
     """Set up the domain-level services backing the panel WebSocket API.
 
-    The services (config_manager, data_service, schema_service, ui_service)
+    The services (config_manager, schema_service, ui_service)
     live at the domain level in hass.data[DOMAIN], not per config entry.
     Setup is idempotent: on entry reload the existing instances are reused,
     which also guarantees the websocket commands are only registered once
@@ -136,19 +127,13 @@ async def _async_setup_domain_services(hass: HomeAssistant) -> None:
         hass.data[DOMAIN] = {}
     domain_data = hass.data[DOMAIN]
 
-    # Order matters: schema_service reads config_manager and data_service,
-    # and ui_service reads schema_service and data_service.
+    # Order matters: schema_service reads config_manager, and ui_service
+    # reads schema_service.
     if "config_manager" not in domain_data:
         try:
             domain_data["config_manager"] = await _async_init_config_manager(hass)
         except Exception as err:
             _LOGGER.error("Failed to initialize Eedomus ConfigManager: %s", err)
-
-    if "data_service" not in domain_data:
-        try:
-            domain_data["data_service"] = await _async_init_data_service(hass)
-        except Exception as err:
-            _LOGGER.error("Failed to initialize Eedomus DataService: %s", err)
 
     if "schema_service" not in domain_data:
         try:
@@ -528,8 +513,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # schema_service, ui_service). Idempotent across entry reloads.
     await _async_setup_domain_services(hass)
 
-    # Register the sidebar panel (domain-level, idempotent)
-    await async_setup_panel(hass)
+    # Register the sidebar panel (domain-level, idempotent). AD-9: the
+    # enable_panel option honors an explicit False (options > data > default).
+    panel_enabled = _get_config_value(entry, CONF_ENABLE_PANEL, DEFAULT_ENABLE_PANEL)
+    if panel_enabled:
+        await async_setup_panel(hass)
+    else:
+        # A disabled option must also remove a previously registered panel
+        await async_unload_panel(hass)
 
     # Enregistrement du webhook et service (always register webhooks)
     disable_security = entry.options.get(

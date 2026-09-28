@@ -1,6 +1,6 @@
 """Unit tests for the domain-level service wiring in __init__.py (P.1.1).
 
-async_setup_entry must initialize ConfigManager, DataService, SchemaService
+async_setup_entry must initialize ConfigManager, SchemaService
 and UIService in dependency order, store them under the domain-level keys of
 hass.data[DOMAIN] (not per entry), and stay idempotent across config entry
 reloads so the websocket commands are only registered once.
@@ -23,7 +23,7 @@ def make_hass():
 
 
 def patch_init_helpers(monkeypatch, **returns):
-    """Patch the four _async_init_* helpers with AsyncMocks."""
+    """Patch the _async_init_* helpers with AsyncMocks."""
     mocks = {}
     for name, value in returns.items():
         mock = AsyncMock(return_value=value)
@@ -48,7 +48,6 @@ class TestAsyncSetupDomainServices:
         patch_init_helpers(
             monkeypatch,
             config_manager="cm_instance",
-            data_service="ds_instance",
             schema_service="ss_instance",
             ui_service=ui_service,
         )
@@ -57,14 +56,13 @@ class TestAsyncSetupDomainServices:
 
         assert hass.data[DOMAIN] == {
             "config_manager": "cm_instance",
-            "data_service": "ds_instance",
             "schema_service": "ss_instance",
             "ui_service": ui_service,
         }
 
     @pytest.mark.asyncio
     async def test_init_order_matches_dependencies(self, monkeypatch):
-        """config_manager -> data_service -> schema_service -> ui_service."""
+        """config_manager -> schema_service -> ui_service."""
         hass = make_hass()
         order = []
 
@@ -77,9 +75,6 @@ class TestAsyncSetupDomainServices:
 
         monkeypatch.setattr(
             eedomus_init, "_async_init_config_manager", make("config_manager")
-        )
-        monkeypatch.setattr(
-            eedomus_init, "_async_init_data_service", make("data_service")
         )
         monkeypatch.setattr(
             eedomus_init, "_async_init_schema_service", make("schema_service")
@@ -98,7 +93,6 @@ class TestAsyncSetupDomainServices:
 
         assert order == [
             "config_manager",
-            "data_service",
             "schema_service",
             "ui_service",
         ]
@@ -111,7 +105,6 @@ class TestAsyncSetupDomainServices:
         mocks = patch_init_helpers(
             monkeypatch,
             config_manager="cm_instance",
-            data_service="ds_instance",
             schema_service="ss_instance",
             ui_service=ui_service,
         )
@@ -132,7 +125,6 @@ class TestAsyncSetupDomainServices:
         patch_init_helpers(
             monkeypatch,
             config_manager="cm_instance",
-            data_service="ds_instance",
             schema_service="ss_instance",
         )
         ui_service = make_ui_service(initialized=False)
@@ -156,7 +148,6 @@ class TestAsyncSetupDomainServices:
         )
         patch_init_helpers(
             monkeypatch,
-            data_service="ds_instance",
             schema_service="ss_instance",
             ui_service=ui_service,
         )
@@ -165,7 +156,6 @@ class TestAsyncSetupDomainServices:
         await eedomus_init._async_setup_domain_services(hass)
 
         assert "config_manager" not in hass.data[DOMAIN]
-        assert hass.data[DOMAIN]["data_service"] == "ds_instance"
         assert hass.data[DOMAIN]["schema_service"] == "ss_instance"
         assert hass.data[DOMAIN]["ui_service"] is ui_service
 
@@ -255,3 +245,50 @@ class TestAsyncRemoveEntryTeardown:
         await eedomus_init.async_remove_entry(hass, entry)
 
         unload_panel.assert_not_awaited()
+
+
+class TestPanelOptionGating:
+    @pytest.mark.asyncio
+    async def test_disabled_option_removes_the_panel(self, monkeypatch):
+        """enable_panel=False must skip registration and remove any
+        previously registered panel (the option change reloads the entry,
+        which re-evaluates the gate)."""
+        hass = make_hass()
+        hass.config_entries.async_forward_entry_setups = AsyncMock()
+
+        entry = MagicMock()
+        entry.version = 4
+        entry.unique_id = "eedomus_192.168.1.10"
+        entry.entry_id = "test_entry"
+        entry.data = {
+            "api_host": "192.168.1.10",
+            "api_eedomus": False,
+            "enable_api_proxy": True,
+        }
+        # AD-9: an explicit False in options must be honored
+        entry.options = {"enable_panel": False}
+        entry.update_listeners = []
+        entry.add_update_listener = MagicMock(return_value=lambda: None)
+        entry.async_on_unload = MagicMock()
+
+        monkeypatch.setattr(eedomus_init, "async_setup_services", AsyncMock())
+        monkeypatch.setattr(
+            eedomus_init.aiohttp_client,
+            "async_get_clientsession",
+            MagicMock(return_value=MagicMock()),
+        )
+        import custom_components.eedomus.config_manager as config_manager_module
+
+        monkeypatch.setattr(
+            config_manager_module, "async_ingest_custom_mapping", AsyncMock()
+        )
+        monkeypatch.setattr(eedomus_init, "_async_setup_domain_services", AsyncMock())
+        setup_panel = AsyncMock()
+        unload_panel = AsyncMock()
+        monkeypatch.setattr(eedomus_init, "async_setup_panel", setup_panel)
+        monkeypatch.setattr(eedomus_init, "async_unload_panel", unload_panel)
+
+        assert await eedomus_init.async_setup_entry(hass, entry) is True
+
+        setup_panel.assert_not_awaited()
+        unload_panel.assert_awaited_once_with(hass)

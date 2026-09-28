@@ -91,3 +91,39 @@ def config_entry_id(ha_api):
         if entry["domain"] == "eedomus":
             return entry["entry_id"]
     pytest.fail("No eedomus config entry found on the instance")
+
+
+@pytest.fixture(scope="session")
+def ws_call(ha_headers):
+    """Callable executing websocket commands on the live instance.
+
+    Returns an async function result synchronously: call("type", {...})
+    resolves the command response (raises on a websocket error).
+    """
+    import asyncio
+    import json as jsonlib
+
+    import websockets
+
+    ws_url = HA_URL.replace("http", "ws") + "/api/websocket"
+
+    async def _run(msg):
+        async with websockets.connect(ws_url) as ws:
+            await ws.recv()
+            await ws.send(
+                jsonlib.dumps({"type": "auth", "access_token": HA_TOKEN})
+            )
+            auth = jsonlib.loads(await ws.recv())
+            assert auth["type"] == "auth_ok", auth
+            await ws.send(jsonlib.dumps(dict(msg, id=1)))
+            res = jsonlib.loads(await ws.recv())
+            if not res.get("success"):
+                raise AssertionError(f"websocket command failed: {res}")
+            return res["result"]
+
+    def call(msg_type, payload=None):
+        msg = dict(payload or {})
+        msg["type"] = msg_type
+        return asyncio.run(_run(msg))
+
+    return call
