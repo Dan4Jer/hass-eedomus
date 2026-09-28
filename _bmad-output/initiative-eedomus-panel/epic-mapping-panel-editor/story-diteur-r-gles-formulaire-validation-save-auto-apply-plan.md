@@ -46,6 +46,8 @@ Review quick (self), itération 1 :
 - [checked] XSS : valeurs du formulaire et de la liste échappées ; usage_id en clé dict d'un objet JS (pas de YAML injection — le mini-dumper quote systématiquement en JSON).
 - [checked] Les sections non éditées du mapping (custom_rules, custom_devices, temperature_setpoint_mappings...) sont transportées telles quelles par le save (clone du get_mapping, seule la section éditée change).
 
+- [high, patch — découvert en vérification LIVE] Le **merge loader** (`load_yaml_mappings_async`/`load_yaml_mappings`, celui qui pilote le mapping réel des entités) chargeait encore le fichier custom **intégré** directement : un save du panel aurait été ignoré par le pipeline — masqué dans le round-trip live par un contenu identique. Corrigé (013a2a5) : les deux loaders passent par `load_custom_yaml_mappings[_async]` (priorité config-dir). Test de non-régression : une entrée du fichier config-dir apparaît dans le `usage_id_mappings` mergé. Live après fix : boot propre, 100 periphs dynamiques préservés, E2E 12/12. Leçon : vérifier le chemin LECTURE du pipeline, pas seulement celui d'écriture.
+
 ## Verification
 
 **Commands:**
