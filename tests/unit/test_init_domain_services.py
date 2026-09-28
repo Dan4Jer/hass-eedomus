@@ -198,6 +198,15 @@ class TestAsyncSetupEntryWiring:
             "async_get_clientsession",
             MagicMock(return_value=MagicMock()),
         )
+        # AD-13: setup ingests the custom mapping before anything reads it.
+        # The lazy from-import resolves the attribute at call time, so the
+        # patch targets the config_manager module itself.
+        import custom_components.eedomus.config_manager as config_manager_module
+
+        ingest = AsyncMock()
+        monkeypatch.setattr(
+            config_manager_module, "async_ingest_custom_mapping", ingest
+        )
         setup_domain_services = AsyncMock()
         monkeypatch.setattr(
             eedomus_init, "_async_setup_domain_services", setup_domain_services
@@ -207,6 +216,7 @@ class TestAsyncSetupEntryWiring:
 
         assert await eedomus_init.async_setup_entry(hass, entry) is True
 
+        ingest.assert_awaited_once_with(hass)
         setup_domain_services.assert_awaited_once_with(hass)
         setup_panel.assert_awaited_once_with(hass)
         hass.config_entries.async_forward_entry_setups.assert_awaited_once()

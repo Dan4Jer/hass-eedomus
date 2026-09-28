@@ -767,18 +767,70 @@ def load_custom_yaml_mappings():
     return None
 
 
-async def load_custom_yaml_mappings_async(hass):
-    """Load custom mappings from custom_mapping.yaml file asynchronously.
-    
-    This async version avoids blocking the event loop by using hass.async_add_executor_job.
-    
-    Args:
-        hass: Home Assistant instance for accessing async_add_executor_job
-        
-    Returns:
-        dict: Custom mappings or None if file doesn't exist or can't be loaded
+def read_custom_mapping_file(paths=None):
+    """Read the custom mapping file (AD-13 mirror surface).
+
+    Returns (text, parsed) of the first readable path, (None, None) when no
+    file exists, or (text, None) when the file exists but does not parse.
     """
-    def _load_sync():
-        return load_custom_yaml_mappings()
-    
-    return await hass.async_add_executor_job(_load_sync)
+    for path in paths if paths is not None else get_custom_mapping_paths():
+        try:
+            if not os.path.exists(path):
+                _LOGGER.debug("Custom mapping file not found at %s", path)
+                continue
+            with open(path, 'r', encoding='utf-8') as f:
+                text = f.read()
+            try:
+                return text, (yaml.safe_load(text) or {})
+            except yaml.YAMLError as e:
+                _LOGGER.warning(
+                    "Custom mapping file %s does not parse: %s", path, e
+                )
+                return text, None
+        except Exception as e:
+            _LOGGER.warning(
+                "Failed to read custom mapping file %s: %s", path, e
+            )
+    return None, None
+
+
+async def async_get_canonical_custom_mapping(hass):
+    """Return the canonical custom mapping from HA storage (AD-13).
+
+    The storage (Store "eedomus.mapping", keys current + file_fingerprint)
+    is the single source of truth for the runtime. Falls back to the file
+    only when the storage holds no canon yet (first-boot bootstrap, before
+    the ConfigManager init ingestion formalizes it).
+    """
+    from .const import DOMAIN
+
+    store_data = await _load_mapping_storage(hass)
+    current = store_data.get("current")
+    if isinstance(current, dict):
+        return current
+    _, parsed = await hass.async_add_executor_job(read_custom_mapping_file)
+    return parsed or {}
+
+
+async def _load_mapping_storage(hass):
+    """Load the canonical mapping storage document."""
+    from homeassistant.helpers.storage import Store
+
+    from .const import DOMAIN
+
+    return await Store(hass, 1, f"{DOMAIN}.mapping").async_load() or {}
+
+
+async def load_custom_yaml_mappings_async(hass):
+    """Load the canonical custom mapping (AD-13: storage first, file fallback).
+
+    This async version avoids blocking the event loop by using
+    hass.async_add_executor_job for the file fallback.
+
+    Args:
+        hass: Home Assistant instance
+
+    Returns:
+        dict: Custom mappings ({} when no canon and no readable file)
+    """
+    return await async_get_canonical_custom_mapping(hass)

@@ -27,8 +27,8 @@ sources: []
   - **success:** La règle « capteur de température » de la discussion #28 se crée entièrement par l'UI ; une règle invalide est signalée avant sauvegarde, jamais silencieusement acceptée.
 
 - **CAP-4 — Sauvegarde et application automatique**
-  - **intent:** La sauvegarde persiste les règles dans `custom_mapping.yaml` via `config_manager` puis auto-applique : le rechargement de l'intégration est déclenché, le mapping prend effet immédiatement.
-  - **success:** Une règle sauvée survit à un redémarrage HA et change effectivement l'entité concernée (ex. : une unité corrigée s'affiche corrigée dans HA après sauvegarde).
+  - **intent:** La sauvegarde persiste les règles dans le **HA storage** (`eedomus.mapping`, canon AD-13 du companion architecture) via `config_manager`, réplique le miroir éditable `custom_mapping.yaml`, puis auto-applique : le rechargement de l'intégration est déclenché, le mapping prend effet immédiatement. Réciproquement, une modification manuelle du fichier est **ingérée au chargement** comme une nouvelle version si son texte diffère du fingerprint stocké (un fichier invalide n'écrase jamais le canon).
+  - **success:** Une règle sauvée survit à un redémarrage HA et change effectivement l'entité concernée (ex. : une unité corrigée s'affiche corrigée dans HA après sauvegarde) ; une édition manuelle du fichier prend effet au rechargement suivant et apparaît comme une version dans l'Historique.
 
 - **CAP-5 — Historique et restauration des 3 dernières versions**
   - **intent:** Chaque sauvegarde archive la version précédente du mapping (horodatée) dans le `.storage` HA ; le panel affiche les 3 dernières versions et permet de restaurer l'une d'elles en un clic — la restauration emprunte le chemin d'application de CAP-4 et archive la version qu'elle remplace ; seules les 3 dernières sont conservées.
@@ -39,6 +39,7 @@ sources: []
 - Enregistrement du panneau **exclusivement** via l'API supportée HA 2026.9.3 — `async_register_built_in_panel(component_name="custom", config={"_panel_custom": {"module_url": ...}})` + `StaticPathConfig` pour servir les assets depuis le répertoire de l'intégration. Jamais d'API inventée ; `panel.py` actuel et `frontend.yaml` sont remplacés.
 - Frontend thémé HA : variables CSS de HA (`--primary-text-color`, etc.), pas de style codé en dur ; custom element JS vanilla **sans toolchain de build**, servi depuis le répertoire de l'intégration.
 - Réutilisation du backend existant — brancher, ne pas réinventer : les commandes websocket `ui_service.py` (`eedomus/validate_config`, `eedomus/get_suggestions`, `eedomus/get_schema`, cache stats) et `config_manager.py` pour la persistance.
+- Persistance du mapping custom selon AD-13 (companion architecture) : le HA storage est le canon lu par tout le runtime ; `<config_dir>/eedomus/custom_mapping.yaml` est le miroir éditable (ingéré au chargement, régénéré par le save, auto-réparé). Jamais le fichier intégré comme cible d'écriture.
 - Le `coordinator` reste l'unique point d'accès aux données eedomus (AD-7) ; la lecture de config passe par `_get_config_value` (AD-9).
 - `require_admin: true` sur le panneau et sur toute commande websocket d'écriture.
 

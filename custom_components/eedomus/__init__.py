@@ -188,6 +188,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.info("🚀 Starting eedomus integration setup - Version %s", VERSION)
     _LOGGER.debug("Setting up eedomus integration with entry_id: %s", entry.entry_id)
 
+    # AD-13: ingest the editable custom mapping file against the storage
+    # canon BEFORE anything reads the mapping (coordinator, entities).
+    # Idempotent through the file fingerprint, so entry reloads are cheap.
+    from .config_manager import async_ingest_custom_mapping
+
+    await async_ingest_custom_mapping(hass)
+
     # Perform migration if needed
     if entry.version < 4:
         try:

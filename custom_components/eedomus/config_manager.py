@@ -27,6 +27,9 @@ class EedomusConfigManager:
         """Initialize the configuration manager."""
         self.hass = hass
         self.store = Store(hass, 1, f"{DOMAIN}.config")
+        # Canonical custom mapping (AD-13): current + file_fingerprint.
+        # The editable YAML file is a mirror, never the source of truth.
+        self.mapping_store = Store(hass, 1, f"{DOMAIN}.mapping")
         # Version archive for the panel Historique tab (CAP-5): the three
         # most recent custom mapping versions live in HA storage.
         self.versions_store = Store(hass, 1, f"{DOMAIN}.mapping_versions")
@@ -76,7 +79,11 @@ class EedomusConfigManager:
                 self._async_auto_save,
                 timedelta(minutes=5)
             )
-            
+
+            # AD-13: ingest the editable mirror file against the canonical
+            # storage. Domain-level init (single instance), never per entry.
+            await self._async_ingest_custom_mapping()
+
             self._initialized = True
             _LOGGER.info("Eedomus ConfigManager initialized successfully")
             
@@ -262,32 +269,34 @@ class EedomusConfigManager:
             _LOGGER.error(f"Failed to restore configuration: {e}")
             return False    
     async def async_get_custom_mapping(self) -> Dict[str, Any]:
-        """Return the raw custom mapping the pipeline actually loads.
+        """Return the canonical custom mapping (AD-13: HA storage).
 
-        This is the config-dir custom_mapping.yaml when it exists (the
-        panel's save target), otherwise the file shipped with the
-        integration. The merged config must never be exposed here: it
-        mixes in the default mapping.
+        Falls back to the editable file only when the storage holds no
+        canon yet (first-boot bootstrap, before the init ingestion).
         """
-        from .device_mapping import load_custom_yaml_mappings_async
+        data = await self.mapping_store.async_load() or {}
+        current = data.get("current")
+        if isinstance(current, dict):
+            return current
 
-        return await load_custom_yaml_mappings_async(self.hass) or {}
+        from .device_mapping import async_get_canonical_custom_mapping
+
+        return await async_get_canonical_custom_mapping(self.hass)
 
     async def async_save_custom_mapping(
         self, config: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Persist the custom mapping to the config-dir file.
+        """Persist the custom mapping to the canonical storage (AD-13).
 
-        Validates against the mapping schema, archives the version being
-        replaced in HA storage (three versions kept, oldest purged on the
-        fourth save), then writes the new content outside the integration
-        tree so a git-based deployment checkout stays clean.
+        Validates against the mapping schema, archives the replaced
+        current in the version store (three kept, oldest purged on the
+        fourth save), stores current + the fingerprint of the dumped
+        text, then rewrites the editable mirror file so a reload finds
+        no difference (no double version).
 
         Returns:
             {"success": bool, "error": str | None, "path": str | None}
         """
-        import os
-
         import yaml
 
         try:
@@ -300,25 +309,33 @@ class EedomusConfigManager:
 
         path = get_config_dir_custom_mapping_path(self.hass)
 
+        data = await self.mapping_store.async_load() or {}
+        previous = data.get("current")
+        # A save that changes nothing archives nothing (history stays
+        # meaningful): only a real replacement creates a version.
+        if isinstance(previous, dict) and previous and previous != config:
+            await self.async_archive_mapping_version(previous)
+
+        text = yaml.safe_dump(config, sort_keys=False, allow_unicode=True)
+        await self.mapping_store.async_save(
+            {"current": config, "file_fingerprint": text}
+        )
         try:
-            current = await self.async_get_custom_mapping()
-            if current:
-                await self.async_archive_mapping_version(current)
-
-            def _write() -> None:
-                os.makedirs(os.path.dirname(path), exist_ok=True)
-                with open(path, "w", encoding="utf-8") as f:
-                    f.write(
-                        yaml.safe_dump(config, sort_keys=False, allow_unicode=True)
-                    )
-
-            await self.hass.async_add_executor_job(_write)
+            await self._async_write_mirror(text)
         except Exception as e:
-            _LOGGER.error("Failed to save custom mapping: %s", e)
+            _LOGGER.error("Failed to write the custom mapping mirror: %s", e)
             return {"success": False, "error": str(e), "path": path}
 
-        _LOGGER.info("Custom mapping saved to %s", path)
+        _LOGGER.info("Custom mapping saved (storage canon + mirror %s)", path)
         return {"success": True, "error": None, "path": path}
+
+    async def _async_ingest_custom_mapping(self) -> None:
+        """AD-13: delegate to the module-level ingestion (see its docstring)."""
+        await async_ingest_custom_mapping(self.hass)
+
+    async def _async_write_mirror(self, text: str) -> None:
+        """Write the editable mirror file from the canon."""
+        await _write_mapping_mirror(self.hass, text)
 
     async def async_archive_mapping_version(self, config: Dict[str, Any]) -> bool:
         """Archive a mapping version in HA storage (three kept).
@@ -345,3 +362,123 @@ class EedomusConfigManager:
         """Return the archived mapping versions, newest first."""
         data = await self.versions_store.async_load() or {}
         return list(data.get("versions") or [])
+
+
+def _validate_mapping_config(config: Dict[str, Any]) -> None:
+    """Validate a custom mapping document against the YAML schema."""
+    YAML_MAPPING_SCHEMA(config)
+
+
+async def _archive_mapping_version(hass: HomeAssistant, config: Dict[str, Any]) -> None:
+    """Archive a mapping version in HA storage (three kept, oldest purged)."""
+    from datetime import datetime
+
+    store = Store(hass, 1, f"{DOMAIN}.mapping_versions")
+    data = await store.async_load() or {}
+    versions = list(data.get("versions") or [])
+    versions.insert(
+        0,
+        {
+            "timestamp": datetime.now().isoformat(timespec="seconds"),
+            "config": config,
+        },
+    )
+    await store.async_save({"versions": versions[:3]})
+
+
+async def _write_mapping_mirror(hass: HomeAssistant, text: str) -> None:
+    """Write the editable mirror file from the canonical text."""
+    import os
+
+    from .device_mapping import get_config_dir_custom_mapping_path
+
+    path = get_config_dir_custom_mapping_path(hass)
+
+    def _write() -> None:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(text)
+
+    await hass.async_add_executor_job(_write)
+
+
+async def async_ingest_custom_mapping(hass: HomeAssistant) -> None:
+    """AD-13: compare the editable file to the storage canon at load time.
+
+    Must run before anything reads the mapping (coordinator, entities):
+    called at the top of async_setup_entry and by the ConfigManager init.
+
+    - No canon yet: the file bootstraps the initial current (config-dir
+      first, integrated file as shipped seed), then the mirror is written
+      so the user always owns an editable surface.
+    - File missing or unreadable: the mirror is regenerated from the canon
+      (self-healing surface).
+    - Raw text differs from the fingerprint: ingest as a new version when
+      it validates (previous current archived, cap 3); an invalid file
+      never overwrites the canon - the mirror is regenerated and a
+      warning names the problem.
+    """
+    import yaml
+
+    from .device_mapping import (
+        get_config_dir_custom_mapping_path,
+        get_custom_mapping_paths,
+        read_custom_mapping_file,
+    )
+
+    store = Store(hass, 1, f"{DOMAIN}.mapping")
+    data = await store.async_load() or {}
+    current = data.get("current")
+    fingerprint = data.get("file_fingerprint")
+
+    config_dir_file = get_config_dir_custom_mapping_path(hass)
+    paths = [config_dir_file] + [
+        p for p in get_custom_mapping_paths() if p != config_dir_file
+    ]
+    text, parsed = await hass.async_add_executor_job(
+        read_custom_mapping_file, paths
+    )
+
+    if not isinstance(current, dict):
+        # Bootstrap: the file becomes the initial canon.
+        canon = parsed if isinstance(parsed, dict) else {}
+        dumped = yaml.safe_dump(canon, sort_keys=False, allow_unicode=True)
+        await store.async_save({"current": canon, "file_fingerprint": dumped})
+        await _write_mapping_mirror(hass, dumped)
+        _LOGGER.info("Custom mapping bootstrapped from the editable file")
+        return
+
+    canon_text = fingerprint or yaml.safe_dump(
+        current, sort_keys=False, allow_unicode=True
+    )
+
+    if text is None:
+        await _write_mapping_mirror(hass, canon_text)
+        _LOGGER.info("Custom mapping mirror missing - regenerated from the canon")
+        return
+
+    if text == fingerprint:
+        return
+
+    if not isinstance(parsed, dict):
+        _LOGGER.warning(
+            "Custom mapping file changed but does not parse - the "
+            "storage canon is kept and the mirror regenerated"
+        )
+        await _write_mapping_mirror(hass, canon_text)
+        return
+
+    try:
+        _validate_mapping_config(parsed)
+    except (vol.Invalid, cv.Invalid) as e:
+        _LOGGER.warning(
+            "Custom mapping file changed but is invalid (%s) - the "
+            "storage canon is kept and the mirror regenerated",
+            e,
+        )
+        await _write_mapping_mirror(hass, canon_text)
+        return
+
+    await _archive_mapping_version(hass, current)
+    await store.async_save({"current": parsed, "file_fingerprint": text})
+    _LOGGER.info("Custom mapping file ingested as a new version")

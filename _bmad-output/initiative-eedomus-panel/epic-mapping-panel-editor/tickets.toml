@@ -1,4 +1,4 @@
-# tickets.toml — epic-mapping-panel-editor : 7 entrées, ordre de build.
+# tickets.toml — epic-mapping-panel-editor : 8 entrées, ordre de build.
 
 [[entry]]
 id = 1
@@ -48,13 +48,25 @@ risk = "high"
 references = ["../../planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/mockups/mock-02-regles.html", "../../planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/EXPERIENCE.md#component-patterns"]
 
 [[entry]]
+id = 8
+type = "story"
+title = "Rework AD-13 — le HA storage devient le canon du mapping custom"
+description = "Implémente AD-13 du spine (update run 2026-09-28) : Store eedomus.mapping (current + file_fingerprint) lu par tout le runtime ; ingestion au chargement (texte brut vs fingerprint, différent+valide → nouvelle version archivée, invalide → canon conservé + miroir régénéré, absent → miroir régénéré, bootstrap fichier si storage vide) ; save UI écrit current + miroir + fingerprint + archive. L'API ws (get_mapping/save_mapping) ne change pas."
+verify = "Une édition manuelle du fichier sur le Pi est ingérée comme nouvelle version au rechargement (badge/Historique la montrent) ; un save UI réécrit miroir+fingerprint sans double version au reload suivant ; un fichier invalide n'écrase pas le canon (warning) ; tests unitaires verts."
+covers = ["CAP-4"]
+after = [4]
+hitl = false
+risk = "medium"
+references = ["../../planning-artifacts/architecture/architecture-hass-eedomus-2026-09-27/ARCHITECTURE-SPINE.md#ad-13"]
+
+[[entry]]
 id = 5
 type = "story"
 title = "Éditeur Règles — mode YAML avec coloration"
 description = "Mode YAML brut conforme à EXPERIENCE.md : lib vendorisée légère sélectionnée selon le critère M9 (clavier complet, texte exposé à l'AT, erreurs aria-live avec numéro de ligne ; repli textarea sinon), coloration syntaxique, validation temps réel, bascule Formulaire↔YAML sans perte."
 verify = "Un bloc YAML collé avec une erreur est signalé ligne par ligne en aria-live ; la bascule formulaire→YAML→formulaire préserve le contenu ; le focus est conservé à la bascule."
 covers = ["CAP-3"]
-after = [4]
+after = [8]
 hitl = false
 risk = "medium"
 unknown = "Lib YAML exacte à sélectionner (critère M9) - repli textarea si aucune candidate légère ne passe."
@@ -66,7 +78,7 @@ title = "Historique, diff coloré et restauration"
 description = "Onglet Historique conforme au mock-03 : archivage .storage à chaque save (version horodatée, retention 3, purge à la 4e), cartes de version, diff type git avec le traitement C1 (texte --primary-text-color, fond teinté + préfixes +/-/~ + barre gauche), restauration avec confirmation 'Le mapping actuel sera archivé', passage par le chemin auto-apply de CAP-4."
 verify = "Après 3 saves, 3 versions horodatées visibles ; restaurer la précédente remet son contenu et l'applique ; le 4e save purge la plus ancienne ; contraste du diff ≥4.5:1 en thème clair ET sombre (vérifié sur les variables)."
 covers = ["CAP-5"]
-after = [4]
+after = [8]
 hitl = false
 risk = "medium"
 references = ["../../planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/mockups/mock-03-historique.html", "../../planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/DESIGN.md#colors"]
