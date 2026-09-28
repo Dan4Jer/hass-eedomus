@@ -54,7 +54,7 @@ class TestAsyncInit:
 
         await service.async_init()
 
-        assert register.call_count == 5
+        assert register.call_count == 7
         # Handler form: (hass, handler) on the module-level dispatchers -
         # HA calls websocket handlers as plain (hass, connection, msg)
         # functions, so bound methods cannot be dispatched directly
@@ -66,6 +66,8 @@ class TestAsyncInit:
             ui_service_module._ws_get_schema,
             ui_service_module._ws_get_cache_stats,
             ui_service_module._ws_get_peripherals,
+            ui_service_module._ws_get_mapping,
+            ui_service_module._ws_save_mapping,
         ]
         assert service._registered_commands == [
             WS_TYPE_EEDOMUS_VALIDATE,
@@ -73,6 +75,8 @@ class TestAsyncInit:
             WS_TYPE_EEDOMUS_SCHEMA,
             WS_TYPE_EEDOMUS_CACHE_STATS,
             ui_service_module.WS_TYPE_EEDOMUS_PERIPHERALS,
+            ui_service_module.WS_TYPE_EEDOMUS_GET_MAPPING,
+            ui_service_module.WS_TYPE_EEDOMUS_SAVE_MAPPING,
         ]
         assert service.is_initialized() is True
 
@@ -112,7 +116,7 @@ class TestAsyncInit:
         await service.async_init()
 
         assert service._registered_commands == first
-        assert register.call_count == 10
+        assert register.call_count == 14
 
     @pytest.mark.asyncio
     async def test_shutdown_resets_state_without_unregistering(self):
@@ -555,3 +559,112 @@ class TestGetPeripheralsHandler:
 
         connection.send_error.assert_called_once()
         connection.send_result.assert_not_called()
+
+
+class TestMappingHandlers:
+    """P.1.4: the Regles tab reads the custom mapping through
+    eedomus/get_mapping and persists + auto-applies through
+    eedomus/save_mapping (every eedomus entry is reloaded)."""
+
+    def make_manager(self):
+        manager = MagicMock()
+        manager.async_get_custom_mapping = AsyncMock(
+            return_value={"custom_rules": [], "custom_usage_id_mappings": {}}
+        )
+        manager.async_save_custom_mapping = AsyncMock(
+            return_value={
+                "success": True,
+                "error": None,
+                "path": "/config/eedomus/custom_mapping.yaml",
+            }
+        )
+        return manager
+
+    def make_save_hass(self, manager):
+        hass = MagicMock()
+        hass.data = {"eedomus": {"config_manager": manager}}
+        entry = MagicMock()
+        entry.entry_id = "entry_1"
+        hass.config_entries.async_entries = MagicMock(return_value=[entry])
+        hass.config_entries.async_reload = AsyncMock()
+        return hass
+
+    @pytest.mark.asyncio
+    async def test_get_mapping_returns_raw_custom_mapping(self):
+        manager = self.make_manager()
+        hass = MagicMock()
+        hass.data = {"eedomus": {"config_manager": manager}}
+        service = EedomusUIService(hass)
+        connection = MagicMock()
+
+        await service._handle_get_mapping(hass, connection, {"id": 6})
+
+        connection.send_result.assert_called_once_with(
+            6,
+            {"mapping": {"custom_rules": [], "custom_usage_id_mappings": {}}},
+        )
+
+    @pytest.mark.asyncio
+    async def test_get_mapping_without_manager_sends_error(self):
+        service, connection = make_service({})
+
+        await service._handle_get_mapping(service.hass, connection, {"id": 6})
+
+        connection.send_error.assert_called_once_with(
+            6, "service_unavailable", "ConfigManager not available"
+        )
+
+    @pytest.mark.asyncio
+    async def test_save_persists_then_reloads_every_entry(self):
+        manager = self.make_manager()
+        hass = self.make_save_hass(manager)
+        service = EedomusUIService(hass)
+        connection = MagicMock()
+        mapping = {"custom_usage_id_mappings": {"7": {"ha_entity": "sensor"}}}
+
+        await service._handle_save_mapping(
+            hass, connection, {"id": 7, "mapping": mapping}
+        )
+
+        manager.async_save_custom_mapping.assert_awaited_once_with(mapping)
+        hass.config_entries.async_reload.assert_awaited_once_with("entry_1")
+        result = connection.send_result.call_args.args[1]
+        assert result == {
+            "saved": True,
+            "path": "/config/eedomus/custom_mapping.yaml",
+            "reloaded_entries": 1,
+        }
+
+    @pytest.mark.asyncio
+    async def test_save_does_not_reload_on_validation_error(self):
+        manager = self.make_manager()
+        manager.async_save_custom_mapping = AsyncMock(
+            return_value={"success": False, "error": "not a valid option", "path": None}
+        )
+        hass = self.make_save_hass(manager)
+        service = EedomusUIService(hass)
+        connection = MagicMock()
+
+        await service._handle_save_mapping(
+            hass,
+            connection,
+            {"id": 7, "mapping": {"custom_usage_id_mappings": {"x": {}}}},
+        )
+
+        connection.send_error.assert_called_once_with(
+            7, "validation_error", "not a valid option"
+        )
+        hass.config_entries.async_reload.assert_not_awaited()
+        connection.send_result.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_save_without_manager_sends_error(self):
+        service, connection = make_service({})
+
+        await service._handle_save_mapping(
+            service.hass, connection, {"id": 7, "mapping": {}}
+        )
+
+        connection.send_error.assert_called_once_with(
+            7, "service_unavailable", "ConfigManager not available"
+        )

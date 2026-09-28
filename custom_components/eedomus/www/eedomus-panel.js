@@ -31,6 +31,15 @@ class EedomusConfigPanel extends HTMLElement {
     this._touchedOnly = false;
     this._pendingRuleUsageId = null;
     this._boundHashChange = () => this._onHashChange();
+    // Regles tab state (P.1.4)
+    this._mapping = null;
+    this._mappingError = null;
+    this._ruleForm = null;
+    this._rulesStatus = '';
+    this._saveState = null; // null | 'saving' | 'applying' | {applied:{...}} | {error}
+    this._validation = { valid: false, message: '' };
+    this._confirmDelete = null;
+    this._validateTimer = null;
   }
 
   set hass(hass) {
@@ -284,6 +293,39 @@ class EedomusConfigPanel extends HTMLElement {
           font-family: var(--code-font-family, ui-monospace, Menlo, monospace);
         }
 
+        .rule-form {
+          background: var(--card-background-color);
+          border: 1px solid var(--divider-color);
+          border-radius: var(--ha-card-border-radius, 12px);
+          padding: 16px;
+          display: flex; flex-direction: column; gap: 12px;
+          max-width: 760px;
+        }
+        .form-field { display: flex; flex-direction: column; gap: 4px; }
+        .form-field label {
+          color: var(--primary-text-color); font-size: 13px; font-weight: 500;
+        }
+        .form-field input, .form-field select {
+          font: inherit; color: var(--primary-text-color);
+          background: var(--input-fill-color, var(--card-background-color));
+          border: 1px solid var(--divider-color);
+          border-radius: var(--ha-card-border-radius, 12px);
+          min-height: 44px; padding: 8px 12px;
+        }
+        .form-field input:focus-visible, .form-field select:focus-visible {
+          outline: 2px solid var(--primary-color); outline-offset: 2px;
+        }
+        .form-field input[aria-invalid="true"] {
+          border-color: var(--error-color, #db4437);
+        }
+        .form-hint { color: var(--secondary-text-color); font-size: 12.5px; }
+        .form-validation {
+          color: var(--error-color, #db4437);
+          font-size: 13px; margin: 0; min-height: 20px;
+        }
+        .form-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+        .rule-save[disabled] { opacity: 0.5; cursor: not-allowed; }
+
         @media (max-width: 900px) {
           .periph-row {
             display: flex; flex-direction: column; align-items: stretch; gap: 8px;
@@ -325,7 +367,7 @@ class EedomusConfigPanel extends HTMLElement {
       return;
     }
     const retry = ev.target.closest('.retry');
-    if (retry) {
+    if (retry && retry.dataset.retry !== 'mapping') {
       this._loadPeripherals();
       return;
     }
@@ -336,8 +378,12 @@ class EedomusConfigPanel extends HTMLElement {
       return;
     }
     const action = ev.target.closest('.row-action');
-    if (action) {
+    if (action && action.dataset.periphId !== undefined) {
       this._createRuleFor(action.dataset.periphId, action.dataset.usageId);
+      return;
+    }
+    if (this._tab === 'regles') {
+      this._onRulesEvent(ev);
     }
   }
 
@@ -345,17 +391,30 @@ class EedomusConfigPanel extends HTMLElement {
     if (ev.target.id === 'periph-search') {
       this._search = ev.target.value;
       this._renderPeriphList();
+    } else if (this._tab === 'regles') {
+      this._onRulesInput(ev);
     }
   }
 
   _onKeyDown(ev) {
-    if (ev.key === 'Escape' && ev.target.id === 'periph-search') {
-      if (ev.target.value !== '') {
-        this._search = '';
-        ev.target.value = '';
-        this._renderPeriphList();
+    if (ev.key === 'Escape') {
+      if (ev.target.id === 'periph-search') {
+        if (ev.target.value !== '') {
+          this._search = '';
+          ev.target.value = '';
+          this._renderPeriphList();
+        }
+        ev.target.blur();
+      } else if (ev.target.closest && ev.target.closest('.rule-form')) {
+        // Escape cancels the rule form, content stays in the list.
+        this._ruleForm = null;
+        this._validation = { valid: false, message: '' };
+        const content = this.shadowRoot.getElementById('tab-content');
+        if (content) {
+          content.innerHTML = this._renderRulesTab();
+          this._wireRulesTab();
+        }
       }
-      ev.target.blur();
     }
   }
 
@@ -385,13 +444,11 @@ class EedomusConfigPanel extends HTMLElement {
         this._loadPeripherals();
       }
     } else if (this._tab === 'regles') {
-      const prefill = this._pendingRuleUsageId;
-      content.innerHTML = `
-        <p class="placeholder">
-          L'éditeur de règles arrive au ticket suivant (formulaire structuré et
-          mode YAML).${prefill ? ` usage_id pré-rempli prêt pour ce périphérique : <code>${this._escapeHtml(prefill)}</code>.` : ''}
-        </p>
-      `;
+      content.innerHTML = this._renderRulesTab();
+      this._wireRulesTab();
+      if (this._mapping === null && !this._mappingError) {
+        this._loadMapping();
+      }
     } else {
       content.innerHTML = `
         <p class="placeholder">
@@ -533,6 +590,490 @@ class EedomusConfigPanel extends HTMLElement {
 
   _escapeAttr(value) {
     return this._escapeHtml(value);
+  }
+
+  // ================= Règles (P.1.4) =================
+
+  async _loadMapping() {
+    if (!this._hass) {
+      return;
+    }
+    this._mappingError = null;
+    try {
+      const result = await this._hass.callWS({
+        type: 'eedomus/get_mapping',
+      });
+      this._mapping = (result && result.mapping) || {};
+    } catch (err) {
+      this._mappingError = (err && (err.message || err.code)) || 'commande refusée';
+    }
+    if (this._tab === 'regles') {
+      const content = this.shadowRoot.getElementById('tab-content');
+      if (content) {
+        content.innerHTML = this._renderRulesTab();
+        this._wireRulesTab();
+      }
+    }
+  }
+
+  _usageIdRules() {
+    const mappings = (this._mapping && this._mapping.custom_usage_id_mappings) || {};
+    return Object.entries(mappings)
+      .map(([usageId, rule]) => ({ usageId, rule }))
+      .sort((a, b) => a.usageId.localeCompare(b.usageId, undefined, { numeric: true }));
+  }
+
+  _openRuleForm(usageId) {
+    this._saveState = null;
+    this._confirmDelete = null;
+    this._ruleForm = {
+      usage_id: usageId || '',
+      justification: '',
+      ha_entity: 'sensor',
+      ha_subtype: '',
+    };
+    this._validation = { valid: false, message: '' };
+    this._scheduleValidation();
+    const content = this.shadowRoot.getElementById('tab-content');
+    if (content) {
+      content.innerHTML = this._renderRulesTab();
+      this._wireRulesTab();
+      const input = this.shadowRoot.getElementById('rule-usage-id');
+      if (input) {
+        input.focus();
+      }
+    }
+  }
+
+  _scheduleValidation() {
+    if (this._validateTimer) {
+      clearTimeout(this._validateTimer);
+    }
+    this._validateTimer = setTimeout(() => this._validateRuleForm(), 350);
+  }
+
+  async _validateRuleForm() {
+    const form = this._ruleForm;
+    if (!form || !this._hass) {
+      return;
+    }
+    const fragment = {
+      custom_usage_id_mappings: {
+        [form.usage_id]: {
+          ha_entity: form.ha_entity,
+          ha_subtype: form.ha_subtype,
+          justification: form.justification,
+        },
+      },
+    };
+    try {
+      const result = await this._hass.callWS({
+        type: 'eedomus/validate_config',
+        yaml_content: this._yamlDump(fragment),
+      });
+      if (result && result.valid) {
+        this._validation = { valid: true, message: '' };
+      } else {
+        const error = result && result.error;
+        this._validation = {
+          valid: false,
+          message: (error && (error.message || error.error)) || 'configuration invalide',
+        };
+      }
+    } catch (err) {
+      this._validation = {
+        valid: false,
+        message: (err && (err.message || err.code)) || 'validation impossible',
+      };
+    }
+    if (this._tab === 'regles' && this._ruleForm) {
+      this._updateRuleFormState();
+    }
+  }
+
+  _updateRuleFormState() {
+    const form = this._ruleForm;
+    if (!form) {
+      return;
+    }
+    const saveBtn = this.shadowRoot.getElementById('rule-save');
+    const validationEl = this.shadowRoot.getElementById('rule-validation');
+    const usageInput = this.shadowRoot.getElementById('rule-usage-id');
+    if (usageInput) {
+      usageInput.setAttribute('aria-invalid', String(!form.usage_id));
+    }
+    if (validationEl) {
+      validationEl.textContent = this._validation.valid
+        ? ''
+        : this._validation.message;
+    }
+    if (saveBtn) {
+      const clientValid = form.usage_id && form.justification.trim() !== '';
+      saveBtn.disabled = !(clientValid && this._validation.valid) ||
+        this._saveState === 'saving' ||
+        this._saveState === 'applying';
+      saveBtn.textContent =
+        this._saveState === 'saving'
+          ? 'Sauvegarde…'
+          : this._saveState === 'applying'
+            ? 'Application…'
+            : 'Enregistrer';
+    }
+    this._updateRulesStatus();
+  }
+
+  _updateRulesStatus() {
+    const status = this.shadowRoot.getElementById('rules-status');
+    if (!status) {
+      return;
+    }
+    if (this._saveState === 'saving') {
+      status.textContent = 'Sauvegarde…';
+    } else if (this._saveState === 'applying') {
+      status.textContent = 'Application…';
+    } else if (this._saveState && this._saveState.applied) {
+      const applied = this._saveState.applied;
+      status.textContent = `Règle appliquée. ${applied.entity_id} est maintenant en ${applied.unit}.`;
+    } else if (this._saveState && this._saveState.error) {
+      status.textContent = `Échec de la sauvegarde : ${this._saveState.error}. Le formulaire conserve vos modifications.`;
+    } else if (this._validation.message) {
+      status.textContent = this._validation.message;
+    } else {
+      status.textContent = this._rulesStatus;
+    }
+  }
+
+  async _saveRules() {
+    const form = this._ruleForm;
+    if (!form || !this._mapping) {
+      return;
+    }
+    this._saveState = 'saving';
+    this._updateRuleFormState();
+    const mapping = JSON.parse(JSON.stringify(this._mapping));
+    mapping.custom_usage_id_mappings = mapping.custom_usage_id_mappings || {};
+    mapping.custom_usage_id_mappings[form.usage_id] = {
+      ha_entity: form.ha_entity,
+      ha_subtype: form.ha_subtype,
+      justification: form.justification,
+    };
+    mapping.metadata = mapping.metadata || {};
+    mapping.metadata.last_modified = new Date().toISOString().slice(0, 16).replace('T', ' ');
+    try {
+      await this._hass.callWS({
+        type: 'eedomus/save_mapping',
+        mapping,
+      });
+      this._saveState = 'applying';
+      this._mapping = mapping;
+      this._updateRuleFormState();
+      // The save command reloads the entries: re-read the peripherals to
+      // reflect the new mapping and produce the nominative feedback.
+      await this._loadPeripherals();
+      const rule = form.usage_id;
+      const row = (this._periphs || []).find((p) => p.usage_id === rule);
+      this._saveState = {
+        applied: {
+          entity_id: row && row.entity_id ? row.entity_id : `usage_id ${rule}`,
+          unit: row && row.unit ? row.unit : 'sa nouvelle valeur',
+        },
+      };
+      this._ruleForm = null;
+    } catch (err) {
+      this._saveState = {
+        error: (err && (err.message || err.code)) || 'erreur inconnue',
+      };
+    }
+    const content = this.shadowRoot.getElementById('tab-content');
+    if (content && this._tab === 'regles') {
+      content.innerHTML = this._renderRulesTab();
+      this._wireRulesTab();
+    }
+    this._updateRulesStatus();
+  }
+
+  async _deleteRule(usageId) {
+    if (!this._mapping) {
+      return;
+    }
+    if (this._confirmDelete !== usageId) {
+      // Two-gesture delete: first click asks for confirmation.
+      this._confirmDelete = usageId;
+      this._renderRulesList();
+      return;
+    }
+    this._confirmDelete = null;
+    const mapping = JSON.parse(JSON.stringify(this._mapping));
+    if (mapping.custom_usage_id_mappings) {
+      delete mapping.custom_usage_id_mappings[usageId];
+    }
+    this._saveState = 'saving';
+    try {
+      await this._hass.callWS({ type: 'eedomus/save_mapping', mapping });
+      this._mapping = mapping;
+      this._saveState = { applied: { entity_id: `règle ${usageId}`, unit: 'supprimée' } };
+      await this._loadPeripherals();
+    } catch (err) {
+      this._saveState = {
+        error: (err && (err.message || err.code)) || 'erreur inconnue',
+      };
+    }
+    const content = this.shadowRoot.getElementById('tab-content');
+    if (content && this._tab === 'regles') {
+      content.innerHTML = this._renderRulesTab();
+      this._wireRulesTab();
+    }
+    this._updateRulesStatus();
+  }
+
+  _renderRulesList() {
+    const listEl = this.shadowRoot.getElementById('rules-list');
+    if (!listEl) {
+      return;
+    }
+    const rules = this._usageIdRules();
+    if (rules.length === 0) {
+      listEl.innerHTML = `
+        <div class="state-message">
+          Aucune règle de mapping. Le mapping par défaut s'applique.
+        </div>
+      `;
+      return;
+    }
+    listEl.innerHTML = rules
+      .map(({ usageId, rule }) => {
+        const confirm = this._confirmDelete === usageId;
+        return `
+        <div class="periph-row">
+          <div class="row-top">
+            <div class="periph-identity">
+              <span class="periph-name">usage_id <code>${this._escapeHtml(usageId)}</code></span>
+              <span class="periph-meta">${this._escapeHtml(rule.justification || '')}</span>
+            </div>
+          </div>
+          <div class="periph-mapping">
+            <span class="ha-entity">${this._escapeHtml(rule.ha_entity || '')}${rule.ha_subtype ? '.' + this._escapeHtml(rule.ha_subtype) : ''}</span>
+          </div>
+          <button class="row-action" type="button" data-edit-rule="${this._escapeAttr(usageId)}">
+            Modifier
+          </button>
+          <button class="row-action" type="button" data-delete-rule="${this._escapeAttr(usageId)}">
+            ${confirm ? 'Confirmer la suppression ?' : 'Supprimer'}
+          </button>
+        </div>
+      `;
+      })
+      .join('');
+  }
+
+  _renderRulesTab() {
+    if (this._mappingError) {
+      return `
+        <div class="state-message" role="alert">
+          Impossible de charger la configuration : ${this._escapeHtml(this._mappingError)}.
+          <br>
+          <button class="retry" type="button" data-retry="mapping">Réessayer</button>
+        </div>
+      `;
+    }
+    if (this._mapping === null) {
+      return '<div class="skeleton-row"></div>'.repeat(4);
+    }
+
+    const rules = this._usageIdRules();
+    const rulesListHtml = `
+      <p class="result-count" id="rules-status" role="status"></p>
+      <div class="periph-list" id="rules-list"></div>
+    `;
+
+    if (!this._ruleForm) {
+      const prefillNote = this._pendingRuleUsageId
+        ? `<p class="result-count">usage_id pré-rempli : <code>${this._escapeHtml(this._pendingRuleUsageId)}</code></p>`
+        : '';
+      return `
+        ${prefillNote}
+        <div class="toolbar">
+          <button class="row-action" type="button" data-new-rule="${this._escapeAttr(this._pendingRuleUsageId || '')}">
+            Créer une règle
+          </button>
+        </div>
+        ${rulesListHtml}
+      `;
+    }
+
+    const form = this._ruleForm;
+    const datalistId = 'rule-usage-id-options';
+    const options = (this._periphs || [])
+      .map((p) => ({ usage: p.usage_id, name: p.name }))
+      .filter((p) => p.usage)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(
+        (p) =>
+          `<option value="${this._escapeAttr(p.usage)}">${this._escapeHtml(p.name)}</option>`
+      )
+      .join('');
+
+    return `
+      <form class="rule-form" id="rule-form" novalidate>
+        <div class="form-field">
+          <label for="rule-usage-id">usage_id</label>
+          <input id="rule-usage-id" list="${datalistId}" type="text" inputmode="numeric"
+                 placeholder="ex. 7" required
+                 aria-describedby="rule-validation"
+                 value="${this._escapeAttr(form.usage_id)}">
+          <datalist id="${datalistId}">${options}</datalist>
+        </div>
+        <div class="form-field">
+          <label for="rule-name">Nom de la règle</label>
+          <input id="rule-name" type="text" placeholder="ex. Unité température salon"
+                 required aria-describedby="rule-validation"
+                 value="${this._escapeAttr(form.justification)}">
+        </div>
+        <div class="form-field">
+          <label for="rule-entity">Plateforme HA</label>
+          <select id="rule-entity">
+            ${['sensor', 'light', 'switch', 'cover', 'climate', 'binary_sensor', 'select', 'text_sensor']
+              .map(
+                (platform) =>
+                  `<option value="${platform}"${form.ha_entity === platform ? ' selected' : ''}>${platform}</option>`
+              )
+              .join('')}
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="rule-subtype">Classe de périphérique</label>
+          <select id="rule-subtype">
+            <option value=""${form.ha_subtype === '' ? ' selected' : ''}>(aucune)</option>
+            ${['temperature', 'humidity', 'energy', 'power', 'time', 'cpu', 'disk_free_space', 'text']
+              .map(
+                (subtype) =>
+                  `<option value="${subtype}"${form.ha_subtype === subtype ? ' selected' : ''}>${subtype}</option>`
+              )
+              .join('')}
+          </select>
+          <span class="form-hint">La classe détermine device_class et unité appliquées (ex. temperature → °C).</span>
+        </div>
+        <p id="rule-validation" class="form-validation" role="alert"></p>
+        <div class="form-actions">
+          <button class="row-action" type="button" data-cancel-rule="1">Annuler</button>
+          <button class="row-action rule-save" id="rule-save" type="button" disabled>Enregistrer</button>
+        </div>
+      </form>
+      ${rulesListHtml}
+    `;
+  }
+
+  _wireRulesTab() {
+    const content = this.shadowRoot.getElementById('tab-content');
+    if (!content) {
+      return;
+    }
+    this._renderRulesList();
+    if (this._ruleForm) {
+      this._updateRuleFormState();
+      const usageInput = this.shadowRoot.getElementById('rule-usage-id');
+      if (usageInput && usageInput.value !== this._ruleForm.usage_id) {
+        usageInput.value = this._ruleForm.usage_id;
+      }
+    } else {
+      this._updateRulesStatus();
+    }
+  }
+
+  _onRulesEvent(ev) {
+    const newRule = ev.target.closest('[data-new-rule]');
+    if (newRule) {
+      this._openRuleForm(newRule.dataset.newRule || this._pendingRuleUsageId || '');
+      this._pendingRuleUsageId = null;
+      return;
+    }
+    const editRule = ev.target.closest('[data-edit-rule]');
+    if (editRule) {
+      const usageId = editRule.dataset.editRule;
+      const entry =
+        (this._mapping.custom_usage_id_mappings || {})[usageId] || {};
+      this._ruleForm = {
+        usage_id: usageId,
+        justification: entry.justification || '',
+        ha_entity: entry.ha_entity || 'sensor',
+        ha_subtype: entry.ha_subtype || '',
+      };
+      this._validation = { valid: false, message: '' };
+      this._scheduleValidation();
+      const content = this.shadowRoot.getElementById('tab-content');
+      content.innerHTML = this._renderRulesTab();
+      this._wireRulesTab();
+      return;
+    }
+    const deleteRule = ev.target.closest('[data-delete-rule]');
+    if (deleteRule) {
+      this._deleteRule(deleteRule.dataset.deleteRule);
+      return;
+    }
+    const cancel = ev.target.closest('[data-cancel-rule]');
+    if (cancel) {
+      this._ruleForm = null;
+      this._validation = { valid: false, message: '' };
+      this._confirmDelete = null;
+      const content = this.shadowRoot.getElementById('tab-content');
+      content.innerHTML = this._renderRulesTab();
+      this._wireRulesTab();
+      return;
+    }
+    if (ev.target.id === 'rule-save') {
+      this._saveRules();
+      return;
+    }
+    if (ev.target.closest('[data-retry="mapping"]')) {
+      this._mappingError = null;
+      this._loadMapping();
+    }
+  }
+
+  _onRulesInput(ev) {
+    const form = this._ruleForm;
+    if (!form) {
+      return;
+    }
+    if (ev.target.id === 'rule-usage-id') {
+      form.usage_id = ev.target.value.trim();
+    } else if (ev.target.id === 'rule-name') {
+      form.justification = ev.target.value;
+    } else if (ev.target.id === 'rule-entity') {
+      form.ha_entity = ev.target.value;
+    } else if (ev.target.id === 'rule-subtype') {
+      form.ha_subtype = ev.target.value;
+    } else {
+      return;
+    }
+    this._saveState = null;
+    this._scheduleValidation();
+    this._updateRuleFormState();
+  }
+
+  _yamlDump(obj) {
+    /** Serialize a dict-of-dicts-of-scalars fragment for validation.
+     * The panel only validates the edited rule; the full document is
+     * validated server-side at save time. */
+    const lines = [];
+    const scalar = (value) => JSON.stringify(String(value));
+    const walk = (node, indent) => {
+      for (const [key, value] of Object.entries(node)) {
+        const pad = ' '.repeat(indent);
+        if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+          if (Object.keys(value).length === 0) {
+            lines.push(`${pad}${scalar(key)}: {}`);
+          } else {
+            lines.push(`${pad}${scalar(key)}:`);
+            walk(value, indent + 2);
+          }
+        } else {
+          lines.push(`${pad}${scalar(key)}: ${scalar(value)}`);
+        }
+      }
+    };
+    walk(obj, 0);
+    return lines.join('\n') + '\n';
   }
 }
 

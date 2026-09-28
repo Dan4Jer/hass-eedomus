@@ -686,42 +686,75 @@ def load_and_merge_yaml_mappings(base_path: str = "") -> Dict[str, Any]:
         return minimal_config
 
 
+def get_custom_mapping_paths():
+    """Candidate paths for the custom mapping, in priority order.
+
+    The config-dir file (outside the integration checkout) is the panel's
+    save target: saving into the integration tree would dirty the git
+    checkout of a git-based deployment. The integrated file stays as the
+    fallback and the shipped example.
+    """
+    import os
+
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    paths = []
+    try:
+        # All real loads happen inside a running HA instance; the sync
+        # loader has no hass argument, so resolve the config dir through
+        # the global instance. Unit tests run without HA and fall through
+        # to the integrated file.
+        from homeassistant.core import async_get_hass
+
+        config_dir = async_get_hass().config.config_dir
+        paths.append(os.path.join(config_dir, 'eedomus', 'custom_mapping.yaml'))
+    except Exception:
+        pass
+    paths.append(os.path.join(current_dir, 'config', 'custom_mapping.yaml'))
+    return paths
+
+
+def get_config_dir_custom_mapping_path(hass) -> str:
+    """Path of the config-dir custom mapping file (the save target)."""
+    import os
+
+    return os.path.join(hass.config.config_dir, 'eedomus', 'custom_mapping.yaml')
+
+
 def load_custom_yaml_mappings():
     """Load custom mappings from custom_mapping.yaml file.
-    
+
     This function loads user-specific mappings that should not be in the main
     device_mapping.yaml file. This includes temperature sensor mappings and other
     installation-specific configurations.
-    
+
+    The config-dir file (managed by the panel) takes priority; the file
+    inside the integration is the fallback and the shipped example.
+
     Returns:
-        dict: Custom mappings or None if file doesn't exist or can't be loaded
-        
+        dict: Custom mappings or None if no file exists or can't be loaded
+
     Note:
         This synchronous version may trigger blocking warnings during initialization.
         For async contexts, use load_custom_yaml_mappings_async() instead.
     """
-    import os
     import yaml
-    
-    try:
-        # Get the directory where the current file is located
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        custom_mapping_path = os.path.join(current_dir, 'config', 'custom_mapping.yaml')
-        
-        if not os.path.exists(custom_mapping_path):
-            _LOGGER.debug("Custom mapping file not found at %s", custom_mapping_path)
-            return None
-            
-        # Load custom mappings using synchronous file I/O
-        with open(custom_mapping_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-            custom_mappings = yaml.safe_load(content) or {}
-            _LOGGER.debug("Loaded custom mappings from %s", custom_mapping_path)
-            return custom_mappings
-            
-    except Exception as e:
-        _LOGGER.warning("Failed to load custom mappings: %s", e)
-        return None
+
+    for custom_mapping_path in get_custom_mapping_paths():
+        try:
+            if not os.path.exists(custom_mapping_path):
+                _LOGGER.debug("Custom mapping file not found at %s", custom_mapping_path)
+                continue
+
+            with open(custom_mapping_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                custom_mappings = yaml.safe_load(content) or {}
+                _LOGGER.debug("Loaded custom mappings from %s", custom_mapping_path)
+                return custom_mappings
+
+        except Exception as e:
+            _LOGGER.warning("Failed to load custom mappings from %s: %s", custom_mapping_path, e)
+
+    return None
 
 
 async def load_custom_yaml_mappings_async(hass):

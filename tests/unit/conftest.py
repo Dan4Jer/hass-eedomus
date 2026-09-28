@@ -61,6 +61,8 @@ def _install_homeassistant_stubs():
     ha_cv.icon = lambda value: value
     ha_cv.ensure_list = lambda value: value if isinstance(value, list) else [value]
     ha_cv.string = lambda value: str(value)
+    # cv.Invalid must exist: config_manager catches (vol.Invalid, cv.Invalid)
+    ha_cv.Invalid = type("Invalid", (Exception,), {})
 
     # homeassistant.helpers.entity
     ha_entity = module("homeassistant.helpers.entity")
@@ -147,6 +149,30 @@ def _install_homeassistant_stubs():
             self.cache_headers = cache_headers
 
     ha_http.StaticPathConfig = _StubStaticPathConfig
+
+    # homeassistant.helpers.storage - Store used by the config manager
+    ha_storage = module("homeassistant.helpers.storage")
+
+    class _StubStore:
+        """Minimal Store: load/save through a class-level registry."""
+
+        registry: dict = {}
+
+        def __init__(self, hass, version, key):
+            self.key = key
+
+        async def async_load(self):
+            return _StubStore.registry.get(self.key)
+
+        async def async_save(self, data):
+            _StubStore.registry[self.key] = data
+
+    ha_storage.Store = _StubStore
+
+    # homeassistant.helpers.event - trackers used by the config manager
+    ha_event = module("homeassistant.helpers.event")
+    ha_event.async_track_time_interval = MagicMock(return_value=lambda: None)
+    ha_event.async_track_state_change_event = MagicMock(return_value=lambda: None)
 
     # homeassistant.helpers.aiohttp_client
     ha_aiohttp = module("homeassistant.helpers.aiohttp_client")

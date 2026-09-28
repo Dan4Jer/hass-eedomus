@@ -18,6 +18,8 @@ WS_TYPE_EEDOMUS_SUGGESTIONS = f"{DOMAIN}/get_suggestions"
 WS_TYPE_EEDOMUS_SCHEMA = f"{DOMAIN}/get_schema"
 WS_TYPE_EEDOMUS_CACHE_STATS = f"{DOMAIN}/get_cache_stats"
 WS_TYPE_EEDOMUS_PERIPHERALS = f"{DOMAIN}/get_peripherals"
+WS_TYPE_EEDOMUS_GET_MAPPING = f"{DOMAIN}/get_mapping"
+WS_TYPE_EEDOMUS_SAVE_MAPPING = f"{DOMAIN}/save_mapping"
 
 # The handlers are decorated at class-definition time, so the websocket_api
 # imports must happen at module level. When the component is unavailable the
@@ -141,6 +143,39 @@ async def _ws_get_peripherals(hass: HomeAssistant, connection, msg: dict) -> Non
     await service._handle_get_peripherals(hass, connection, msg)
 
 
+@require_admin
+@websocket_command({vol.Required("type"): WS_TYPE_EEDOMUS_GET_MAPPING})
+@async_response
+async def _ws_get_mapping(hass: HomeAssistant, connection, msg: dict) -> None:
+    """Dispatch eedomus/get_mapping to the UI service."""
+    service = _get_ui_service(hass)
+    if service is None:
+        connection.send_error(
+            msg["id"], "service_unavailable", "Eedomus UI service not initialized"
+        )
+        return
+    await service._handle_get_mapping(hass, connection, msg)
+
+
+@require_admin
+@websocket_command(
+    {
+        vol.Required("type"): WS_TYPE_EEDOMUS_SAVE_MAPPING,
+        vol.Required("mapping"): dict,
+    }
+)
+@async_response
+async def _ws_save_mapping(hass: HomeAssistant, connection, msg: dict) -> None:
+    """Dispatch eedomus/save_mapping to the UI service (write command)."""
+    service = _get_ui_service(hass)
+    if service is None:
+        connection.send_error(
+            msg["id"], "service_unavailable", "Eedomus UI service not initialized"
+        )
+        return
+    await service._handle_save_mapping(hass, connection, msg)
+
+
 # The commands in registration order: (command type, module dispatcher).
 WS_COMMANDS = (
     (WS_TYPE_EEDOMUS_VALIDATE, _ws_validate_config),
@@ -148,6 +183,8 @@ WS_COMMANDS = (
     (WS_TYPE_EEDOMUS_SCHEMA, _ws_get_schema),
     (WS_TYPE_EEDOMUS_CACHE_STATS, _ws_get_cache_stats),
     (WS_TYPE_EEDOMUS_PERIPHERALS, _ws_get_peripherals),
+    (WS_TYPE_EEDOMUS_GET_MAPPING, _ws_get_mapping),
+    (WS_TYPE_EEDOMUS_SAVE_MAPPING, _ws_save_mapping),
 )
 
 
@@ -500,6 +537,86 @@ class EedomusUIService:
         except Exception as e:
             _LOGGER.debug("Entity resolution failed for %s: %s", periph_id, e)
             return None
+
+    async def _handle_get_mapping(
+        self,
+        hass: HomeAssistant,
+        connection,
+        msg: dict,
+    ) -> None:
+        """Handle the get mapping WebSocket command (Règles tab)."""
+        try:
+            config_manager = self._get_config_manager()
+            if not config_manager:
+                connection.send_error(
+                    msg.get("id"),
+                    "service_unavailable",
+                    "ConfigManager not available",
+                )
+                return
+
+            mapping = await config_manager.async_get_custom_mapping()
+            connection.send_result(msg.get("id"), {"mapping": mapping})
+
+        except Exception as e:
+            _LOGGER.error(f"Get mapping error: {e}")
+            connection.send_error(msg.get("id"), "error", str(e))
+
+    async def _handle_save_mapping(
+        self,
+        hass: HomeAssistant,
+        connection,
+        msg: dict,
+    ) -> None:
+        """Handle the save mapping WebSocket command (CAP-4).
+
+        Save via the config manager (config-dir file + version archive),
+        then auto-apply: every eedomus entry is reloaded so the new
+        mapping takes effect without a restart or a manual reload.
+        """
+        try:
+            config_manager = self._get_config_manager()
+            if not config_manager:
+                connection.send_error(
+                    msg.get("id"),
+                    "service_unavailable",
+                    "ConfigManager not available",
+                )
+                return
+
+            config = msg.get("mapping")
+            if not isinstance(config, dict):
+                connection.send_error(
+                    msg.get("id"), "invalid_format", "mapping must be a dict"
+                )
+                return
+
+            result = await config_manager.async_save_custom_mapping(config)
+            if not result.get("success"):
+                connection.send_error(
+                    msg.get("id"), "validation_error", result.get("error", "invalid")
+                )
+                return
+
+            # Auto-apply: reload every eedomus config entry so the merged
+            # mapping is rebuilt from the saved file and entities pick up
+            # their new device_class / unit.
+            entries = hass.config_entries.async_entries(DOMAIN)
+            for entry in entries:
+                await hass.config_entries.async_reload(entry.entry_id)
+
+            connection.send_result(
+                msg.get("id"),
+                {
+                    "saved": True,
+                    "path": result.get("path"),
+                    "reloaded_entries": len(entries),
+                },
+            )
+
+        except Exception as e:
+            _LOGGER.error(f"Save mapping error: {e}")
+            connection.send_error(msg.get("id"), "error", str(e))
 
     @staticmethod
     def _matching_rule_name(

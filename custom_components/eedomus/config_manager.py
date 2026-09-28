@@ -27,6 +27,9 @@ class EedomusConfigManager:
         """Initialize the configuration manager."""
         self.hass = hass
         self.store = Store(hass, 1, f"{DOMAIN}.config")
+        # Version archive for the panel Historique tab (CAP-5): the three
+        # most recent custom mapping versions live in HA storage.
+        self.versions_store = Store(hass, 1, f"{DOMAIN}.mapping_versions")
         self._unsubscribe_config_updated = None
         self._unsubscribe_periodic_save = None
         self._config_cache: Dict[str, Any] = {}
@@ -216,8 +219,7 @@ class EedomusConfigManager:
     
     def get_config_value(self, key: str, default: Any = None) -> Any:
         """Get a specific configuration value."""
-        return self._config_cache.get(key, default)
-    
+        return self._config_cache.get(key, default)    
     def set_config_value(self, key: str, value: Any) -> None:
         """Set a specific configuration value (not persisted until save)."""
         self._config_cache[key] = value
@@ -258,4 +260,88 @@ class EedomusConfigManager:
             
         except Exception as e:
             _LOGGER.error(f"Failed to restore configuration: {e}")
-            return False
+            return False    
+    async def async_get_custom_mapping(self) -> Dict[str, Any]:
+        """Return the raw custom mapping the pipeline actually loads.
+
+        This is the config-dir custom_mapping.yaml when it exists (the
+        panel's save target), otherwise the file shipped with the
+        integration. The merged config must never be exposed here: it
+        mixes in the default mapping.
+        """
+        from .device_mapping import load_custom_yaml_mappings_async
+
+        return await load_custom_yaml_mappings_async(self.hass) or {}
+
+    async def async_save_custom_mapping(
+        self, config: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Persist the custom mapping to the config-dir file.
+
+        Validates against the mapping schema, archives the version being
+        replaced in HA storage (three versions kept, oldest purged on the
+        fourth save), then writes the new content outside the integration
+        tree so a git-based deployment checkout stays clean.
+
+        Returns:
+            {"success": bool, "error": str | None, "path": str | None}
+        """
+        import os
+
+        import yaml
+
+        try:
+            self._validate_configuration(config)
+        except (vol.Invalid, cv.Invalid) as e:
+            _LOGGER.error("Custom mapping validation failed: %s", e)
+            return {"success": False, "error": str(e), "path": None}
+
+        from .device_mapping import get_config_dir_custom_mapping_path
+
+        path = get_config_dir_custom_mapping_path(self.hass)
+
+        try:
+            current = await self.async_get_custom_mapping()
+            if current:
+                await self.async_archive_mapping_version(current)
+
+            def _write() -> None:
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(
+                        yaml.safe_dump(config, sort_keys=False, allow_unicode=True)
+                    )
+
+            await self.hass.async_add_executor_job(_write)
+        except Exception as e:
+            _LOGGER.error("Failed to save custom mapping: %s", e)
+            return {"success": False, "error": str(e), "path": path}
+
+        _LOGGER.info("Custom mapping saved to %s", path)
+        return {"success": True, "error": None, "path": path}
+
+    async def async_archive_mapping_version(self, config: Dict[str, Any]) -> bool:
+        """Archive a mapping version in HA storage (three kept).
+
+        The fourth save purges the oldest. The panel Historique tab
+        (P.1.6) reads these versions back.
+        """
+        from datetime import datetime
+
+        data = await self.versions_store.async_load() or {}
+        versions = list(data.get("versions") or [])
+        versions.insert(
+            0,
+            {
+                "timestamp": datetime.now().isoformat(timespec="seconds"),
+                "config": config,
+            },
+        )
+        versions = versions[:3]
+        await self.versions_store.async_save({"versions": versions})
+        return True
+
+    async def async_get_mapping_versions(self) -> list:
+        """Return the archived mapping versions, newest first."""
+        data = await self.versions_store.async_load() or {}
+        return list(data.get("versions") or [])
