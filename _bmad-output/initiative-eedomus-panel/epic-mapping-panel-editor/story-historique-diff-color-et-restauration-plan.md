@@ -3,7 +3,7 @@ title: "P.1.6 Historique, diff coloré et restauration"
 type: 'feature'
 ticket: 6
 created: '2026-09-28'
-status: 'built'
+status: done
 route: 'oneshot'
 route_source: 'auto'
 review: 'quick'

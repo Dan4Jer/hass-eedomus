@@ -3,7 +3,7 @@ title: "P.1.5 Éditeur Règles — mode YAML avec coloration"
 type: 'feature'
 ticket: 5
 created: '2026-09-28'
-status: 'built'
+status: done
 route: 'oneshot'
 route_source: 'auto'
 review: 'quick'
