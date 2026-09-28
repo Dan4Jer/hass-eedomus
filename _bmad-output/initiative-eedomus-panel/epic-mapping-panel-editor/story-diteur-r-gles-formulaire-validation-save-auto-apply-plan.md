@@ -48,6 +48,8 @@ Review quick (self), itération 1 :
 
 - [high, patch — découvert en vérification LIVE] Le **merge loader** (`load_yaml_mappings_async`/`load_yaml_mappings`, celui qui pilote le mapping réel des entités) chargeait encore le fichier custom **intégré** directement : un save du panel aurait été ignoré par le pipeline — masqué dans le round-trip live par un contenu identique. Corrigé (013a2a5) : les deux loaders passent par `load_custom_yaml_mappings[_async]` (priorité config-dir). Test de non-régression : une entrée du fichier config-dir apparaît dans le `usage_id_mappings` mergé. Live après fix : boot propre, 100 periphs dynamiques préservés, E2E 12/12. Leçon : vérifier le chemin LECTURE du pipeline, pas seulement celui d'écriture.
 
+- [SUPERSEDÉ par AD-13, update run 2026-09-28] Le mécanisme de persistance de ce ticket (fichier config-dir = source de vérité, option B) est remplacé par la décision architecture AD-13 : **canon = HA storage** (`eedomus.mapping`), le fichier YAML devient un miroir éditable ingéré au chargement (comparaison texte brut), le save UI écrit storage + miroir. Décisions utilisateur : comparaison texte brut, miroir régénéré si absent/corrompu, rework AVANT P.1.5. Le rework est un nouveau ticket de l'épic avant P.1.6 ; l'API ws (`get_mapping`/`save_mapping`) reste inchangée.
+
 ## Verification
 
 **Commands:**

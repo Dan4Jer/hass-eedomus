@@ -7,7 +7,7 @@ paradigm: 'hub coordinator-centric (polling pull + producteur de fond)'
 scope: 'Intégration custom Home Assistant pour box eedomus : entités, refresh temps réel, backfill d\'historique cloud'
 status: final
 created: '2026-09-27'
-updated: '2026-09-27'
+updated: '2026-09-28'
 binds: [all]
 sources: []
 companions: []
@@ -39,7 +39,7 @@ flowchart LR
 
 ## État actuel vs cible
 
-**AD-1 à AD-5 sont des décisions cibles, non encore implémentées.** L'implémentation actuelle (`unstable`) fait encore : le fetch+import **dans le cycle** de partial refresh (195 s d'history mesurés sur un cycle de 196 s), l'import via le **service Spook** `recorder.import_statistics` (payload limité 32 Ko), un fallback `async_set` **doublé** (une écriture dans `async_fetch_history_chunk`, une dans le fallback d'import) vers des entités fantômes `sensor.eedomus_<periph_id>`, et une progression persistée **via la state machine** (amnésique au redémarrage). La mise en conformité est le chantier piloté par ce spine. **AD-6 à AD-12 sont en vigueur dans le code actuel** (sauf mention contraire dans l'AD).
+**AD-1 à AD-5 sont des décisions cibles, non encore implémentées.** L'implémentation actuelle (`unstable`) fait encore : le fetch+import **dans le cycle** de partial refresh (195 s d'history mesurés sur un cycle de 196 s), l'import via le **service Spook** `recorder.import_statistics` (payload limité 32 Ko), un fallback `async_set` **doublé** (une écriture dans `async_fetch_history_chunk`, une dans le fallback d'import) vers des entités fantômes `sensor.eedomus_<periph_id>`, et une progression persistée **via la state machine** (amnésique au redémarrage). La mise en conformité est le chantier piloté par ce spine. **AD-6 à AD-12 sont en vigueur dans le code actuel** (sauf mention contraire dans l'AD). **AD-13 est une décision cible** : le mapping custom est encore porté par le fichier config-dir (option B du ticket P.1.4, `f5f0e43`) ; le rework vers le canon storage est le prochain ticket de l'épic panel, avant P.1.5.
 
 ## Invariants & Rules
 
@@ -128,6 +128,29 @@ flowchart TD
     history -. heures natives .-> recorder[Recorder compileur\npropriétaire des heures récentes]
 ```
 
+### AD-13 — Le mapping custom vit dans le HA storage ; le fichier YAML est la surface d'édition [CIBLE]
+
+- **Binds :** pipeline de mapping custom (merge loader, badge « modifié », `eedomus/get_mapping`/`save_mapping`) + config_manager
+- **Prevents :** deux sources de vérité divergentes (fichier vs storage) tout en gardant un fichier manipulable par l'utilisateur, et le checkout git d'un déploiement git-only sali (AD-10)
+- **Rule :**
+  - Le canon est le HA storage (`Store eedomus.mapping`, clés `current` + `file_fingerprint`) ; **tout le runtime lit le storage uniquement** — jamais le fichier directement.
+  - Le fichier `<config_dir>/eedomus/custom_mapping.yaml` est un **miroir éditable** : au setup, son **texte brut** est comparé au `file_fingerprint` ; différent → parse + validation de schéma → devient `current` (archive de la version remplacée, cap 3, la 4e purge la plus ancienne) ; YAML invalide → le canon est conservé, warning explicite ; identique → rien. Un changement de commentaire est une version (comparaison texte). **L'ingestion appartient à l'init du ConfigManager (niveau domaine, instance unique)** — jamais au setup par entry, qui s'exécuterait plusieurs fois en multi-box.
+  - Le save UI écrit `current` **et** régénère le miroir + fingerprint, puis archive la version remplacée — au rechargement suivant le diff est nul : pas de double version.
+  - Fichier absent ou corrompu au chargement → miroir régénéré depuis le canon (surface d'édition toujours présente).
+
+```mermaid
+flowchart TD
+    file[custom_mapping.yaml\nmiroir éditable] -- "setup: texte vs fingerprint" --> ingest{diff ?}
+    ingest -- "oui + schéma valide" --> current[storage eedomus.mapping\ncurrent + fingerprint]
+    ingest -- "oui + invalide" --> warn[warning explicite\ncanon conservé]
+    ingest -- non --> current
+    current --> merge[merge loader]
+    current --> panel[panel: get/save_mapping, badge]
+    save[save UI] --> current
+    save --> rewrite["réécrit le miroir + fingerprint"]
+    current --> versions[archive 3 versions\n.p. P.1.6]
+```
+
 ## Consistency Conventions
 
 | Concern | Convention |
@@ -169,7 +192,7 @@ tests/e2e/               # suite live non destructive (HA_TOKEN)
 
 ## Deferred
 
-- **Panel frontend (réactivation, discussion #28, v0.15.0)** — l'architecture du panel/www n'est pas décidée ici ; le spine la contraint uniquement via AD-7/AD-9.
+- **Panel frontend (réactivation, discussion #28, v0.15.0)** — l'architecture du panel est en cours dans l'épic `epic-mapping-panel-editor` (P.1.1–P.1.4 en vigueur) ; le spine la contraint via AD-7/AD-9 et AD-13 (persistance du mapping).
 - **Ordonnancement fin de la tâche de fond** (intervalle, priorisation des périphs) — à l'implémentation de AD-2, dans les limites de AD-4/AD-11.
 - **Politique d'agrégation des warnings** (un par point vs résumé par chunk) — décision d'ergonomie de log, à trancher quand le volume de libellés non résolubles sera connu.
 - **Webhook / api_proxy** — rôle futur non décidé ; aucune croissance prévue sans nouvelle décision.
