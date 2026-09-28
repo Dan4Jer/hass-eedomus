@@ -1623,26 +1623,54 @@ class EedomusConfigPanel extends HTMLElement {
     if (!editor || !pre || !gutter) {
       return;
     }
-    const text = editor.value;
-    const lines = text.split('\n');
+    const lines = editor.value.split('\n');
     gutter.textContent = lines.map((_, i) => i + 1).join('\n') + '\n';
-    const esc = this._escapeHtml(text);
-    // Coloration: comments first, then keys, then quoted strings, then
-    // numbers/booleans - applied on the escaped text.
-    let html = esc
-      .replace(/(#.*)$/gm, '<span class="tok-comment">$1</span>')
-      .replace(/^(\s*)([^#\n]+?)(:(\s|$))/gm,
-        (match, indent, key, colon) =>
-          `${indent}<span class="tok-key">${key}</span>${colon}`)
-      .replace(/&quot;([^&]|&(?!quot;))*?&quot;|&#39;([^&]|&(?!#39;))*?&#39;/g,
-        (match) => `<span class="tok-str">${match}</span>`)
+    pre.innerHTML = lines.map((line) => this._highlightYamlLine(line)).join('\n');
+    this._syncYamlScroll();
+  }
+
+  _highlightYamlLine(line) {
+    // Full-line comment
+    if (/^\s*#/.test(line)) {
+      return `<span class="tok-comment">${this._escapeHtml(line)}</span>`;
+    }
+    // Trailing comment (heuristic: whitespace before #)
+    let code = line;
+    let comment = '';
+    const commentIdx = line.search(/\s#/);
+    if (commentIdx !== -1) {
+      code = line.slice(0, commentIdx + 1);
+      comment = `<span class="tok-comment">${this._escapeHtml(line.slice(commentIdx + 1))}</span>`;
+    }
+    // Key up to the first colon, highlighted value after it
+    const colonIdx = code.indexOf(':');
+    let html;
+    if (colonIdx === -1) {
+      html = this._highlightYamlValue(code);
+    } else {
+      const key = code.slice(0, colonIdx);
+      const value = code.slice(colonIdx + 1);
+      html = `<span class="tok-key">${this._escapeHtml(key)}</span>:`
+        + this._highlightYamlValue(value);
+    }
+    return html + comment;
+  }
+
+  _highlightYamlValue(text) {
+    // Quoted strings are parked as placeholders first so the number and
+    // boolean rules never recolor their content.
+    let out = this._escapeHtml(text);
+    const strings = [];
+    out = out.replace(/&quot;[\s\S]*?&quot;|&#39;[\s\S]*?&#39;/g, (m) => {
+      strings.push(`<span class="tok-str">${m}</span>`);
+      return `\u0000${strings.length - 1}\u0000`;
+    });
+    out = out
       .replace(/\b(true|false|null)\b/g,
         '<span class="tok-bool">$1</span>')
-      .replace(/(:\s|^)(-?\d+(\.\d+)?)(\s|$)/gm,
-        (match, prefix, num, dec, suffix) =>
-          `${prefix}<span class="tok-num">${num}</span>${suffix}`);
-    pre.innerHTML = html;
-    this._syncYamlScroll();
+      .replace(/(^|\s)(-?\d+(?:\.\d+)?)(?=\s|$)/gm,
+        (m, prefix, num) => `${prefix}<span class="tok-num">${num}</span>`);
+    return out.replace(/\u0000(\d+)\u0000/g, (m, i) => strings[i]);
   }
 
   _syncYamlScroll() {
