@@ -13,7 +13,7 @@ flake8==6.1.0
 isort==9.0.1
 pytest==9.1.1
 pytest-asyncio==1.4.0
-mypy==1.19.1
+mypy==2.3.1
 pip-audit==2.10.1  # Security: Dependency vulnerability scanning
 safety==3.8.1     # Security: Known vulnerability checking
 
