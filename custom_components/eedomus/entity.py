@@ -193,9 +193,6 @@ class EedomusEntity(CoordinatorEntity):
         device_name = periph_data.get("name", f"Unknown Device ({self._periph_id})")
         parent_id = periph_data.get("parent_periph_id")
 
-        # On génère l'identifiant unique de la box eedomus parente
-        box_identifier = f"eedomus_box_{self.coordinator.config_entry.entry_id}"
-
         # If this device has a parent, use the parent's info
         if (
             parent_id

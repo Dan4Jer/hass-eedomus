@@ -325,7 +325,6 @@ class EedomusSensor(EedomusEntity, SensorEntity):
         elif periph_type == "disk_free_space":
             self._attr_icon = "mdi:harddisk"
 
-
     @property
     def native_value(self):
         """Return the state of the sensor."""
@@ -387,7 +386,6 @@ class EedomusSensor(EedomusEntity, SensorEntity):
                 value,
             )
             return None
-
 
     @property
     def device_class(self):

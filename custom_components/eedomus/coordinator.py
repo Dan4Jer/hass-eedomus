@@ -7,6 +7,7 @@ import time
 from datetime import datetime, timedelta
 
 from homeassistant.core import HomeAssistant
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -25,6 +26,7 @@ from .entity import map_device_to_ha_entity
 
 _LOGGER = logging.getLogger(__name__)
 
+
 def get_clean_box_name(entry: ConfigEntry) -> tuple[str, str]:
     """Extrait proprement l'IP pour formater le nom de la Box."""
     host = entry.data.get("host") or entry.title
@@ -34,6 +36,7 @@ def get_clean_box_name(entry: ConfigEntry) -> tuple[str, str]:
         except Exception:
             pass
     return host, f"Box eedomus ({host})"
+
 
 class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
     """Eedomus data update coordinator with optimized refresh strategy."""
@@ -280,7 +283,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             # Display summary at INFO level (always visible)
             _LOGGER.info(
                 "🗺️ Device Mapping Summary: (%s) %d total devices, %d unique types",
-                self._box_name, 
+                self._box_name,
                 len(aggregated_data),
                 len(device_types),
             )
@@ -296,10 +299,16 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.info("🗺️ (%s) Enhanced Device Mapping Table:", self._box_name)
             _LOGGER.info("=" * 150)
             _LOGGER.info(
-                "(%s)| Periph ID   | Device Name                          "
-                "| Parent ID     | Type       | Subtype         "
-                "| usage_id | PRODUCT_TYPE_ID | Justification                                  |",
-            self._box_name,
+                " (%s)|"
+                " Periph ID   |"
+                " Device Name                          |"
+                " Parent ID     |"
+                " Type       |"
+                " Subtype         |"
+                " usage_id |"
+                " PRODUCT_TYPE_ID |"
+                " Justification                                  |",
+                self._box_name,
             )
             _LOGGER.info("=" * 150)
 
@@ -352,9 +361,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 )
 
             _LOGGER.info("=" * 150)
-            _LOGGER.info("Total devices mapped: (%s) %d ",
+            _LOGGER.info(
+                "Total devices mapped: (%s) %d ",
                 self._box_name,
-                len(aggregated_data)
+                len(aggregated_data),
             )
             _LOGGER.info(
                 "⚠️  Note: This table shows all devices with complete coordinator data"
@@ -380,7 +390,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # On conserve start_time (datetime) car il est utilisé pour _last_update_start_time et le _scan_interval
         start_time = datetime.now()
 
-        _LOGGER.debug("Update eedomus data (%s)",
+        _LOGGER.debug(
+            "Update eedomus data (%s)",
             self._box_name,
         )
         if (
@@ -612,7 +623,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             self._yaml_config_cache = merged_config
             return self._yaml_config_cache
         except Exception as e:
-            _LOGGER.error("❌ Failed to load YAML config asynchronously: (%s) %s", 
+            _LOGGER.error(
+                "❌ Failed to load YAML config asynchronously: (%s) %s",
                 self._box_name,
                 e,
             )
@@ -636,7 +648,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             return self._yaml_config_cache
 
         # This should never happen - YAML config should be pre-loaded during initialization
-        _LOGGER.error("❌ CRITICAL BUG: YAML config (%s) requested but not loaded!",
+        _LOGGER.error(
+            "❌ CRITICAL BUG: YAML config (%s) requested but not loaded!",
             self._box_name,
         )
         _LOGGER.error(
@@ -679,9 +692,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             datetime.now() - start_time
         ).total_seconds()
         # Store data size in bytes (raw response size from client)
-        self._endpoint_data_sizes["get_periph_caract"] = (
-            peripherals_caract_response.get("_raw_data_size_bytes", 0)
-        )
+        self._endpoint_data_sizes["get_periph_caract"] = (peripherals_caract_response.get("_raw_data_size_bytes", 0))
         self._endpoint_call_counts["get_periph_caract"] += 1
 
         _LOGGER.debug(
@@ -702,7 +713,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             or not isinstance(peripherals_value_list_response, dict)
             or not isinstance(peripherals_caract_response, dict)
         ):
-            _LOGGER.error("Invalid API (%s) response format: %s", 
+            _LOGGER.error(
+                "Invalid API (%s) response format: %s",
                 self._box_name,
                 peripherals_response,
             )
@@ -713,11 +725,13 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             and peripherals_caract_response.get("success", 0) != 1
         ):
             error = peripherals_response.get("error", "Unknown API error")
-            _LOGGER.error("API request failed: (%s) %s", 
+            _LOGGER.error(
+                "API request failed: (%s) %s",
                 self._box_name,
                 error,
             )
-            _LOGGER.debug("API peripherals_response (%s) %s", 
+            _LOGGER.debug(
+                "API peripherals_response (%s) %s",
                 self._box_name,
                 peripherals_response,
             )
@@ -731,58 +745,37 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         peripherals_value_list = peripherals_value_list_response.get("body", [])
         peripherals_caract = peripherals_caract_response.get("body", [])
         if not isinstance(peripherals, list):
-            _LOGGER.error("Invalid peripherals list (%s): %s", 
+            _LOGGER.error(
+                "Invalid peripherals list (%s): %s",
                 self._box_name,
                 peripherals,
             )
             peripherals = []
-        _LOGGER.debug("(%s) Found %d peripherals in total", 
+        _LOGGER.debug(
+            "(%s) Found %d peripherals in total",
             self._box_name,
             len(peripherals),
         )
         if not isinstance(peripherals_value_list, list):
-            _LOGGER.error("Invalid peripherals list (%s): %s", 
+            _LOGGER.error(
+                "Invalid peripherals list (%s): %s",
                 self._box_name,
                 peripherals_value_list,
             )
             peripherals_value_list = []
         if not isinstance(peripherals_caract, list):
-            _LOGGER.error("Invalid peripherals list (%s): %s", 
+            _LOGGER.error(
+                "Invalid peripherals list (%s): %s",
                 self._box_name,
                 peripherals_caract
             )
             peripherals_caract = []
         _LOGGER.debug(
-            "(%s) Found %d peripherals value list in total", 
+            "(%s) Found %d peripherals value list in total",
             self._box_name,
             len(peripherals_value_list),
         )
         return (peripherals, peripherals_value_list, peripherals_caract)
-
-    """
-    async def _async_full_refresh_data_retreive(self):
-        " ""Retrieve only characteristics data for full refresh."" "
-        peripherals_caract_response = await self.client.get_periph_caract("all", True)
-        if not isinstance(peripherals_caract_response, dict):
-            _LOGGER.error(
-                "Invalid API response format: %s", peripherals_caract_response
-            )
-            raise UpdateFailed("Invalid API response format")
-        if peripherals_caract_response.get("success", 0) != 1:
-            error = peripherals_caract_response.get("error", "Unknown API error")
-            _LOGGER.error("API request failed: %s", error)
-            _LOGGER.debug("API peripherals_response %s", peripherals_caract_response)
-            raise UpdateFailed(f"API request failed: {error}")
-        peripherals_caract = peripherals_caract_response.get("body", [])
-        if not isinstance(peripherals_caract, list):
-            _LOGGER.error("Invalid peripherals list: %s", peripherals_caract)
-            peripherals_caract = []
-        _LOGGER.debug(
-            "Found %d peripherals characteristics in total", len(peripherals_caract)
-        )
-        return peripherals_caract
-
-    """
 
     async def _async_full_refresh(self):
         """Perform a complete refresh of all peripherals."""
@@ -838,7 +831,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             )
 
         # Initialisation du dictionnaire agrégé (sécurisé contre None)
-        aggregated_data = self.data if self.data is not None else {}        
+        aggregated_data = self.data if self.data is not None else {}
 
         # Agrégation des données pour chaque périphérique
         all_periph_ids = set(peripherals_caract_dict.keys())
@@ -846,7 +839,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         for periph_id in all_periph_ids:
             if periph_id not in aggregated_data:
                 _LOGGER.warning(
-                    "(%s) This periph_id is unknown %s, please do a reload", 
+                    "(%s) This periph_id is unknown %s, please do a reload",
                     self._box_name,
                     periph_id,
                 )
@@ -970,20 +963,21 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
             _LOGGER.debug(
                 "📊 (%s) Partial refresh metrics - get_periph_caract: %.3fs (%d bytes)",
-                self._box_name, 
+                self._box_name,
                 self._endpoint_timings["get_periph_caract"],
                 self._endpoint_data_sizes["get_periph_caract"],
             )
         except Exception as e:
             _LOGGER.warning(
-                "Failed to partial refresh peripheral (%s) %s: %s", 
+                "Failed to partial refresh peripheral (%s) %s: %s",
                 self._box_name,
                 concat_text_periph_id,
                 e,
             )
 
         if not isinstance(peripherals_caract, dict):
-            _LOGGER.warning("Failed to partial refresh (%s) %s", 
+            _LOGGER.warning(
+                "Failed to partial refresh (%s) %s",
                 self._box_name,
                 concat_text_periph_id,
             )
@@ -993,7 +987,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         peripherals_body = peripherals_caract.get("body")
         if not isinstance(peripherals_body, list):
             _LOGGER.error(
-                "peripherals_caract body is not a list: (%s) %s", 
+                "peripherals_caract body is not a list: (%s) %s",
                 self._box_name,
                 type(peripherals_body),
             )
@@ -1038,7 +1032,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             if history_retrieval and periph_id in peripherals_for_history:
                 if not self._history_progress.get(periph_id, {}).get("completed"):
                     _LOGGER.debug(
-                        "(%s) Retrieving data history %s", 
+                        "(%s) Retrieving data history %s",
                         self._box_name,
                         periph_id,
                     )
@@ -1181,14 +1175,14 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     },
                 )
                 _LOGGER.debug(
-                    "Saved progress for (%s) %s: %s", 
+                    "Saved progress for (%s) %s: %s",
                     self._box_name,
-                    periph_id, 
+                    periph_id,
                     progress
                 )
         except Exception as e:
             _LOGGER.error(
-                "Error saving history progress: (%s) %s", 
+                "Error saving history progress: (%s) %s",
                 self._box_name,
                 e,
             )
@@ -1274,7 +1268,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         progress = self._history_progress[periph_id]
         if progress["completed"]:
             _LOGGER.debug(
-                "(%s) History already fully fetched for %s", 
+                "(%s) History already fully fetched for %s",
                 self._box_name,
                 periph_id,
             )
@@ -1299,7 +1293,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
             if not chunk:
                 _LOGGER.error(
-                    "No history data received for (%s) %s", 
+                    "No history data received for (%s) %s",
                     self._box_name,
                     periph_id,
                 )
@@ -1478,7 +1472,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         """
         if not chunk:
             _LOGGER.debug(
-                "No history data to import for (%s) %s", 
+                "No history data to import for (%s) %s",
                 self._box_name,
                 periph_id,
             )
@@ -1515,7 +1509,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         entity_id = main_entity_id if main_entity_id else f"sensor.eedomus_{periph_id}"
 
         _LOGGER.info(
-            "Importing historical data using Statistics API for (%s) %s", 
+            "Importing historical data using Statistics API for (%s) %s",
             self._box_name,
             entity_id
         )
@@ -1526,7 +1520,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             return
         except Exception as err:
             _LOGGER.warning(
-                "Statistics API import failed, falling back to async_set: (%s) %s", 
+                "Statistics API import failed, falling back to async_set: (%s) %s",
                 self._box_name,
                 err,
             )
@@ -1623,10 +1617,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 )
             else:
                 _LOGGER.error(
-                    "Failed to import statistics for (%s) %s: %s", 
-                     self._box_name,
-                     entity_id,
-                     e,
+                    "Failed to import statistics for (%s) %s: %s",
+                    self._box_name,
+                    entity_id,
+                    e,
                 )
             raise
         except Exception as e:

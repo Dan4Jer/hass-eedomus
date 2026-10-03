@@ -127,23 +127,24 @@ async def load_yaml_file_async(hass, file_path: str) -> Optional[Dict[str, Any]]
 
             except yaml.YAMLError as e:
                 _LOGGER.error(
-                    "❌ CRITICAL: Failed to parse YAML file %s: %s", 
-                    file_path, 
+                    "❌ CRITICAL: Failed to parse YAML file %s: %s",
+                    file_path,
                     e,
                 )
                 _LOGGER.error(
                     "❌ This is likely a YAML syntax error - check file format"
                 )
 
-                _LOGGER.debug("YAML parsing error details: %s", 
+                _LOGGER.debug(
+                    "YAML parsing error details: %s",
                     file_path,
                     exc_info=True,
                 )
                 return None
             except Exception as e:
                 _LOGGER.error(
-                    "❌ CRITICAL: Error in sync YAML loading %s: %s", 
-                    file_path, 
+                    "❌ CRITICAL: Error in sync YAML loading %s: %s",
+                    file_path,
                     e,
                 )
                 _LOGGER.error(
@@ -151,7 +152,7 @@ async def load_yaml_file_async(hass, file_path: str) -> Optional[Dict[str, Any]]
                 )
 
                 _LOGGER.debug(
-                    "Error details: %s", 
+                    "Error details: %s",
                     file_path,
                     exc_info=True,
                 )
@@ -170,7 +171,7 @@ async def load_yaml_file_async(hass, file_path: str) -> Optional[Dict[str, Any]]
         )
 
         _LOGGER.debug(
-            "Async error details: %s", 
+            "Async error details: %s",
             file_path,
             exc_info=True,
         )
@@ -283,7 +284,8 @@ def load_yaml_file(file_path: str) -> Optional[Dict[str, Any]]:
             "❌ This prevented YAML loading - check file permissions and encoding"
         )
 
-        _LOGGER.debug("Error details: %s",
+        _LOGGER.debug(
+            "Error details: %s",
             file_path,
             exc_info=True,
         )
@@ -766,8 +768,8 @@ def load_and_merge_yaml_mappings(base_path: str = "") -> Dict[str, Any]:
 
         _LOGGER.debug(
             "Exception stack trace:",
-                    exc_info=True,
-                )
+            exc_info=True,
+        )
         _LOGGER.warning("⚠️  Falling back to minimal configuration")
 
         # Return minimal configuration with error tracking

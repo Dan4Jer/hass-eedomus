@@ -265,7 +265,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             try:
                 from .mapping_registry import print_mapping_table
 
-                print_mapping_table(self._box_nam)
+                print_mapping_table(box_name)
             except Exception as e:
                 _LOGGER.debug("Failed to display mapping table: %s", e)
         except ConfigEntryNotReady:
@@ -359,7 +359,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         except Exception as err:
             _LOGGER.error("Failed to setup history sensors: %s", err)
 
-
     # Setup coordinator monitoring sensors only when a coordinator exists
     if coordinator:
         try:
@@ -417,7 +416,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "Proxy-only mode: skipping coordinator monitoring sensors"
         )
 
-
     # Stockage sécurisé
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
@@ -461,9 +459,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     webhook_enabled = entry.options.get(
         CONF_ENABLE_WEBHOOK, entry.data.get(CONF_ENABLE_WEBHOOK, DEFAULT_ENABLE_WEBHOOK)
     )
-
-    # Define allowed_ips for webhook
-    allowed_ips = [entry.data.get(CONF_API_HOST)]
 
     # Setup webhook if enabled
     if webhook_enabled:

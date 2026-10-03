@@ -52,6 +52,7 @@ def get_mapping_registry() -> list[dict[str, Any]]:
     """Retourne une copie du registre de mapping."""
     return _MAPPING_REGISTRY.copy()
 
+
 def print_mapping_table(box_name: str = "Box eedomus") -> None:
     """Affiche un tableau récapitulatif de tous les mappings dans les logs."""
     if not _MAPPING_REGISTRY:
@@ -98,6 +99,7 @@ def print_mapping_table(box_name: str = "Box eedomus") -> None:
         "⚠️  Note: This table shows only devices that went through map_device_to_ha_entity()"
     )
     _LOGGER.info("\n")
+
 
 def print_mapping_summary(box_name: str = "Box eedomus") -> None:
     """Affiche un résumé condensé des mappings."""

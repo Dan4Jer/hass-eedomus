@@ -255,6 +255,7 @@ class EedomusClient:
             "error_code": error_code,
             "original_response": response,
         }
+
     async def set_periph_value(self, periph_id: str, value: str) -> Dict:
         """Set or get the value of a peripheral."""
         _LOGGER.debug(
@@ -263,7 +264,7 @@ class EedomusClient:
         params = {"periph_id": periph_id, "value": value}
         result = await self.fetch_data("periph.value", params, use_set=True)
         _LOGGER.debug("set_periph_value response: %s", result)
-        
+
         if isinstance(result, dict):
             if result.get("success") == 0:
                 # Vérifier si le fallback est activé avant de renvoyer l'erreur
@@ -287,7 +288,6 @@ class EedomusClient:
                 result["success"] = 1
                 result["message"] = result["body"]["result"]
         return result
-
 
     async def php_fallback_set_value(self, periph_id: str, value: str) -> Dict:
         """

@@ -384,7 +384,7 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                 self._attr_hvac_action = HVACAction.OFF
 
         # =====================================================================
-        # 2. RESTAURATION ET SÉCURISATION DE VOTRE LOGIQUE DE CONSIGNE 
+        # 2. RESTAURATION ET SÉCURISATION DE VOTRE LOGIQUE DE CONSIGNE
         #    LECTURE DE LA CONSIGNE DE TEMPÉRATURE
         # =====================================================================
         target_temp = None
