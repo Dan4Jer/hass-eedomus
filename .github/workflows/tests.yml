@@ -2,79 +2,106 @@ name: Run Tests
 
 on:
   push:
-    branches: [ main, unstable ]
+    branches:
+      - main
+      - unstable
     paths:
-      - 'custom_components/**'
-      - 'scripts/tests/**'
-  #pull_request:
-  #  branches: [ main, unstable ]
-  #paths:
-  #    - 'custom_components/**'
-  #    - 'scripts/tests/**'
-  workflow_dispatch: # Permet le déclenchement manuel
+      - "custom_components/**"
+      - "scripts/tests/**"
+      - "requirements-dev.txt"
+      - "pyproject.toml"
+      - ".github/workflows/tests.yaml"
+
+  pull_request:
+    branches:
+      - main
+      - unstable
+    paths:
+      - "custom_components/**"
+      - "scripts/tests/**"
+      - "requirements-dev.txt"
+      - "pyproject.toml"
+      - ".github/workflows/tests.yaml"
+
+  workflow_dispatch:
 
 jobs:
   test:
-    name: Run Integration Tests
+    name: Tests hass-eedomus
+    runs-on: ubuntu-latest
+
     permissions:
       contents: read
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v7
-      
-    - name: Set up Python
-      uses: actions/setup-python@v7
-      with:
-        python-version: '3.14'
-        cache: 'pip'
 
-    - name: 📦 Installation des dépendances de dev
-      run: |
+    env:
+      PYTHONPATH: .
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Install development dependencies
+        run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt 
-    
-    - name: Run integration tests
-      run: |
-        echo "Running integration tests..."
-        python3 -m pytest scripts/tests/ -v --tb=short || echo "Tests completed (some may be skipped)"
-    
-    - name: Test energy sensor (Issue #9)
-      run: |
-        echo "Testing energy sensor implementation..."
-        python3 -c "
-        import os
-        with open('custom_components/eedomus/sensor.py', 'r') as f:
-            content = f.read()
-            assert 'energy' in content.lower(), 'Energy not found in sensor.py'
-            assert 'consumption' in content.lower(), 'Consumption not found in sensor.py'
-            assert 'usage_id' in content.lower(), 'usage_id not found in sensor.py'
-            print('✅ Energy sensor implementation verified')
-        "
-    
-    - name: Test consumption in device handlers
-      run: |
-        echo "Testing consumption monitoring in device handlers..."
-        cd custom_components/eedomus
-        for device in switch.py light.py cover.py; do
-            if [ -f "$device" ]; then
-                if grep -qi "consumption" "$device"; then
-                    echo "✅ Consumption monitoring found in $device"
-                else
-                    echo "⚠️  No consumption monitoring in $device"
-                fi
-            fi
-        done
-    
-    - name: Verify test coverage
-      run: |
-        echo "Verifying test coverage..."
-        for test_file in scripts/tests/test_energy_sensor.py scripts/tests/test_switch.py scripts/tests/test_light.py scripts/tests/test_cover.py scripts/tests/test_sensor.py scripts/tests/test_integration.py; do
-            if [ -f "$test_file" ]; then
-                echo "✅ $test_file present"
-            else
-                echo "❌ $test_file missing"
-                exit 1
-            fi
-        done
+          python -m pip install -r requirements-dev.txt
+
+      - name: Show test environment
+        run: |
+          python --version
+          python -m pytest --version
+          python -m pip show pytest-cov
+          python -m pip show pytest-homeassistant-custom-component
+
+      - name: Run tests with coverage
+        run: |
+          python3 -m pytest \
+            scripts/tests/ \
+            -v \
+            --tb=short \
+            --cov=custom_components/eedomus \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            --cov-report=html
+
+      - name: Coverage summary
+        if: always()
+        run: |
+          if [ -f coverage.xml ]; then
+            python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+
+          root = ET.parse("coverage.xml").getroot()
+
+          rate = float(root.attrib.get("line-rate", 0))
+          lines_valid = int(root.attrib.get("lines-valid", 0))
+          lines_covered = int(root.attrib.get("lines-covered", 0))
+          lines_missing = lines_valid - lines_covered
+
+          print()
+          print("========================================")
+          print(" hass-eedomus coverage")
+          print("========================================")
+          print(f"Statements : {lines_valid}")
+          print(f"Covered    : {lines_covered}")
+          print(f"Missing    : {lines_missing}")
+          print(f"Coverage   : {rate * 100:.2f}%")
+          print("========================================")
+          PY
+          else
+            echo "coverage.xml not generated"
+          fi
+
+      - name: Upload HTML coverage report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: coverage-html
+          path: htmlcov/
+          if-no-files-found: ignore
+          retention-days: 14
