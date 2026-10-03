@@ -300,10 +300,17 @@ async def async_ingest_custom_mapping(hass: HomeAssistant) -> None:
     )
 
     if not isinstance(current, dict):
-        # Bootstrap: the file becomes the initial canon.
+        # Bootstrap: the file becomes the initial canon, stamped with the
+        # current schema version (a bootstrap never runs migrations).
         canon = parsed if isinstance(parsed, dict) else {}
         dumped = yaml.safe_dump(canon, sort_keys=False, allow_unicode=True)
-        await store.async_save({"current": canon, "file_fingerprint": dumped})
+        await store.async_save(
+            {
+                "current": canon,
+                "file_fingerprint": dumped,
+                "config_schema_version": MAPPING_CONFIG_SCHEMA_VERSION,
+            }
+        )
         await _write_mapping_mirror(hass, dumped)
         _LOGGER.info("Custom mapping bootstrapped from the editable file")
         return
@@ -340,5 +347,16 @@ async def async_ingest_custom_mapping(hass: HomeAssistant) -> None:
         return
 
     await _archive_mapping_version(hass, current, reason="ingestion")
-    await store.async_save({"current": parsed, "file_fingerprint": text})
+    # An edited file derives from the current canon: its schema version is
+    # the one already stamped (never dropped, or the next boot would
+    # re-stamp to the current version and silently skip migrations).
+    await store.async_save(
+        {
+            "current": parsed,
+            "file_fingerprint": text,
+            "config_schema_version": data.get(
+                "config_schema_version", MAPPING_CONFIG_SCHEMA_VERSION
+            ),
+        }
+    )
     _LOGGER.info("Custom mapping file ingested as a new version")

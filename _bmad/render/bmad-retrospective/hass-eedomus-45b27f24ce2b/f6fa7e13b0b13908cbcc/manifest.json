@@ -1,0 +1,37 @@
+{
+  "generation_hash": "f6fa7e13b0b13908cbcc",
+  "inputs": {
+    "jinja2_version": "3.1.6",
+    "project_root": "/Users/danjer/mistral/hass-eedomus",
+    "renderer_sha256": "a622fd5d9f633690323bdecf6cc9dc28625ef0d7b9d971fcc3cd101ed271fa19",
+    "resolved_values": {
+      "config.modules.bmm.planning_artifacts": "/Users/danjer/mistral/hass-eedomus/_bmad-output/planning-artifacts",
+      "customization.workflow.activation_steps_append": [],
+      "customization.workflow.activation_steps_prepend": [],
+      "customization.workflow.on_complete": "",
+      "customization.workflow.persistent_facts": []
+    },
+    "skill_root": "/Users/danjer/.vibe/skills/bmad-retrospective",
+    "source_sha256": {
+      "references/acceptance-verdict.md": "3d589d204d0040c10e4bbfab3e446fb0e41163598c8edebeeceeb184a9bcd3f1",
+      "references/aggregate-views.md": "985733daf701b0d3508764d428033128a7ea48fadea493e00a59a1b17d88fd34",
+      "references/evidence-gathering.md": "e3ecb1556fd203acedafabb0a33007b4a846adccf5eac80ca3b14eb826b46fd0",
+      "references/retro-document.md": "41d2fc84c1739791816a1908a40fa5393fe3ab3d74890067bc4151130b651e66",
+      "references/team-discussion.md": "dec27941b7a5056b2bdd5d160d9769806aa95e2ed3452234fbf3bf47b0831d7d",
+      "workflow.md": "bfa437f774ad1ed68566906e8e60fa0cc3afa2c4527007e7bbb87e0f8f850f05"
+    }
+  },
+  "outputs": {
+    "references/acceptance-verdict.md": "3d589d204d0040c10e4bbfab3e446fb0e41163598c8edebeeceeb184a9bcd3f1",
+    "references/aggregate-views.md": "1cdbb956c239fae3f9a64c670e84edc1aa631957e02019ea2742b6d682f95035",
+    "references/evidence-gathering.md": "bfbb2e7d106a96d3867919030113863d30d11eb1b49e54693924659a7081e80c",
+    "references/retro-document.md": "295768224a418c21cd1a160069dfd1394d639468577bf1a7eb506bd4b8262a87",
+    "references/team-discussion.md": "dec27941b7a5056b2bdd5d160d9769806aa95e2ed3452234fbf3bf47b0831d7d",
+    "workflow.md": "b7cf5dd34c3d72e723b468380eb3e95479753550265bb09797efc59b18192b0e"
+  },
+  "project_root": "/Users/danjer/mistral/hass-eedomus",
+  "project_slug": "hass-eedomus",
+  "root_hash": "45b27f24ce2b",
+  "schema_version": 1,
+  "skill": "bmad-retrospective"
+}

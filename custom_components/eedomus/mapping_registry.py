@@ -34,18 +34,25 @@ def get_mapping_registry() -> list:
 
 
 def print_mapping_table() -> None:
-    """Affiche un tableau récapitulatif de tous les mappings."""
+    """Affiche un tableau récapitulatif de tous les mappings.
+
+    La table complète est en DEBUG : une ligne par périphérique inonde
+    les logs au boot ("logging too frequently"). Seul le décompte reste
+    en INFO.
+    """
     if not _MAPPING_REGISTRY:
         _LOGGER.warning("⚠️  Mapping registry is empty - no devices were mapped!")
         return
 
-    _LOGGER.info("\n" + "="*120)
-    _LOGGER.info("| %-15s | %-30s | %-15s | %-10s | %-15s | %-50s |",
+    _LOGGER.info("Eedomus mapping table: %d devices (detail at debug level)", len(_MAPPING_REGISTRY))
+
+    _LOGGER.debug("\n" + "="*120)
+    _LOGGER.debug("| %-15s | %-30s | %-15s | %-10s | %-15s | %-50s |",
                  "Periph ID", "Device Name", "Parent ID", "Type", "Subtype", "Justification")
-    _LOGGER.info("="*120)
+    _LOGGER.debug("="*120)
 
     for mapping in _MAPPING_REGISTRY:
-        _LOGGER.info("| %-15s | %-30s | %-15s | %-10s | %-15s | %-50s |",
+        _LOGGER.debug("| %-15s | %-30s | %-15s | %-10s | %-15s | %-50s |",
                      mapping["periph_id"],
                      mapping["periph_name"][:29],
                      mapping.get("parent_periph_id", "") or "-",
@@ -53,10 +60,8 @@ def print_mapping_table() -> None:
                      mapping["ha_subtype"],
                      mapping["justification"][:49])
 
-    _LOGGER.info("="*120 + "\n")
-    _LOGGER.info("Total devices mapped: %d", len(_MAPPING_REGISTRY))
-    _LOGGER.info("⚠️  Note: This table shows only devices that went through map_device_to_ha_entity()")
-    _LOGGER.info("\n")
+    _LOGGER.debug("="*120 + "\n")
+    _LOGGER.debug("Total devices mapped: %d", len(_MAPPING_REGISTRY))
 
 
 def print_mapping_summary() -> None:

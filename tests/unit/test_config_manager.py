@@ -521,3 +521,83 @@ class TestSchemaMigrations:
         assert "NE PAS EDITER" in head
         # The pre-AD-14 integrated file must no longer exist as an edit target
         assert not (seed.parent / "custom_mapping.yaml").exists()
+
+
+class TestIngestionPreservesSchemaVersion:
+    """Retro A1 (regression): the ingestion writes must keep the
+    config_schema_version stamp, or the next boot would re-stamp to the
+    current version and silently skip pending migrations."""
+
+    @pytest.mark.asyncio
+    async def test_manual_edit_keeps_the_stamped_version(self, tmp_path, monkeypatch):
+        import custom_components.eedomus.config_manager as config_manager_module
+
+        monkeypatch.setattr(config_manager_module, "Store", RecordingStore)
+        RecordingStore.registry.clear()
+        hass = MagicMock()
+        hass.config = SimpleNamespace(config_dir=str(tmp_path))
+
+        async def _exec(fn, *args, **kwargs):
+            return fn(*args, **kwargs)
+
+        hass.async_add_executor_job = MagicMock(side_effect=_exec)
+        manager = EedomusConfigManager(hass)
+
+        canon = {"custom_rules": []}
+        RecordingStore.registry["eedomus.mapping"] = {
+            "current": canon,
+            "file_fingerprint": "custom_rules: []\n",
+            "config_schema_version": 1,
+        }
+        mirror = tmp_path / "eedomus" / "custom_mapping.yaml"
+        mirror.parent.mkdir(parents=True)
+        mirror.write_text(
+            "custom_usage_id_mappings:\n  '7':\n    ha_entity: sensor\n",
+            encoding="utf-8",
+        )
+        import custom_components.eedomus.device_mapping as device_mapping_module
+
+        monkeypatch.setattr(
+            device_mapping_module,
+            "get_custom_mapping_paths",
+            lambda: [str(mirror)],
+        )
+
+        await config_manager_module.async_ingest_custom_mapping(hass)
+
+        stored = RecordingStore.registry["eedomus.mapping"]
+        assert stored["config_schema_version"] == 1
+        assert (
+            stored["current"]["custom_usage_id_mappings"]["7"]["ha_entity"] == "sensor"
+        )
+
+    @pytest.mark.asyncio
+    async def test_bootstrap_stamps_the_version(self, tmp_path, monkeypatch):
+        import custom_components.eedomus.config_manager as config_manager_module
+
+        monkeypatch.setattr(config_manager_module, "Store", RecordingStore)
+        RecordingStore.registry.clear()
+        hass = MagicMock()
+        hass.config = SimpleNamespace(config_dir=str(tmp_path))
+
+        async def _exec(fn, *args, **kwargs):
+            return fn(*args, **kwargs)
+
+        hass.async_add_executor_job = MagicMock(side_effect=_exec)
+
+        mirror = tmp_path / "eedomus" / "custom_mapping.yaml"
+        mirror.parent.mkdir(parents=True)
+        mirror.write_text("custom_rules: []\n", encoding="utf-8")
+        import custom_components.eedomus.device_mapping as device_mapping_module
+
+        monkeypatch.setattr(
+            device_mapping_module,
+            "get_custom_mapping_paths",
+            lambda: [str(mirror)],
+        )
+
+        await config_manager_module.async_ingest_custom_mapping(hass)
+
+        stored = RecordingStore.registry["eedomus.mapping"]
+        assert stored["config_schema_version"] == 1
+        assert stored["current"] == {"custom_rules": []}

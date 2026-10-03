@@ -23,7 +23,7 @@ Le success signal du spec : un utilisateur comme celui de la discussion #28 corr
 - CAP-1: Panneau sidebar via l'API supportée HA 2026.9.3 (async_register_built_in_panel + StaticPathConfig), require_admin, retrait propre à l'unload. (spec, Capabilities)
 - CAP-2: Liste des périphériques avec usage_id, nom, mapping courant, recherche/filtre. (spec, Capabilities)
 - CAP-3: Édition des règles en double mode (formulaire + YAML), autocomplete, validation temps réel via le websocket existant. (spec, Capabilities)
-- CAP-4: Sauvegarde dans custom_mapping.yaml via config_manager + auto-apply (reload). (spec, Capabilities)
+- CAP-4: Sauvegarde dans le canon HA storage (`eedomus.mapping`) via config_manager + réplication du miroir `custom_mapping.yaml` + auto-apply (reload) — aligné AD-13/14 du spine (rétroconcilié 2026-10-03). (spec, Capabilities)
 - CAP-5: Historique des 3 dernières versions (.storage, horodatées), diff type git, restauration confirmée. (spec, Capabilities)
 
 ## Done when
