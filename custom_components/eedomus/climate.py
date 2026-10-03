@@ -273,12 +273,9 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                     pass
 
             # Check if temperature is within expected range
-            if (
-                self._attr_target_temperature is not None
-                and (
-                    self._attr_target_temperature < self._attr_min_temp
-                    or self._attr_target_temperature > self._attr_max_temp
-                )
+            if self._attr_target_temperature is not None and (
+                self._attr_target_temperature < self._attr_min_temp
+                or self._attr_target_temperature > self._attr_max_temp
             ):
                 return "invalid_temperature"
 
@@ -617,9 +614,7 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                 # Formatage propre préservant les décimales (.5)
                 try:
                     f_val = float(eedomus_value)
-                    final_value = (
-                        str(int(f_val)) if f_val.is_integer() else str(f_val)
-                    )
+                    final_value = str(int(f_val)) if f_val.is_integer() else str(f_val)
                 except (ValueError, TypeError):
                     final_value = str(eedomus_value)
 

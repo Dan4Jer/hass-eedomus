@@ -314,9 +314,7 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     "API Eedomus connection test failed: %s",
                     e,
                 )
-                raise vol.Invalid(
-                    f"API Eedomus connection test failed: {e}"
-                )
+                raise vol.Invalid(f"API Eedomus connection test failed: {e}")
 
         # API Proxy mode validation
         if api_proxy_enabled:

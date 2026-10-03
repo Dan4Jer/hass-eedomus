@@ -107,7 +107,7 @@ def print_mapping_summary(box_name: str = "Box eedomus") -> None:
         _LOGGER.warning(
             "⚠️  (%s) Mapping registry is empty - no devices were mapped!",
             box_name,
-         )
+        )
         return
 
     entity_counts: dict[str, int] = {}

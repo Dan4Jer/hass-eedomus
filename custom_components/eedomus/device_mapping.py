@@ -166,9 +166,7 @@ async def load_yaml_file_async(hass, file_path: str) -> Optional[Dict[str, Any]]
             file_path,
             e,
         )
-        _LOGGER.error(
-            "❌ Async executor job failed - falling back to sync loading"
-        )
+        _LOGGER.error("❌ Async executor job failed - falling back to sync loading")
 
         _LOGGER.debug(
             "Async error details: %s",
@@ -265,8 +263,7 @@ def load_yaml_file(file_path: str) -> Optional[Dict[str, Any]]:
             file_path,
             e,
         )
-        _LOGGER.error(
-            "❌ This is likely a YAML syntax error - check file format")
+        _LOGGER.error("❌ This is likely a YAML syntax error - check file format")
 
         _LOGGER.debug(
             "YAML parsing error details: %s",
@@ -762,9 +759,7 @@ def load_and_merge_yaml_mappings(base_path: str = "") -> Dict[str, Any]:
             "❌ CRITICAL: Failed to load YAML mappings: %s",
             e,
         )
-        _LOGGER.error(
-            "❌ This exception prevented YAML loading - check stack trace"
-        )
+        _LOGGER.error("❌ This exception prevented YAML loading - check stack trace")
 
         _LOGGER.debug(
             "Exception stack trace:",

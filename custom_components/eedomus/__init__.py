@@ -366,8 +366,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 async_get as async_get_device_registry,
             )
 
-            from .refresh_timing_sensor import async_setup_refresh_timing_sensors
             from .endpoint_volume_sensor import async_setup_endpoint_volume_sensors
+            from .refresh_timing_sensor import async_setup_refresh_timing_sensors
 
             device_registry = async_get_device_registry(hass)
 
@@ -412,9 +412,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 err,
             )
     else:
-        _LOGGER.debug(
-            "Proxy-only mode: skipping coordinator monitoring sensors"
-        )
+        _LOGGER.debug("Proxy-only mode: skipping coordinator monitoring sensors")
 
     # Stockage sécurisé
     if DOMAIN not in hass.data:
@@ -429,9 +427,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             entry.entry_id,
         )
     else:
-        _LOGGER.info(
-            "No coordinator stored - running in proxy mode only"
-        )
+        _LOGGER.info("No coordinator stored - running in proxy mode only")
 
     hass.data[DOMAIN][entry.entry_id] = entry_data
 
@@ -494,9 +490,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             PLATFORMS,
         )
     else:
-        _LOGGER.info(
-            "Proxy-only mode: skipping coordinator-based platforms"
-        )
+        _LOGGER.info("Proxy-only mode: skipping coordinator-based platforms")
 
     # Note: Configuration manager has been removed - using YAML-based configuration only
     # using the modern frontend.async_register_built_in_panel() method

@@ -6,8 +6,8 @@ import logging
 import time
 from datetime import datetime, timedelta
 
-from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -692,7 +692,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             datetime.now() - start_time
         ).total_seconds()
         # Store data size in bytes (raw response size from client)
-        self._endpoint_data_sizes["get_periph_caract"] = (peripherals_caract_response.get("_raw_data_size_bytes", 0))
+        self._endpoint_data_sizes["get_periph_caract"] = (
+            peripherals_caract_response.get("_raw_data_size_bytes", 0)
+        )
         self._endpoint_call_counts["get_periph_caract"] += 1
 
         _LOGGER.debug(
@@ -765,9 +767,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             peripherals_value_list = []
         if not isinstance(peripherals_caract, list):
             _LOGGER.error(
-                "Invalid peripherals list (%s): %s",
-                self._box_name,
-                peripherals_caract
+                "Invalid peripherals list (%s): %s", self._box_name, peripherals_caract
             )
             peripherals_caract = []
         _LOGGER.debug(
@@ -1178,7 +1178,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     "Saved progress for (%s) %s: %s",
                     self._box_name,
                     periph_id,
-                    progress
+                    progress,
                 )
         except Exception as e:
             _LOGGER.error(
@@ -1255,7 +1255,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     "Skipping (%s) %s - in retry queue until %d",
                     self._box_name,
                     periph_id,
-                    retry_info['retry_after'],
+                    retry_info["retry_after"],
                 )
                 return []
 
@@ -1511,7 +1511,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         _LOGGER.info(
             "Importing historical data using Statistics API for (%s) %s",
             self._box_name,
-            entity_id
+            entity_id,
         )
 
         try:
@@ -1793,7 +1793,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.error(
                 "💡 (%s) Check the documentation for value constraints and "
                 "consider enabling 'Set Value Retry' in advanced options",
-                self._box_name
+                self._box_name,
             )
             _LOGGER.error(
                 "📖 Documentation: https://github.com/fmo01/hass-eedomus#value-constraints"

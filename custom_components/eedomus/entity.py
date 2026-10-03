@@ -207,7 +207,7 @@ class EedomusEntity(CoordinatorEntity):
                 name=parent_name,
                 manufacturer="Eedomus",
                 model=parent_data.get("usage_name", "Unknown"),
-                via_device_id=self.coordinator.hub_device_id ,  # ✅ Lié dynamiquement à la bonne Box
+                via_device_id=self.coordinator.hub_device_id,  # ✅ Lié dynamiquement à la bonne Box
             )
 
         # Otherwise, use this device's info

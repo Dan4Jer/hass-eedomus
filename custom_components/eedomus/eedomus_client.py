@@ -270,7 +270,8 @@ class EedomusClient:
                 # Vérifier si le fallback est activé avant de renvoyer l'erreur
                 if self.config_entry.options.get(CONF_PHP_FALLBACK_ENABLED):
                     _LOGGER.warning(
-                        "API failed, attempting PHP fallback for peripheral %s", periph_id
+                        "API failed, attempting PHP fallback for peripheral %s",
+                        periph_id,
                     )
                     return await self.php_fallback_set_value(periph_id, value)
 
