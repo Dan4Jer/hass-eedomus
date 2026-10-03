@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.24.0](https://github.com/fmo01/hass-eedomus/compare/0.23.0...0.24.0) (2026-10-03)
+
+### Features
+
+* Ajout de correction suite au test unitaire et m ise en place d'un simulateur ce qui implique reprise de de trace dans les log et reattribution de log debug info warning error ([dc6c94a](https://github.com/fmo01/hass-eedomus/commit/dc6c94a70dce3ce6b67136132989955077e30342))
+
 ## [0.23.0](https://github.com/fmo01/hass-eedomus/compare/0.22.1...0.23.0) (2026-10-03)
 
 ### Features
