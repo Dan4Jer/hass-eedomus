@@ -1,0 +1,65 @@
+metadata:
+  version: "1.3.4"
+  last_modified: "2026-06-03"
+  changes:
+    - "Fixed custom_usage_id_mappings format - dict instead of list"
+    - "Added cover mapping for usage_id 109"
+    - "Added climate mapping for thermostat 3463520"
+
+#custom_rules:
+#  - name: "Thermostats usage_id 0"
+#    priority: 1
+#    conditions:
+#      - usage_id: "0"
+#      - name: ".*[Tt]hermostat.*"
+#    mapping:
+#      ha_entity: "climate"
+#      ha_subtype: "thermostat"
+#      is_dynamic: true
+#      justification: "Thermostat détecté par usage_id 0 + nom"
+#      icon: "mdi:thermostat"
+#
+custom_usage_id_mappings:
+  "109":
+    ha_entity: "switch"
+    ha_subtype: ""
+    is_dynamic: true
+    justification: "Volets - usage_id 109 - commande on/off récupéré par rflink "
+
+custom_dynamic_entity_properties: {}
+
+custom_specific_device_dynamic_overrides:
+  '3463520':
+    ha_entity: climate
+    ha_subtype: thermostat
+    device_class: temperature
+    temperature_step: 0.5
+    precision: 0.5
+    target_temp_step: 0.5
+    unit_of_measurement: '°C'
+    icon: mdi:thermostat
+    is_dynamic: true
+    justification: Thermostat Salle a manger - consigne température
+  'thermostat':
+    ha_entity: climate
+    ha_subtype: thermostat
+    device_class: temperature
+    temperature_step: 0.5
+    precision: 0.5
+    target_temp_step: 0.5
+    unit_of_measurement: '°C'
+    icon: mdi:thermostat
+    is_dynamic: true
+    justification: Thermostat Salle a manger - consigne température
+
+
+temperature_setpoint_mappings:
+  '3463520': '3463521'
+  'thermostat': 'thermostat_temp'
+heating_switch_mappings:
+  '3463520': '773012'
+  'thermostat': 'thermostat_switch'
+
+custom_name_patterns: []
+
+version: 1.0

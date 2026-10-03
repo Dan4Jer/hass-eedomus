@@ -24,4 +24,13 @@ ensure_newline_before_comments = true
 [tool.pytest.ini_options]
 # ... autres configurations ...
 asyncio_mode = "auto"
+norecursedirs = ["docs", "env_eedom", ".git", ".github", ".venv", "scripts/tests/archive"]
 
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+]
+omit = [
+    "custom_components/eedomus/script_de_migration_universel.py",
+]
