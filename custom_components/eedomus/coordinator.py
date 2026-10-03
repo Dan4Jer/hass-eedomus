@@ -979,10 +979,12 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                         )
                         # Import the historical data using the optimized Recorder API method
                         import_start = datetime.now()
-                        await self.async_import_history_chunk(periph_id, chunk)
+                        imported = await self.async_import_history_chunk(
+                            periph_id, chunk
+                        )
                         import_time = (datetime.now() - import_start).total_seconds()
                         history_periphs += 1
-                        history_states += len(chunk)
+                        history_states += imported
                     history_fetch_time += fetch_time
                     history_import_time += import_time
                     history_time += fetch_time + import_time
@@ -1342,36 +1344,51 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def async_import_history_chunk(
         self, periph_id: str, chunk: list, main_entity_id: str = None
-    ) -> None:
+    ) -> int:
         """Import historical data via the recorder Statistics API.
 
         A failed statistics import is logged as a warning and skipped:
         backdated data points must never be written to the state machine,
         as replaying them floods the recorder with writes that never
         commit ("database is locked").
+
+        Returns:
+            The number of hourly statistics actually imported (0 when
+            skipped or on failure).
         """
         if not chunk:
             _LOGGER.debug("No history data to import for %s", periph_id)
-            return
+            return 0
 
         periph_data = self.data.get(periph_id, {})
         periph_name = periph_data.get("name", f"Device {periph_id}")
         # Prefer the explicitly provided entity, then the peripheral's real
-        # registered entity; sensor.eedomus_<periph_id> is the last resort
-        # (legacy target, not present in the entity registry)
-        entity_id = main_entity_id or self._resolve_main_entity_id(periph_id)
+        # registered entity (exact registry match only, AD-8bis). The ghost
+        # sensor.eedomus_<periph_id> fallback is gone: a statistics target
+        # that is not a real entity would create orphan long-term statistics.
+        entity_id = main_entity_id or self._resolve_main_entity_id(
+            periph_id, allow_suffixed=False
+        )
         if not entity_id:
-            entity_id = f"sensor.eedomus_{periph_id}"
+            _LOGGER.warning(
+                "Skipping history import for %s: no exact entity match in "
+                "the entity registry",
+                periph_id,
+            )
+            return 0
 
         _LOGGER.info("Importing historical data using Statistics API for %s", entity_id)
 
         try:
-            await self._import_via_statistics(entity_id, chunk, periph_name, periph_id)
-            _LOGGER.info(
-                "Successfully imported %d historical data points for %s",
-                len(chunk),
-                periph_id,
+            imported = await self._import_via_statistics(
+                entity_id, chunk, periph_name, periph_id
             )
+            _LOGGER.info(
+                "Successfully imported %d historical statistics for %s",
+                imported,
+                entity_id,
+            )
+            return imported
 
         except Exception as err:
             # Skip, never fall back to writing historical states
@@ -1381,13 +1398,24 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 len(chunk),
                 err,
             )
+            return 0
 
-    def _resolve_main_entity_id(self, periph_id: str) -> str | None:
+    def _resolve_main_entity_id(
+        self, periph_id: str, allow_suffixed: bool = True
+    ) -> str | None:
         """Résoudre l'entity_id HA réel du périphérique via l'entity registry.
 
         Les entités eedomus utilisent le unique_id "<entry_id>_<periph_id>"
         (voir EedomusEntity). Certaines variantes ajoutent un suffixe
         (ex. "_select") ; l'entité principale est la correspondance exacte.
+        Les cibles statistics exigent une correspondance exacte (AD-8bis) :
+        leur résolution passe allow_suffixed=False.
+
+        Args:
+            periph_id: Identifiant du périphérique.
+            allow_suffixed: Autoriser le repli sur une variante suffixée
+                (comportement du panel) ; False = correspondance exacte
+                uniquement (cible statistics).
 
         Returns:
             L'entity_id enregistré, ou None si introuvable.
@@ -1407,8 +1435,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 continue
             if entry.unique_id == base_unique_id:
                 return entry.entity_id
-            if entry.unique_id.startswith(f"{base_unique_id}_") and (
-                suffixed_fallback is None
+            if (
+                allow_suffixed
+                and entry.unique_id.startswith(f"{base_unique_id}_")
+                and suffixed_fallback is None
             ):
                 suffixed_fallback = entry.entity_id
         return suffixed_fallback
@@ -1439,12 +1469,21 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _import_via_statistics(
         self, entity_id: str, chunk: list, periph_name: str, periph_id: str
-    ) -> None:
-        """Import historical data using the Statistics API (HA 2026.2+ recommended method)."""
+    ) -> int:
+        """Import historical data via recorder.statistics.async_import_statistics.
+
+        AD-1: the official Python API replaces the recorder.import_statistics
+        service (Spook). AD-11: only hours strictly before the sensor's first
+        native statistic are written; the recorder compiler owns the rest.
+
+        Returns:
+            The number of hourly statistics actually imported (0 when
+            skipped).
+        """
         try:
-            # Prepare statistics data in the format expected by the
-            # recorder.import_statistics service (Spook ectoplasm):
-            # statistic_id / source / has_mean / has_sum / stats[{start,...}]
+            # Prepare statistics data in the format expected by
+            # async_import_statistics: metadata (statistic_id / source /
+            # mean_type / unit_of_measurement) + stats [{start, mean, ...}].
             # HA long-term statistics are hourly: start must be from the top
             # of the hour, so the raw data points are aggregated per hour.
             hourly_values: dict[datetime, list[float]] = {}
@@ -1491,47 +1530,89 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
             if not statistics_data:
                 _LOGGER.warning("No valid statistics data to import for %s", entity_id)
-                return
+                return 0
 
-            # Import using the Statistics API
-            _LOGGER.info(
-                "Calling recorder.import_statistics for %d data points "
-                "(%d hourly statistics)",
-                len(chunk) - skipped_points,
-                len(statistics_data),
+            # AD-1: import through the official recorder Python API,
+            # never the recorder.import_statistics service (Spook)
+            from homeassistant.components.recorder import (
+                statistics as recorder_statistics,
             )
+            from homeassistant.components.recorder.models import StatisticMeanType
 
-            # Call the service to import statistics
-            await self.hass.services.async_call(
-                domain="recorder",
-                service="import_statistics",
-                service_data={
-                    "statistic_id": entity_id,
-                    "source": "recorder",
-                    "name": periph_name,
-                    "has_mean": True,
-                    "has_sum": False,
-                    "stats": statistics_data,
-                },
-                blocking=True,
+            # The unit comes from the entity's live state: the API derives
+            # unit_class from unit_of_measurement (mean_type and the unit
+            # become required metadata from HA 2026.11) and raises for
+            # unsupported units. Without a live state the metadata would be
+            # invalid: skip the import.
+            state = self.hass.states.get(entity_id)
+            if state is None:
+                _LOGGER.warning(
+                    "Skipping statistics import for %s: no live state to "
+                    "read unit_of_measurement from",
+                    entity_id,
+                )
+                return 0
+            unit = state.attributes.get("unit_of_measurement")
+
+            # AD-11: the recorder compiler owns every hour from the sensor's
+            # first native statistic onward (the upsert would overwrite its
+            # means); the backfill writes strictly earlier hours only.
+            # statistics_during_period is blocking: run it in the executor.
+            native_stats = await self.hass.async_add_executor_job(
+                recorder_statistics.statistics_during_period,
+                self.hass,
+                datetime(1970, 1, 1, tzinfo=dt_util.UTC),
+                dt_util.utcnow(),
+                {entity_id},
+                "hour",
+                None,
+                {"state"},
             )
+            native_rows = (native_stats or {}).get(entity_id) or []
+            if native_rows:
+                # Rows are not guaranteed ascending: take the earliest
+                first_native_start = min(row["start"] for row in native_rows)
+                backfilled = [
+                    stat
+                    for stat in statistics_data
+                    if stat["start"] < first_native_start
+                ]
+                if not backfilled:
+                    _LOGGER.info(
+                        "Nothing to import for %s: all %d hours at or after "
+                        "the first native statistic (AD-11)",
+                        entity_id,
+                        len(statistics_data),
+                    )
+                    return 0
+                statistics_data = backfilled
+
+            metadata = {
+                "statistic_id": entity_id,
+                # "recorder" is required by async_import_statistics
+                "source": "recorder",
+                "name": periph_name,
+                "mean_type": StatisticMeanType.ARITHMETIC,
+                "has_sum": False,
+                "unit_of_measurement": unit,
+            }
 
             _LOGGER.info(
-                "Successfully imported %d statistics points for %s using Statistics API",
+                "Importing %d hourly statistics for %s via async_import_statistics",
                 len(statistics_data),
                 entity_id,
             )
+            # async_import_statistics is a synchronous @callback
+            recorder_statistics.async_import_statistics(
+                self.hass, metadata, statistics_data
+            )
+
+            return len(statistics_data)
 
         except Exception as e:
             # The caller (async_import_history_chunk) owns the single
             # user-facing warning; these are diagnostic details only
-            if (
-                "service not found" in str(e).lower()
-                or "import_statistics" in str(e).lower()
-            ):
-                _LOGGER.debug("recorder.import_statistics service not available: %s", e)
-            else:
-                _LOGGER.debug("Failed to import statistics for %s: %s", entity_id, e)
+            _LOGGER.debug("Failed to import statistics for %s: %s", entity_id, e)
             raise
 
     # Add method to set value for a specific peripheral

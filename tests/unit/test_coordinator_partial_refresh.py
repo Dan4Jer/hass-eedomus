@@ -45,7 +45,8 @@ async def test_partial_refresh_history_metrics_accumulate():
     coordinator = make_coordinator(enable_history=True)
     chunk = [{"value": 1}, {"value": 2}, {"value": 3}]
     coordinator.async_fetch_history_chunk = AsyncMock(return_value=chunk)
-    coordinator.async_import_history_chunk = AsyncMock()
+    # async_import_history_chunk returns the number of statistics imported
+    coordinator.async_import_history_chunk = AsyncMock(return_value=len(chunk))
 
     await coordinator._async_partial_refresh()
 
@@ -106,7 +107,8 @@ async def test_partial_refresh_log_reports_history_counts(caplog):
     coordinator = make_coordinator(enable_history=True)
     chunk = [{"value": 1}, {"value": 2}]
     coordinator.async_fetch_history_chunk = AsyncMock(return_value=chunk)
-    coordinator.async_import_history_chunk = AsyncMock()
+    # async_import_history_chunk returns the number of statistics imported
+    coordinator.async_import_history_chunk = AsyncMock(return_value=len(chunk))
     coordinator._full_refresh_needed = False
     coordinator._last_update_start_time = datetime.now()
 

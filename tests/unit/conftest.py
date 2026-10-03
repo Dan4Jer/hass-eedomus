@@ -9,7 +9,8 @@ tested in isolation.
 
 import sys
 import types
-from datetime import timezone
+from datetime import datetime, timezone
+from enum import IntEnum
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -107,6 +108,27 @@ def _install_homeassistant_stubs():
     ha_sensor = module("homeassistant.components.sensor")
     ha_sensor.SensorEntity = MagicMock
 
+    # homeassistant.components.recorder.models - StatisticMeanType is a real
+    # IntEnum consumed by the recorder (the metadata must carry the enum,
+    # not a mock): NONE=0, ARITHMETIC=1 (verified against HA 2026.9.4)
+    ha_rec_models = module("homeassistant.components.recorder.models")
+
+    class _StatisticMeanType(IntEnum):
+        NONE = 0
+        ARITHMETIC = 1
+
+    ha_rec_models.StatisticMeanType = _StatisticMeanType
+
+    # homeassistant.components.recorder.statistics - official statistics
+    # API used by the history backfill: async_import_statistics is a
+    # synchronous @callback (a plain MagicMock matches that contract),
+    # statistics_during_period is blocking and goes through an executor job.
+    ha_recorder = module("homeassistant.components.recorder")
+    ha_recorder.__path__ = []
+    ha_rec_stats = module("homeassistant.components.recorder.statistics")
+    ha_rec_stats.async_import_statistics = MagicMock()
+    ha_rec_stats.statistics_during_period = MagicMock(return_value={})
+
     # homeassistant.components.websocket_api - async_register_command is used
     # by ui_service to register the panel commands. In real HA it returns
     # None (no deregistration handle) and is called in the handler form
@@ -199,6 +221,9 @@ def _install_homeassistant_stubs():
     ha_dt.as_utc = lambda dt: (
         dt if getattr(dt, "tzinfo", None) else dt.replace(tzinfo=timezone.utc)
     )
+    # UTC constant and utcnow are used by the history backfill's AD-11 clip
+    ha_dt.UTC = timezone.utc
+    ha_dt.utcnow = lambda: datetime.now(timezone.utc)
 
 
 _install_homeassistant_stubs()

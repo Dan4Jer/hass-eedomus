@@ -4,6 +4,10 @@ Regression tests for the "Skipping invalid data point: could not convert
 string to float: 'Confort'" warnings: the history API returns value labels
 for list-type peripherals, and the numeric value must be resolved from the
 peripheral's value_list (data[periph_id]["values"], from periph.value_list).
+
+The ghost sensor.eedomus_<periph_id> targets below are a deliberate bypass:
+_import_via_statistics is called directly to test the hourly aggregation in
+isolation. H.1.3 will purge them from the fetch path.
 """
 
 import logging
@@ -14,6 +18,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from custom_components.eedomus.coordinator import EedomusDataUpdateCoordinator
+from homeassistant.components.recorder.models import StatisticMeanType
 
 pytestmark = pytest.mark.unit
 
@@ -36,6 +41,24 @@ def make_coordinator():
         }
     }
     return coordinator
+
+
+def configure_statistics_harness(coordinator, unit="°C"):
+    """Wire hass and the recorder.statistics stubs for the import path."""
+    from homeassistant.components.recorder import statistics as rec_stats
+
+    rec_stats.async_import_statistics.reset_mock(side_effect=True)
+    rec_stats.statistics_during_period.reset_mock(side_effect=True)
+    rec_stats.statistics_during_period.return_value = {}
+    coordinator.hass.states.get = MagicMock(
+        return_value=SimpleNamespace(attributes={"unit_of_measurement": unit})
+    )
+
+    async def _run_in_executor(fn, *args, **kwargs):
+        return fn(*args, **kwargs)
+
+    coordinator.hass.async_add_executor_job = _run_in_executor
+    return rec_stats
 
 
 class TestResolveHistoryValue:
@@ -74,7 +97,7 @@ class TestResolveHistoryValue:
 async def test_statistics_import_resolves_labels():
     """Labels are converted to their numeric value in the statistics import."""
     coordinator = make_coordinator()
-    coordinator.hass.services.async_call = AsyncMock()
+    rec_stats = configure_statistics_harness(coordinator)
     chunk = [
         {"value": "Confort", "timestamp": "2026-09-27T09:00:00"},
         {"value": "20.5", "timestamp": "2026-09-27T09:30:00"},
@@ -84,16 +107,14 @@ async def test_statistics_import_resolves_labels():
         f"sensor.eedomus_{PERIPH_ID}", chunk, "Thermostat Salon", PERIPH_ID
     )
 
-    coordinator.hass.services.async_call.assert_awaited_once()
-    call = coordinator.hass.services.async_call.await_args
-    service_data = call.kwargs["service_data"]
-    # Spook's recorder.import_statistics schema: no "entity_id" field
-    assert service_data["statistic_id"] == f"sensor.eedomus_{PERIPH_ID}"
-    assert service_data["source"] == "recorder"
-    assert service_data["name"] == "Thermostat Salon"
-    assert service_data["has_mean"] is True
-    assert service_data["has_sum"] is False
-    statistics = service_data["stats"]
+    rec_stats.async_import_statistics.assert_called_once()
+    _hass, metadata, statistics = rec_stats.async_import_statistics.call_args.args
+    assert metadata["statistic_id"] == f"sensor.eedomus_{PERIPH_ID}"
+    assert metadata["source"] == "recorder"
+    assert metadata["name"] == "Thermostat Salon"
+    assert metadata["mean_type"] == StatisticMeanType.ARITHMETIC
+    assert metadata["has_sum"] is False
+    assert metadata["unit_of_measurement"] == "°C"
     # Both points fall in hour 09:00: they are aggregated into ONE
     # hourly statistic (mean/min/max), HA requires top-of-the-hour starts
     assert len(statistics) == 1
@@ -112,7 +133,7 @@ async def test_statistics_import_resolves_labels():
 async def test_statistics_import_aggregates_per_hour():
     """Points in different hours produce one statistic per hour."""
     coordinator = make_coordinator()
-    coordinator.hass.services.async_call = AsyncMock()
+    rec_stats = configure_statistics_harness(coordinator)
     chunk = [
         {"value": "10", "timestamp": "2026-09-27T08:15:00"},
         {"value": "30", "timestamp": "2026-09-27T08:45:00"},
@@ -123,9 +144,7 @@ async def test_statistics_import_aggregates_per_hour():
         f"sensor.eedomus_{PERIPH_ID}", chunk, "Thermostat Salon", PERIPH_ID
     )
 
-    stats = coordinator.hass.services.async_call.await_args.kwargs["service_data"][
-        "stats"
-    ]
+    _hass, _metadata, stats = rec_stats.async_import_statistics.call_args.args
     assert len(stats) == 2
     assert stats[0]["start"].hour == 8
     assert stats[0]["mean"] == 20.0
@@ -138,7 +157,7 @@ async def test_statistics_import_aggregates_per_hour():
 async def test_statistics_import_skips_unresolvable_label(caplog):
     """A label with no value_list entry is skipped with one warning per point."""
     coordinator = make_coordinator()
-    coordinator.hass.services.async_call = AsyncMock()
+    rec_stats = configure_statistics_harness(coordinator)
     chunk = [
         {"value": "Hors-Gel", "timestamp": "2026-09-27T09:00:00"},
         {"value": "Arrêt", "timestamp": "2026-09-27T09:30:00"},
@@ -157,23 +176,28 @@ async def test_statistics_import_skips_unresolvable_label(caplog):
     assert len(skip_warnings) == 1
     assert "Hors-Gel" in skip_warnings[0].getMessage()
     # The valid point is still imported
-    call = coordinator.hass.services.async_call.await_args
-    statistics = call.kwargs["service_data"]["stats"]
+    _hass, _metadata, statistics = rec_stats.async_import_statistics.call_args.args
     assert len(statistics) == 1
     assert statistics[0]["mean"] == 0.0
 
 
 @pytest.mark.asyncio
-async def test_statistics_failure_never_writes_states(caplog):
+async def test_statistics_failure_never_writes_states(monkeypatch, caplog):
     """A failed statistics import is skipped; no state is ever written.
 
     Regression test for the recorder lock-up: replaying backdated history
     points through hass.states.async_set flooded the recorder with writes
     that never committed.
     """
+    _fake_registry(
+        monkeypatch,
+        [("eedomus", "01TEST_72762", "sensor.temperature_salon")],
+    )
     coordinator = make_coordinator()
-    coordinator.hass.services.async_call = AsyncMock(
-        side_effect=Exception("service not found")
+    coordinator.config_entry = SimpleNamespace(entry_id="01TEST")
+    rec_stats = configure_statistics_harness(coordinator)
+    rec_stats.async_import_statistics = MagicMock(
+        side_effect=Exception("database is locked")
     )
     coordinator.hass.states.async_set = MagicMock()
     caplog.set_level(logging.WARNING, logger="custom_components.eedomus.coordinator")
@@ -184,7 +208,7 @@ async def test_statistics_failure_never_writes_states(caplog):
 
     await coordinator.async_import_history_chunk(PERIPH_ID, chunk)
 
-    coordinator.hass.services.async_call.assert_awaited_once()
+    rec_stats.async_import_statistics.assert_called_once()
     coordinator.hass.states.async_set.assert_not_called()
     skip_warnings = [
         record
@@ -281,15 +305,13 @@ async def test_import_targets_real_entity_when_registered(monkeypatch):
     )
     coordinator = make_coordinator()
     coordinator.config_entry = SimpleNamespace(entry_id="01TEST")
-    coordinator.hass.services.async_call = AsyncMock()
+    rec_stats = configure_statistics_harness(coordinator)
     chunk = [{"value": "100", "timestamp": "2026-09-27T09:00:00"}]
 
     await coordinator.async_import_history_chunk(PERIPH_ID, chunk)
 
-    service_data = coordinator.hass.services.async_call.await_args.kwargs[
-        "service_data"
-    ]
-    assert service_data["statistic_id"] == "light.rubanled_salon_2"
+    _hass, metadata, _stats = rec_stats.async_import_statistics.call_args.args
+    assert metadata["statistic_id"] == "light.rubanled_salon_2"
     # The success path must never write historical states either
     coordinator.hass.states.async_set.assert_not_called()
 
@@ -303,14 +325,15 @@ async def test_statistics_failure_targets_real_entity_but_skips(monkeypatch):
     )
     coordinator = make_coordinator()
     coordinator.config_entry = SimpleNamespace(entry_id="01TEST")
-    coordinator.hass.services.async_call = AsyncMock(
-        side_effect=Exception("service not found")
+    rec_stats = configure_statistics_harness(coordinator)
+    rec_stats.async_import_statistics = MagicMock(
+        side_effect=Exception("database is locked")
     )
     coordinator.hass.states.async_set = MagicMock()
     chunk = [{"value": "100", "timestamp": "2026-09-27T09:00:00"}]
 
     await coordinator.async_import_history_chunk(PERIPH_ID, chunk)
 
-    call = coordinator.hass.services.async_call.await_args
-    assert call.kwargs["service_data"]["statistic_id"] == "light.rubanled_salon_2"
+    _hass, metadata, _stats = rec_stats.async_import_statistics.call_args.args
+    assert metadata["statistic_id"] == "light.rubanled_salon_2"
     coordinator.hass.states.async_set.assert_not_called()
