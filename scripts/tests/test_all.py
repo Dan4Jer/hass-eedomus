@@ -20,11 +20,32 @@ def main():
 
     # 4. Liste exacte des fichiers de test à lancer
     test_files = [
+        "test_api_proxy.py",
+        "test_binary_sensor.py",
+        "test_climate.py",
+        "test_config_flow.py",
+        "test_coordinator.py",
         "test_cover.py",
-        "test_switch.py",
-        "test_light.py",
-        "test_sensor.py",
+        "test_device_mapping.py",
+        "test_eedomus_client.py",
+        "test_endpoint_volume_sensor.py",
+        "test_entity.py",
+        "test_fallback.py",
+        "test_history_sensor.py",
         "test_integration.py",
+        "test_light.py",
+        "test_mapping_registry.py",
+        "test_mapping_rules.py",
+        "test_migration.py",
+        "test_options_flow.py",
+        "test_refresh_timing_sensor.py",
+        "test_select.py",
+        "test_sensor.py",
+        "test_services.py",
+        "test_storage_mapping.py",
+        "test_switch.py",
+        "test_text_sensor_module.py",
+        "test_webhook.py",
     ]
 
     # 5. Convertir les noms de fichiers en chemins absolus

@@ -5,16 +5,19 @@ import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+
 from aiohttp import ClientError, ClientSession
+
 from homeassistant.config_entries import ConfigEntry
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "custom_components/eedomus")))
-from eedomus.const import (
+from custom_components.eedomus.const import (
     CONF_PHP_FALLBACK_ENABLED,
     CONF_PHP_FALLBACK_SCRIPT_NAME,
     CONF_PHP_FALLBACK_TIMEOUT,
 )
-from eedomus_client import EedomusClient
+from custom_components.eedomus.eedomus_client import EedomusClient
 
 
 @pytest.mark.asyncio
@@ -22,8 +25,7 @@ async def test_fallback_not_configured():
     """Test that fallback returns error when not configured."""
     # Setup
     session = AsyncMock(spec=ClientSession)
-    config_entry = ConfigEntry(
-        version=1,
+    config_entry = MockConfigEntry(
         domain="eedomus",
         title="test",
         data={
@@ -41,11 +43,11 @@ async def test_fallback_not_configured():
     client = EedomusClient(session, config_entry)
 
     # Test
-    result = await client.fallback_set_value("123", "invalid_value")
+    result = await client.php_fallback_set_value("123", "invalid_value")
 
     # Assert
     assert result["success"] == 0
-    assert "Fallback not configured" in result["error"]
+    assert "PHP fallback not configured" in result["error"]
 
 
 @pytest.mark.asyncio
@@ -63,8 +65,7 @@ async def test_fallback_script_success():
 
     session.get.return_value.__aenter__.return_value = mock_response
 
-    config_entry = ConfigEntry(
-        version=1,
+    config_entry = MockConfigEntry(
         domain="eedomus",
         title="test",
         data={
@@ -82,7 +83,7 @@ async def test_fallback_script_success():
     client = EedomusClient(session, config_entry)
 
     # Test
-    result = await client.fallback_set_value("123", "50")
+    result = await client.php_fallback_set_value("123", "50")
 
     # Assert
     assert result["success"] == 1
@@ -102,8 +103,7 @@ async def test_fallback_script_error():
 
     session.get.return_value.__aenter__.return_value = mock_response
 
-    config_entry = ConfigEntry(
-        version=1,
+    config_entry = MockConfigEntry(
         domain="eedomus",
         title="test",
         data={
@@ -121,11 +121,11 @@ async def test_fallback_script_error():
     client = EedomusClient(session, config_entry)
 
     # Test
-    result = await client.fallback_set_value("123", "invalid_value")
+    result = await client.php_fallback_set_value("123", "invalid_value")
 
     # Assert
     assert result["success"] == 0
-    assert "Fallback script error: HTTP 400" in result["error"]
+    assert "PHP fallback script error: HTTP 400" in result["error"]
     assert "Invalid value: test" in result["details"]
 
 
@@ -138,8 +138,7 @@ async def test_fallback_script_timeout():
     # Mock timeout
     session.get.side_effect = TimeoutError("Request timed out")
 
-    config_entry = ConfigEntry(
-        version=1,
+    config_entry = MockConfigEntry(
         domain="eedomus",
         title="test",
         data={
@@ -157,11 +156,11 @@ async def test_fallback_script_timeout():
     client = EedomusClient(session, config_entry)
 
     # Test
-    result = await client.fallback_set_value("123", "test_value")
+    result = await client.php_fallback_set_value("123", "test_value")
 
     # Assert
     assert result["success"] == 0
-    assert "Fallback script timeout" in result["error"]
+    assert "PHP fallback script timeout" in result["error"]
 
 
 @pytest.mark.asyncio
@@ -173,8 +172,7 @@ async def test_fallback_script_client_error():
     # Mock client error
     session.get.side_effect = ClientError("Connection failed")
 
-    config_entry = ConfigEntry(
-        version=1,
+    config_entry = MockConfigEntry(
         domain="eedomus",
         title="test",
         data={
@@ -192,11 +190,11 @@ async def test_fallback_script_client_error():
     client = EedomusClient(session, config_entry)
 
     # Test
-    result = await client.fallback_set_value("123", "test_value")
+    result = await client.php_fallback_set_value("123", "test_value")
 
     # Assert
     assert result["success"] == 0
-    assert "Fallback script client error" in result["error"]
+    assert "PHP fallback script client error" in result["error"]
     assert "Connection failed" in result["error"]
 
 
@@ -213,8 +211,7 @@ async def test_fallback_script_parameters():
 
     session.get.return_value.__aenter__.return_value = mock_response
 
-    config_entry = ConfigEntry(
-        version=1,
+    config_entry = MockConfigEntry(
         domain="eedomus",
         title="test",
         data={
@@ -232,7 +229,7 @@ async def test_fallback_script_parameters():
     client = EedomusClient(session, config_entry)
 
     # Test
-    await client.fallback_set_value("123", "50")
+    await client.php_fallback_set_value("123", "50")
 
     # Verify that session.get was called with correct parameters
     session.get.assert_called_once()
@@ -243,23 +240,15 @@ async def test_fallback_script_parameters():
     params = call_args[1].get("params", {})
 
     # Assert that the URL is correct
-    assert url == "http://192.168.1.100/fallback.php"
+    assert url == "http://192.168.1.100/script/?exec=http://192.168.1.100/fallback.php"
 
     # Assert that all required parameters are present
     assert "value" in params
     assert "device_id" in params
-    assert "api_host" in params
-    assert "api_user" in params
-    assert "api_secret" in params
-    assert "log" in params
-
+    
     # Assert that the parameter values are correct
     assert params["value"] == "50"
     assert params["device_id"] == "123"
-    assert params["api_host"] == "192.168.1.100"
-    assert params["api_user"] == "test_user"
-    assert params["api_secret"] == "test_secret"
-    assert params["log"] == "true"
 
 
 @pytest.mark.asyncio
@@ -280,8 +269,7 @@ async def test_set_periph_value_with_fallback():
     mock_fallback_response.status = 200
     mock_fallback_response.read.return_value = b'{"success":1,"body":{"result":"ok"}}'
 
-    config_entry = ConfigEntry(
-        version=1,
+    config_entry = MockConfigEntry(
         domain="eedomus",
         title="test",
         data={
@@ -307,7 +295,7 @@ async def test_set_periph_value_with_fallback():
 
         # Test
         result = await client.set_periph_value("123", "invalid_value")
-
+        print(result)
         # Assert
         assert result["success"] == 1
         assert result["body"]["result"] == "ok"

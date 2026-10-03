@@ -1,0 +1,345 @@
+"""Tests unitaires complets pour le module device_mapping d'eedomus."""
+
+import os
+from unittest.mock import AsyncMock, MagicMock, mock_open, patch
+import pytest
+import yaml
+
+from custom_components.eedomus.device_mapping import (
+    CUSTOM_MAPPING_FILE,
+    DEFAULT_MAPPING_FILE,
+    get_absolute_path,
+    load_and_merge_yaml_mappings,
+    load_custom_yaml_mappings,
+    load_custom_yaml_mappings_async,
+    load_yaml_file,
+    load_yaml_file_async,
+    load_yaml_mappings,
+    load_yaml_mappings_async,
+    merge_yaml_mappings,
+)
+
+
+@pytest.fixture
+def mock_hass():
+    """Fixture simulant l'instance Home Assistant pour les fonctions asynchrones."""
+    hass = MagicMock()
+
+    async def mock_executor(target, *args, **kwargs):
+        return target(*args, **kwargs)
+
+    hass.async_add_executor_job = AsyncMock(side_effect=mock_executor)
+    return hass
+
+
+# --- 1. Test get_absolute_path ---
+
+
+def test_get_absolute_path():
+    """Vérifie le calcul des chemins absolus relatifs au module."""
+    rel_path = "config/test.yaml"
+    abs_path = get_absolute_path(rel_path)
+
+    assert os.path.isabs(abs_path)
+    assert abs_path.endswith(os.path.join("config", "test.yaml"))
+
+
+# --- 2. Tests load_yaml_file (Synchrone) ---
+
+
+def test_load_yaml_file_success():
+    """Vérifie le chargement réussi d'un dictionnaire YAML."""
+    yaml_data = "usage_id_mappings:\n  '1':\n    ha_entity: 'switch'\n"
+    with patch("os.path.exists", return_value=True), patch(
+        "builtins.open", mock_open(read_data=yaml_data)
+    ):
+        result = load_yaml_file("/fake/path.yaml")
+        assert result == {"usage_id_mappings": {"1": {"ha_entity": "switch"}}}
+
+
+def test_load_yaml_file_list_format():
+    """Vérifie la conversion automatique si le fichier YAML est une liste."""
+    yaml_data = "- name: rule_1\n  mapping:\n    ha_entity: light\n"
+    with patch("os.path.exists", return_value=True), patch(
+        "builtins.open", mock_open(read_data=yaml_data)
+    ):
+        result = load_yaml_file("/fake/path.yaml")
+        assert isinstance(result, dict)
+        assert "advanced_rules" in result
+        assert result["advanced_rules"] == [
+            {"name": "rule_1", "mapping": {"ha_entity": "light"}}
+        ]
+        assert result["usage_id_mappings"] == {}
+
+
+def test_load_yaml_file_not_found():
+    """Vérifie que la fonction renvoie None si le fichier n'existe pas."""
+    with patch("os.path.exists", return_value=False):
+        result = load_yaml_file("/fake/non_existent.yaml")
+        assert result is None
+
+
+def test_load_yaml_file_empty():
+    """Vérifie le comportement avec un fichier YAML vide."""
+    with patch("os.path.exists", return_value=True), patch(
+        "builtins.open", mock_open(read_data="")
+    ):
+        result = load_yaml_file("/fake/empty.yaml")
+        assert result is None
+
+
+def test_load_yaml_file_syntax_error():
+    """Vérifie la gestion des erreurs de syntaxe YAML (YAMLError)."""
+    invalid_yaml = "key: [unclosed_list"
+    with patch("os.path.exists", return_value=True), patch(
+        "builtins.open", mock_open(read_data=invalid_yaml)
+    ):
+        result = load_yaml_file("/fake/invalid.yaml")
+        assert result is None
+
+
+def test_load_yaml_file_permission_error():
+    """Vérifie la gestion des exceptions génériques d'E/S."""
+    with patch("os.path.exists", return_value=True), patch(
+        "builtins.open", side_effect=PermissionError("Access denied")
+    ):
+        result = load_yaml_file("/fake/protected.yaml")
+        assert result is None
+
+
+# --- 3. Tests load_yaml_file_async (Asynchrone) ---
+
+
+@pytest.mark.asyncio
+async def test_load_yaml_file_async_success(mock_hass):
+    """Vérifie le chargement asynchrone réussi via l'executor."""
+    yaml_data = "usage_id_mappings:\n  '2':\n    ha_entity: 'light'\n"
+    with patch("os.path.exists", return_value=True), patch(
+        "builtins.open", mock_open(read_data=yaml_data)
+    ):
+        result = await load_yaml_file_async(mock_hass, "/fake/path.yaml")
+        assert result == {"usage_id_mappings": {"2": {"ha_entity": "light"}}}
+
+
+@pytest.mark.asyncio
+async def test_load_yaml_file_async_fallback_on_exception(mock_hass):
+    """Vérifie le basculement (fallback) vers le mode synchrone si l'executor échoue."""
+    mock_hass.async_add_executor_job.side_effect = RuntimeError("Executor failure")
+
+    yaml_data = "usage_id_mappings:\n  '3':\n    ha_entity: 'sensor'\n"
+    with patch("os.path.exists", return_value=True), patch(
+        "builtins.open", mock_open(read_data=yaml_data)
+    ):
+        result = await load_yaml_file_async(mock_hass, "/fake/path.yaml")
+        assert result == {"usage_id_mappings": {"3": {"ha_entity": "sensor"}}}
+
+
+# --- 4. Tests merge_yaml_mappings ---
+
+
+def test_merge_yaml_mappings_invalid_inputs():
+    """Vérifie que la fonction gère des entrées non-dictionnaires sans crasher."""
+    result = merge_yaml_mappings(None, "invalid_type")  # type: ignore
+    assert isinstance(result, dict)
+    assert result["usage_id_mappings"] == {}
+    assert result["advanced_rules"] == []
+
+
+def test_merge_yaml_mappings_advanced_rules_and_dynamic_extraction():
+    """Vérifie la conversion d'advanced_rules en dict et l'extraction des dynamic_props."""
+    default = {
+        "advanced_rules": [
+            {
+                "name": "rgbw_rule",
+                "mapping": {"is_dynamic": True, "ha_entity": "light"},
+            },
+            {
+                "name": "static_rule",
+                "mapping": {"is_dynamic": False, "ha_entity": "switch"},
+            },
+        ],
+        "dynamic_entity_properties": {"climate": {}},
+    }
+    custom = {}
+
+    merged = merge_yaml_mappings(default, custom)
+
+    # Vérification de la création d'advanced_rules_dict
+    assert "rgbw_rule" in merged["advanced_rules_dict"]
+    assert "static_rule" in merged["advanced_rules_dict"]
+
+    # Vérification de l'extraction dynamic_entity_properties (light extrait + climate existant)
+    assert merged["dynamic_entity_properties"]["light"] is True
+    assert "climate" in merged["dynamic_entity_properties"]
+
+
+def test_merge_yaml_mappings_custom_overrides():
+    """Vérifie le remplacement/extension de la configuration par les surcharges personnalisées."""
+    default = {
+        "usage_id_mappings": {"1": {"ha_entity": "switch"}},
+        "name_patterns": [{"pattern": "lamp"}],
+        "dynamic_entity_properties": {"switch": {}},
+        "specific_device_dynamic_overrides": {"100": {"ha_entity": "switch"}},
+        "specific_device_mappings": {"200": {"ha_entity": "cover"}},
+        "metadata": {"version": "1.0.0"},
+    }
+
+    custom = {
+        "custom_usage_id_mappings": {"1": {"ha_entity": "light"}},
+        "custom_name_patterns": [{"pattern": "fan"}],
+        "custom_dynamic_entity_properties": {"light": {}},
+        "custom_specific_device_dynamic_overrides": {"100": {"ha_entity": "climate"}},
+        "custom_specific_device_mappings": {"300": {"ha_entity": "lock"}},
+        "metadata": {"version": "1.1.0_custom"},
+    }
+
+    merged = merge_yaml_mappings(default, custom)
+
+    assert merged["usage_id_mappings"]["1"]["ha_entity"] == "light"
+    assert len(merged["name_patterns"]) == 2
+    assert "light" in merged["dynamic_entity_properties"]
+    assert merged["specific_device_dynamic_overrides"]["100"]["ha_entity"] == "climate"
+    assert "200" in merged["specific_device_mappings"]
+    assert "300" in merged["specific_device_mappings"]
+    assert merged["metadata"]["version"] == "1.1.0_custom"
+
+
+# --- 5. Tests load_yaml_mappings & load_yaml_mappings_async ---
+
+
+def test_load_yaml_mappings_with_base_path():
+    """Vérifie le chargement synchrone complet avec un base_path spécifique."""
+    mock_default = {"usage_id_mappings": {"1": {"ha_entity": "switch"}}}
+    mock_custom = {"custom_usage_id_mappings": {"1": {"ha_entity": "light"}}}
+
+    def side_effect(filepath):
+        if CUSTOM_MAPPING_FILE in filepath:
+            return mock_custom
+        return mock_default
+
+    with patch("os.path.exists", return_value=True), patch(
+        "custom_components.eedomus.device_mapping.load_yaml_file",
+        side_effect=side_effect,
+    ):
+        merged = load_yaml_mappings(base_path="/custom/path")
+        assert merged["usage_id_mappings"]["1"]["ha_entity"] == "light"
+
+
+@pytest.mark.asyncio
+async def test_load_yaml_mappings_async(mock_hass):
+    """Vérifie le chargement asynchrone des mappings sans base_path (chemins absolus)."""
+    mock_default = {"dynamic_entity_properties": {"switch": {}}}
+    mock_custom = {}
+
+    def side_effect(hass, filepath):
+        if CUSTOM_MAPPING_FILE in filepath:
+            return mock_custom
+        return mock_default
+
+    with patch("os.path.exists", return_value=True), patch(
+        "custom_components.eedomus.device_mapping.load_yaml_file_async",
+        side_effect=side_effect,
+    ):
+        merged = await load_yaml_mappings_async(mock_hass)
+        assert "switch" in merged["dynamic_entity_properties"]
+
+
+# --- 6. Tests load_and_merge_yaml_mappings ---
+
+def test_load_and_merge_yaml_mappings_success():
+    """Vérifie le pipeline complet de chargement/fusion avec métadonnées et logs."""
+    mock_base = {
+        "usage_id_mappings": {"1": {"ha_entity": "switch"}},
+        "dynamic_entity_properties": {"switch": {}},
+        "specific_device_dynamic_overrides": {},
+        "metadata": {"version": "2.0", "last_modified": "2026-01-01"},
+    }
+    mock_custom = {
+        "custom_specific_device_dynamic_overrides": {
+            "3463520": {"ha_entity": "climate"}
+        }
+    }
+
+    def mock_load_yaml(filepath):
+        filepath_str = str(filepath)
+        if "custom_mapping.yaml" in filepath_str:
+            return mock_custom
+        return mock_base
+
+    with patch("os.path.exists", return_value=True), patch(
+        "custom_components.eedomus.device_mapping.load_yaml_file",
+        side_effect=mock_load_yaml,
+    ):
+        result = load_and_merge_yaml_mappings()
+
+        assert "usage_id_mappings" in result
+        assert "specific_device_dynamic_overrides" in result
+        assert (
+            result["specific_device_dynamic_overrides"]["3463520"]["ha_entity"]
+            == "climate"
+        )
+
+
+def test_load_and_merge_yaml_mappings_empty_fallback():
+    """Vérifie la génération de la configuration minimale lorsque le retour est vide."""
+    with patch(
+        "custom_components.eedomus.device_mapping.load_yaml_mappings",
+        return_value={},
+    ):
+        result = load_and_merge_yaml_mappings()
+        assert "_load_error" in result
+        assert result["default_mapping"]["ha_entity"] == "sensor"
+
+
+def test_load_and_merge_yaml_mappings_exception_fallback():
+    """Vérifie la capture d'exception et le fallback sur erreur critique."""
+    with patch(
+        "custom_components.eedomus.device_mapping.load_yaml_mappings",
+        side_effect=RuntimeError("Fatal error reading files"),
+    ):
+        result = load_and_merge_yaml_mappings()
+        assert "_load_error" in result
+        assert "Fatal error reading files" in result["_load_error"]
+        assert result["default_mapping"]["ha_entity"] == "sensor"
+
+
+# --- 7. Tests load_custom_yaml_mappings & load_custom_yaml_mappings_async ---
+
+
+def test_load_custom_yaml_mappings_success():
+    """Vérifie le chargement direct du fichier custom_mapping.yaml."""
+    yaml_content = "custom_specific_device_mappings:\n  '123':\n    ha_entity: 'light'\n"
+    with patch("os.path.exists", return_value=True), patch(
+        "builtins.open", mock_open(read_data=yaml_content)
+    ):
+        result = load_custom_yaml_mappings()
+        assert result == {"custom_specific_device_mappings": {"123": {"ha_entity": "light"}}}
+
+
+def test_load_custom_yaml_mappings_not_found():
+    """Vérifie que la fonction renvoie None lorsque le fichier n'existe pas."""
+    with patch("os.path.exists", return_value=False):
+        result = load_custom_yaml_mappings()
+        assert result is None
+
+
+def test_load_custom_yaml_mappings_exception():
+    """Vérifie la gestion des exceptions lors de la lecture du fichier custom."""
+    with patch("os.path.exists", return_value=True), patch(
+        "builtins.open", side_effect=IOError("Read failure")
+    ):
+        result = load_custom_yaml_mappings()
+        assert result is None
+
+
+@pytest.mark.asyncio
+async def test_load_custom_yaml_mappings_async(mock_hass):
+    """Vérifie l'enrobage asynchrone de load_custom_yaml_mappings."""
+    mock_data = {"custom_usage_id_mappings": {"10": {"ha_entity": "switch"}}}
+    with patch(
+        "custom_components.eedomus.device_mapping.load_custom_yaml_mappings",
+        return_value=mock_data,
+    ):
+        result = await load_custom_yaml_mappings_async(mock_hass)
+        assert result == mock_data
+

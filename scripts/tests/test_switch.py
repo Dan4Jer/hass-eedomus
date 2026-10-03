@@ -9,8 +9,8 @@ from homeassistant.components.switch import SwitchDeviceClass
 from homeassistant.const import STATE_OFF, STATE_ON
 
 from custom_components.eedomus.switch import EedomusSwitch
-#sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "custom_components/eedomus")))
-#from  switch import EedomusSwitch
+from custom_components.eedomus.const import DOMAIN
+
 
 @pytest.mark.asyncio
 async def test_switch_initialization():
@@ -222,3 +222,241 @@ async def test_switch_consumption_only_device():
         child.get("usage_id") == "26" for child in device_info.get("children", [])
     )
     assert has_consumption_children is True
+
+
+@pytest.mark.asyncio
+async def test_switch_is_on_missing_data():
+    """Test is_on returns False when peripheral data is missing."""
+    mock_coordinator = AsyncMock()
+    mock_coordinator.data = {}
+    switch = EedomusSwitch(mock_coordinator, "unknown_switch")
+    assert switch.is_on is False
+
+@pytest.mark.asyncio
+async def test_switch_is_on_various_truthy_values():
+    """Test is_on with various valid truthy values (strings and numbers)."""
+    mock_coordinator = AsyncMock()
+    for val in ["1", 1, "100", 100, "on", "MARCHE", "true"]:
+        mock_coordinator.data = {"sw_val": {"periph_id": "sw_val", "last_value": val}}
+        switch = EedomusSwitch(mock_coordinator, "sw_val")
+        assert switch.is_on is True
+
+@pytest.mark.asyncio
+async def test_switch_turn_on_exception():
+    """Test async_turn_on handles API exceptions and re-raises."""
+    mock_coordinator = AsyncMock()
+    mock_coordinator.data = {"sw_err": {"periph_id": "sw_err", "last_value": "off"}}
+    switch = EedomusSwitch(mock_coordinator, "sw_err")
+    switch.async_set_value = AsyncMock(side_effect=Exception("API Connection Error"))
+
+    with pytest.raises(Exception, match="API Connection Error"):
+        await switch.async_turn_on()
+
+@pytest.mark.asyncio
+async def test_switch_turn_off_exception():
+    """Test async_turn_off handles API exceptions and re-raises."""
+    mock_coordinator = AsyncMock()
+    mock_coordinator.data = {"sw_err": {"periph_id": "sw_err", "last_value": "on"}}
+    switch = EedomusSwitch(mock_coordinator, "sw_err")
+    switch.async_set_value = AsyncMock(side_effect=Exception("API Connection Error"))
+
+    with pytest.raises(Exception, match="API Connection Error"):
+        await switch.async_turn_off()
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_switch_patterns():
+    """Test async_setup_entry remapping logic (Patterns 1, 2, and 3)."""
+    from custom_components.eedomus.switch import async_setup_entry
+
+    mock_hass = MagicMock()
+    mock_entry = MagicMock()
+    mock_entry.entry_id = "test_entry_id"
+
+    mock_coordinator = MagicMock()
+    mock_coordinator.get_all_peripherals.return_value = {
+        # Pattern 1 & 2: Pure consumption monitor (should be remapped to sensor)
+        "conso_device": {
+            "periph_id": "conso_device",
+            "name": "Prise Consommation Salon",
+            "usage_id": "37",
+        },
+        "conso_child": {
+            "periph_id": "conso_child",
+            "parent_periph_id": "conso_device",
+            "usage_id": "26",
+            "name": "Energy Child"
+        },
+        # Pattern 3: Controllable device with consumption child (should stay a switch)
+        "sapin_noel": {
+            "periph_id": "sapin_noel",
+            "name": "Sapin de Noel avec Consommation",
+            "usage_id": "37",
+        },
+        "sapin_child": {
+            "periph_id": "sapin_child",
+            "parent_periph_id": "sapin_noel",
+            "usage_id": "26",
+            "name": "Sapin Conso"
+        }
+    }
+
+    mock_coordinator.data = {
+        "conso_device": {"periph_id": "conso_device", "name": "Prise Consommation Salon", "ha_entity": "switch"},
+        "conso_child": {"periph_id": "conso_child", "parent_periph_id": "conso_device"},
+        "sapin_noel": {"periph_id": "sapin_noel", "name": "Sapin de Noel avec Consommation", "ha_entity": "switch"},
+        "sapin_child": {"periph_id": "sapin_child", "parent_periph_id": "sapin_noel"}
+    }
+
+    mock_hass.data = {
+        "domain": {},
+        "eedomus": {
+            "test_entry_id": {
+                "coordinator": mock_coordinator
+            }
+        }
+    }
+
+    async_add_entities = MagicMock()
+
+    with patch("custom_components.eedomus.switch.map_device_to_ha_entity") as mock_map, \
+         patch("custom_components.eedomus.switch.register_device_mapping") as mock_reg:
+        mock_map.return_value = {"ha_entity": "switch", "ha_subtype": "switch"}
+        
+        await async_setup_entry(mock_hass, mock_entry, async_add_entities)
+        
+        # Verify that entities registration was successfully invoked
+        async_add_entities.assert_called_once()
+
+
+import pytest
+from unittest.mock import MagicMock
+from custom_components.eedomus.const import DOMAIN
+
+@pytest.mark.asyncio
+async def test_switch_parent_light_usage_26(hass):
+    """Cover lines 49-59: Child of a light with usage_id '26' remapped to sensor."""
+    from custom_components.eedomus.switch import async_setup_entry
+
+    config_entry = MagicMock()
+    config_entry.entry_id = "test_entry_id"
+    
+    data_dict = {
+        "1": {"id": "1", "name": "Light Parent", "ha_entity": "light", "usage_id": "7"},
+        "2": {
+            "id": "2",
+            "name": "Power Child",
+            "parent_periph_id": "1",
+            "ha_entity": "switch",
+            "usage_id": "26"
+        }
+    }
+    
+    coordinator = MagicMock()
+    coordinator.data = data_dict
+    coordinator.get_all_peripherals.return_value = data_dict
+    
+    hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN][config_entry.entry_id] = {"coordinator": coordinator}
+
+    entities = []
+    def mock_add_entities(new_entities, update_before_add=False):
+        entities.extend(new_entities)
+
+    await async_setup_entry(hass, config_entry, mock_add_entities)
+    assert data_dict["2"]["ha_entity"] == "sensor"
+
+@pytest.mark.asyncio
+async def test_switch_with_control_children(hass):
+    """Cover lines 89-96: Switch with control-capable children remains a switch."""
+    from custom_components.eedomus.switch import async_setup_entry
+
+    config_entry = MagicMock()
+    config_entry.entry_id = "test_entry_id"
+    
+    data_dict = {
+        "10": {"id": "10", "name": "Master Switch", "ha_entity": "switch", "usage_id": "1"},
+        "11": {
+            "id": "11",
+            "name": "Control Child",
+            "parent_periph_id": "10",
+            "ha_entity": "switch",
+            "usage_id": "1"
+        }
+    }
+    
+    coordinator = MagicMock()
+    coordinator.data = data_dict
+    coordinator.get_all_peripherals.return_value = data_dict
+    
+    hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN][config_entry.entry_id] = {"coordinator": coordinator}
+
+    entities = []
+    def mock_add_entities(new_entities, update_before_add=False):
+        entities.extend(new_entities)
+
+    await async_setup_entry(hass, config_entry, mock_add_entities)
+    assert data_dict["10"]["ha_entity"] == "switch"
+
+@pytest.mark.asyncio
+async def test_switch_remap_to_energy_sensor(hass):
+    """Cover lines 159-172: Switch remapped as energy sensor based on name and children."""
+    from custom_components.eedomus.switch import async_setup_entry
+
+    config_entry = MagicMock()
+    config_entry.entry_id = "test_entry_id"
+    
+    data_dict = {
+        "20": {"id": "20", "name": "Compteur Energie Global", "ha_entity": "switch", "usage_id": "1"},
+        "21": {
+            "id": "21",
+            "name": "Consommation",
+            "parent_periph_id": "20",
+            "ha_entity": "sensor",
+            "usage_id": "26"
+        }
+    }
+    
+    coordinator = MagicMock()
+    coordinator.data = data_dict
+    coordinator.get_all_peripherals.return_value = data_dict
+    
+    hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN][config_entry.entry_id] = {"coordinator": coordinator}
+
+    entities = []
+    def mock_add_entities(new_entities, update_before_add=False):
+        entities.extend(new_entities)
+
+    await async_setup_entry(hass, config_entry, mock_add_entities)
+    assert data_dict["20"]["ha_entity"] == "sensor"
+    assert data_dict["20"]["ha_subtype"] == "energy"
+
+@pytest.mark.asyncio
+async def test_switch_remap_by_consommation_name(hass):
+    """Cover line 131: Switch remapped as energy sensor based on 'consommation' in name."""
+    from custom_components.eedomus.switch import async_setup_entry
+
+    config_entry = MagicMock()
+    config_entry.entry_id = "test_entry_id"
+    
+    data_dict = {
+        "30": {"id": "30", "name": "Consommation Salon", "ha_entity": "switch", "usage_id": "1"}
+    }
+    
+    coordinator = MagicMock()
+    coordinator.data = data_dict
+    coordinator.get_all_peripherals.return_value = data_dict
+    
+    hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN][config_entry.entry_id] = {"coordinator": coordinator}
+
+    entities = []
+    def mock_add_entities(new_entities, update_before_add=False):
+        entities.extend(new_entities)
+
+    await async_setup_entry(hass, config_entry, mock_add_entities)
+    assert data_dict["30"]["ha_entity"] == "sensor"
+    assert data_dict["30"]["ha_subtype"] == "energy"
+
+
