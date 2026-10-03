@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
+from typing import Any
 
 from homeassistant.components.climate import ClimateEntity
 from homeassistant.components.climate.const import (
@@ -33,7 +34,7 @@ async def async_setup_entry(
 
     # First pass: ensure all peripherals have proper mapping
     for periph_id, periph in all_peripherals.items():
-        if "ha_entity" not in coordinator.data[periph_id]:
+        if "ha_entity" not in coordinator.data.get(periph_id, {}):
             eedomus_mapping = map_device_to_ha_entity(
                 periph, coordinator.data, coordinator=coordinator
             )
@@ -43,7 +44,7 @@ async def async_setup_entry(
 
     # Second pass: create climate entities
     for periph_id, periph in all_peripherals.items():
-        ha_entity = coordinator.data[periph_id].get("ha_entity")
+        ha_entity = coordinator.data.get(periph_id, {}).get("ha_entity")
 
         if ha_entity != "climate":
             continue
@@ -57,15 +58,14 @@ async def async_setup_entry(
 class EedomusClimate(EedomusEntity, ClimateEntity):
     """Representation of an eedomus climate device."""
 
-    def __init__(self, coordinator, periph_id: str):
+    def __init__(self, coordinator: Any, periph_id: str) -> None:
         """Initialize the climate device."""
         super().__init__(coordinator, periph_id)
         self._attr_name = self.coordinator.data[periph_id]["name"]
 
-        # --- MODIFICATION : Harmonisation complète eedomus_ ---
+        # Harmonisation identifiant unique
         box_id = coordinator.config_entry.entry_id
         self._attr_unique_id = f"eedomus_{box_id}_{periph_id}_climate"
-        # -----------------------------------------------------
 
         # Load YAML configuration for this device
         yaml_config = (
@@ -192,9 +192,9 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
             _LOGGER.debug("No custom mappings found or error loading: %s", e)
 
     @property
-    def extra_state_attributes(self):
+    def extra_state_attributes(self) -> dict[str, Any]:
         """Return device-specific state attributes for monitoring and diagnostics."""
-        attrs = {}
+        attrs: dict[str, Any] = {}
         try:
             periph_data = self._get_periph_data()
             if periph_data:
@@ -248,7 +248,7 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
             attrs["error"] = "Failed to generate attributes"
         return attrs
 
-    def _get_device_health(self):
+    def _get_device_health(self) -> str:
         """Assess device health and return status."""
         try:
             periph_data = self._get_periph_data()
@@ -274,8 +274,11 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
 
             # Check if temperature is within expected range
             if (
-                self._attr_target_temperature < self._attr_min_temp
-                or self._attr_target_temperature > self._attr_max_temp
+                self._attr_target_temperature is not None
+                and (
+                    self._attr_target_temperature < self._attr_min_temp
+                    or self._attr_target_temperature > self._attr_max_temp
+                )
             ):
                 return "invalid_temperature"
 
@@ -284,7 +287,7 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
             _LOGGER.debug("Failed to assess device health: %s", e)
             return "unknown"
 
-    def _get_connection_status(self):
+    def _get_connection_status(self) -> str:
         """Assess connection status to eedomus API."""
         try:
             periph_data = self._get_periph_data()
@@ -312,7 +315,7 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
             _LOGGER.debug("Failed to assess connection status: %s", e)
             return "error"
 
-    def _update_climate_state(self):
+    def _update_climate_state(self) -> None:
         """Update the climate state from eedomus data."""
         # ✅ SÉCURISATION COORDINATOR (Évite le KeyError)
         periph_data = self.coordinator.data.get(self._periph_id, {})
@@ -325,7 +328,6 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
             str(current_value).strip() if current_value is not None else ""
         )
         usage_id = periph_data.get("usage_id", "")
-
         val_str_lower = current_value_str.lower()
 
         # =====================================================================
@@ -382,7 +384,8 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                 self._attr_hvac_action = HVACAction.OFF
 
         # =====================================================================
-        # 2. RESTAURATION ET SÉCURISATION DE VOTRE LOGIQUE DE CONSIGNE (Ligne 320+)
+        # 2. RESTAURATION ET SÉCURISATION DE VOTRE LOGIQUE DE CONSIGNE 
+        #    LECTURE DE LA CONSIGNE DE TEMPÉRATURE
         # =====================================================================
         target_temp = None
         if (
@@ -393,16 +396,14 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                 target_temp = float(periph_data["target_temperature"])
             except (ValueError, TypeError):
                 pass
-
         # Si pas trouvé dans target_temperature ou échec,
         # utilisation de votre validation textuelle stricte sur last_value
         if target_temp is None and "last_value" in periph_data:
-            lv_str = str(periph_data["last_value"]).strip()
-            if lv_str.replace(".", "", 1).lstrip("-").isdigit():
-                try:
-                    target_temp = float(periph_data["last_value"])
-                except (ValueError, TypeError):
-                    pass
+            lv_str = str(periph_data["last_value"]).strip().replace(",", ".")
+            try:
+                target_temp = float(lv_str)
+            except (ValueError, TypeError):
+                pass
 
         if target_temp is not None:
             self._attr_target_temperature = target_temp
@@ -420,7 +421,8 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                     child_value = child_periph.get("last_value")
                     if child_value is not None and child_value != "":
                         try:
-                            current_temp = float(str(child_value).strip())
+                            clean_child_val = str(child_value).strip().replace(",", ".")
+                            current_temp = float(clean_child_val)
                             break
                         except ValueError:
                             pass
@@ -455,7 +457,7 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                 self._attr_min_temp = min(numeric_values)
                 self._attr_max_temp = max(numeric_values)
 
-    def _update_current_temperature(self):
+    def _update_current_temperature(self) -> None:
         """Update current temperature from linked sensor or child devices."""
         if not self._linked_temperature_sensor:
             all_peripherals = self.coordinator.get_all_peripherals()
@@ -466,7 +468,7 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                         if child_value is not None and child_value != "":
                             try:
                                 self._attr_current_temperature = float(
-                                    str(child_value).strip()
+                                    str(child_value).strip().replace(",", ".")
                                 )
                                 _LOGGER.debug(
                                     "🌡️ Updated current temperature from child sensor %s: %.1f°C",
@@ -481,8 +483,8 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
             sensor_data = self.coordinator.data.get(self._linked_temperature_sensor)
             if sensor_data and "last_value" in sensor_data:
                 try:
-                    temp_value = float(sensor_data["last_value"])
-                    self._attr_current_temperature = temp_value
+                    raw_val = str(sensor_data["last_value"]).strip().replace(",", ".")
+                    self._attr_current_temperature = float(raw_val)
                     _LOGGER.debug(
                         "🌡️ Updated current temperature from linked sensor %s: %.1f°C",
                         self._linked_temperature_sensor,
@@ -504,7 +506,7 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
             return False
         return periph_data.get("last_value", "") != ""
 
-    async def async_set_temperature(self, **kwargs):
+    async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature."""
         temperature = kwargs.get("temperature")
         if temperature is None:
@@ -525,12 +527,16 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                 # For consignes de température, send the temperature directly
                 # Round to nearest 0.5 as that's the typical step for eedomus
                 rounded_temp = round(temperature * 2) / 2
-                eedomus_value = str(rounded_temp)
+                eedomus_value = (
+                    str(int(rounded_temp))
+                    if rounded_temp.is_integer()
+                    else str(rounded_temp)
+                )
 
                 _LOGGER.debug(
-                    "Setting %s temperature directly to %.1f°C (usage_id=15)",
+                    "Setting %s temperature directly to %s (usage_id=15)",
                     self._attr_name,
-                    rounded_temp,
+                    eedomus_value,
                 )
             else:
                 # For other devices, use the acceptable values approach
@@ -541,8 +547,9 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                     for value_item in periph_data["values"]:
                         value = value_item.get("value", "")
                         description = value_item.get("description", "").lower()
-                        acceptable_values[description] = value
-                        acceptable_values[value] = value
+                        acceptable_values[description] = str(value)
+                        acceptable_values[str(value)] = str(value)
+
                 _LOGGER.debug(
                     "Acceptable temperature values for %s: %s",
                     self._attr_name,
@@ -552,28 +559,42 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                 # For eedomus, we should always use integers for temperature setpoints
                 # First try exact match with integer
 
-                temp_int = int(round(temperature))
-                temp_str = str(temp_int)
+                temp_str = str(temperature)
+                rounded_temp = round(temperature * 2) / 2
+                temp_str_half = (
+                    str(int(rounded_temp))
+                    if rounded_temp.is_integer()
+                    else str(rounded_temp)
+                )
+                temp_str_deg = f"{temperature}°c".lower()
+
                 if temp_str in acceptable_values:
                     eedomus_value = acceptable_values[temp_str]
+                elif temp_str_half in acceptable_values:
+                    eedomus_value = acceptable_values[temp_str_half]
+                elif temp_str_deg in acceptable_values:
+                    eedomus_value = acceptable_values[temp_str_deg]
                 else:
                     # Try to find the closest integer value
                     numeric_values = []
                     for val in acceptable_values.values():
                         try:
-                            numeric_values.append(int(float(val)))
-                        except ValueError:
+                            f_val = float(val)
+                            numeric_values[f_val] = str(val)
+                        except (ValueError, TypeError):
                             pass
 
                     if numeric_values:
-                        closest_value = min(
-                            numeric_values, key=lambda x: abs(x - temperature)
+                        closest_float = min(
+                            numeric_values.keys(), key=lambda x: abs(x - temperature)
                         )
-                        eedomus_value = str(int(closest_value))
+                        eedomus_value = numeric_values[closest_float]
 
                 if eedomus_value is None:
                     _LOGGER.error(
-                        "No acceptable temperature value found for %s", self._attr_name
+                        "No acceptable temperature value found for %s (requested: %.1f°C)",
+                        self._attr_name,
+                        temperature,
                     )
                     _LOGGER.debug(
                         "Setting %s temperature to eedomus value: %s (type: %s, requested: %.1f°C, acceptable: %s)",
@@ -593,9 +614,15 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                 return
 
             try:
-                final_value = (
-                    str(int(float(eedomus_value))) if eedomus_value else eedomus_value
-                )
+                # Formatage propre préservant les décimales (.5)
+                try:
+                    f_val = float(eedomus_value)
+                    final_value = (
+                        str(int(f_val)) if f_val.is_integer() else str(f_val)
+                    )
+                except (ValueError, TypeError):
+                    final_value = str(eedomus_value)
+
                 result = await self.coordinator.async_set_periph_value(
                     self._periph_id, final_value
                 )
@@ -631,7 +658,7 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
             )
             raise
 
-    async def async_set_hvac_mode(self, hvac_mode: HVACMode):
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new HVAC mode."""
         _LOGGER.info("Setting HVAC mode for %s to %s", self._attr_name, hvac_mode)
 
@@ -646,7 +673,7 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                     value = value_item.get("value", "")
                     description = value_item.get("description", "").lower()
                     acceptable_values[description] = value
-                    acceptable_values[value] = value
+                    acceptable_values[str(value)] = value
 
             eedomus_value = None
             if hvac_mode == HVACMode.HEAT:

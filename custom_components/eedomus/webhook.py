@@ -84,6 +84,14 @@ class EedomusWebhookView(HomeAssistantView):
 
         except json.JSONDecodeError:
             return web.Response(text="Invalid JSON", status=400)
-        except Exception as e:
-            _LOGGER.error("Webhook error: %s", str(e), exc_info=True)
+        except Exception as err:
+            _LOGGER.error(
+                "Webhook error: %s",
+                err,
+            )
+            _LOGGER.debug(
+                "Webhook traceback",
+                exc_info=True,
+            )
+
             return web.Response(text="Internal error", status=500)

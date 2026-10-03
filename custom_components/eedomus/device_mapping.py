@@ -127,35 +127,53 @@ async def load_yaml_file_async(hass, file_path: str) -> Optional[Dict[str, Any]]
 
             except yaml.YAMLError as e:
                 _LOGGER.error(
-                    "❌ CRITICAL: Failed to parse YAML file %s: %s", file_path, e
+                    "❌ CRITICAL: Failed to parse YAML file %s: %s", 
+                    file_path, 
+                    e,
                 )
                 _LOGGER.error(
                     "❌ This is likely a YAML syntax error - check file format"
                 )
-                import traceback
 
-                _LOGGER.error("YAML parsing error details: %s", traceback.format_exc())
+                _LOGGER.debug("YAML parsing error details: %s", 
+                    file_path,
+                    exc_info=True,
+                )
                 return None
             except Exception as e:
                 _LOGGER.error(
-                    "❌ CRITICAL: Error in sync YAML loading %s: %s", file_path, e
+                    "❌ CRITICAL: Error in sync YAML loading %s: %s", 
+                    file_path, 
+                    e,
                 )
                 _LOGGER.error(
                     "❌ This prevented YAML loading - check file permissions and encoding"
                 )
-                import traceback
 
-                _LOGGER.error("Error details: %s", traceback.format_exc())
+                _LOGGER.debug(
+                    "Error details: %s", 
+                    file_path,
+                    exc_info=True,
+                )
                 return None
 
         return await hass.async_add_executor_job(_load_yaml_sync)
 
     except Exception as e:
-        _LOGGER.error("❌ CRITICAL: Error in async YAML loading %s: %s", file_path, e)
-        _LOGGER.error("❌ Async executor job failed - falling back to sync loading")
-        import traceback
+        _LOGGER.error(
+            "❌ CRITICAL: Error in async YAML loading %s: %s",
+            file_path,
+            e,
+        )
+        _LOGGER.error(
+            "❌ Async executor job failed - falling back to sync loading"
+        )
 
-        _LOGGER.error("Async error details: %s", traceback.format_exc())
+        _LOGGER.debug(
+            "Async error details: %s", 
+            file_path,
+            exc_info=True,
+        )
         # Fallback to synchronous loading if async fails
         return load_yaml_file(file_path)
 
@@ -241,20 +259,34 @@ def load_yaml_file(file_path: str) -> Optional[Dict[str, Any]]:
             return content
 
     except yaml.YAMLError as e:
-        _LOGGER.error("❌ CRITICAL: Failed to parse YAML file %s: %s", file_path, e)
-        _LOGGER.error("❌ This is likely a YAML syntax error - check file format")
-        import traceback
+        _LOGGER.error(
+            "❌ CRITICAL: Failed to parse YAML file %s: %s",
+            file_path,
+            e,
+        )
+        _LOGGER.error(
+            "❌ This is likely a YAML syntax error - check file format")
 
-        _LOGGER.error("YAML parsing error details: %s", traceback.format_exc())
+        _LOGGER.debug(
+            "YAML parsing error details: %s",
+            file_path,
+            exc_info=True,
+        )
         return None
     except Exception as e:
-        _LOGGER.error("❌ CRITICAL: Error loading YAML file %s: %s", file_path, e)
+        _LOGGER.error(
+            "❌ CRITICAL: Error loading YAML file %s: %s",
+            file_path,
+            e,
+        )
         _LOGGER.error(
             "❌ This prevented YAML loading - check file permissions and encoding"
         )
-        import traceback
 
-        _LOGGER.error("Error details: %s", traceback.format_exc())
+        _LOGGER.debug("Error details: %s",
+            file_path,
+            exc_info=True,
+        )
         return None
 
 
@@ -724,11 +756,18 @@ def load_and_merge_yaml_mappings(base_path: str = "") -> Dict[str, Any]:
             return minimal_config
 
     except Exception as e:
-        _LOGGER.error("❌ CRITICAL: Failed to load YAML mappings: %s", e)
-        _LOGGER.error("❌ This exception prevented YAML loading - check stack trace")
-        import traceback
+        _LOGGER.error(
+            "❌ CRITICAL: Failed to load YAML mappings: %s",
+            e,
+        )
+        _LOGGER.error(
+            "❌ This exception prevented YAML loading - check stack trace"
+        )
 
-        _LOGGER.error("Exception stack trace: %s", traceback.format_exc())
+        _LOGGER.debug(
+            "Exception stack trace:",
+                    exc_info=True,
+                )
         _LOGGER.warning("⚠️  Falling back to minimal configuration")
 
         # Return minimal configuration with error tracking

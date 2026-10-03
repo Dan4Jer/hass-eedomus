@@ -72,15 +72,15 @@ class EedomusEndpointVolumeSensor(CoordinatorEntity, SensorEntity):
         )
         # ----------------------------------------------------------------------------------
 
+
     @property
     def native_value(self):
-        """Return the current volume for this endpoint in KB."""
-        if hasattr(self.coordinator, "_endpoint_data_sizes"):
-            bytes_value = int(
-                self.coordinator._endpoint_data_sizes.get(self._endpoint_name, 0)
-            )
-            return round(bytes_value / 1024, 2)
-        return 0
+        """Return the volume for this specific endpoint in KB."""
+        if not hasattr(self.coordinator, "_endpoint_data_sizes"):
+            return 0
+            
+        size_bytes = self.coordinator._endpoint_data_sizes.get(self._endpoint_name, 0)
+        return round(int(size_bytes) / 1024, 2)
 
     @property
     def extra_state_attributes(self):

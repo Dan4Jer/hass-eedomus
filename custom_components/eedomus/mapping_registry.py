@@ -52,11 +52,13 @@ def get_mapping_registry() -> list[dict[str, Any]]:
     """Retourne une copie du registre de mapping."""
     return _MAPPING_REGISTRY.copy()
 
-
-def print_mapping_table() -> None:
+def print_mapping_table(box_name: str = "Box eedomus") -> None:
     """Affiche un tableau récapitulatif de tous les mappings dans les logs."""
     if not _MAPPING_REGISTRY:
-        _LOGGER.warning("⚠️  Mapping registry is empty - no devices were mapped!")
+        _LOGGER.warning(
+            "⚠️  (%s) Mapping registry is empty - no devices were mapped!",
+            box_name,
+        )
         return
 
     _LOGGER.info("\n" + "=" * 120)
@@ -80,7 +82,8 @@ def print_mapping_table() -> None:
         formatted_justif = f"{justif[:48]}…" if len(justif) > 49 else justif
 
         _LOGGER.info(
-            "| %-15s | %-30s | %-15s | %-10s | %-15s | %-50s |",
+            "(%s) | %-15s | %-30s | %-15s | %-10s | %-15s | %-50s |",
+            box_name,
             mapping["periph_id"],
             formatted_name,
             mapping.get("parent_periph_id") or "-",
@@ -90,17 +93,19 @@ def print_mapping_table() -> None:
         )
 
     _LOGGER.info("=" * 120 + "\n")
-    _LOGGER.info("Total devices mapped: %d", len(_MAPPING_REGISTRY))
+    _LOGGER.info("(%s) Total devices mapped: %d", box_name, len(_MAPPING_REGISTRY))
     _LOGGER.info(
         "⚠️  Note: This table shows only devices that went through map_device_to_ha_entity()"
     )
     _LOGGER.info("\n")
 
-
-def print_mapping_summary() -> None:
+def print_mapping_summary(box_name: str = "Box eedomus") -> None:
     """Affiche un résumé condensé des mappings."""
     if not _MAPPING_REGISTRY:
-        _LOGGER.warning("⚠️  Mapping registry is empty - no devices were mapped!")
+        _LOGGER.warning(
+            "⚠️  (%s) Mapping registry is empty - no devices were mapped!",
+            box_name,
+         )
         return
 
     entity_counts: dict[str, int] = {}
@@ -116,7 +121,8 @@ def print_mapping_summary() -> None:
         )
     )
     _LOGGER.info(
-        "ℹ️  Eedomus mapping: %d devices (%s) from %d API devices",
+        "ℹ️  Eedomus mapping: (%s) %d devices (%s) from %d API devices",
+        box_name,
         len(_MAPPING_REGISTRY),
         type_summary,
         len({m["periph_id"] for m in _MAPPING_REGISTRY}),
@@ -124,7 +130,8 @@ def print_mapping_summary() -> None:
 
     # Détails en DEBUG pour ceux qui en ont besoin
     _LOGGER.debug(
-        "Total unique periph_ids: %d",
+        "Total unique periph_ids: (%s) %d",
+        box_name,
         len({m["periph_id"] for m in _MAPPING_REGISTRY}),
     )
     _LOGGER.debug("Breakdown by type:")

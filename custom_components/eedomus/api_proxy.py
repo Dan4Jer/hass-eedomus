@@ -56,5 +56,12 @@ class EedomusApiProxyView(HomeAssistantView):
         except json.JSONDecodeError:
             return web.Response(text="Invalid JSON", status=400)
         except Exception as e:
-            _LOGGER.error("Webhook error: %s", str(e), exc_info=True)
+            _LOGGER.error(
+                "Webhook error: %s",
+                str(e),
+            )
+            _LOGGER.debug(
+                "Webhook error",
+                exc_info=True,
+            )
             return web.Response(text="Internal error", status=500)

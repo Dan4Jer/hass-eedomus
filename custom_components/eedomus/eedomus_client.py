@@ -15,6 +15,7 @@ from homeassistant.config_entries import ConfigEntry
 
 from .const import (
     CONF_HTTP_REQUEST_TIMEOUT,
+    CONF_PHP_FALLBACK_ENABLED,
     DEFAULT_HTTP_REQUEST_TIMEOUT,
     DEFAULT_PHP_FALLBACK_ENABLED,
     DEFAULT_PHP_FALLBACK_SCRIPT_NAME,
@@ -254,7 +255,6 @@ class EedomusClient:
             "error_code": error_code,
             "original_response": response,
         }
-
     async def set_periph_value(self, periph_id: str, value: str) -> Dict:
         """Set or get the value of a peripheral."""
         _LOGGER.debug(
@@ -263,8 +263,16 @@ class EedomusClient:
         params = {"periph_id": periph_id, "value": value}
         result = await self.fetch_data("periph.value", params, use_set=True)
         _LOGGER.debug("set_periph_value response: %s", result)
+        
         if isinstance(result, dict):
             if result.get("success") == 0:
+                # Vérifier si le fallback est activé avant de renvoyer l'erreur
+                if self.config_entry.options.get(CONF_PHP_FALLBACK_ENABLED):
+                    _LOGGER.warning(
+                        "API failed, attempting PHP fallback for peripheral %s", periph_id
+                    )
+                    return await self.php_fallback_set_value(periph_id, value)
+
                 error = result.get("error", "Unknown error")
                 _LOGGER.error(
                     "Failed to set peripheral value: (id=%s val=%s) %s",
@@ -279,6 +287,7 @@ class EedomusClient:
                 result["success"] = 1
                 result["message"] = result["body"]["result"]
         return result
+
 
     async def php_fallback_set_value(self, periph_id: str, value: str) -> Dict:
         """

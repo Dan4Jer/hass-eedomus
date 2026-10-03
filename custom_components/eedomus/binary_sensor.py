@@ -80,11 +80,14 @@ class EedomusBinarySensor(EedomusEntity, BinarySensorEntity):
         if value is None or str(value).strip() == "":
             return None
 
+        # 1. Nettoyage systematique de la chaine (securite Silvere)
+        val_str = str(value).strip().replace(",", ".")
+
         # Gestion robuste des valeurs renvoyées par l'API eedomus
         try:
             # Tente de convertir en nombre (ex: "100", "1", "0")
-            val_int = int(float(value))
-            return val_int > 0
+            val_float = float(val_str)
+            return val_float > 0
         except (ValueError, TypeError):
             # Si c'est du texte brut (ex: "on", "open", "marche")
             val_str = str(value).strip().lower()

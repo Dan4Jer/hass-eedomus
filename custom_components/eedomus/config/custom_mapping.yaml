@@ -33,15 +33,32 @@ custom_specific_device_dynamic_overrides:
     ha_entity: climate
     ha_subtype: thermostat
     device_class: temperature
+    temperature_step: 0.5
+    precision: 0.5
+    target_temp_step: 0.5
+    unit_of_measurement: '°C'
+    icon: mdi:thermostat
+    is_dynamic: true
+    justification: Thermostat Salle a manger - consigne température
+  'thermostat':
+    ha_entity: climate
+    ha_subtype: thermostat
+    device_class: temperature
+    temperature_step: 0.5
+    precision: 0.5
+    target_temp_step: 0.5
     unit_of_measurement: '°C'
     icon: mdi:thermostat
     is_dynamic: true
     justification: Thermostat Salle a manger - consigne température
 
+
 temperature_setpoint_mappings:
   '3463520': '3463521'
+  'thermostat': 'thermostat_temp'
 heating_switch_mappings:
   '3463520': '773012'
+  'thermostat': 'thermostat_switch'
 
 custom_name_patterns: []
 

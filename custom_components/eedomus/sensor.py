@@ -279,7 +279,7 @@ class EedomusSensor(EedomusEntity, SensorEntity):
                 sw_version="Unknown",
             )
             _LOGGER.info(
-                "🔗 Attached system sensor %s to Box eedomus",
+                "🔗 Attached system sensor %s to Box eedomus.",
                 periph_info.get("name", "unknown"),
             )
         # -----------------------------------------------------------------------------
@@ -325,6 +325,7 @@ class EedomusSensor(EedomusEntity, SensorEntity):
         elif periph_type == "disk_free_space":
             self._attr_icon = "mdi:harddisk"
 
+
     @property
     def native_value(self):
         """Return the state of the sensor."""
@@ -343,7 +344,7 @@ class EedomusSensor(EedomusEntity, SensorEntity):
             value,
         )
 
-        # ✅ CORRECTION ANTI-CRASH "Silvère" : On intercepte le texte proprement avec vos logs d'origine
+        # 1. Capteurs texte
         if (
             self._attr_device_class == "text"
             or (hasattr(self, "_attr_ha_subtype") and self._attr_ha_subtype == "text")
@@ -358,8 +359,8 @@ class EedomusSensor(EedomusEntity, SensorEntity):
             )
             return str(value) if value is not None else None
 
-        # Handle empty or invalid values
-        if not value or value == "":
+        # 2. Valeurs vides ou None
+        if value is None or str(value).strip() == "":
             _LOGGER.debug(
                 "Missing or empty value for sensor %s (periph_id=%s)",
                 self.coordinator.data.get(self._periph_id, {}).get("name", "unknown"),
@@ -367,22 +368,18 @@ class EedomusSensor(EedomusEntity, SensorEntity):
             )
             return None
 
-        # Handle non-standard value formats (e.g., "8 (31)")
-        if isinstance(value, str) and "(" in value:
-            value = value.split("(")[0].strip()
-            _LOGGER.debug(
-                "Non-standard value format corrected for sensor %s (periph_id=%s): %s",
-                self.coordinator.data.get(self._periph_id, {}).get("name", "unknown"),
-                self._periph_id,
-                value,
-            )
+        # 3. Sécurisation "Silvère" : str() forcé + conversion des virgules en points
+        val_str = str(value).strip()
 
-        # Check if value is numeric before conversion
-        if isinstance(value, (int, float)):
-            return float(value)
-        elif isinstance(value, str) and value.replace(".", "", 1).lstrip("-").isdigit():
-            return float(value)
-        else:
+        if "(" in val_str:
+            val_str = val_str.split("(")[0].strip()
+
+        clean_value = val_str.replace(",", ".")
+
+        # 4. Conversion numérique finale
+        try:
+            return float(clean_value)
+        except ValueError:
             _LOGGER.debug(
                 "Non-numeric value for sensor %s (periph_id=%s): '%s' - returning as None",
                 self.coordinator.data.get(self._periph_id, {}).get("name", "unknown"),
@@ -390,6 +387,7 @@ class EedomusSensor(EedomusEntity, SensorEntity):
                 value,
             )
             return None
+
 
     @property
     def device_class(self):
@@ -463,12 +461,14 @@ class EedomusSensor(EedomusEntity, SensorEntity):
             return self._attr_native_unit_of_measurement
 
         unit = periph_data.get("unit")
+        """
         _LOGGER.debug(
             "Sensor %s (periph_id=%s) unit_of_measurement: %s",
             periph_data.get("name", "unknown"),
             self._periph_id,
             unit,
         )
+        """
 
         # ✅ PRIORITÉ 2 : AJOUT DE LA SÉCURITÉ ANTI-ESPACE VIDE (' ')
         if isinstance(unit, str) and not unit.strip():

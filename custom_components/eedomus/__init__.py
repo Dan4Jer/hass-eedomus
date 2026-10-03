@@ -249,6 +249,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER.info(
                 "Created main eedomus box device: %s (%s)", box_device.id, box_name
             )
+            if coordinator:
+                coordinator.hub_device_id = box_device.id
             # -----------------------------------------------------------------------------
         except Exception as e:
             _LOGGER.warning("Failed to create main eedomus box device: %s", e)
@@ -262,7 +264,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             try:
                 from .mapping_registry import print_mapping_table
 
-                print_mapping_table()
+                print_mapping_table(self._box_nam)
             except Exception as e:
                 _LOGGER.debug("Failed to display mapping table: %s", e)
         except ConfigEntryNotReady:
@@ -356,78 +358,81 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         except Exception as err:
             _LOGGER.error("Failed to setup history sensors: %s", err)
 
-    # Always setup refresh timing sensors (they're lightweight and useful for monitoring)
-    try:
-        from homeassistant.helpers.device_registry import (
-            async_get as async_get_device_registry,
-        )
 
-        from .refresh_timing_sensor import async_setup_refresh_timing_sensors
-
-        device_registry = async_get_device_registry(hass)
-        timing_sensors = await async_setup_refresh_timing_sensors(
-            hass, coordinator, device_registry
-        )
-
-        # Note: Timing sensors will be registered with other sensors via PLATFORMS
-        # No need for separate registration to avoid double setup
-        if timing_sensors:
-            _LOGGER.info(
-                "✅ Refresh timing sensors ready (will be registered with other sensors)"
+    # Setup coordinator monitoring sensors only when a coordinator exists
+    if coordinator:
+        try:
+            from homeassistant.helpers.device_registry import (
+                async_get as async_get_device_registry,
             )
-    except Exception as err:
-        _LOGGER.error("Failed to setup refresh timing sensors: %s", err)
 
-    # Setup endpoint volume sensors (data volume monitoring)
-    try:
-        from .endpoint_volume_sensor import async_setup_endpoint_volume_sensors
+            from .refresh_timing_sensor import async_setup_refresh_timing_sensors
+            from .endpoint_volume_sensor import async_setup_endpoint_volume_sensors
 
-        volume_sensors = await async_setup_endpoint_volume_sensors(
-            hass, coordinator, device_registry
-        )
+            device_registry = async_get_device_registry(hass)
 
-        # Debug: Log the number of volume sensors created
-        _LOGGER.info(
-            "📊 Created %d endpoint volume sensors",
-            len(volume_sensors) if volume_sensors else 0,
-        )
-
-        # Note: Volume sensors will be registered with other sensors via PLATFORMS
-        # No need for separate registration to avoid double setup
-        if volume_sensors:
-            _LOGGER.info(
-                "✅ Endpoint volume sensors ready (will be registered with other sensors)"
+            timing_sensors = await async_setup_refresh_timing_sensors(
+                hass,
+                coordinator,
+                device_registry,
             )
-            # Store volume sensors in coordinator for access by sensor setup
-            if coordinator:
-                coordinator._volume_sensors = volume_sensors
-                _LOGGER.debug(
-                    "📊 Stored %d volume sensors in coordinator", len(volume_sensors)
+
+            if timing_sensors:
+                coordinator._timing_sensors = timing_sensors
+                _LOGGER.info(
+                    "✅ Refresh timing sensors ready "
+                    "(will be registered with other sensors)"
                 )
-    except Exception as err:
-        _LOGGER.error("Failed to setup endpoint volume sensors: %s", err)
 
-    # Store timing sensors in coordinator for access by sensor setup
-    if coordinator and "timing_sensors" in locals():
-        coordinator._timing_sensors = timing_sensors
+            volume_sensors = await async_setup_endpoint_volume_sensors(
+                hass,
+                coordinator,
+                device_registry,
+            )
+
+            _LOGGER.info(
+                "📊 Created %d endpoint volume sensors",
+                len(volume_sensors) if volume_sensors else 0,
+            )
+
+            if volume_sensors:
+                coordinator._volume_sensors = volume_sensors
+                _LOGGER.info(
+                    "✅ Endpoint volume sensors ready "
+                    "(will be registered with other sensors)"
+                )
+                _LOGGER.debug(
+                    "📊 Stored %d volume sensors in coordinator",
+                    len(volume_sensors),
+                )
+
+        except Exception as err:
+            _LOGGER.error(
+                "Failed to setup coordinator monitoring sensors: %s",
+                err,
+            )
+    else:
+        _LOGGER.debug(
+            "Proxy-only mode: skipping coordinator monitoring sensors"
+        )
+
 
     # Stockage sécurisé
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
 
-    # Store coordinator only if it was initialized
     entry_data = {}
-    if coordinator:
-        entry_data[COORDINATOR] = coordinator
 
-    # Store entry data
     if coordinator:
         entry_data[COORDINATOR] = coordinator
         _LOGGER.debug(
-            "Coordinator stored successfully for entry_id: %s", entry.entry_id
+            "Coordinator stored successfully for entry_id: %s",
+            entry.entry_id,
         )
     else:
-        _LOGGER.info("No coordinator stored - running in proxy mode only")
+        _LOGGER.info(
+            "No coordinator stored - running in proxy mode only"
+        )
 
     hass.data[DOMAIN][entry.entry_id] = entry_data
 
@@ -485,8 +490,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     else:
         _LOGGER.info("Api Proxy mode disabled")
 
-    # Forward setup to platforms
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    # Forward setup to platforms only when the coordinator exists.
+    # Current entity platforms depend on COORDINATOR being available.
+    if coordinator:
+        await hass.config_entries.async_forward_entry_setups(
+            entry,
+            PLATFORMS,
+        )
+    else:
+        _LOGGER.info(
+            "Proxy-only mode: skipping coordinator-based platforms"
+        )
 
     # Note: Configuration manager has been removed - using YAML-based configuration only
     # using the modern frontend.async_register_built_in_panel() method

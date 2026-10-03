@@ -362,6 +362,7 @@ class EedomusLight(EedomusEntity, LightEntity):
     async def async_turn_off(self, **kwargs):
         """Turn the light off."""
         _LOGGER.debug("Turning off light %s", self._periph_id)
+        response = None
         try:
             # Use entity method to turn off light (includes fallback, retry, and state update)
             response = await self.async_set_value("0")

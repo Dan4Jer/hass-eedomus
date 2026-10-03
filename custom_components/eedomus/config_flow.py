@@ -174,9 +174,16 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             info = await self.validate_input(user_input)
         except vol.Invalid as err:
             errors = {"base": str(err)}
-            _LOGGER.error("Validation error: %s", str(err))
-        except Exception:  # pylint: disable=broad-except
-            _LOGGER.exception("Unexpected exception during validation")
+            _LOGGER.debug("Validation error: %s", str(err))
+        except Exception as err:  # pylint: disable=broad-except
+            _LOGGER.error(
+                "Unexpected exception during validation: %s",
+                err,
+            )
+            _LOGGER.debug(
+                "Validation traceback",
+                exc_info=True,
+            )
             errors = {"base": "unknown"}
         else:
             _LOGGER.info("Configuration validation successful, creating entry")
@@ -195,20 +202,8 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         # Basic validation - API host is always required
         if not data[CONF_API_HOST] or not data[CONF_API_HOST].strip():
-            _LOGGER.error("Validation failed: API host is empty")
+            _LOGGER.debug("Validation failed: API host is empty")
             raise vol.Invalid("API host cannot be empty")
-
-        # Validate scan interval (only relevant for API Eedomus mode, but validate anyway)
-        scan_interval = data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-        if scan_interval < 30:
-            raise vol.Invalid("Scan interval must be at least 30 seconds")
-
-        # Validate HTTP request timeout
-        http_request_timeout = data.get(
-            CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT
-        )
-        if http_request_timeout < 5 or http_request_timeout > 120:
-            raise vol.Invalid("HTTP request timeout must be between 5 and 120 seconds")
 
         # Check which modes are enabled
         api_eedomus_enabled = data.get(
@@ -224,6 +219,24 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             api_proxy_enabled,
         )
 
+        # 1. Check if at least one mode is enabled (Do this early!)
+        if not api_eedomus_enabled and not api_proxy_enabled:
+            raise vol.Invalid(
+                "At least one connection mode (API Eedomus or API Proxy) must be enabled"
+            )
+
+        # Validate scan interval (only relevant for API Eedomus mode, but validate anyway)
+        scan_interval = data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        if scan_interval < 30:
+            raise vol.Invalid("Scan interval must be at least 30 seconds")
+
+        # Validate HTTP request timeout
+        http_request_timeout = data.get(
+            CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT
+        )
+        if http_request_timeout < 5 or http_request_timeout > 120:
+            raise vol.Invalid("HTTP request timeout must be between 5 and 120 seconds")
+
         # Validate API Eedomus mode requirements
         if api_eedomus_enabled:
             # API Eedomus mode requires credentials
@@ -237,11 +250,12 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     "API secret is required when API Eedomus mode is enabled"
                 )
 
-            # History option is only available with API Eedomus mode
-            if data.get(CONF_ENABLE_HISTORY) and not api_eedomus_enabled:
-                raise vol.Invalid("History can only be enabled with API Eedomus mode")
+        # History option is only available with API Eedomus mode
+        if data.get(CONF_ENABLE_HISTORY) and not api_eedomus_enabled:
+            raise vol.Invalid("History can only be enabled with API Eedomus mode")
 
-            # Test the connection for API Eedomus mode
+        # Test the connection for API Eedomus mode
+        if api_eedomus_enabled:
             session = async_get_clientsession(self.hass)
 
             client = EedomusClient(
@@ -296,8 +310,13 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
                 _LOGGER.info("API Eedomus connection test successful")
             except Exception as e:
-                _LOGGER.error("API Eedomus connection test failed: %s", str(e))
-                raise vol.Invalid(f"API Eedomus connection test failed: {str(e)}")
+                _LOGGER.warning(
+                    "API Eedomus connection test failed: %s",
+                    e,
+                )
+                raise vol.Invalid(
+                    f"API Eedomus connection test failed: {e}"
+                )
 
         # API Proxy mode validation
         if api_proxy_enabled:
@@ -306,12 +325,6 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
             # For proxy mode, we just need to ensure the host is valid
             # No connection test needed as webhooks are passive
-
-        # Check if at least one mode is enabled
-        if not api_eedomus_enabled and not api_proxy_enabled:
-            raise vol.Invalid(
-                "At least one connection mode (API Eedomus or API Proxy) must be enabled"
-            )
 
         # Generate appropriate title based on enabled modes
         modes = []

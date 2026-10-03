@@ -25,6 +25,15 @@ from .entity import map_device_to_ha_entity
 
 _LOGGER = logging.getLogger(__name__)
 
+def get_clean_box_name(entry: ConfigEntry) -> tuple[str, str]:
+    """Extrait proprement l'IP pour formater le nom de la Box."""
+    host = entry.data.get("host") or entry.title
+    if "Eedomus (" in host:
+        try:
+            host = host.split("Eedomus (")[1].split(")")[0]
+        except Exception:
+            pass
+    return host, f"Box eedomus ({host})"
 
 class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
     """Eedomus data update coordinator with optimized refresh strategy."""
@@ -86,6 +95,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             "partial_refresh": 0,
         }
         self._yaml_config_cache = None  # Cache for YAML configuration
+        host, box_name = get_clean_box_name(config_entry)
+        self._box_name = box_name
 
     async def async_config_entry_first_refresh(self):
         """Effectue le premier rafraîchissement des données et charge la progression de l'historique.
@@ -178,7 +189,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
         # Logs des tailles
         _LOGGER.info(
-            "Initial data load summary - peripherals: %d, value_list: %d, caract: %d, total: %d",
+            "Initial data load summary - (%s) peripherals: %d, value_list: %d, caract: %d, total: %d",
+            self._box_name,
             len(peripherals_dict),
             len(peripherals_value_dict),
             len(peripherals_caract_dict),
@@ -196,7 +208,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         for periph_id, periph_data in aggregated_data.items():
             if not isinstance(periph_data, dict) or "periph_id" not in periph_data:
                 _LOGGER.warning(
-                    "Skipping invalid peripheral (ID: %s, type: %s, data: %s)",
+                    "Skipping invalid peripheral (%s) (ID: %s, type: %s, data: %s)",
+                    self._box_name,
                     periph_id,
                     type(periph_data),
                     periph_data,
@@ -211,7 +224,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 dynamic += 1
 
         _LOGGER.info(
-            "📊 Device processing summary: %d total peripherals, %d dynamic, %d skipped, %d processed",
+            "📊 Device processing summary: (%s) : %d total peripherals, %d dynamic, %d skipped, %d processed",
+            self._box_name,
             len(aggregated_data),
             dynamic,
             skipped,
@@ -228,7 +242,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         )
         total_time = sum(self._endpoint_timings.values())
         _LOGGER.info(
-            "🔄 INITIAL REFRESH: %d total, %.3fs total (Endpoints: %s)",
+            "🔄 INITIAL REFRESH: (%s) : %d total, %.3fs total (Endpoints: %s)",
+            self._box_name,
             len(aggregated_data),
             total_time,
             endpoint_log,
@@ -264,24 +279,27 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
             # Display summary at INFO level (always visible)
             _LOGGER.info(
-                "🗺️ Device Mapping Summary: %d total devices, %d unique types",
+                "🗺️ Device Mapping Summary: (%s) %d total devices, %d unique types",
+                self._box_name, 
                 len(aggregated_data),
                 len(device_types),
             )
             if rgbw_lamps > 0:
                 _LOGGER.info(
-                    "🎨 RGBW Devices: %d lamps with %d brightness channels",
+                    "🎨 RGBW Devices: (%s) %d lamps with %d brightness channels",
+                    self._box_name,
                     rgbw_lamps,
                     rgbw_children,
                 )
 
             # Display enhanced mapping table at INFO level for complete visibility
-            _LOGGER.info("🗺️ Enhanced Device Mapping Table:")
+            _LOGGER.info("🗺️ (%s) Enhanced Device Mapping Table:", self._box_name)
             _LOGGER.info("=" * 150)
             _LOGGER.info(
-                "| Periph ID   | Device Name                          "
+                "(%s)| Periph ID   | Device Name                          "
                 "| Parent ID     | Type       | Subtype         "
-                "| usage_id | PRODUCT_TYPE_ID | Justification                                  |"
+                "| usage_id | PRODUCT_TYPE_ID | Justification                                  |",
+            self._box_name,
             )
             _LOGGER.info("=" * 150)
 
@@ -321,7 +339,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
                 # Format the table row at INFO level
                 _LOGGER.info(
-                    "| %-12s | %-35s | %-12s | %-10s | %-14s | %-8s | %-15s | %-45s |",
+                    "%s | %-12s | %-35s | %-12s | %-10s | %-14s | %-8s | %-15s | %-45s |",
+                    self._box_name,
                     periph_id,
                     f"{device_name}",
                     parent_id,
@@ -333,7 +352,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 )
 
             _LOGGER.info("=" * 150)
-            _LOGGER.info(f"Total devices mapped: {len(aggregated_data)}")
+            _LOGGER.info("Total devices mapped: (%s) %d ",
+                self._box_name,
+                len(aggregated_data)
+            )
             _LOGGER.info(
                 "⚠️  Note: This table shows all devices with complete coordinator data"
             )
@@ -358,7 +380,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # On conserve start_time (datetime) car il est utilisé pour _last_update_start_time et le _scan_interval
         start_time = datetime.now()
 
-        _LOGGER.debug("Update eedomus data")
+        _LOGGER.debug("Update eedomus data (%s)",
+            self._box_name,
+        )
         if (
             start_time - self._last_update_start_time
         ).total_seconds() > self._scan_interval:
@@ -426,9 +450,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     )
 
                     _LOGGER.info(
-                        "🔄 FULL REFRESH: %d total, "
+                        "🔄 FULL REFRESH: (%s)  %d total, "
                         "%d dynamic, %.3fs total "
                         "(API: %.3fs, Processing: %.3fs, Endpoints: %s)",
+                        self._box_name,
                         stats["total_peripherals"],
                         stats["dynamic_peripherals"],
                         total_time,
@@ -468,7 +493,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     )
 
                     _LOGGER.info(
-                        "🔄 FULL REFRESH: %d total, %.3fs total (API: %.3fs, Endpoints: %s)",
+                        "🔄 FULL REFRESH: (%s) %d total, %.3fs total (API: %.3fs, Endpoints: %s)",
+                        self._box_name,
                         len(aggregated_data),
                         total_time,
                         actual_api_time,
@@ -527,7 +553,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     if self._is_dynamic_peripheral(periph_data)
                 )
                 _LOGGER.info(
-                    "🔄 PARTIAL REFRESH: %d dynamic, %.3fs total (Endpoints: %s)",
+                    "🔄 PARTIAL REFRESH: (%s) %d dynamic, %.3fs total (Endpoints: %s)",
+                    self._box_name,
                     partial_dynamic_count,
                     total_time,
                     endpoint_log,
@@ -541,7 +568,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             # Handle timeout specifically - don't raise UpdateFailed for timeouts
             if "Request timed out" in str(err):
                 _LOGGER.warning(
-                    "⏳ Timeout occurred after %.3f seconds - using last known good data (size: %d)",
+                    "⏳ Timeout (%s) occurred after %.3f seconds - using last known good data (size: %d)",
+                    self._box_name,
                     elapsed,
                     len(self.data) if hasattr(self, "data") and self.data else 0,
                 )
@@ -551,9 +579,19 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 # If no data available, return empty success response
                 return {"success": 1, "body": []}
             else:
-                _LOGGER.exception(
-                    "Error updating eedomus after %.3f seconds data: %s", elapsed, err
+                _LOGGER.error(
+                    "Error updating eedomus (%s) after %.3f seconds data: %s",
+                    self._box_name,
+                    elapsed,
+                    err,
                 )
+
+                _LOGGER.debug(
+                    "Full traceback for eedomus update failure (%s)",
+                    self._box_name,
+                    exc_info=True,
+                )
+
                 # Return last known good data if available
                 # if hasattr(self, "data") and self.data:
                 #    return self.data
@@ -574,7 +612,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             self._yaml_config_cache = merged_config
             return self._yaml_config_cache
         except Exception as e:
-            _LOGGER.error("❌ Failed to load YAML config asynchronously: %s", e)
+            _LOGGER.error("❌ Failed to load YAML config asynchronously: (%s) %s", 
+                self._box_name,
+                e,
+            )
             _LOGGER.error(
                 "❌ This is a critical error - YAML configuration could not be loaded"
             )
@@ -595,7 +636,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             return self._yaml_config_cache
 
         # This should never happen - YAML config should be pre-loaded during initialization
-        _LOGGER.error("❌ CRITICAL BUG: YAML config requested but not loaded!")
+        _LOGGER.error("❌ CRITICAL BUG: YAML config (%s) requested but not loaded!",
+            self._box_name,
+        )
         _LOGGER.error(
             "❌ This indicates get_yaml_config_sync() was called before initialization completed"
         )
@@ -642,10 +685,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         self._endpoint_call_counts["get_periph_caract"] += 1
 
         _LOGGER.debug(
-            "📊 Endpoint metrics - "
+            "📊 Endpoint metrics (%s) - "
             "get_periph_list: %.3fs (%.1f KB), "
             "get_periph_value_list: %.3fs (%.1f KB), "
             "get_periph_caract: %.3fs (%.1f KB)",
+            self._box_name,
             self._endpoint_timings["get_periph_list"],
             self._endpoint_data_sizes["get_periph_list"] / 1024,
             self._endpoint_timings["get_periph_value_list"],
@@ -658,7 +702,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             or not isinstance(peripherals_value_list_response, dict)
             or not isinstance(peripherals_caract_response, dict)
         ):
-            _LOGGER.error("Invalid API response format: %s", peripherals_response)
+            _LOGGER.error("Invalid API (%s) response format: %s", 
+                self._box_name,
+                peripherals_response,
+            )
             raise UpdateFailed("Invalid API response format")
         if (
             peripherals_response.get("success", 0) != 1
@@ -666,10 +713,17 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             and peripherals_caract_response.get("success", 0) != 1
         ):
             error = peripherals_response.get("error", "Unknown API error")
-            _LOGGER.error("API request failed: %s", error)
-            _LOGGER.debug("API peripherals_response %s", peripherals_response)
+            _LOGGER.error("API request failed: (%s) %s", 
+                self._box_name,
+                error,
+            )
+            _LOGGER.debug("API peripherals_response (%s) %s", 
+                self._box_name,
+                peripherals_response,
+            )
             _LOGGER.debug(
-                "API peripherals_value_list_response %s",
+                "API peripherals_value_list_response (%s) %s",
+                self._box_name,
                 peripherals_value_list_response,
             )
             raise UpdateFailed(f"API request failed: {error}")
@@ -677,17 +731,31 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         peripherals_value_list = peripherals_value_list_response.get("body", [])
         peripherals_caract = peripherals_caract_response.get("body", [])
         if not isinstance(peripherals, list):
-            _LOGGER.error("Invalid peripherals list: %s", peripherals)
+            _LOGGER.error("Invalid peripherals list (%s): %s", 
+                self._box_name,
+                peripherals,
+            )
             peripherals = []
-        _LOGGER.debug("Found %d peripherals in total", len(peripherals))
+        _LOGGER.debug("(%s) Found %d peripherals in total", 
+            self._box_name,
+            len(peripherals),
+        )
         if not isinstance(peripherals_value_list, list):
-            _LOGGER.error("Invalid peripherals list: %s", peripherals_value_list)
+            _LOGGER.error("Invalid peripherals list (%s): %s", 
+                self._box_name,
+                peripherals_value_list,
+            )
             peripherals_value_list = []
         if not isinstance(peripherals_caract, list):
-            _LOGGER.error("Invalid peripherals list: %s", peripherals_caract)
+            _LOGGER.error("Invalid peripherals list (%s): %s", 
+                self._box_name,
+                peripherals_caract
+            )
             peripherals_caract = []
         _LOGGER.debug(
-            "Found %d peripherals value list in total", len(peripherals_caract)
+            "(%s) Found %d peripherals value list in total", 
+            self._box_name,
+            len(peripherals_value_list),
         )
         return (peripherals, peripherals_value_list, peripherals_caract)
 
@@ -718,10 +786,17 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_full_refresh(self):
         """Perform a complete refresh of all peripherals."""
-        _LOGGER.debug("Performing full data refresh from eedomus API")
+        _LOGGER.debug(
+            "Performing full data refresh from eedomus (%s) API",
+            self._box_name,
+        )
 
         # Récupération des données - CORRECTED: now calls full data retrieve with all endpoints
-        peripherals_caract = await self._async_full_data_retreive()
+        (
+            peripherals,
+            peripherals_value_list,
+            peripherals_caract,
+        ) = await self._async_full_data_retreive()
 
         # SAFE: Ensure peripherals_caract contains dictionaries with periph_id
         # URGENT FIX FOR CRITICAL BUG - 2026-02-23 16:50
@@ -741,13 +816,15 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                         peripherals_caract_dict[str(sub_item["periph_id"])] = sub_item
                     else:
                         _LOGGER.error(
-                            "❌ Invalid sub-item in nested structure: %s (type: %s)",
+                            "❌ (%s) Invalid sub-item in nested structure: %s (type: %s)",
+                            self._box_name,
                             sub_item,
                             type(sub_item),
                         )
             else:
                 _LOGGER.error(
-                    "❌ CRITICAL BUG FIXED: Invalid peripheral data format: %s (type: %s)",
+                    "❌ (%s) CRITICAL BUG FIXED: Invalid peripheral data format: %s (type: %s)",
+                    self._box_name,
                     it,
                     type(it),
                 )
@@ -755,12 +832,13 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # Log nested structure count once instead of multiple times
         if nested_structure_count > 0:
             _LOGGER.debug(
-                "🔍 Found %d nested structure(s) in peripherals_caract, flattened successfully",
+                "🔍 (%s) Found %d nested structure(s) in peripherals_caract, flattened successfully",
+                self._box_name,
                 nested_structure_count,
             )
 
-        # Initialisation du dictionnaire agrégé
-        aggregated_data = self.data
+        # Initialisation du dictionnaire agrégé (sécurisé contre None)
+        aggregated_data = self.data if self.data is not None else {}        
 
         # Agrégation des données pour chaque périphérique
         all_periph_ids = set(peripherals_caract_dict.keys())
@@ -768,7 +846,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         for periph_id in all_periph_ids:
             if periph_id not in aggregated_data:
                 _LOGGER.warning(
-                    "This periph_id is unknown %d, please do a reload", periph_id
+                    "(%s) This periph_id is unknown %s, please do a reload", 
+                    self._box_name,
+                    periph_id,
                 )
                 aggregated_data[periph_id] = {}
 
@@ -778,7 +858,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
         # Logs des tailles
         _LOGGER.debug(
-            "Data refresh summary - caract: %d, total: %d",
+            "Data refresh summary (%s) - caract: %d, total: %d",
+            self._box_name,
             len(peripherals_caract_dict),
             len(aggregated_data),
         )
@@ -794,7 +875,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         for periph_id, periph_data in aggregated_data.items():
             if not isinstance(periph_data, dict) or "periph_id" not in periph_data:
                 _LOGGER.warning(
-                    "Skipping invalid peripheral (ID: %s, type: %s, data: %s)",
+                    "(%s) Skipping invalid peripheral (ID: %s, type: %s, data: %s)",
+                    self._box_name,
                     periph_id,
                     type(periph_data),
                     periph_data,
@@ -809,7 +891,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 dynamic += 1
 
         _LOGGER.info(
-            "📊 Device processing summary: %d total peripherals, %d dynamic, %d skipped, %d processed",
+            "📊 (%s) Device processing summary: %d total peripherals, %d dynamic, %d skipped, %d processed",
+            self._box_name,
             len(aggregated_data),
             dynamic,
             skipped,
@@ -840,7 +923,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             peripherals_for_history.append(periph_id)
 
         _LOGGER.debug(
-            "Performing partial refresh for %d dynamic peripherals, history=%s",
+            "(%s) Performing partial refresh for %d dynamic peripherals, history=%s",
+            self._box_name,
             len(self._dynamic_peripherals),
             history_retrieval,
         )
@@ -851,16 +935,21 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # Skip API call if no dynamic peripherals to refresh
         if not self._dynamic_peripherals:
             _LOGGER.warning(
-                "No dynamic peripherals to refresh, skipping partial refresh"
+                "(%s) No dynamic peripherals to refresh, skipping partial refresh",
+                self._box_name,
             )
             # Return current data to preserve state instead of empty dict
             if hasattr(self, "data") and self.data:
                 _LOGGER.info(
-                    "Returning current data to preserve state during partial refresh"
+                    "(%s) Returning current data to preserve state during partial refresh",
+                    self._box_name,
                 )
                 return self.data
             else:
-                _LOGGER.error("No data available to return during partial refresh")
+                _LOGGER.error(
+                    "(%s) No data available to return during partial refresh",
+                    self._box_name,
+                )
                 return {"success": 1, "body": []}
 
         concat_text_periph_id = ",".join(peripherals_for_history)
@@ -880,37 +969,51 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             self._endpoint_call_counts["get_periph_caract"] += 1
 
             _LOGGER.debug(
-                "📊 Partial refresh metrics - get_periph_caract: %.3fs (%d bytes)",
+                "📊 (%s) Partial refresh metrics - get_periph_caract: %.3fs (%d bytes)",
+                self._box_name, 
                 self._endpoint_timings["get_periph_caract"],
                 self._endpoint_data_sizes["get_periph_caract"],
             )
         except Exception as e:
             _LOGGER.warning(
-                "Failed to partial refresh peripheral %s: %s", concat_text_periph_id, e
+                "Failed to partial refresh peripheral (%s) %s: %s", 
+                self._box_name,
+                concat_text_periph_id,
+                e,
             )
 
         if not isinstance(peripherals_caract, dict):
-            _LOGGER.warning("Failed to partial refresh %s", concat_text_periph_id)
+            _LOGGER.warning("Failed to partial refresh (%s) %s", 
+                self._box_name,
+                concat_text_periph_id,
+            )
             raise
 
         # Ensure peripherals_caract.get("body") is a list before iterating
         peripherals_body = peripherals_caract.get("body")
         if not isinstance(peripherals_body, list):
             _LOGGER.error(
-                "peripherals_caract body is not a list: %s", type(peripherals_body)
+                "peripherals_caract body is not a list: (%s) %s", 
+                self._box_name,
+                type(peripherals_body),
             )
             if peripherals_body is None:
                 _LOGGER.error(
-                    "peripherals_caract body is None, API may have returned empty response"
+                    "peripherals_caract body is None, API (%s) may have returned empty response",
+                    self._box_name,
                 )
             # Return current data to preserve state instead of None
             if hasattr(self, "data") and self.data:
                 _LOGGER.info(
-                    "Returning current data to preserve state during partial refresh"
+                    "Returning current data to preserve state during partial refresh (%s)",
+                    self._box_name,
                 )
                 return self.data
             else:
-                _LOGGER.error("No data available to return during partial refresh")
+                _LOGGER.error(
+                    "No data available to return during partial refresh (%s)",
+                    self._box_name,
+                )
                 return {"success": 1, "body": []}
 
         # End API timing, start processing timing
@@ -926,18 +1029,24 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 processed_devices += 1
             else:
                 _LOGGER.warning(
-                    "Cannot update peripheral data: data not available for %s",
+                    "Cannot update peripheral data: (%s) data not available for %s",
+                    self._box_name,
                     periph_id,
                 )
 
             # Try to retrieve history if enabled and this peripheral needs it
             if history_retrieval and periph_id in peripherals_for_history:
                 if not self._history_progress.get(periph_id, {}).get("completed"):
-                    _LOGGER.debug("Retrieving data history %s", periph_id)
+                    _LOGGER.debug(
+                        "(%s) Retrieving data history %s", 
+                        self._box_name,
+                        periph_id,
+                    )
                     chunk = await self.async_fetch_history_chunk(periph_id)
                     if chunk:
                         _LOGGER.debug(
-                            "Retrieved %d history data points for %s",
+                            "(%s) Retrieved %d history data points for %s",
+                            self._box_name,
                             len(chunk),
                             periph_id,
                         )
@@ -975,7 +1084,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
         if ha_entity in dynamic_types:
             _LOGGER.debug(
-                "Peripheral is dynamic ! %s (%s)",
+                "(%s) Peripheral is dynamic ! %s (%s)",
+                self._box_name,
                 periph.get("name"),
                 periph.get("periph_id"),
             )
@@ -987,14 +1097,16 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             and entity_specifics.get("value_mapping") == "dynamic_from_values"
         ):
             _LOGGER.debug(
-                "Sensor is dynamic (value_mapping) ! %s (%s)",
+                "(%s) Sensor is dynamic (value_mapping) ! %s (%s)",
+                self._box_name,
                 periph.get("name"),
                 periph.get("periph_id"),
             )
             return True
 
         _LOGGER.debug(
-            "Peripheral is NOT dynamic ! %s (%s)",
+            "(%s) Peripheral is NOT dynamic ! %s (%s)",
+            self._box_name,
             periph.get("name"),
             periph.get("periph_id"),
         )
@@ -1032,13 +1144,15 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                         "completed": state.attributes.get("completed", False),
                     }
                     _LOGGER.debug(
-                        "Loaded progress for %s: %s",
+                        "Loaded progress for (%s) %s: %s",
+                        self._box_name,
                         periph_id,
                         self._history_progress[periph_id],
                     )
         except Exception as e:
             _LOGGER.warning(
-                "Warning loading history progress (this is normal if no history data exists): %s",
+                "Warning loading history progress (this is normal if no history data exists): (%s) %s",
+                self._box_name,
                 e,
             )
 
@@ -1066,9 +1180,18 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                         "state_class": "measurement",
                     },
                 )
-                _LOGGER.debug("Saved progress for %s: %s", periph_id, progress)
+                _LOGGER.debug(
+                    "Saved progress for (%s) %s: %s", 
+                    self._box_name,
+                    periph_id, 
+                    progress
+                )
         except Exception as e:
-            _LOGGER.error("Error saving history progress: %s", e)
+            _LOGGER.error(
+                "Error saving history progress: (%s) %s", 
+                self._box_name,
+                e,
+            )
 
     def _validate_history_data(self, chunk: list) -> bool:
         """Valider les données historiques reçues."""
@@ -1113,9 +1236,16 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 "attempts": 1,
             }
             _LOGGER.error(
-                f"❌ Erreur lors de la récupération de l'historique pour {periph_id}: {error_message}"
+                "❌ (%s) Erreur lors de la récupération de l'historique pour %s: %s",
+                self._box_name,
+                periph_id,
+                error_message,
             )
-            _LOGGER.error(f"   Réessai dans {retry_delay_hours} heures")
+            _LOGGER.error(
+                "(%s) Réessai dans %s heures",
+                self._box_name,
+                retry_delay_hours,
+            )
         else:
             # Mettre à jour le compteur d'erreurs
             if periph_id in self._retry_queue:
@@ -1128,7 +1258,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             retry_info = self._retry_queue[periph_id]
             if datetime.now().timestamp() < retry_info["retry_after"]:
                 _LOGGER.debug(
-                    f"Skipping {periph_id} - in retry queue until {retry_info['retry_after']}"
+                    "Skipping (%s) %s - in retry queue until %d",
+                    self._box_name,
+                    periph_id,
+                    retry_info['retry_after'],
                 )
                 return []
 
@@ -1140,11 +1273,16 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
         progress = self._history_progress[periph_id]
         if progress["completed"]:
-            _LOGGER.debug("History already fully fetched for %s", periph_id)
+            _LOGGER.debug(
+                "(%s) History already fully fetched for %s", 
+                self._box_name,
+                periph_id,
+            )
             return []
 
         _LOGGER.info(
-            "Fetching history for %s (from %s)",
+            "(%s) Fetching history for %s (from %s)",
+            self._box_name,
             periph_id,
             (
                 datetime.fromtimestamp(progress["last_timestamp"]).isoformat()
@@ -1160,13 +1298,21 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             )
 
             if not chunk:
-                _LOGGER.error("No history data received for %s", periph_id)
+                _LOGGER.error(
+                    "No history data received for (%s) %s", 
+                    self._box_name,
+                    periph_id,
+                )
                 self._handle_fetch_error(periph_id, "No data received")
                 return []
 
             # Valider les données reçues
             if not self._validate_history_data(chunk):
-                _LOGGER.error(f"❌ Données historiques invalides pour {periph_id}")
+                _LOGGER.error(
+                    "❌ Données historiques invalides pour %s %s",
+                    self._box_name,
+                    periph_id,
+                )
                 self._handle_fetch_error(periph_id, "Invalid data format")
                 return []
 
@@ -1175,7 +1321,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             ):  # ⚠️ À adapter selon la réponse réelle de l'API eedomus
                 progress["completed"] = True
                 _LOGGER.info(
-                    "History fully fetched for %s (%s) (received %d entries)",
+                    "History fully fetched for (%s) %s - (%s) (received %d entries)",
+                    self._box_name,
                     periph_id,
                     (
                         self.data[periph_id]["name"]
@@ -1188,13 +1335,14 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             if chunk:
                 # Import the history data into Home Assistant states
                 _LOGGER.info(
-                    "Importing %d historical states for %s (%s)",
+                    "Importing %d historical states for %s (%s) (%s)",
                     len(chunk),
                     (
                         self.data[periph_id]["name"]
                         if periph_id in self.data
                         else "Unknown"
                     ),
+                    self._box_name,
                     periph_id,
                 )
 
@@ -1225,7 +1373,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     for entry in chunk
                 )
                 _LOGGER.debug(
-                    "Updated last_timestamp for %s to %s",
+                    "Updated last_timestamp for %s %s to %s",
+                    self._box_name,
                     periph_id,
                     progress["last_timestamp"],
                 )
@@ -1237,7 +1386,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
         except Exception as e:
             _LOGGER.error(
-                f"❌ Erreur lors de la récupération de l'historique pour {periph_id}: {e}"
+                "❌ (%s) Erreur lors de la récupération de l'historique pour %s: %s",
+                self._box_name,
+                periph_id,
+                e,
             )
             self._handle_fetch_error(periph_id, str(e))
             return []
@@ -1304,12 +1456,17 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 )
 
             _LOGGER.info(
-                "✅ Error sensors created: %d devices in retry queue",
+                "✅ (%s) Error sensors created: %d devices in retry queue",
+                self._box_name,
                 len(self._retry_queue),
             )
 
         except Exception as e:
-            _LOGGER.error("Error creating error sensors: %s", e)
+            _LOGGER.error(
+                "Error creating error sensors (%s): %s",
+                self._box_name,
+                e,
+            )
 
     async def async_import_history_chunk(
         self, periph_id: str, chunk: list, main_entity_id: str = None
@@ -1320,7 +1477,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         but falls back to async_set if the Recorder API is not available or fails.
         """
         if not chunk:
-            _LOGGER.debug("No history data to import for %s", periph_id)
+            _LOGGER.debug(
+                "No history data to import for (%s) %s", 
+                self._box_name,
+                periph_id,
+            )
             return
 
         # For HA 2026.2+, the Recorder API models have changed significantly
@@ -1336,7 +1497,12 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             )
 
         except Exception as err:
-            _LOGGER.error("Failed to import history chunk for %s: %s", periph_id, err)
+            _LOGGER.error(
+                "Failed to import history chunk for (%s) %s: %s",
+                self._box_name,
+                periph_id,
+                err,
+            )
             raise
 
     async def _fallback_import_history_chunk(
@@ -1348,7 +1514,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # Use the provided main entity ID if available, otherwise use the default
         entity_id = main_entity_id if main_entity_id else f"sensor.eedomus_{periph_id}"
 
-        _LOGGER.info("Importing historical data using Statistics API for %s", entity_id)
+        _LOGGER.info(
+            "Importing historical data using Statistics API for (%s) %s", 
+            self._box_name,
+            entity_id
+        )
 
         try:
             # Try the Statistics API approach first (HA 2026.2+ recommended method)
@@ -1356,7 +1526,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             return
         except Exception as err:
             _LOGGER.warning(
-                "Statistics API import failed, falling back to async_set: %s", err
+                "Statistics API import failed, falling back to async_set: (%s) %s", 
+                self._box_name,
+                err,
             )
 
             # Fallback to async_set if Statistics API fails
@@ -1402,16 +1574,25 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                         }
                     )
                 except (ValueError, TypeError) as e:
-                    _LOGGER.warning("Skipping invalid data point: %s", e)
+                    _LOGGER.warning(
+                        "(%s) Skipping invalid data point: %s",
+                        self._box_name,
+                        e,
+                    )
                     continue
 
             if not statistics_data:
-                _LOGGER.warning("No valid statistics data to import for %s", entity_id)
+                _LOGGER.warning(
+                    "(%) No valid statistics data to import for %s",
+                    self._box_name,
+                    entity_id,
+                )
                 return
 
             # Import using the Statistics API
             _LOGGER.info(
-                "Calling recorder.import_statistics for %d data points",
+                "(%s) Calling recorder.import_statistics for %d data points",
+                self._box_name,
                 len(statistics_data),
             )
 
@@ -1424,8 +1605,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             )
 
             _LOGGER.info(
-                "Successfully imported %d statistics points for %s using Statistics API",
+                "Successfully imported %d statistics points for (%s) %s using Statistics API",
                 len(statistics_data),
+                self._box_name,
                 entity_id,
             )
 
@@ -1435,62 +1617,71 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 or "import_statistics" in str(e).lower()
             ):
                 _LOGGER.warning(
-                    "recorder.import_statistics service not available: %s", e
+                    "(%s) recorder.import_statistics service not available: %s",
+                    self._box_name,
+                    e,
                 )
             else:
-                _LOGGER.error("Failed to import statistics for %s: %s", entity_id, e)
+                _LOGGER.error(
+                    "Failed to import statistics for (%s) %s: %s", 
+                     self._box_name,
+                     entity_id,
+                     e,
+                )
             raise
         except Exception as e:
-            _LOGGER.error("Failed to import statistics for %s: %s", entity_id, e)
+            _LOGGER.error(
+                "Failed to import statistics for %s %s: %s",
+                self._box_name,
+                entity_id,
+                e,
+            )
             raise
 
     # Add method to set value for a specific peripheral
     async def async_set_periph_value(self, periph_id: str, value: str):
         """Set the value of a specific peripheral."""
         _LOGGER.debug(
-            "Setting value '%s' for peripheral '%s' (%s) ",
+            "Setting value '%s' for peripheral (%s) '%s' (%s) ",
             value,
+            self._box_name,
             periph_id,
             self.data[periph_id]["name"],
         )
 
         # Check if retry is enabled in config
-        entry_data = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id, {})
-        # Get the config entry data - handle both old and new formats
-        config_entry_data = (
-            entry_data.get("config_entry")
-            if isinstance(entry_data.get("config_entry"), dict)
-            else self.config_entry.data
+        config_entry_data = {
+            **self.config_entry.data,
+            **self.config_entry.options,
+        }
+
+        enable_retry = config_entry_data.get(
+            CONF_ENABLE_SET_VALUE_RETRY,
+            DEFAULT_ENABLE_SET_VALUE_RETRY,
         )
-        enable_retry = (
-            config_entry_data.get(
-                CONF_ENABLE_SET_VALUE_RETRY, DEFAULT_ENABLE_SET_VALUE_RETRY
-            )
-            if config_entry_data
-            else DEFAULT_ENABLE_SET_VALUE_RETRY
-        )
-        php_fallback_enabled = (
-            config_entry_data.get(
-                CONF_PHP_FALLBACK_ENABLED, DEFAULT_PHP_FALLBACK_ENABLED
-            )
-            if config_entry_data
-            else DEFAULT_PHP_FALLBACK_ENABLED
+
+        php_fallback_enabled = config_entry_data.get(
+            CONF_PHP_FALLBACK_ENABLED,
+            DEFAULT_PHP_FALLBACK_ENABLED,
         )
 
         if not enable_retry:
             _LOGGER.info(
-                "⏭️ Set value retry disabled - attempting single set_value for %s (%s)",
+                "⏭️ (%s) Set value retry disabled - attempting single set_value for %s (%s)",
+                self._box_name,
                 self.data[periph_id]["name"],
                 periph_id,
             )
             _LOGGER.info(
-                "💡 If this fails, enable 'Set Value Retry' in advanced configuration options"
+                "💡 (%s) If this fails, enable 'Set Value Retry' in advanced configuration options",
+                self._box_name,
             )
 
         # Store original value for tracking
         original_value = value
         _LOGGER.debug(
-            "📋 Original set_value call: %s (%s) = %s",
+            "📋 Original set_value call: (%s) %s (%s) = %s",
+            self._box_name,
             self.data[periph_id]["name"],
             periph_id,
             original_value,
@@ -1501,7 +1692,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
         # Log API response details
         _LOGGER.debug(
-            "📋 API response for %s (%s): success=%s, error_code=%s",
+            "📋 API response for (%s) %s (%s): success=%s, error_code=%s",
+            self._box_name,
             self.data[periph_id]["name"],
             periph_id,
             ret.get("success"),
@@ -1513,7 +1705,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             # Try PHP fallback first if enabled
             if php_fallback_enabled:
                 _LOGGER.info(
-                    "🔄 Trying PHP fallback for %s (%s) with original value: %s",
+                    "🔄 Trying PHP fallback for (%s) %s (%s) with original value: %s",
+                    self._box_name,
                     self.data[periph_id]["name"],
                     periph_id,
                     value,
@@ -1523,7 +1716,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 )
                 if fallback_result.get("success") == 1:
                     _LOGGER.info(
-                        "✅ PHP fallback succeeded for %s (%s) - original value %s preserved",
+                        "✅ PHP fallback succeeded for (%s) %s (%s) - original value %s preserved",
+                        self._box_name,
                         self.data[periph_id]["name"],
                         periph_id,
                         value,
@@ -1532,7 +1726,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     return {"success": 1, "fallback_used": True, "value_used": value}
                 else:
                     _LOGGER.warning(
-                        "⚠️ PHP fallback failed for %s (%s): %s",
+                        "⚠️ PHP fallback failed for (%s) %s (%s): %s",
+                        self._box_name,
                         self.data[periph_id]["name"],
                         periph_id,
                         fallback_result.get("error", "Unknown error"),
@@ -1542,16 +1737,18 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     original_value = value
                     modified_value = next_value.get("value")
                     _LOGGER.warning(
-                        "🔄 VALUE MODIFICATION DETECTED: %s (%s) - original=%s, modified=%s",
+                        "🔄 VALUE MODIFICATION DETECTED: (%s) %s (%s) - original=%s, modified=%s",
+                        self._box_name,
                         self.data[periph_id]["name"],
                         periph_id,
                         original_value,
                         modified_value,
                     )
                     _LOGGER.warning(
-                        "🔄 Retry enabled - trying next best value (%s => %s) for %s (%s)",
+                        "🔄 Retry enabled - trying next best value (%s => %s) for (%s) %s (%s)",
                         original_value,
                         modified_value,
+                        self._box_name,
                         self.data[periph_id]["name"],
                         periph_id,
                     )
@@ -1566,31 +1763,51 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             else:
                 # Try next best value if PHP fallback is not enabled
                 next_value = self.next_best_value(periph_id, value)
+                modified_value = next_value.get("value")
                 _LOGGER.warning(
-                    "🔄 Retry enabled - trying next best value (%s => %s) for %s (%s)",
+                    "🔄 Retry enabled - trying next best value (%s => %s) for (%s) %s (%s)",
                     value,
                     next_value,
+                    self._box_name,
                     self.data[periph_id]["name"],
                     periph_id,
                 )
-                await self.client.set_periph_value(periph_id, next_value.get("value"))
+
+                retry_result = await self.client.set_periph_value(
+                    periph_id,
+                    modified_value,
+                )
+
+                if retry_result.get("success") == 1:
+                    return {
+                        "success": 1,
+                        "fallback_used": True,
+                        "value_used": modified_value,
+                        "original_value": value,
+                    }
+
+                return retry_result
+
         elif ret.get("success") == 0:
             _LOGGER.error(
-                "❌ Set value failed for %s (%s): %s - retry disabled or not applicable",
+                "❌ Set value failed for (%s) %s (%s): %s - retry disabled or not applicable",
+                self._box_name,
                 self.data[periph_id]["name"],
                 periph_id,
                 ret.get("error", "Unknown error"),
             )
             _LOGGER.error(
-                "💡 Check the documentation for value constraints and "
-                "consider enabling 'Set Value Retry' in advanced options"
+                "💡 (%s) Check the documentation for value constraints and "
+                "consider enabling 'Set Value Retry' in advanced options",
+                self._box_name
             )
             _LOGGER.error(
-                "📖 Documentation: https://github.com/Dan4Jer/hass-eedomus#value-constraints"
+                "📖 Documentation: https://github.com/fmo01/hass-eedomus#value-constraints"
             )
         else:
             _LOGGER.info(
-                "✅ Set value successful for %s (%s) - value %s applied without modification",
+                "✅ Set value successful for (%s) %s (%s) - value %s applied without modification",
+                self._box_name,
                 self.data[periph_id]["name"],
                 periph_id,
                 value,

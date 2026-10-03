@@ -499,11 +499,32 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                     errors["base"] = "failed_to_save_yaml"
 
             except yaml.YAMLError as e:
-                _LOGGER.error("YAML parse error: %s", e)
-                errors["base"] = f"invalid_yaml: {e}"
+                problem = getattr(e, "problem", None)
+
+                _LOGGER.warning(
+                    "YAML parse error: %s",
+                    problem or "invalid YAML syntax",
+                )
+
+                _LOGGER.debug(
+                    "Full YAML parsing error",
+                    exc_info=True,
+                )
+
+                errors["base"] = "invalid_yaml"
+
             except vol.Invalid as e:
-                _LOGGER.error("YAML validation error: %s", e)
-                errors["base"] = f"invalid_mapping: {e}"
+                _LOGGER.warning(
+                    "YAML validation error: %s",
+                    str(e),
+                )
+
+                _LOGGER.debug(
+                    "Full YAML parsing error",
+                    exc_info=True,
+                )
+
+                errors["base"] = "invalid_mapping"
 
         # Load current YAML content
         try:
