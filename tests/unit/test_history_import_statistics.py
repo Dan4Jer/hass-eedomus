@@ -191,8 +191,10 @@ async def test_ad11_clips_hours_at_or_after_first_native(monkeypatch):
     coordinator = make_coordinator()
     rec_stats = configure_statistics(coordinator)
     first_native = datetime(2026, 9, 27, 8, tzinfo=timezone.utc)
+    # statistics_during_period returns float epochs (real StatisticsRow
+    # contract, pinned after a production TypeError datetime < float)
     rec_stats.statistics_during_period.return_value = {
-        ENTITY_ID: [{"start": first_native}]
+        ENTITY_ID: [{"start": first_native.timestamp()}]
     }
     chunk = [
         {"value": "5", "timestamp": "2026-09-27T07:30:00"},
@@ -215,7 +217,9 @@ async def test_ad11_all_hours_native_or_later_no_import(monkeypatch, caplog):
     coordinator = make_coordinator()
     rec_stats = configure_statistics(coordinator)
     rec_stats.statistics_during_period.return_value = {
-        ENTITY_ID: [{"start": datetime(2026, 9, 27, 7, tzinfo=timezone.utc)}]
+        ENTITY_ID: [
+            {"start": datetime(2026, 9, 27, 7, tzinfo=timezone.utc).timestamp()}
+        ]
     }
     caplog.set_level(logging.INFO, logger="custom_components.eedomus.coordinator")
 
@@ -234,8 +238,8 @@ async def test_ad11_rows_not_sorted_first_native_is_earliest(monkeypatch):
     rec_stats = configure_statistics(coordinator)
     rec_stats.statistics_during_period.return_value = {
         ENTITY_ID: [
-            {"start": datetime(2026, 9, 27, 9, tzinfo=timezone.utc)},
-            {"start": datetime(2026, 9, 27, 8, tzinfo=timezone.utc)},
+            {"start": datetime(2026, 9, 27, 9, tzinfo=timezone.utc).timestamp()},
+            {"start": datetime(2026, 9, 27, 8, tzinfo=timezone.utc).timestamp()},
         ]
     }
     chunk = [

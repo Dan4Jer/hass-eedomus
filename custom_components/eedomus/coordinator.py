@@ -1570,8 +1570,12 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             )
             native_rows = (native_stats or {}).get(entity_id) or []
             if native_rows:
-                # Rows are not guaranteed ascending: take the earliest
-                first_native_start = min(row["start"] for row in native_rows)
+                # Rows are not guaranteed ascending: take the earliest.
+                # statistics_during_period returns "start" as a float
+                # epoch timestamp (StatisticsRow), not a datetime.
+                first_native_start = dt_util.utc_from_timestamp(
+                    min(row["start"] for row in native_rows)
+                )
                 backfilled = [
                     stat
                     for stat in statistics_data

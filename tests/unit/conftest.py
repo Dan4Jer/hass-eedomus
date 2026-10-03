@@ -224,6 +224,9 @@ def _install_homeassistant_stubs():
     # UTC constant and utcnow are used by the history backfill's AD-11 clip
     ha_dt.UTC = timezone.utc
     ha_dt.utcnow = lambda: datetime.now(timezone.utc)
+    # statistics_during_period returns "start" as a float epoch: the clip
+    # converts it back with utc_from_timestamp
+    ha_dt.utc_from_timestamp = lambda ts: datetime.fromtimestamp(ts, timezone.utc)
 
 
 _install_homeassistant_stubs()
