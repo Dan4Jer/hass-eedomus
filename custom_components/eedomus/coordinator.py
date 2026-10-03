@@ -1535,6 +1535,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             # AD-1: import through the official recorder Python API,
             # never the recorder.import_statistics service (Spook)
             from homeassistant.components.recorder import (
+                get_instance as get_recorder_instance,
                 statistics as recorder_statistics,
             )
             from homeassistant.components.recorder.models import StatisticMeanType
@@ -1557,8 +1558,13 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             # AD-11: the recorder compiler owns every hour from the sensor's
             # first native statistic onward (the upsert would overwrite its
             # means); the backfill writes strictly earlier hours only.
-            # statistics_during_period is blocking: run it in the executor.
-            native_stats = await self.hass.async_add_executor_job(
+            # statistics_during_period is a blocking database call: it must
+            # run on the recorder's dedicated database executor, not the
+            # generic hass.async_add_executor_job (HA 2026+ reports that as
+            # "accesses the database without the database executor").
+            native_stats = await get_recorder_instance(
+                self.hass
+            ).async_add_executor_job(
                 recorder_statistics.statistics_during_period,
                 self.hass,
                 datetime(1970, 1, 1, tzinfo=dt_util.UTC),

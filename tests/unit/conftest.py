@@ -122,9 +122,17 @@ def _install_homeassistant_stubs():
     # homeassistant.components.recorder.statistics - official statistics
     # API used by the history backfill: async_import_statistics is a
     # synchronous @callback (a plain MagicMock matches that contract),
-    # statistics_during_period is blocking and goes through an executor job.
+    # statistics_during_period is blocking and goes through the recorder's
+    # dedicated database executor (get_instance().async_add_executor_job).
     ha_recorder = module("homeassistant.components.recorder")
     ha_recorder.__path__ = []
+
+    async def _recorder_executor_job(fn, *args, **kwargs):
+        return fn(*args, **kwargs)
+
+    ha_recorder.get_instance = lambda hass: SimpleNamespace(
+        async_add_executor_job=_recorder_executor_job
+    )
     ha_rec_stats = module("homeassistant.components.recorder.statistics")
     ha_rec_stats.async_import_statistics = MagicMock()
     ha_rec_stats.statistics_during_period = MagicMock(return_value={})
