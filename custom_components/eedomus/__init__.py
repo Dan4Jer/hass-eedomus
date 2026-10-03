@@ -226,7 +226,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             hass,
             client,
             scan_interval,
-            config_entry=entry,)
+            config_entry=entry,
+        )
 
         # Create main eedomus box device for proper device hierarchy
         try:

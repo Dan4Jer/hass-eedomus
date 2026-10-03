@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.22.1](https://github.com/fmo01/hass-eedomus/compare/0.22.0...0.22.1) (2026-08-19)
+
+### Bug Fixes
+
+* passage de config_entry entre __init__ et coordinator ([dbec546](https://github.com/fmo01/hass-eedomus/commit/dbec5467991108725599ed2f31aa5463af2e710b))
+
 ## [0.22.0](https://github.com/fmo01/hass-eedomus/compare/0.21.6...0.22.0) (2026-08-19)
 
 ### Features
