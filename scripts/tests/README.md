@@ -11,54 +11,19 @@ history support, fallback logic and monitoring sensors.
 
 ## Current status
 
-Current test results:
+A recent successful full test run produced:
 
 ```text
-404 passed
+404 tests passed
 Overall coverage: 87%
 Statements: 4393
 Missed statements: 557
 ```
 
-The current coverage report was generated with:
+This value is a snapshot only.
 
-```bash
-PYTHONPATH=. python3 -m pytest   scripts/tests/   --cov=custom_components/eedomus   --cov-report=term-missing
-```
-
-### Coverage summary
-
-| Component | Coverage |
-|---|---:|
-| `api_proxy.py` | 100% |
-| `binary_sensor.py` | 100% |
-| `config_flow.py` | 100% |
-| `const.py` | 100% |
-| `cover.py` | 100% |
-| `endpoint_volume_sensor.py` | 100% |
-| `history_sensor.py` | 100% |
-| `light.py` | 100% |
-| `mapping_registry.py` | 100% |
-| `mapping_rules.py` | 100% |
-| `options_flow.py` | 100% |
-| `refresh_timing_sensor.py` | 100% |
-| `select.py` | 100% |
-| `sensor.py` | 100% |
-| `storage_mapping.py` | 100% |
-| `switch.py` | 100% |
-| `text_sensor.py` | 100% |
-| `webhook.py` | 100% |
-| `eedomus_client.py` | 90% |
-| `services.py` | 87% |
-| `coordinator.py` | 81% |
-| `entity.py` | 78% |
-| `device_mapping.py` | 71% |
-| `climate.py` | 63% |
-| `__init__.py` | 62% |
-| **TOTAL** | **87%** |
-
-> Coverage values are a snapshot of the current test suite and should be
-> updated after significant changes to the integration or its tests.
+The latest successful GitHub Actions `Run Tests` workflow and its generated
+coverage artifacts should be considered the current reference.
 
 ---
 
@@ -294,50 +259,175 @@ PYTHONPATH=. python3 -m pytest scripts/tests/test_options_flow.py -v
 ## Run one individual test
 
 ```bash
-PYTHONPATH=. python3 -m pytest   scripts/tests/test_config_flow.py::test_step_user_success_api_mode   -v
+PYTHONPATH=. python3 -m pytest \
+  scripts/tests/test_config_flow.py::test_step_user_success_api_mode \
+  -v
 ```
 
 ---
 
-## Coverage
+## Test coverage
 
-### Terminal coverage report
+Code coverage is calculated automatically by the GitHub Actions
+`Run Tests` workflow.
 
-Use the command validated for the current development environment:
+The same command can be executed locally:
 
 ```bash
-PYTHONPATH=. python3 -m pytest   scripts/tests/   --cov=custom_components/eedomus   --cov-report=term-missing
+PYTHONPATH=. python3 -m pytest \
+  scripts/tests/ \
+  --cov=custom_components/eedomus \
+  --cov-report=term-missing \
+  --cov-report=xml \
+  --cov-report=html
 ```
 
-This runs the complete test suite and displays:
+The workflow generates:
 
-- number of statements,
-- number of missed statements,
-- coverage percentage,
-- exact missing lines for each module.
+- a terminal coverage report in the GitHub Actions logs;
+- `coverage.xml`;
+- an HTML coverage report in `htmlcov/`;
+- a `coverage-summary.md` file containing the current global coverage.
+
+The generated files are published as GitHub Actions artifacts:
+
+- `coverage-html`
+- `coverage-summary`
 
 ### HTML coverage report
 
-```bash
-PYTHONPATH=. python3 -m pytest   scripts/tests/   --cov=custom_components/eedomus   --cov-report=term-missing   --cov-report=html
+Open the latest successful `Run Tests` workflow execution in GitHub Actions
+and download the:
+
+```text
+coverage-html
 ```
 
-The HTML report is generated in:
+artifact.
+
+After extracting the archive, open:
 
 ```text
 htmlcov/index.html
 ```
 
-### Coverage for one module
+This report provides detailed coverage information for each source file,
+including the exact lines that are not covered by the test suite.
 
-Example for the coordinator tests:
+### Coverage summary
 
-```bash
-PYTHONPATH=. python3 -m pytest   scripts/tests/test_coordinator.py   --cov=custom_components/eedomus/coordinator.py   --cov-report=term-missing
+Download the:
+
+```text
+coverage-summary
 ```
 
-For a global integration coverage measurement, prefer the complete suite
-command shown above.
+artifact from the latest successful workflow execution.
+
+It contains:
+
+```text
+coverage-summary.md
+```
+
+with the current global coverage statistics.
+
+### Local HTML report
+
+After running the coverage command locally, the HTML report is available in:
+
+```text
+htmlcov/index.html
+```
+
+### Current reference
+
+At the time this documentation was updated, a successful local run reported:
+
+```text
+404 tests passed
+87% total coverage
+```
+
+This value is only a snapshot.
+
+The latest successful GitHub Actions `Run Tests` workflow and its generated
+artifacts are the reference for the current coverage value.
+
+---
+
+## Coverage snapshot by module
+
+The following values correspond to the same successful local run mentioned
+above and are not intended to remain permanently current.
+
+| Component | Coverage |
+|---|---:|
+| `api_proxy.py` | 100% |
+| `binary_sensor.py` | 100% |
+| `config_flow.py` | 100% |
+| `const.py` | 100% |
+| `cover.py` | 100% |
+| `endpoint_volume_sensor.py` | 100% |
+| `history_sensor.py` | 100% |
+| `light.py` | 100% |
+| `mapping_registry.py` | 100% |
+| `mapping_rules.py` | 100% |
+| `options_flow.py` | 100% |
+| `refresh_timing_sensor.py` | 100% |
+| `select.py` | 100% |
+| `sensor.py` | 100% |
+| `storage_mapping.py` | 100% |
+| `switch.py` | 100% |
+| `text_sensor.py` | 100% |
+| `webhook.py` | 100% |
+| `eedomus_client.py` | 90% |
+| `services.py` | 87% |
+| `coordinator.py` | 81% |
+| `entity.py` | 78% |
+| `device_mapping.py` | 71% |
+| `climate.py` | 63% |
+| `__init__.py` | 62% |
+| **TOTAL** | **87%** |
+
+---
+
+## GitHub Actions
+
+The GitHub Actions workflow runs the test suite automatically and calculates
+coverage.
+
+The workflow:
+
+- installs the development dependencies;
+- runs the complete pytest suite;
+- fails if a test fails;
+- generates terminal, XML and HTML coverage reports;
+- generates `coverage-summary.md`;
+- publishes the HTML and summary reports as artifacts.
+
+The current workflow uses:
+
+```text
+PYTHONPATH=.
+```
+
+and runs:
+
+```bash
+python3 -m pytest \
+  scripts/tests/ \
+  -v \
+  --tb=short \
+  --cov=custom_components/eedomus \
+  --cov-report=term-missing \
+  --cov-report=xml \
+  --cov-report=html
+```
+
+The GitHub Actions environment may use newer compatible patch versions of
+Python, pytest and the test dependencies than the local development
+environment.
 
 ---
 
@@ -363,9 +453,40 @@ Some integration-level tests intentionally use Home Assistant's real
 ConfigEntry and setup mechanisms while mocking the underlying HTTP
 responses.
 
-The current development environment automatically loads the required
-pytest plugins from the active Python environment. The documented test
-commands therefore do not disable pytest plugin autoloading.
+The current development environment automatically loads the required pytest
+plugins from the active Python environment. The documented test commands
+therefore do not disable pytest plugin autoloading.
+
+---
+
+## Development dependencies
+
+The test environment must include the packages required by the integration
+and the test suite.
+
+In particular, coverage requires:
+
+```text
+pytest-cov
+```
+
+and the integration currently imports:
+
+```text
+async-timeout
+```
+
+The GitHub Actions workflow installs development dependencies from:
+
+```text
+requirements-dev.txt
+```
+
+Any dependency required by the automated test environment should therefore
+be declared there.
+
+Runtime dependencies required directly by the Home Assistant integration
+should also be declared in the integration metadata when appropriate.
 
 ---
 
@@ -376,13 +497,12 @@ When adding or modifying a feature:
 1. Add or update the corresponding `test_*.py` module.
 2. Test both successful and error paths when relevant.
 3. Mock external API or filesystem dependencies.
-4. Prefer Home Assistant test fixtures when integration behaviour is
-   being tested.
+4. Prefer Home Assistant test fixtures when integration behaviour is being tested.
 5. Keep tests independent from a real eedomus installation.
 6. Add the new test module to `test_all.py` if a new file is created.
 7. Run the complete suite before submitting the change.
 8. Check code coverage for newly added code.
-9. Update the coverage snapshot in this README when the global value changes.
+9. Check the GitHub Actions artifacts after the workflow completes.
 
 ---
 
@@ -415,9 +535,9 @@ The current suite includes tests for:
 
 ---
 
-## Current test environment snapshot
+## Test environment snapshot
 
-The latest full coverage run used:
+A recent successful local run used:
 
 ```text
 Python 3.14.3
@@ -429,5 +549,7 @@ pytest-homeassistant-custom-component 0.13.367
 87% total coverage
 ```
 
-These versions describe the latest measured test run and are not intended
-as hard requirements for every development environment.
+GitHub Actions may use newer compatible patch versions.
+
+The latest successful `Run Tests` workflow and its generated artifacts should
+be considered the current reference.
