@@ -99,24 +99,34 @@ def ws_call(ha_headers):
 
     Returns an async function result synchronously: call("type", {...})
     resolves the command response (raises on a websocket error).
+
+    Every send/recv is bounded by E2E_WS_TIMEOUT seconds (default 120):
+    a stuck command raises asyncio.TimeoutError instead of hanging the
+    suite forever (e.g. a reload blocked by a long-running import).
     """
     import asyncio
     import json as jsonlib
+    import os
 
     import websockets
 
     ws_url = HA_URL.replace("http", "ws") + "/api/websocket"
+    ws_timeout = float(os.environ.get("E2E_WS_TIMEOUT", "120"))
 
     async def _run(msg):
         async with websockets.connect(ws_url) as ws:
-            await ws.recv()
+            await asyncio.wait_for(ws.recv(), timeout=ws_timeout)
             await ws.send(
                 jsonlib.dumps({"type": "auth", "access_token": HA_TOKEN})
             )
-            auth = jsonlib.loads(await ws.recv())
+            auth = jsonlib.loads(
+                await asyncio.wait_for(ws.recv(), timeout=ws_timeout)
+            )
             assert auth["type"] == "auth_ok", auth
             await ws.send(jsonlib.dumps(dict(msg, id=1)))
-            res = jsonlib.loads(await ws.recv())
+            res = jsonlib.loads(
+                await asyncio.wait_for(ws.recv(), timeout=ws_timeout)
+            )
             if not res.get("success"):
                 raise AssertionError(f"websocket command failed: {res}")
             return res["result"]

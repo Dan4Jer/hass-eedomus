@@ -121,3 +121,58 @@ async def test_partial_refresh_log_reports_history_counts(caplog):
     assert partial_logs
     message = partial_logs[0].getMessage()
     assert "[1 periphs, 2 states]" in message
+
+
+@pytest.mark.asyncio
+async def test_partial_refresh_history_quota_limits_per_scan():
+    """AD-2 cadence: at most history_peripherals_per_scan imports per cycle.
+
+    Pending peripherals beyond the quota are not fetched in the same
+    cycle; they drain on later scans. An empty chunk still consumes its
+    quota slot (a no-data fetch is not free).
+    """
+    periph_ids = ["111", "222", "333"]
+    client = MagicMock()
+    client.config_entry = SimpleNamespace(
+        options={"history": True, "history_peripherals_per_scan": 2},
+        data={},
+    )
+    coordinator = EedomusDataUpdateCoordinator(hass=MagicMock(), client=client)
+    coordinator.data = {p: {"periph_id": p, "value": 1} for p in periph_ids}
+    coordinator._dynamic_peripherals = {p: {"periph_id": p} for p in periph_ids}
+    coordinator._history_progress = {}
+    coordinator.client.get_periph_caract = AsyncMock(
+        return_value={
+            "body": [{"periph_id": p, "value": 42} for p in periph_ids],
+            "_raw_data_size_bytes": 128,
+        }
+    )
+    coordinator._create_error_sensors = AsyncMock()
+    # 111 returns an empty chunk: it consumes its quota slot but stays
+    # pending, so it is retried on a later scan
+    coordinator.async_fetch_history_chunk = AsyncMock(
+        side_effect=lambda periph_id: []
+        if periph_id == "111"
+        else [{"value": 1}]
+    )
+    coordinator.async_import_history_chunk = AsyncMock(return_value=1)
+
+    await coordinator._async_partial_refresh()
+
+    fetched_first = [
+        call.args[0] for call in coordinator.async_fetch_history_chunk.call_args_list
+    ]
+    assert len(fetched_first) == 2, "quota of 2 must cap the first cycle"
+    assert "333" not in fetched_first, "the third periph is beyond the quota"
+    # Only 222 imported: 111 consumed a slot with an empty chunk
+    assert coordinator._last_history_periphs == 1
+
+    # 222 is complete: the next cycle retries the empty 111 and drains
+    # 333 (quota 2, two pending).
+    coordinator._history_progress["222"] = {"completed": True}
+
+    await coordinator._async_partial_refresh()
+
+    all_calls = coordinator.async_fetch_history_chunk.call_args_list
+    fetched_second = [call.args[0] for call in all_calls][len(fetched_first) :]
+    assert set(fetched_second) == {"111", "333"}

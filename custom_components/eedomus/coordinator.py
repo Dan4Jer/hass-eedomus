@@ -14,9 +14,11 @@ from homeassistant.util import dt as dt_util
 from .const import (
     CONF_ENABLE_HISTORY,
     CONF_ENABLE_SET_VALUE_RETRY,
+    CONF_HISTORY_PERIPHERALS_PER_SCAN,
     CONF_HISTORY_RETRY_DELAY,
     CONF_PHP_FALLBACK_ENABLED,
     DEFAULT_ENABLE_SET_VALUE_RETRY,
+    DEFAULT_HISTORY_PERIPHERALS_PER_SCAN,
     DEFAULT_HISTORY_RETRY_DELAY,
     DEFAULT_PHP_FALLBACK_ENABLED,
     DEFAULT_SCAN_INTERVAL,
@@ -858,6 +860,16 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         for periph_id in self._dynamic_peripherals:
             peripherals_for_history.append(periph_id)
 
+        # AD-2 cadence: at most history_peripherals_per_scan history
+        # imports per refresh cycle, so the real-time polling is never
+        # blocked by the slow cloud backfill (90 periphs = ~180 s).
+        # Pending periphs beyond the quota drain on later scans.
+        history_scan_quota = _get_config_value(
+            self.client.config_entry,
+            CONF_HISTORY_PERIPHERALS_PER_SCAN,
+            DEFAULT_HISTORY_PERIPHERALS_PER_SCAN,
+        )
+
         _LOGGER.debug(
             "Performing partial refresh for %d dynamic peripherals, history=%s",
             len(self._dynamic_peripherals),
@@ -964,7 +976,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 )
 
             # Try to retrieve history if enabled and this peripheral needs it
-            if history_retrieval and periph_id in peripherals_for_history:
+            if (
+                history_retrieval
+                and periph_id in peripherals_for_history
+                and history_scan_quota > 0
+            ):
                 if not self._history_progress.get(periph_id, {}).get("completed"):
                     _LOGGER.debug("Retrieving data history %s", periph_id)
                     fetch_start = datetime.now()
@@ -985,6 +1001,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                         import_time = (datetime.now() - import_start).total_seconds()
                         history_periphs += 1
                         history_states += imported
+                    # The quota counts periphs processed this cycle, not
+                    # data points: a no-data fetch still consumed its slot.
+                    history_scan_quota -= 1
                     history_fetch_time += fetch_time
                     history_import_time += import_time
                     history_time += fetch_time + import_time
