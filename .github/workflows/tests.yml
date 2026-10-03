@@ -57,6 +57,7 @@ jobs:
           python -m pytest --version
           python -m pip show pytest-cov
           python -m pip show pytest-homeassistant-custom-component
+          python -m pip show async-timeout
 
       - name: Run tests with coverage
         run: |
@@ -69,12 +70,12 @@ jobs:
             --cov-report=xml \
             --cov-report=html
 
-      - name: Coverage summary
-        if: always()
+      - name: Generate coverage summary
+        if: success()
         run: |
-          if [ -f coverage.xml ]; then
-            python3 - <<'PY'
+          python3 - <<'PY'
           import xml.etree.ElementTree as ET
+          from pathlib import Path
 
           root = ET.parse("coverage.xml").getroot()
 
@@ -83,19 +84,27 @@ jobs:
           lines_covered = int(root.attrib.get("lines-covered", 0))
           lines_missing = lines_valid - lines_covered
 
-          print()
-          print("========================================")
-          print(" hass-eedomus coverage")
-          print("========================================")
-          print(f"Statements : {lines_valid}")
-          print(f"Covered    : {lines_covered}")
-          print(f"Missing    : {lines_missing}")
-          print(f"Coverage   : {rate * 100:.2f}%")
-          print("========================================")
+          coverage = rate * 100
+
+          content = f"""# Test coverage
+
+          Current automated coverage:
+
+          - Statements: {lines_valid}
+          - Covered: {lines_covered}
+          - Missing: {lines_missing}
+          - Coverage: **{coverage:.2f}%**
+
+          Generated automatically by GitHub Actions.
+          """
+
+          Path("coverage-summary.md").write_text(
+              content,
+              encoding="utf-8",
+          )
+
+          print(content)
           PY
-          else
-            echo "coverage.xml not generated"
-          fi
 
       - name: Upload HTML coverage report
         if: always()
@@ -105,3 +114,11 @@ jobs:
           path: htmlcov/
           if-no-files-found: ignore
           retention-days: 14
+
+      - name: Upload coverage summary
+        if: success()
+        uses: actions/upload-artifact@v6
+        with:
+          name: coverage-summary
+          path: coverage-summary.md
+          retention-days: 30
