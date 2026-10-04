@@ -174,6 +174,216 @@ function nextCoherenceSort(sort, key) {
   return { key: null, dir: null };
 }
 
+// ---- Popover pure helpers (ticket 2.4) ----
+// Same contract as the helpers above: top-level, this-free, exercised
+// by tests/js/test-coherence.js. The popover makes no network call —
+// everything renders from the already-loaded coherence row.
+
+// Shared value normalizer of the detail fields: null/undefined/empty
+// stays null (the renderer shows « inconnu ») — a missing field is
+// information, never a silent hole.
+function coherenceFieldValue(value) {
+  return value == null || value === '' ? null : String(value);
+}
+
+// « État vivant » fields. A row without an entity shows
+// « aucune entité » and no current value (edge-case matrix).
+function coherenceLiveFields(row) {
+  const hasEntity = Boolean(row.entity_id);
+  return [
+    {
+      label: 'Entité HA',
+      value: hasEntity ? String(row.entity_id) : 'aucune entité',
+      mono: true,
+    },
+    {
+      label: 'Valeur courante',
+      value: hasEntity ? coherenceFieldValue(row.state) : null,
+    },
+    { label: 'usage_id', value: coherenceFieldValue(row.usage_id), mono: true },
+    {
+      label: 'Périphérique parent',
+      value: coherenceFieldValue(row.parent_periph_id),
+      mono: true,
+    },
+    {
+      label: 'Dernière mise à jour',
+      value: coherenceFieldValue(row.last_update),
+    },
+  ];
+}
+
+// Mapping identity fields: what was mapped and why.
+function coherenceIdentityFields(row) {
+  return [
+    { label: 'ha_entity', value: coherenceFieldValue(row.ha_entity), mono: true },
+    { label: 'ha_subtype', value: coherenceFieldValue(row.ha_subtype), mono: true },
+    { label: 'Justification', value: coherenceFieldValue(row.justification) },
+  ];
+}
+
+// Raw API section: one pair per top-level key, sorted for scanning;
+// nested values render as compact JSON.
+function coherenceRawPairs(raw) {
+  const entries = Object.entries(raw || {});
+  entries.sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }));
+  return entries.map(([key, val]) => [
+    key,
+    val !== null && typeof val === 'object' ? JSON.stringify(val) : String(val),
+  ]);
+}
+
+// Anchor the popover under the trigger cell, flip above when there is
+// strictly more room there, clamp so it never leaves the viewport
+// (8 px margin). Pure: the DOM only supplies the rects.
+function coherencePopoverPosition(anchor, pop, viewport) {
+  const margin = 8;
+  const roomBelow = viewport.height - anchor.bottom - margin;
+  let top = anchor.bottom + margin;
+  if (pop.height > roomBelow && anchor.top - margin > roomBelow) {
+    top = anchor.top - margin - pop.height;
+  }
+  const maxTop = Math.max(margin, viewport.height - pop.height - margin);
+  const maxLeft = Math.max(margin, viewport.width - pop.width - margin);
+  return {
+    left: Math.min(Math.max(anchor.left, margin), maxLeft),
+    top: Math.min(Math.max(top, margin), maxTop),
+  };
+}
+
+// HTML escaping shared by every markup builder below (the _escapeHtml
+// method delegates here so the class never diverges).
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Trigger of the periph_id cell: the only element of the row that
+// opens the popover, carrying its accessible name.
+function coherenceTriggerHtml(periphId) {
+  return `
+    <button class="coherence-id-trigger" type="button"
+            data-coherence-popover="${escapeHtml(periphId)}"
+            aria-expanded="false" aria-haspopup="dialog"
+            aria-label="Détails du périphérique ${escapeHtml(periphId)}">
+      <code>${escapeHtml(periphId)}</code>
+    </button>`;
+}
+
+// Attempts detail of the error state: the plural only applies to a
+// finite count > 1 (a non-numeric value never renders NaN).
+function coherenceDetailAttempts(attempts) {
+  const count = Number(attempts);
+  const plural = Number.isFinite(count) && count > 1 ? 's' : '';
+  return ` (${escapeHtml(attempts)} tentative${plural})`;
+}
+
+// Detail body shared by the desktop popover (2.4) and the mobile
+// expanded row (2.5): the same sections from the same coherence row,
+// no re-fetch. Everything is eedomus-sourced and escaped.
+function coherenceDetailHtml(row) {
+  const errorHtml = row.error_message
+    ? `<p class="popover-error">
+         ${escapeHtml(row.error_message)}
+         ${row.retry_after
+           ? ` — nouvelle tentative ${escapeHtml(row.retry_after)}`
+           : ''}
+         ${row.attempts != null ? coherenceDetailAttempts(row.attempts) : ''}
+       </p>`
+    : '';
+  return `
+      <div class="popover-head">
+        <span class="popover-name">${escapeHtml(row.name || '')}</span>
+        <code class="popover-id">${escapeHtml(row.periph_id)}</code>
+      </div>
+      <div class="popover-section">
+        <h3 class="popover-heading">État vivant</h3>
+        ${errorHtml}
+        <dl>${coherenceDetailFieldsHtml(coherenceLiveFields(row))}</dl>
+      </div>
+      <div class="popover-section">
+        <h3 class="popover-heading">Identité de mapping</h3>
+        <dl>${coherenceDetailFieldsHtml(coherenceIdentityFields(row))}</dl>
+      </div>
+      <div class="popover-actions">
+        <button class="row-action" type="button"
+                data-periph-id="${escapeHtml(row.periph_id)}"
+                data-usage-id="${escapeHtml(row.usage_id || '')}">
+          Créer une règle
+        </button>
+        <button class="row-action" type="button" disabled aria-disabled="true">
+          Config HA — bientôt disponible
+        </button>
+      </div>
+      <details class="popover-raw">
+        <summary>Champs bruts de l'API eedomus</summary>
+        <dl>${coherenceDetailPairsHtml(coherenceRawPairs(row.raw))}</dl>
+      </details>
+    `;
+}
+
+function coherenceDetailFieldsHtml(fields) {
+  return fields
+    .map((field) => {
+      let valueHtml;
+      if (field.value == null) {
+        valueHtml = '<em class="detail-unknown">inconnu</em>';
+      } else if (field.mono) {
+        valueHtml = `<span class="detail-code">${escapeHtml(field.value)}</span>`;
+      } else {
+        valueHtml = `<span>${escapeHtml(field.value)}</span>`;
+      }
+      return `
+          <div class="detail-row">
+            <dt>${escapeHtml(field.label)}</dt>
+            <dd>${valueHtml}</dd>
+          </div>`;
+    })
+    .join('');
+}
+
+function coherenceDetailPairsHtml(pairs) {
+  return pairs
+    .map(
+      ([key, value]) => `
+          <div class="detail-row">
+            <dt><code class="detail-code">${escapeHtml(key)}</code></dt>
+            <dd><code class="detail-code">${escapeHtml(value)}</code></dd>
+          </div>`
+    )
+    .join('');
+}
+
+// Focusable elements of the popover: the focus trap cycles through
+// these — a disabled control is never a trap stop (uniform [disabled]
+// exclusion across every native control, summary included).
+const POPOVER_FOCUSABLE_SELECTOR = [
+  'button:not([disabled])',
+  '[href]',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  'summary',
+].join(', ');
+
+// Hover capability: a tap fires mouseover on touch devices — the
+// hover-open path must not run there (the click path stays; 2.5
+// replaces it with the expanded row).
+let hoverMediaQuery = null;
+function hoverCapable() {
+  if (!window.matchMedia) {
+    return false;
+  }
+  if (!hoverMediaQuery) {
+    hoverMediaQuery = window.matchMedia('(hover: hover) and (pointer: fine)');
+  }
+  return hoverMediaQuery.matches;
+}
+
 class EedomusConfigPanel extends HTMLElement {
   constructor() {
     super();
@@ -218,6 +428,17 @@ class EedomusConfigPanel extends HTMLElement {
     this._coherenceSearch = '';
     this._coherenceView = 'all'; // 'all' | 'to_verify'
     this._coherenceSort = { key: null, dir: null }; // dir: 'asc' | 'desc'
+    // Coherence popover (ticket 2.4) — the panel's single floating
+    // surface. One instance at most; its content renders from the
+    // already-loaded row (no network call on open).
+    this._coherencePopover = null; // open popover element
+    this._coherencePopoverTrigger = null; // trigger to return focus to
+    this._coherencePopoverByHover = false; // hover-opened, never focused
+    this._coherenceHoverTimer = null; // hover intent delay
+    this._coherenceHoverTrigger = null; // trigger the delay is for
+    this._coherenceLeaveTimer = null; // grace crossing the anchor gap
+    this._coherenceDismiss = null; // outside click/scroll/resize listener
+    this._coherenceFocusOut = null; // focusout listener while open
   }
 
   set hass(hass) {
@@ -254,6 +475,8 @@ class EedomusConfigPanel extends HTMLElement {
 
   disconnectedCallback() {
     window.removeEventListener('hashchange', this._boundHashChange);
+    // Tears down the popover and its document-level listeners.
+    this._closeCoherencePopover();
   }
 
   _tabFromLocation() {
@@ -708,6 +931,81 @@ class EedomusConfigPanel extends HTMLElement {
           background: color-mix(in srgb, var(--secondary-text-color) 12%, var(--card-background-color));
         }
 
+        .coherence-id-trigger {
+          font: inherit; padding: 0; border: none; background: transparent;
+          color: inherit; cursor: pointer;
+          text-decoration: underline dotted var(--secondary-text-color);
+          text-underline-offset: 3px;
+        }
+        .coherence-id-trigger[aria-expanded="true"] {
+          text-decoration-style: solid;
+        }
+        .coherence-id-trigger:focus-visible {
+          outline: 2px solid var(--primary-color); outline-offset: 2px;
+        }
+
+        /* Popover: the panel's single floating surface (DESIGN.md
+           §Elevation & Depth) — card background, divider filet, theme
+           card radius and shadow; no invented elevation. */
+        .periph-popover {
+          position: fixed; z-index: 5;
+          width: min(400px, calc(100vw - 16px));
+          max-height: min(70vh, 480px);
+          overflow: auto;
+          background: var(--card-background-color);
+          border: 1px solid var(--divider-color);
+          border-radius: var(--ha-card-border-radius, 12px);
+          box-shadow: var(--ha-card-box-shadow, none);
+          padding: 16px;
+        }
+        .popover-head {
+          display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+        }
+        .popover-name { font-weight: 500; }
+        .popover-id {
+          font-family: var(--code-font-family, ui-monospace, Menlo, monospace);
+          font-size: 12.5px; color: var(--secondary-text-color);
+        }
+        .popover-section {
+          border-top: 1px solid var(--divider-color);
+          margin-top: 12px; padding-top: 12px;
+        }
+        .popover-heading {
+          margin: 0 0 8px; font-size: 12px; font-weight: 500;
+          color: var(--secondary-text-color);
+          text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .popover-error {
+          color: var(--error-color, #db4437);
+          font-size: 13px; margin: 0 0 8px;
+        }
+        .detail-row { display: flex; gap: 12px; padding: 2px 0; }
+        .detail-row dt {
+          flex: 0 0 38%; color: var(--secondary-text-color); font-size: 12.5px;
+        }
+        .detail-row dd { margin: 0; flex: 1; min-width: 0; word-break: break-word; }
+        .detail-code {
+          font-family: var(--code-font-family, ui-monospace, Menlo, monospace);
+          font-size: 12.5px;
+        }
+        .detail-unknown { color: var(--secondary-text-color); }
+        .popover-actions {
+          display: flex; flex-wrap: wrap; gap: 8px;
+          margin-top: 12px;
+        }
+        .popover-raw {
+          border-top: 1px solid var(--divider-color);
+          margin-top: 12px; padding-top: 4px;
+        }
+        .popover-raw summary {
+          cursor: pointer; color: var(--secondary-text-color);
+          display: flex; align-items: center; min-height: 44px; font-size: 13px;
+        }
+        .popover-raw summary:focus-visible {
+          outline: 2px solid var(--primary-color); outline-offset: 2px;
+        }
+        .popover-raw .detail-row dt { flex: 0 0 45%; }
+
         .skeleton-cell {
           height: 18px;
           border-radius: 9999px;
@@ -782,6 +1080,12 @@ class EedomusConfigPanel extends HTMLElement {
     this.shadowRoot.addEventListener('click', (ev) => this._onClick(ev));
     this.shadowRoot.addEventListener('input', (ev) => this._onInput(ev));
     this.shadowRoot.addEventListener('keydown', (ev) => this._onKeyDown(ev));
+    this.shadowRoot.addEventListener(
+      'mouseover', (ev) => this._onCoherenceMouseOver(ev)
+    );
+    this.shadowRoot.addEventListener(
+      'mouseout', (ev) => this._onCoherenceMouseOut(ev)
+    );
 
     this._renderTabContent();
   }
@@ -821,6 +1125,18 @@ class EedomusConfigPanel extends HTMLElement {
     if (coherenceShowAll) {
       this._coherenceView = 'all';
       this._renderCoherenceTable();
+      return;
+    }
+    const popoverTrigger = ev.target.closest('[data-coherence-popover]');
+    if (popoverTrigger) {
+      // Entrée/click on the periph_id cell: open without the hover
+      // delay; clicking the open trigger toggles it closed.
+      this._cancelCoherenceHover();
+      if (this._coherencePopoverTrigger === popoverTrigger) {
+        this._closeCoherencePopover();
+      } else {
+        this._openCoherencePopover(popoverTrigger, { focusPopover: true });
+      }
       return;
     }
     const filterBtn = ev.target.closest('.filter-touches');
@@ -867,6 +1183,19 @@ class EedomusConfigPanel extends HTMLElement {
 
   _onKeyDown(ev) {
     if (ev.key === 'Escape') {
+      if (this._coherencePopover) {
+        // Échap referme le popover (le popover intercepte déjà l'Échap
+        // quand il détient le focus — cette branche est le filet pour
+        // un popover ouvert au survol, jamais focalisé). Sans le focus
+        // dedans, l'Échap poursuit vers le champ actif : vider la
+        // recherche doit continuer de fonctionner.
+        const pop = this._coherencePopover;
+        const active = this.shadowRoot.activeElement;
+        this._closeCoherencePopover();
+        if (pop.contains(active)) {
+          return;
+        }
+      }
       if (ev.target.id === 'periph-search') {
         if (ev.target.value !== '') {
           this._search = '';
@@ -906,6 +1235,9 @@ class EedomusConfigPanel extends HTMLElement {
     if (!root) {
       return;
     }
+    // A tab switch replaces the coherence table: the popover closes,
+    // never survives detached from its anchor row.
+    this._closeCoherencePopover();
     root.querySelectorAll('.tab').forEach((tab) => {
       tab.setAttribute('aria-selected', String(tab.dataset.tab === this._tab));
     });
@@ -1286,6 +1618,9 @@ class EedomusConfigPanel extends HTMLElement {
     if (!root || this._tab !== 'coherence' || this._coherence === null) {
       return;
     }
+    // Any reshuffle (sort, filtre, recherche, bascule) can remove the
+    // anchor row: the popover closes, never floats orphaned.
+    this._closeCoherencePopover();
     // Keep the view toggle in sync (mirror of the Périphériques filter).
     const viewBtn = root.querySelector('[data-coherence-view]');
     if (viewBtn) {
@@ -1398,6 +1733,256 @@ class EedomusConfigPanel extends HTMLElement {
     }
   }
 
+  // ---- Popover de détail périphérique (ticket 2.4) ----
+  // Desktop floating surface of the Cohérence tab. The trigger stays
+  // the periph_id cell (code font); nothing else in the row opens it.
+
+  _onCoherenceMouseOver(ev) {
+    if (this._tab !== 'coherence') {
+      return;
+    }
+    const pop = this._coherencePopover;
+    const openTrigger = this._coherencePopoverTrigger;
+    if (pop && openTrigger &&
+        (pop.contains(ev.target) || openTrigger.contains(ev.target))) {
+      // Pointer back over the trigger or the popover: the grace
+      // window that closes a hover-opened popover is cancelled.
+      this._cancelCoherenceLeave();
+      return;
+    }
+    if (pop && !this._coherencePopoverByHover) {
+      // Focus-opened popover: hover is ignored entirely — a sweeping
+      // mouse never rips the focus out from under a keyboard user.
+      return;
+    }
+    if (!hoverCapable()) {
+      // Touch: a tap fires mouseover — only the click path opens.
+      return;
+    }
+    const trigger = ev.target.closest
+      ? ev.target.closest('[data-coherence-popover]')
+      : null;
+    if (!trigger || trigger === openTrigger) {
+      return;
+    }
+    this._cancelCoherenceHover();
+    // Hover intent ~250 ms: no popover storm when sweeping the mouse
+    // across the table. Keyboard opens without delay (Entrée).
+    this._coherenceHoverTrigger = trigger;
+    this._coherenceHoverTimer = setTimeout(() => {
+      this._coherenceHoverTimer = null;
+      this._coherenceHoverTrigger = null;
+      this._openCoherencePopover(trigger, { focusPopover: false, byHover: true });
+    }, 250);
+  }
+
+  _onCoherenceMouseOut(ev) {
+    const pending = this._coherenceHoverTrigger;
+    if (pending) {
+      // Leaving the pending trigger before the intent delay cancels
+      // the open (unless the pointer stays inside the trigger).
+      const left = ev.target.closest
+        ? ev.target.closest('[data-coherence-popover]')
+        : null;
+      if (left === pending) {
+        const to = ev.relatedTarget;
+        if (!to || !pending.contains(to)) {
+          this._cancelCoherenceHover();
+        }
+      }
+    }
+    const pop = this._coherencePopover;
+    const trigger = this._coherencePopoverTrigger;
+    if (!pop || !trigger || !this._coherencePopoverByHover) {
+      return;
+    }
+    // Hover-opened popover that never received focus: leaving the
+    // trigger or the popover starts a short grace window — enough to
+    // cross the 8 px gap, then the popover closes.
+    const from = ev.target;
+    if (!pop.contains(from) && !trigger.contains(from)) {
+      return;
+    }
+    const to = ev.relatedTarget;
+    if (to && (pop.contains(to) || trigger.contains(to))) {
+      return;
+    }
+    this._cancelCoherenceLeave();
+    this._coherenceLeaveTimer = setTimeout(() => {
+      this._coherenceLeaveTimer = null;
+      this._closeCoherencePopover();
+    }, 200);
+  }
+
+  _cancelCoherenceHover() {
+    if (this._coherenceHoverTimer) {
+      clearTimeout(this._coherenceHoverTimer);
+      this._coherenceHoverTimer = null;
+    }
+    this._coherenceHoverTrigger = null;
+  }
+
+  _cancelCoherenceLeave() {
+    if (this._coherenceLeaveTimer) {
+      clearTimeout(this._coherenceLeaveTimer);
+      this._coherenceLeaveTimer = null;
+    }
+  }
+
+  _openCoherencePopover(trigger, opts) {
+    const periphId = trigger.dataset.coherencePopover;
+    const row = (this._coherence || []).find(
+      (r) => String(r.periph_id) === String(periphId)
+    );
+    if (!row) {
+      return;
+    }
+    // One floating surface at a time: opening another closes the first.
+    this._closeCoherencePopover();
+    const pop = document.createElement('div');
+    pop.className = 'periph-popover';
+    pop.setAttribute('role', 'dialog');
+    pop.setAttribute(
+      'aria-label',
+      `Détail du périphérique ${row.name || row.periph_id} (${row.periph_id})`
+    );
+    pop.innerHTML = coherenceDetailHtml(row);
+    this.shadowRoot.appendChild(pop);
+    this._coherencePopover = pop;
+    this._coherencePopoverTrigger = trigger;
+    this._coherencePopoverByHover = Boolean(opts && opts.byHover);
+    trigger.setAttribute('aria-expanded', 'true');
+    this._positionCoherencePopover(pop, trigger);
+    this._wireCoherencePopover(pop, trigger);
+    if (opts && opts.focusPopover) {
+      const focusables = this._popoverFocusables(pop);
+      if (focusables.length > 0) {
+        focusables[0].focus();
+      }
+    }
+  }
+
+  _closeCoherencePopover() {
+    this._cancelCoherenceHover();
+    this._cancelCoherenceLeave();
+    const pop = this._coherencePopover;
+    const trigger = this._coherencePopoverTrigger;
+    this._coherencePopover = null;
+    this._coherencePopoverTrigger = null;
+    this._coherencePopoverByHover = false;
+    if (this._coherenceDismiss) {
+      document.removeEventListener('click', this._coherenceDismiss, true);
+      document.removeEventListener('scroll', this._coherenceDismiss, true);
+      window.removeEventListener('resize', this._coherenceDismiss);
+      window.removeEventListener('orientationchange', this._coherenceDismiss);
+      this._coherenceDismiss = null;
+    }
+    if (this._coherenceFocusOut) {
+      this.shadowRoot.removeEventListener('focusout', this._coherenceFocusOut);
+      this._coherenceFocusOut = null;
+    }
+    if (trigger) {
+      trigger.setAttribute('aria-expanded', 'false');
+    }
+    if (!pop) {
+      return;
+    }
+    // Focus goes back to the trigger only when it was inside the
+    // popover — a mouse user focused elsewhere keeps it there.
+    const active = this.shadowRoot.activeElement;
+    const focusInside = active != null && pop.contains(active);
+    pop.remove();
+    if (focusInside && trigger && trigger.isConnected) {
+      trigger.focus();
+    }
+  }
+
+  _wireCoherencePopover(pop, trigger) {
+    // Outside click and any scroll that can detach the anchor row close
+    // the popover — a single listener pair, active only while open.
+    this._coherenceDismiss = (ev) => {
+      const path = ev.composedPath ? ev.composedPath() : [ev.target];
+      if (path.indexOf(pop) !== -1) {
+        return;
+      }
+      if (ev.type === 'click' && path.indexOf(trigger) !== -1) {
+        return;
+      }
+      this._closeCoherencePopover();
+    };
+    document.addEventListener('click', this._coherenceDismiss, true);
+    document.addEventListener('scroll', this._coherenceDismiss, true);
+    // A resize or an orientation change invalidates the fixed
+    // coordinates: close instead of floating at a stale position.
+    window.addEventListener('resize', this._coherenceDismiss);
+    window.addEventListener('orientationchange', this._coherenceDismiss);
+    // A hover-opened popover that never held focus closes as soon as
+    // the focus lands outside the trigger and the popover (ex. Tab
+    // depuis le déclencheur).
+    this._coherenceFocusOut = (ev) => {
+      if (!this._coherencePopoverByHover) {
+        return;
+      }
+      const to = ev.relatedTarget;
+      if (to && (pop.contains(to) || trigger.contains(to))) {
+        return;
+      }
+      this._closeCoherencePopover();
+    };
+    this.shadowRoot.addEventListener('focusout', this._coherenceFocusOut);
+    // Focus entering the popover hands it over to the keyboard
+    // contract: the hover-close grace stops applying.
+    pop.addEventListener('focusin', () => {
+      this._coherencePopoverByHover = false;
+    });
+    // Keyboard contract: Tab loops inside the popover (focus trap),
+    // Échap closes and returns the focus to the trigger.
+    pop.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape') {
+        ev.preventDefault();
+        ev.stopPropagation();
+        this._closeCoherencePopover();
+        return;
+      }
+      if (ev.key !== 'Tab') {
+        return;
+      }
+      const focusables = this._popoverFocusables(pop);
+      if (focusables.length === 0) {
+        ev.preventDefault();
+        return;
+      }
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const idx = focusables.indexOf(this.shadowRoot.activeElement);
+      if (ev.shiftKey && idx <= 0) {
+        ev.preventDefault();
+        last.focus();
+      } else if (!ev.shiftKey && (idx === -1 || idx === focusables.length - 1)) {
+        ev.preventDefault();
+        first.focus();
+      }
+    });
+  }
+
+  _positionCoherencePopover(pop, trigger) {
+    const anchor = trigger.getBoundingClientRect();
+    const rect = pop.getBoundingClientRect();
+    const pos = coherencePopoverPosition(
+      { left: anchor.left, top: anchor.top, bottom: anchor.bottom },
+      { width: rect.width, height: rect.height },
+      { width: window.innerWidth, height: window.innerHeight }
+    );
+    pop.style.left = `${pos.left}px`;
+    pop.style.top = `${pos.top}px`;
+  }
+
+  _popoverFocusables(pop) {
+    return Array.from(
+      pop.querySelectorAll(POPOVER_FOCUSABLE_SELECTOR)
+    );
+  }
+
   _renderCoherenceSkeleton() {
     // Skeletons shaped like the expected content: table header + rows.
     const row = `
@@ -1422,7 +2007,7 @@ class EedomusConfigPanel extends HTMLElement {
     return `
       <tr>
         <td class="coherence-id" data-label="Périphérique">
-          <code>${this._escapeHtml(row.periph_id)}</code>
+          ${coherenceTriggerHtml(row.periph_id)}
         </td>
         <td data-label="Nom">${this._escapeHtml(row.name || '')}</td>
         <td class="ha-entity" data-label="Entité HA">${entity}</td>
@@ -1595,12 +2180,7 @@ class EedomusConfigPanel extends HTMLElement {
   }
 
   _escapeHtml(value) {
-    return String(value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+    return escapeHtml(value);
   }
 
   _escapeAttr(value) {
