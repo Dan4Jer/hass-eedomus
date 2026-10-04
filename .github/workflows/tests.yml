@@ -26,12 +26,18 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pytest pytest-asyncio
+        pip install pytest pytest-asyncio voluptuous pyyaml aiohttp
     
     - name: Run integration tests
       run: |
         echo "Running integration tests..."
         python3 -m pytest scripts/tests/ -v --tb=short || echo "Tests completed (some may be skipped)"
+
+    # Strict on purpose: a failed unit test must fail the workflow.
+    - name: Run unit tests
+      run: |
+        echo "Running unit tests..."
+        python3 -m pytest tests/unit/ -q
     
     - name: Set up Node
       uses: actions/setup-node@v7

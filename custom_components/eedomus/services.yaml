@@ -1,5 +1,11 @@
 # Eedomus Integration Services
-# This file defines the services provided by the eedomus integration
+# This file defines the services provided by the eedomus integration.
+#
+# Translations: service names/descriptions live in the "services" section of
+# strings.json (EN source of truth) and translations/<lang>.json (compiled
+# copies). Home Assistant reads this file for the service/field declaration
+# and uses it as the description fallback; the two must stay consistent
+# (pinned by tests/unit/test_translations_structure.py).
 
 refresh:
   name: Refresh eedomus data
@@ -29,6 +35,26 @@ reload:
 cleanup_unused_entities:
   name: Cleanup unused eedomus entities
   description: Remove disabled, deprecated, and orphaned eedomus entities
+  fields: {}
+
+set_climate_temperature:
+  name: Set climate temperature
+  description: Set the target temperature of an eedomus climate peripheral
+  fields:
+    device_id:
+      name: Device ID
+      description: The ID of the climate peripheral to control
+      required: true
+      example: "123456"
+    temperature:
+      name: Temperature
+      description: The target temperature in °C (between 7.0 and 30.0)
+      required: true
+      example: "19.5"
+
+cleanup_unused_devices:
+  name: Cleanup unused eedomus devices
+  description: Remove disabled eedomus devices and devices without entities
   fields: {}
 
 # Additional services can be added here for future expansion

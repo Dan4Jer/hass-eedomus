@@ -109,11 +109,31 @@ The sidebar label registered with the panel (`PANEL_SIDEBAR_TITLE = "Eedomus Con
 - `fr.json` has a `ui` section (46 keys, legacy options UI — nothing references it at runtime) absent from `en.json`: the documented structural break; 3.4 completes `en.json` or retires the legacy family (destructive change needs the plan checkpoint's confirmation).
 - `strings.json` also has a `ui.*` section (46 keys) — same legacy family, to reconcile in 3.4.
 
+### Addendum (3.4 review patch): keys migrated with the review fixes
+
+The `config.step.user.data.*` labels now match the real `STEP_USER_DATA_SCHEMA` field ids (`api_host`, `api_eedomus`, `enable_api_proxy`, `api_user`, `api_secret`, `scan_interval`, `history`, `http_request_timeout`, `max_concurrent_requests`, `min_request_delay`, `enable_set_value_retry`, `max_retries`, `enable_webhook`, `api_proxy_disable_security`, `php_fallback_enabled`, `php_fallback_script_name`, `php_fallback_timeout`); the dead label keys (`host`, `api_key`, `secret`, `php_fallback`) are gone. The dead entity-platform sections `entity.scene` (scene not in `PLATFORMS`) and `entity.text_sensor` (instances added via the sensor platform) were dropped from the three trees.
+
+| Current | Context | Key |
+|---|---|---|
+| ⚠️ WARNING: This will remove the eedomus integration… | config-flow uninstall step explanation (was a hardcoded `description_placeholders` injection) | config.step.uninstall.description |
+| Uninstall eedomus / Désinstaller eedomus | uninstall step title | config.step.uninstall.title |
+| Also remove all eedomus entities | uninstall step checkbox label (previously raw `remove_entities`) | config.step.uninstall.data.remove_entities |
+| Configure the Eedomus integration settings. Use the YAML editor for advanced configuration. | options init step intro (was a hardcoded `content` placeholder with no step translation) | options.step.init.description |
+| Eedomus | options init step title | options.step.init.title |
+| Modify the YAML below. Click 'Preview' to validate before saving. | yaml editor helper line (was a hardcoded English placeholder) | options.step.yaml_editor.helper |
+| ✅ YAML is valid | yaml editor preview status on valid YAML (was hardcoded English) | options.step.yaml_editor.status_valid |
+| ❌ Error: {error} | yaml editor preview status on invalid YAML (was hardcoded English) | options.step.yaml_editor.status_invalid |
+| Unexpected error | generic validation failure (errors["base"]="unknown" previously rendered the raw key) | config.error.unknown |
+| Cannot connect | API Eedomus connection test failure (was raw vol.Invalid prose; now wired) | config.error.cannot_connect |
+| Réponse invalide de l'API eedomus | FR calque fixed (config.error.invalid_response) | config.error.invalid_response |
+
 ## 3. Services — backend-i18n (to migrate in 3.4)
 
 `services.yaml` (English, no translation keys): 4 services — `refresh`, `set_value` (+ fields `device_id`, `value`), `reload`, `cleanup_unused_entities` — names + descriptions move to the `services` section of `strings.json`, translated in `en.json`/`fr.json`. Keys (custom-integration shape, keyed by service name directly — NOT domain-nested): `services.refresh.name`/`.description`, `services.set_value.name`/`.description` + `services.set_value.fields.device_id.name`/`.description` + `services.set_value.fields.value.name`/`.description`, `services.reload.name`/`.description`, `services.cleanup_unused_entities.name`/`.description`.
 
 **Service-call error strings** (`services.py:118-234`, raised to callers): "device_id and value are required", "Device {device_id} not found on any configured eedomus box", "Failed to set value: …", "No eedomus config entry found", the temperature validations — mechanism **plain-EN** (English source; HA does not runtime-translate service exceptions for custom integrations).
+
+**Addendum (3.4 review patch)**: `services.py` also registers `set_climate_temperature` and `cleanup_unused_devices`, which were previously absent from `services.yaml` and from the services section. Both are now declared in `services.yaml` and translated. Keys: `services.set_climate_temperature.name`/`.description` + `services.set_climate_temperature.fields.device_id.name`/`.description` + `services.set_climate_temperature.fields.temperature.name`/`.description`, `services.cleanup_unused_devices.name`/`.description`. The service-call error strings above now live in the `exceptions` section of the three trees (raised via `translation_key`, pinned by TestExceptionsSection).
 
 ## 4. Entity fallbacks — backend-i18n (to migrate in 3.4)
 

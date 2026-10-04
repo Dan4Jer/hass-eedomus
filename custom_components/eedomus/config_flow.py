@@ -58,40 +58,18 @@ from .const import (
 )
 from .eedomus_client import EedomusClient
 
-# ASCII art and explanations
-CONNECTION_MODES_EXPLANATION = """
-🔄 CONNECTION MODES EXPLANATION 🔄
-
-📋 API Eedomus Mode (Direct Connection - Pull):
-   • Home Assistant pulls data from Eedomus API
-   • Requires API credentials (user/secret)
-   • Enables full functionality including history
-   • Recommended for most users
-
-🔄 API Proxy Mode (Webhook - Push):
-   • Eedomus pushes data to Home Assistant via webhooks
-   • Only requires API host for webhook registration
-   • No credentials needed for basic functionality
-   • Limited functionality (no history)
-   • Useful for real-time updates
-
-💡 You can enable both modes for redundancy and optimal performance!
-
-⚠️ SECURITY NOTE: API Proxy mode includes IP validation by default.
-   Disable only for debugging (NOT recommended for production).
-
-🔒 IMPORTANT: All communications are in PLAIN TEXT.
-   Never expose your Eedomus box or Home Assistant to the internet!
-
-📖 FOR MORE INFORMATION: Check the documentation in your language:
-   - English: https://github.com/Dan4Jer/hass-eedomus/blob/main/docs/configuration_documentation.md
-   - Français: https://github.com/Dan4Jer/hass-eedomus/blob/main/docs/configuration_documentation_fr.md
-"""
+# The connection modes explanation is user-facing text: it ships as the
+# config.step.user.description translation (strings.json + translations/),
+# not as a hardcoded placeholder string.
 
 _LOGGER = logging.getLogger(__name__)
 
 # Configuration constants
 CONF_SCAN_INTERVAL = "scan_interval"
+
+
+class EedomusConnectionTestError(Exception):
+    """API Eedomus connection test failed (config.error.cannot_connect)."""
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
@@ -150,7 +128,6 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_show_form(
                 step_id="user",
                 data_schema=STEP_USER_DATA_SCHEMA,
-                description_placeholders={"explanation": CONNECTION_MODES_EXPLANATION},
             )
 
         user_show = user_input.copy()
@@ -174,6 +151,9 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         # Validate the input
         try:
             info = await self.validate_input(user_input)
+        except EedomusConnectionTestError:
+            # Translated error key: config.error.cannot_connect
+            errors = {"base": "cannot_connect"}
         except vol.Invalid as err:
             errors = {"base": str(err)}
             _LOGGER.error("Validation error: %s", str(err))
@@ -188,7 +168,6 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=STEP_USER_DATA_SCHEMA,
             errors=errors,
-            description_placeholders={"explanation": CONNECTION_MODES_EXPLANATION},
         )
 
     async def validate_input(self, data: dict[str, Any]) -> dict[str, Any]:
@@ -299,14 +278,16 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             # Test the connection by trying to fetch peripheral list
             try:
                 rdata = await client.auth_test()
-                if not rdata or rdata.get("success", 0) != 1:
-                    raise vol.Invalid(
-                        "Cannot connect to eedomus API - please check your credentials and host"
-                    )
-                _LOGGER.info("API Eedomus connection test successful")
             except Exception as e:
                 _LOGGER.error("API Eedomus connection test failed: %s", str(e))
-                raise vol.Invalid(f"API Eedomus connection test failed: {str(e)}")
+                raise EedomusConnectionTestError() from e
+            if not rdata or rdata.get("success", 0) != 1:
+                _LOGGER.error(
+                    "Cannot connect to eedomus API - "
+                    "please check your credentials and host"
+                )
+                raise EedomusConnectionTestError()
+            _LOGGER.info("API Eedomus connection test successful")
 
         # API Proxy mode validation
         if api_proxy_enabled:
@@ -334,6 +315,8 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_uninstall(self, user_input=None):
         """Handle the uninstall step."""
         if user_input is None:
+            # The warning text ships as the config.step.uninstall
+            # description translation (strings.json + translations/).
             return self.async_show_form(
                 step_id="uninstall",
                 data_schema=vol.Schema(
@@ -344,10 +327,6 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         ): bool,
                     }
                 ),
-                description_placeholders={
-                    "explanation": "⚠️ WARNING: This will remove the eedomus integration and optionally delete all associated entities. "
-                    "This action cannot be undone. Make sure you have a backup of your configuration."
-                },
             )
 
         # If user confirms uninstallation

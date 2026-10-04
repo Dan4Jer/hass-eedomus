@@ -60,8 +60,9 @@ _LOGGER = logging.getLogger(__name__)
 async def async_get_translations(hass, language="en"):
     """Load translations for the given language."""
     try:
-        if language == "en-GB":
-            language = "en"
+        # Strip the region subtag (fr-FR, fr-CA, en-GB...) so the base
+        # language file is found instead of falling back to English.
+        language = str(language).split("-")[0]
         translations_path = os.path.join(
             os.path.dirname(__file__), "translations", f"{language}.json"
         )
@@ -193,15 +194,48 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(CONF_PHP_FALLBACK_TIMEOUT, default=current_config.get(CONF_PHP_FALLBACK_TIMEOUT, 5)): int,
                     vol.Optional(CONF_HTTP_REQUEST_TIMEOUT, default=current_config.get(CONF_HTTP_REQUEST_TIMEOUT, 30)): int,
                 }),
-                description_placeholders={
-                    "content": "Configure Eedomus integration settings. Check 'Use Rich Editor' for advanced YAML configuration."
-                }
             )
         
+    async def _async_yaml_editor_placeholders(
+        self, preview_content, status_key=None, error=""
+    ):
+        """Build the description placeholders of the yaml_editor step.
+
+        The description text itself ships as the options.step.yaml_editor
+        translation (strings.json + translations/): only dynamic values are
+        injected here. The preview status text comes from the same step's
+        status_valid/status_invalid translation keys, so it renders in the
+        user's language instead of hardcoded English.
+        """
+        language = self.hass.config.language if self.hass else "en"
+        translations = (
+            await async_get_translations(self.hass, language) if self.hass else {}
+        )
+        yaml_editor = (
+            (translations.get("options") or {}).get("step") or {}
+        ).get("yaml_editor", {})
+        if status_key:
+            preview_status = yaml_editor.get(status_key, "").format(error=error)
+        else:
+            preview_status = ""
+        return {
+            "description": translations.get(
+                "description",
+                yaml_editor.get("description_fallback", "Edit YAML configuration"),
+            ),
+            "helper": yaml_editor.get(
+                "helper",
+                "Modify the YAML below. Click 'Preview' to validate before saving.",
+            ),
+            "preview_content": preview_content,
+            "preview_status": preview_status,
+        }
+
     async def async_step_yaml_editor(self, user_input=None):
         """Handle YAML configuration editing with rich editor interface."""
         errors = {}
-        
+        invalid_yaml_error = ""
+
         # Check if user wants to preview YAML
         if user_input is not None and user_input.get("action") == "preview":
             yaml_content = user_input.get("yaml_content", "")
@@ -210,33 +244,35 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 parsed_yaml = yaml.safe_load(yaml_content) or {}
                 from .const import YAML_MAPPING_SCHEMA
                 YAML_MAPPING_SCHEMA(parsed_yaml)
-                
+
                 # Return preview
+                placeholders = await self._async_yaml_editor_placeholders(
+                    f"```yaml\n{yaml_content}\n```", "status_valid"
+                )
                 return self.async_show_form(
                     step_id="yaml_editor",
                     data_schema=vol.Schema({
                         vol.Optional("yaml_content", default=yaml_content): str,
                         vol.Optional("preview_mode"): bool,
                     }),
-                    description_placeholders={
-                        "preview_title": "YAML Preview",
-                        "preview_content": f"```yaml\n{yaml_content}\n```",
-                        "preview_valid": "✅ YAML is valid",
-                    },
+                    description_placeholders=placeholders,
                     errors=errors
                 )
             except (yaml.YAMLError, vol.Invalid) as e:
-                errors["base"] = f"Invalid YAML: {e}"
+                # Translated error key: options.error.invalid_yaml, with the
+                # raw exception injected as the {error} placeholder. The
+                # preview status comes from the step's status_invalid key.
+                errors["base"] = "invalid_yaml"
+                placeholders = await self._async_yaml_editor_placeholders(
+                    f"```yaml\n{yaml_content}\n```", "status_invalid", error=str(e)
+                )
+                placeholders["error"] = str(e)
                 return self.async_show_form(
                     step_id="yaml_editor",
                     data_schema=vol.Schema({
                         vol.Optional("yaml_content", default=yaml_content): str,
                     }),
-                    description_placeholders={
-                        "preview_title": "YAML Preview",
-                        "preview_content": f"```yaml\n{yaml_content}\n```",
-                        "preview_error": f"❌ Error: {e}",
-                    },
+                    description_placeholders=placeholders,
                     errors=errors
                 )
         
@@ -290,7 +326,11 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 _LOGGER.debug("Saving YAML configuration")
                 return self.async_create_entry(data=options)
             except (yaml.YAMLError, vol.Invalid) as e:
-                errors["base"] = f"Invalid YAML: {e}"
+                # Translated error key (options.error.invalid_yaml); the raw
+                # exception is injected as the {error} placeholder of the
+                # re-displayed form below.
+                errors["base"] = "invalid_yaml"
+                invalid_yaml_error = str(e)
                 _LOGGER.error(f"Failed to save YAML configuration: {e}")
         
         # Load current YAML configuration
@@ -334,20 +374,21 @@ custom_devices:
 # Add your custom device mappings here
 """
         
-        # Load translations
-        language = self.hass.config.language if self.hass else "en"
-        translations = await async_get_translations(self.hass, language) if self.hass else {}
-        
+        # The description markdown (options.step.yaml_editor translation)
+        # renders the preview of the current configuration; the placeholders
+        # come from the flat loader exactly as before.
+        placeholders = await self._async_yaml_editor_placeholders(
+            f"```yaml\n{yaml_content}\n```"
+        )
+        if invalid_yaml_error:
+            placeholders["error"] = invalid_yaml_error
+
         return self.async_show_form(
             step_id="yaml_editor",
             data_schema=vol.Schema({
                 vol.Optional("yaml_content", default=yaml_content): str,
             }),
-            description_placeholders={
-                "title": translations.get("title", "Eedomus"),
-                "description": translations.get("description", "Edit YAML configuration"),
-                "helper": "Modify the YAML below. Click 'Preview' to validate before saving.",
-            },
+            description_placeholders=placeholders,
             errors=errors
         )
 

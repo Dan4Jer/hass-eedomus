@@ -72,7 +72,21 @@ def _install_homeassistant_stubs():
 
     # homeassistant.helpers.update_coordinator
     ha_coord = module("homeassistant.helpers.update_coordinator")
-    ha_coord.CoordinatorEntity = MagicMock
+
+    class _StubCoordinatorEntity:
+        """Minimal CoordinatorEntity: keeps the coordinator reference and
+        exposes the _handle_coordinator_update hook (a plain MagicMock base
+        breaks subclass instantiation - self.coordinator would never be
+        set by super().__init__, and EedomusEntity reads it at init).
+        """
+
+        def __init__(self, coordinator, context=None):
+            self.coordinator = coordinator
+
+        def _handle_coordinator_update(self) -> None:
+            pass
+
+    ha_coord.CoordinatorEntity = _StubCoordinatorEntity
 
     class _StubDataUpdateCoordinator:
         """Minimal base class.
@@ -99,6 +113,19 @@ def _install_homeassistant_stubs():
     # homeassistant.exceptions
     ha_exc = module("homeassistant.exceptions")
     ha_exc.ConfigEntryNotReady = type("ConfigEntryNotReady", (Exception,), {})
+
+    # HomeAssistantError subclasses used by services.py: the real classes
+    # carry translation_domain/translation_key/translation_placeholders for
+    # HA-native error localization (verified against HA 2026.9); the stubs
+    # accept and drop the same kwargs so the raises stay testable.
+    class _StubHomeAssistantError(Exception):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args)
+
+    ha_exc.HomeAssistantError = _StubHomeAssistantError
+    ha_exc.ServiceValidationError = type(
+        "ServiceValidationError", (_StubHomeAssistantError,), {}
+    )
 
     # homeassistant.components (+ http, sensor) - needed by __init__.py chain
     ha_components = module("homeassistant.components")

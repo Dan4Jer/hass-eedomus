@@ -175,18 +175,84 @@ class EedomusEntity(CoordinatorEntity):
         super().__init__(coordinator)
         self._periph_id = periph_id
         self._entry_prefix = get_entry_prefix(coordinator)
-        
+
         # Safe access to coordinator data
         periph_data = self._get_periph_data(periph_id)
         if periph_data is None:
             _LOGGER.warning(f"Peripheral data not found for {periph_id}, using fallback")
-            self._attr_name = f"Unknown Device ({periph_id})"
             self._parent_id = None
-            self._attr_unique_id = f"{self._entry_prefix}_{periph_id}"
         else:
-            self._attr_name = periph_data.get("name", f"Unknown Device ({periph_id})")
             self._parent_id = periph_data.get("parent_periph_id", None)
-            self._attr_unique_id = f"{self._entry_prefix}_{periph_id}"
+        self._attr_unique_id = f"{self._entry_prefix}_{periph_id}"
+
+        # Name fallback for unnamed peripherals: translated via the native
+        # entity grammar (entity.<domain>.<translation_key>.name), see
+        # _update_name_translation. Re-evaluated on coordinator refresh.
+        self._base_owns_name = False
+        self._update_name_translation()
+
+    def _is_parent_peripheral(self) -> bool:
+        """Return True when another peripheral references this one as parent."""
+        data = getattr(self.coordinator, "data", None) or {}
+        return any(
+            isinstance(item, dict)
+            and item.get("parent_periph_id") == self._periph_id
+            for item in data.values()
+        )
+
+    def _clear_name_translation(self) -> None:
+        """Drop the translated name fallback (a real name exists)."""
+        self._attr_has_entity_name = False
+        self._attr_translation_key = None
+        self._attr_translation_placeholders = None
+
+    def _adopt_derived_name(self) -> None:
+        """A subclass derived its own name (e.g. battery sensor): it wins."""
+        self._base_owns_name = False
+        self._clear_name_translation()
+
+    def _update_name_translation(self) -> None:
+        """Point the entity name at translation keys only when unnamed.
+
+        The real peripheral name always wins: the translation key is set
+        only when the name is absent or blank (falsy after strip), and this
+        state is re-evaluated on every coordinator refresh so a
+        late-arriving name replaces the translated fallback. Verified
+        against the target HA (2026.9): _attr_name is resolved first, the
+        translation is only consulted when no name is set AND
+        has_entity_name is enabled (helpers/entity.py _name_internal).
+        """
+        periph_data = self._get_periph_data()
+        # The API/webhook may deliver a numeric name: coerce before strip.
+        name = str((periph_data.get("name") or "")) if periph_data else ""
+        if name.strip():
+            self._clear_name_translation()
+            if not hasattr(self, "_attr_name") or self._base_owns_name:
+                self._attr_name = name
+                self._base_owns_name = True
+            return
+        if hasattr(self, "_attr_name") and not self._base_owns_name:
+            # A subclass derived its own name from the peripheral data:
+            # it wins over the translated fallback as well.
+            self._clear_name_translation()
+            return
+        if hasattr(self, "_attr_name"):
+            # A name that became blank must not leave a stale base-owned
+            # name shadowing the translated fallback.
+            del self._attr_name
+        self._base_owns_name = False
+        self._attr_has_entity_name = True
+        if self._is_parent_peripheral():
+            self._attr_translation_key = "unknown_parent"
+            self._attr_translation_placeholders = {"parent_id": self._periph_id}
+        else:
+            self._attr_translation_key = "unknown_device"
+            self._attr_translation_placeholders = {"periph_id": self._periph_id}
+
+    def _handle_coordinator_update(self) -> None:
+        """Re-evaluate the name fallback before writing the new state."""
+        self._update_name_translation()
+        super()._handle_coordinator_update()
 
     def _get_periph_data(self, periph_id: str = None):
         """Get peripheral data from coordinator.
@@ -295,7 +361,7 @@ class EedomusEntity(CoordinatorEntity):
         except Exception as e:
             _LOGGER.error(
                 "Failed to set value for %s (periph_id=%s) to %s: %s",
-                self._attr_name,
+                getattr(self, "_attr_name", self._periph_id),
                 self._periph_id,
                 value,
                 e,
@@ -689,7 +755,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         except Exception as e:
             _LOGGER.error(
                 "Failed to set value for %s (periph_id=%s) to %s: %s",
-                self._attr_name,
+                getattr(self, "_attr_name", self._periph_id),
                 self._periph_id,
                 value,
                 e,

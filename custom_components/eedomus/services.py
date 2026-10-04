@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Any
 
 from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import entity_platform as ep
 
 from .const import DOMAIN, COORDINATOR
@@ -115,14 +116,21 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
 
         if not device_id or not value:
             _LOGGER.error("❌ Missing required parameters: device_id and value")
-            raise ValueError("device_id and value are required")
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="set_value_missing_device_id_and_value",
+            )
 
         _LOGGER.info("📤 Setting value %s for device %s via service", value, device_id)
 
         target_coordinator = _find_coordinator_for_device(hass, device_id)
         if target_coordinator is None:
             _LOGGER.error("❌ Device %s not found on any configured eedomus box", device_id)
-            raise ValueError(f"Device {device_id} not found on any configured eedomus box")
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="device_not_found",
+                translation_placeholders={"device_id": str(device_id)},
+            )
 
         try:
             # Send the command to eedomus using the owning box's coordinator
@@ -135,11 +143,21 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
                 await target_coordinator.async_request_refresh()
             else:
                 _LOGGER.warning("⚠️ Set value returned non-success: %s", result)
-                raise ValueError(f"Failed to set value: {result.get('error', 'Unknown error')}")
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN,
+                    translation_key="set_value_failed",
+                    translation_placeholders={
+                        "error": str(result.get("error", "Unknown error"))
+                    },
+                )
 
+        except HomeAssistantError:
+            # Already user-facing and translated - not a crash, do not
+            # log it as one (double handling).
+            raise
         except Exception as err:
             _LOGGER.error("❌ Failed to set value for device %s: %s", device_id, err)
-            raise err
+            raise
 
     async def handle_reload(call: ServiceCall) -> None:
         """Handle reload service call - reloads every configured eedomus box."""
@@ -147,7 +165,10 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
         entries = hass.config_entries.async_entries(DOMAIN)
         if not entries:
             _LOGGER.error("❌ No eedomus config entry found")
-            raise ValueError("No eedomus config entry found")
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="no_config_entry",
+            )
 
         errors = []
         for entry in entries:
@@ -168,18 +189,28 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
         # Validate required parameters
         if not device_id:
             _LOGGER.error("❌ Missing required parameter: device_id")
-            raise ValueError("device_id is required")
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="missing_device_id",
+            )
         
         if temperature is None:
             _LOGGER.error("❌ Missing required parameter: temperature")
-            raise ValueError("temperature is required")
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="missing_temperature",
+            )
         
         # Validate temperature type and range
         try:
             temperature_float = float(temperature)
             if temperature_float < 7.0 or temperature_float > 30.0:
                 _LOGGER.error("❌ Temperature %.1f°C out of valid range (7.0°C-30.0°C)", temperature_float)
-                raise ValueError(f"Temperature must be between 7.0°C and 30.0°C, got {temperature_float}°C")
+                raise ServiceValidationError(
+                    translation_domain=DOMAIN,
+                    translation_key="temperature_out_of_range",
+                    translation_placeholders={"temperature": str(temperature_float)},
+                )
             
             # Round to nearest 0.5°C as that's the typical eedomus precision
             rounded_temp = round(temperature_float * 2) / 2
@@ -188,20 +219,32 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
         except ValueError as ve:
             if "could not convert string to float" in str(ve):
                 _LOGGER.error("❌ Invalid temperature format: %s", temperature)
-                raise ValueError(f"Temperature must be a valid number, got {temperature}")
+                raise ServiceValidationError(
+                    translation_domain=DOMAIN,
+                    translation_key="temperature_invalid_number",
+                    translation_placeholders={"temperature": str(temperature)},
+                )
             raise
         
         # Find which box owns this device, and validate it's a climate entity
         target_coordinator = _find_coordinator_for_device(hass, device_id)
         if target_coordinator is None:
             _LOGGER.error("❌ Device %s not found on any configured eedomus box", device_id)
-            raise ValueError(f"Device {device_id} not found on any configured eedomus box")
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="device_not_found",
+                translation_placeholders={"device_id": str(device_id)},
+            )
 
         periph_data = target_coordinator.data.get(device_id)
         ha_entity = periph_data.get("ha_entity")
         if ha_entity != "climate":
             _LOGGER.error("❌ Device %s is not a climate entity (found: %s)", device_id, ha_entity)
-            raise ValueError(f"Device {device_id} is not a climate entity")
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="device_not_climate",
+                translation_placeholders={"device_id": str(device_id)},
+            )
         
         # Find the live climate entity object and set the temperature through it,
         # so its own eedomus-specific value translation (acceptable_values /
@@ -212,7 +255,11 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
         
         if not climate_entity:
             _LOGGER.error("❌ No climate entity found for device %s", device_id)
-            raise ValueError(f"No climate entity found for device {device_id}")
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="climate_entity_not_found",
+                translation_placeholders={"device_id": str(device_id)},
+            )
         
         # Set temperature through climate entity
         try:
@@ -231,7 +278,11 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
             
         except Exception as err:
             _LOGGER.error("❌ Failed to set climate temperature for %s: %s", device_id, err)
-            raise ValueError(f"Failed to set temperature: {str(err)}")
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="set_temperature_failed",
+                translation_placeholders={"error": str(err)},
+            )
 
     async def handle_cleanup_unused_entities(call: ServiceCall) -> dict:
         """Handle cleanup of unused eedomus entities."""

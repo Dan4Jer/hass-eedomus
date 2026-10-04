@@ -208,7 +208,7 @@ class EedomusLight(EedomusEntity, LightEntity):
             brightness_octal = self.percent_to_octal(int(brightness_percent))
             _LOGGER.debug(
                 "Brightness for %s (%s): percent=%s, octal=%s",
-                self._attr_name,
+                getattr(self, "_attr_name", self._periph_id),
                 self._periph_id,
                 brightness_percent,
                 brightness_octal
@@ -218,7 +218,7 @@ class EedomusLight(EedomusEntity, LightEntity):
             _LOGGER.warning(
                 "Invalid brightness value '%s' for %s (%s)",
                 brightness_percent,
-                self._attr_name,
+                getattr(self, "_attr_name", self._periph_id),
                 self._periph_id
             )
             return 255  # Default to full brightness if value is invalid
@@ -243,7 +243,7 @@ class EedomusLight(EedomusEntity, LightEntity):
         """Turn the light on."""
         _LOGGER.debug(
             "Turning on light %s (%s) with kwargs: %s",
-            self._attr_name,
+            getattr(self, "_attr_name", self._periph_id),
             self._periph_id,
             kwargs,
         )
@@ -267,7 +267,7 @@ class EedomusLight(EedomusEntity, LightEntity):
             response = await self.async_set_value(value)
             _LOGGER.debug(
                 "Light %s (%s) turned on with value: %s (brightness: %s%%)",
-                self._attr_name,
+                getattr(self, "_attr_name", self._periph_id),
                 self._periph_id,
                 value,
                 brightness_percent if brightness is not None else "default",
@@ -276,7 +276,7 @@ class EedomusLight(EedomusEntity, LightEntity):
         except Exception as e:
             _LOGGER.error(
                 "Failed to turn on light %s (%s): %s",
-                self._attr_name,
+                getattr(self, "_attr_name", self._periph_id),
                 self._periph_id,
                 e,
             )
@@ -292,7 +292,7 @@ class EedomusLight(EedomusEntity, LightEntity):
         except Exception as e:
             _LOGGER.error(
                 "Failed to turn off light %s (%s): %s",
-                self._attr_name,
+                getattr(self, "_attr_name", self._periph_id),
                 self._periph_id,
                 e,
             )

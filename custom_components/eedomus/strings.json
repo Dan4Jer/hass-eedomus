@@ -1,18 +1,44 @@
 {
   "title": "Eedomus",
+  "description": "Integration for the eedomus home automation box.",
   "config": {
+    "host": "Eedomus box IP address",
+    "api_user": "API username",
+    "api_secret": "API secret key",
+    "scan_interval": "Scan interval (seconds)",
+    "enable_history": "Enable history",
+    "enable_webhook": "Enable webhook",
+    "enable_api_proxy": "Enable API proxy",
+    "api_proxy_disable_security": "Disable API proxy security (debug only)",
     "step": {
       "user": {
         "title": "Connexion Eedomus",
-        "description": "Configure access to your eedomus box",
+        "description": "Configure access to your eedomus box\n\n🔄 CONNECTION MODES EXPLANATION 🔄\n\n📋 API Eedomus Mode (Direct Connection - Pull):\n   • Home Assistant pulls data from Eedomus API\n   • Requires API credentials (user/secret)\n   • Enables full functionality including history\n   • Recommended for most users\n\n🔄 API Proxy Mode (Webhook - Push):\n   • Eedomus pushes data to Home Assistant via webhooks\n   • Only requires API host for webhook registration\n   • No credentials needed for basic functionality\n   • Limited functionality (no history)\n   • Useful for real-time updates\n\n💡 You can enable both modes for redundancy and optimal performance!\n\n⚠️ SECURITY NOTE: API Proxy mode includes IP validation by default.\n   Disable only for debugging (NOT recommended for production).\n\n🔒 IMPORTANT: All communications are in PLAIN TEXT.\n   Never expose your Eedomus box or Home Assistant to the internet!\n\n📖 FOR MORE INFORMATION: Check the documentation in your language:\n   - English: https://github.com/Dan4Jer/hass-eedomus/blob/main/docs/configuration_documentation.md\n   - Français: https://github.com/Dan4Jer/hass-eedomus/blob/main/docs/configuration_documentation_fr.md",
         "data": {
-          "host": "Box IP address",
-          "api_key": "API Key",
-          "secret": "Secret API",
-          "history": "Enable history retrieval mode from cloud",
-          "php_fallback": "Enable PHP fallback for rejected values",
+          "api_host": "Eedomus box IP address",
+          "api_eedomus": "Enable API Eedomus mode (direct connection)",
+          "enable_api_proxy": "Enable API proxy mode",
+          "api_user": "API username",
+          "api_secret": "API secret key",
           "scan_interval": "Data refresh interval (seconds)",
-          "enable_api_proxy": "Enable API proxy mode"
+          "history": "Enable history retrieval from the cloud",
+          "http_request_timeout": "HTTP request timeout (seconds)",
+          "max_concurrent_requests": "Maximum concurrent requests",
+          "min_request_delay": "Minimum delay between requests (seconds)",
+          "enable_set_value_retry": "Enable retry of refused values",
+          "max_retries": "Maximum retries",
+          "enable_webhook": "Enable webhook",
+          "api_proxy_disable_security": "Disable API proxy security (debug only)",
+          "php_fallback_enabled": "Enable PHP fallback for rejected values",
+          "php_fallback_script_name": "PHP fallback script name",
+          "php_fallback_timeout": "PHP fallback timeout (seconds)"
+        }
+      },
+      "uninstall": {
+        "title": "Uninstall eedomus",
+        "description": "⚠️ WARNING: This will remove the eedomus integration and optionally delete all associated entities. This action cannot be undone. Make sure you have a backup of your configuration.",
+        "data": {
+          "remove_entities": "Also remove all eedomus entities"
         }
       }
     },
@@ -21,7 +47,8 @@
       "invalid_auth": "Invalid API keys",
       "connection_timeout": "Connection to eedomus timed out",
       "api_error": "Eedomus API returned an error",
-      "invalid_response": "Received invalid response from eedomus"
+      "invalid_response": "Received invalid response from eedomus",
+      "unknown": "Unexpected error"
     },
     "options": {
       "php_fallback_enabled": "PHP Fallback",
@@ -31,6 +58,22 @@
       "enable_history": "History retrieval",
       "enable_api_proxy": "API Proxy mode"
     }
+  },
+  "errors": {
+    "connection_failed": "Failed to connect to eedomus",
+    "invalid_credentials": "Invalid API credentials",
+    "timeout": "Connection timeout",
+    "api_error": "API error"
+  },
+  "success": {
+    "connected": "Connected to eedomus",
+    "updated": "Configuration updated",
+    "saved": "Settings saved"
+  },
+  "warnings": {
+    "no_devices": "No devices found",
+    "partial_refresh": "Partial refresh in progress",
+    "full_refresh": "Full refresh in progress"
   },
   "ui": {
     "edit_yaml_tooltip": "Edit YAML configuration directly",
@@ -79,5 +122,163 @@
     "preview_label": "Preview YAML",
     "save_label": "Save",
     "ui_intro": "Configure your eedomus devices via the graphical interface or switch to YAML mode for advanced editing"
+  },
+  "options": {
+    "step": {
+      "yaml_editor": {
+        "title": "Eedomus",
+        "description": "{description}\n\n{helper}\n\n### YAML Preview\n\n{preview_content}\n\n{preview_status}",
+        "description_fallback": "Edit YAML configuration",
+        "helper": "Modify the YAML below. Click 'Preview' to validate before saving.",
+        "status_valid": "✅ YAML is valid",
+        "status_invalid": "❌ Error: {error}"
+      },
+      "init": {
+        "title": "Eedomus",
+        "description": "Configure the Eedomus integration settings. Use the YAML editor for advanced configuration."
+      }
+    },
+    "error": {
+      "invalid_yaml": "Invalid YAML: {error}"
+    }
+  },
+  "services": {
+    "refresh": {
+      "name": "Refresh eedomus data",
+      "description": "Force a full refresh of all eedomus peripherals"
+    },
+    "set_value": {
+      "name": "Set peripheral value",
+      "description": "Send a command to set a peripheral value on eedomus box",
+      "fields": {
+        "device_id": {
+          "name": "Device ID",
+          "description": "The ID of the peripheral to control"
+        },
+        "value": {
+          "name": "Value",
+          "description": "The value to set for the peripheral"
+        }
+      }
+    },
+    "reload": {
+      "name": "Reload eedomus integration",
+      "description": "Reload the eedomus integration configuration"
+    },
+    "cleanup_unused_entities": {
+      "name": "Cleanup unused eedomus entities",
+      "description": "Remove disabled, deprecated, and orphaned eedomus entities"
+    },
+    "set_climate_temperature": {
+      "name": "Set climate temperature",
+      "description": "Set the target temperature of an eedomus climate peripheral",
+      "fields": {
+        "device_id": {
+          "name": "Device ID",
+          "description": "The ID of the climate peripheral to control"
+        },
+        "temperature": {
+          "name": "Temperature",
+          "description": "The target temperature in °C (between 7.0 and 30.0)"
+        }
+      }
+    },
+    "cleanup_unused_devices": {
+      "name": "Cleanup unused eedomus devices",
+      "description": "Remove disabled eedomus devices and devices without entities"
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "unknown_device": {
+        "name": "Unknown Device ({periph_id})"
+      },
+      "unknown_parent": {
+        "name": "Unknown Parent ({parent_id})"
+      }
+    },
+    "climate": {
+      "unknown_device": {
+        "name": "Unknown Device ({periph_id})"
+      },
+      "unknown_parent": {
+        "name": "Unknown Parent ({parent_id})"
+      }
+    },
+    "cover": {
+      "unknown_device": {
+        "name": "Unknown Device ({periph_id})"
+      },
+      "unknown_parent": {
+        "name": "Unknown Parent ({parent_id})"
+      }
+    },
+    "light": {
+      "unknown_device": {
+        "name": "Unknown Device ({periph_id})"
+      },
+      "unknown_parent": {
+        "name": "Unknown Parent ({parent_id})"
+      }
+    },
+    "select": {
+      "unknown_device": {
+        "name": "Unknown Device ({periph_id})"
+      },
+      "unknown_parent": {
+        "name": "Unknown Parent ({parent_id})"
+      }
+    },
+    "sensor": {
+      "unknown_device": {
+        "name": "Unknown Device ({periph_id})"
+      },
+      "unknown_parent": {
+        "name": "Unknown Parent ({parent_id})"
+      }
+    },
+    "switch": {
+      "unknown_device": {
+        "name": "Unknown Device ({periph_id})"
+      },
+      "unknown_parent": {
+        "name": "Unknown Parent ({parent_id})"
+      }
+    }
+  },
+  "exceptions": {
+    "set_value_missing_device_id_and_value": {
+      "message": "device_id and value are required"
+    },
+    "device_not_found": {
+      "message": "Device {device_id} not found on any configured eedomus box"
+    },
+    "set_value_failed": {
+      "message": "Failed to set value: {error}"
+    },
+    "no_config_entry": {
+      "message": "No eedomus config entry found"
+    },
+    "missing_device_id": {
+      "message": "device_id is required"
+    },
+    "missing_temperature": {
+      "message": "temperature is required"
+    },
+    "temperature_out_of_range": {
+      "message": "Temperature must be between 7.0°C and 30.0°C, got {temperature}°C"
+    },
+    "temperature_invalid_number": {
+      "message": "Temperature must be a valid number, got {temperature}"
+    },
+    "device_not_climate": {
+      "message": "Device {device_id} is not a climate entity"
+    },
+    "climate_entity_not_found": {
+      "message": "No climate entity found for {device_id}"
+    },
+    "set_temperature_failed": {
+      "message": "Failed to set temperature: {error}"
+    }
   }
 }

@@ -51,15 +51,27 @@ class EedomusScene(EedomusEntity, Scene):
     def __init__(self, coordinator, periph_id: str):
         """Initialize the scene."""
         super().__init__(coordinator, periph_id)
-        self._attr_name = self.coordinator.data[periph_id]["name"]
+        # Route the name through the base's adoption path: a blank or
+        # missing name must keep the translated fallback (entity.* keys),
+        # not shadow it with an empty string.
+        periph_name = self.coordinator.data.get(periph_id, {}).get("name")
+        if periph_name is not None and str(periph_name).strip():
+            self._attr_name = periph_name
+            self._adopt_derived_name()
         self._attr_unique_id = f"{periph_id}_scene"
         _LOGGER.debug(
-            "Initializing scene entity for %s (%s)", self._attr_name, periph_id
+            "Initializing scene entity for %s (%s)",
+            getattr(self, "_attr_name", self._periph_id),
+            periph_id,
         )
 
     async def async_activate(self, **kwargs):
         """Activate the scene. Send the appropriate command to eedomus."""
-        _LOGGER.info("Activating scene %s (%s)", self._attr_name, self._periph_id)
+        _LOGGER.info(
+            "Activating scene %s (%s)",
+            getattr(self, "_attr_name", self._periph_id),
+            self._periph_id,
+        )
 
         try:
             # For eedomus scenes, we typically send a "set" command with the appropriate value
@@ -67,18 +79,23 @@ class EedomusScene(EedomusEntity, Scene):
             result = await self._client.set_periph_value(self._periph_id, "on")
 
             if result.get("success", 0) == 1:
-                _LOGGER.debug("Successfully activated scene %s", self._attr_name)
+                _LOGGER.debug(
+                    "Successfully activated scene %s",
+                    getattr(self, "_attr_name", self._periph_id),
+                )
                 # Update the coordinator data to reflect the change
                 await self.coordinator.async_request_refresh()
             else:
                 _LOGGER.error(
                     "Failed to activate scene %s: %s",
-                    self._attr_name,
+                    getattr(self, "_attr_name", self._periph_id),
                     result.get("error", "Unknown error"),
                 )
         except Exception as e:
             _LOGGER.error(
-                "Exception while activating scene %s: %s", self._attr_name, str(e)
+                "Exception while activating scene %s: %s",
+                getattr(self, "_attr_name", self._periph_id),
+                str(e),
             )
             raise
 

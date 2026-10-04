@@ -57,7 +57,13 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
     def __init__(self, coordinator, periph_id: str):
         """Initialize the climate device."""
         super().__init__(coordinator, periph_id)
-        self._attr_name = self.coordinator.data[periph_id]["name"]
+        # Route the name through the base's adoption path: a blank or
+        # missing name must keep the translated fallback (entity.* keys),
+        # not shadow it with an empty string.
+        periph_name = self.coordinator.data.get(periph_id, {}).get("name")
+        if periph_name is not None and str(periph_name).strip():
+            self._attr_name = periph_name
+            self._adopt_derived_name()
         from .entity import get_entry_prefix
         self._attr_unique_id = f"{get_entry_prefix(coordinator)}_{periph_id}_climate"
 
@@ -102,11 +108,15 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                 self._linked_temperature_sensor = sensor_id
                 _LOGGER.info(
                     "🔗 Climate entity %s (%s) linked to temperature sensor %s (from device mapping)",
-                    self._attr_name, periph_id, sensor_id
+                    getattr(self, "_attr_name", self._periph_id),
+                    periph_id,
+                    sensor_id,
                 )
 
         _LOGGER.debug(
-            "Initializing climate entity for %s (%s)", self._attr_name, periph_id
+            "Initializing climate entity for %s (%s)",
+            getattr(self, "_attr_name", self._periph_id),
+            periph_id,
         )
         self._update_climate_state()
         self._update_current_temperature()
@@ -130,7 +140,9 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                     self._linked_temperature_sensor = sensor_id
                     _LOGGER.info(
                         "🔗 Climate entity %s (%s) linked to temperature sensor %s (from custom config)",
-                        self._attr_name, periph_id, sensor_id
+                        getattr(self, "_attr_name", self._periph_id),
+                        periph_id,
+                        sensor_id,
                     )
         except Exception as e:
             _LOGGER.debug("No custom mappings found or error loading: %s", e)
@@ -390,7 +402,9 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
             return
 
         _LOGGER.info(
-            "Setting temperature for %s to %.1f°C", self._attr_name, temperature
+            "Setting temperature for %s to %.1f°C",
+            getattr(self, "_attr_name", self._periph_id),
+            temperature,
         )
 
         try:
@@ -408,7 +422,7 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
 
                 _LOGGER.debug(
                     "Setting %s temperature directly to %.1f°C (usage_id=15)",
-                    self._attr_name,
+                    getattr(self, "_attr_name", self._periph_id),
                     rounded_temp,
                 )
             else:
@@ -427,7 +441,7 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
 
                 _LOGGER.debug(
                     "Acceptable temperature values for %s: %s",
-                    self._attr_name,
+                    getattr(self, "_attr_name", self._periph_id),
                     acceptable_values,
                 )
 
@@ -456,14 +470,14 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                 if eedomus_value is None:
                     _LOGGER.error(
                         "No acceptable temperature value found for %s. Available: %s",
-                        self._attr_name,
+                        getattr(self, "_attr_name", self._periph_id),
                         list(acceptable_values.keys()),
                     )
                     return
 
                 _LOGGER.debug(
                     "Setting %s temperature to eedomus value: %s (type: %s, requested: %.1f°C, acceptable: %s)",
-                    self._attr_name,
+                    getattr(self, "_attr_name", self._periph_id),
                     eedomus_value,
                     type(eedomus_value),
                     temperature,
@@ -487,7 +501,7 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                 if result.get("success", 0) == 1:
                     _LOGGER.info(
                         "✅ Successfully set temperature for %s to %.1f°C",
-                        self._attr_name,
+                        getattr(self, "_attr_name", self._periph_id),
                         temperature,
                     )
                     # Update local state to reflect the change immediately
@@ -502,7 +516,7 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                     error_code = result.get("error_code", "unknown")
                     _LOGGER.error(
                         "❌ Failed to set temperature for %s: %s (code: %s)",
-                        self._attr_name,
+                        getattr(self, "_attr_name", self._periph_id),
                         error_msg,
                         error_code,
                     )
@@ -511,7 +525,7 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
             except Exception as err:
                 _LOGGER.error(
                     "❌ Exception setting temperature for %s to %.1f°C: %s",
-                    self._attr_name,
+                    getattr(self, "_attr_name", self._periph_id),
                     temperature,
                     str(err),
                 )
@@ -539,14 +553,18 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
         except Exception as e:
             _LOGGER.error(
                 "Exception while setting temperature for %s: %s",
-                self._attr_name,
+                getattr(self, "_attr_name", self._periph_id),
                 str(e),
             )
             raise
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode):
         """Set new HVAC mode."""
-        _LOGGER.info("Setting HVAC mode for %s to %s", self._attr_name, hvac_mode)
+        _LOGGER.info(
+            "Setting HVAC mode for %s to %s",
+            getattr(self, "_attr_name", self._periph_id),
+            hvac_mode,
+        )
 
         try:
             # Get the list of acceptable values for this peripheral
@@ -562,7 +580,9 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                     acceptable_values[value] = value  # Also allow direct value matching
 
             _LOGGER.debug(
-                "Acceptable values for %s: %s", self._attr_name, acceptable_values
+                "Acceptable values for %s: %s",
+                getattr(self, "_attr_name", self._periph_id),
+                acceptable_values,
             )
 
             # Map Home Assistant HVAC mode to eedomus command using acceptable values
@@ -584,14 +604,14 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                 _LOGGER.error(
                     "No acceptable value found for HVAC mode %s for %s. Available: %s",
                     hvac_mode,
-                    self._attr_name,
+                    getattr(self, "_attr_name", self._periph_id),
                     list(acceptable_values.keys()),
                 )
                 return
 
             _LOGGER.debug(
                 "Setting %s HVAC mode to eedomus value: %s",
-                self._attr_name,
+                getattr(self, "_attr_name", self._periph_id),
                 eedomus_value,
             )
 
@@ -602,7 +622,7 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
             if result.get("success", 0) == 1:
                 _LOGGER.debug(
                     "Successfully set HVAC mode for %s to %s (eedomus value: %s)",
-                    self._attr_name,
+                    getattr(self, "_attr_name", self._periph_id),
                     hvac_mode,
                     eedomus_value,
                 )
@@ -612,13 +632,15 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
             else:
                 _LOGGER.error(
                     "Failed to set HVAC mode for %s: %s (tried value: %s)",
-                    self._attr_name,
+                    getattr(self, "_attr_name", self._periph_id),
                     result.get("error", "Unknown error"),
                     eedomus_value,
                 )
         except Exception as e:
             _LOGGER.error(
-                "Exception while setting HVAC mode for %s: %s", self._attr_name, str(e)
+                "Exception while setting HVAC mode for %s: %s",
+                getattr(self, "_attr_name", self._periph_id),
+                str(e),
             )
             raise
 
@@ -643,7 +665,7 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
 
         _LOGGER.debug(
             "Updated climate state for %s: mode=%s, target=%s",
-            self._attr_name,
+            getattr(self, "_attr_name", self._periph_id),
             self._attr_hvac_mode,
             target_str,
         )

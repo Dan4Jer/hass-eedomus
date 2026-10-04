@@ -10,7 +10,7 @@ self.async_create_entry(data=<options dict>).
 """
 
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -143,3 +143,83 @@ class TestCopyConfigToOptions:
         assert result["history"] is False
         assert result["scan_interval"] == 300
         assert result["http_request_timeout"] == 10
+
+
+def make_yaml_flow(options=None, data=None):
+    """Flow whose hass mock runs executor jobs synchronously.
+
+    The yaml_editor step loads translations and the current YAML through
+    hass.async_add_executor_job (awaited), so the mock must be awaitable
+    and invoke the submitted job.
+    """
+    flow = make_flow(options=options, data=data)
+    flow.hass.config.language = "en"
+    flow.hass.async_add_executor_job = AsyncMock(
+        side_effect=lambda fn, *args, **kwargs: fn(*args, **kwargs)
+    )
+    return flow
+
+
+def capture_show_form(flow):
+    """Patch async_show_form and return (result, mock)."""
+    form_result = {"type": "form", "step_id": "yaml_editor"}
+    flow.async_show_form = MagicMock(return_value=form_result)
+    return form_result, flow.async_show_form
+
+
+class TestAsyncStepYamlEditor:
+    @pytest.mark.asyncio
+    async def test_preview_path_shows_form_with_translated_status(self):
+        """Valid YAML preview: no errors, placeholders carry the preview."""
+        flow = make_yaml_flow()
+        form_result, show_form = capture_show_form(flow)
+
+        result = await flow.async_step_yaml_editor(
+            user_input={"action": "preview", "yaml_content": "custom_rules: []"}
+        )
+
+        assert result is form_result
+        kwargs = show_form.call_args.kwargs
+        assert kwargs["step_id"] == "yaml_editor"
+        assert kwargs["errors"] == {}
+        placeholders = kwargs["description_placeholders"]
+        assert "```yaml\ncustom_rules: []\n```" == placeholders["preview_content"]
+        # Translated status (options.step.yaml_editor.status_valid)
+        assert placeholders["preview_status"] == "✅ YAML is valid"
+        assert placeholders["helper"]
+
+    @pytest.mark.asyncio
+    async def test_invalid_yaml_preview_sets_invalid_yaml_error(self):
+        """Invalid YAML preview: errors == {"base": "invalid_yaml"}."""
+        flow = make_yaml_flow()
+        form_result, show_form = capture_show_form(flow)
+
+        result = await flow.async_step_yaml_editor(
+            user_input={"action": "preview", "yaml_content": "custom_rules: ["}
+        )
+
+        assert result is form_result
+        kwargs = show_form.call_args.kwargs
+        assert kwargs["errors"] == {"base": "invalid_yaml"}
+        placeholders = kwargs["description_placeholders"]
+        assert placeholders["error"]
+        assert placeholders["preview_status"]
+        assert "preview_content" in placeholders
+
+    @pytest.mark.asyncio
+    async def test_failed_save_shows_form_with_error_placeholder(self):
+        """A save that fails validation re-displays the form with the error."""
+        flow = make_yaml_flow()
+        form_result, show_form = capture_show_form(flow)
+
+        result = await flow.async_step_yaml_editor(
+            user_input={"yaml_content": "custom_rules: ["}
+        )
+
+        assert result is form_result
+        kwargs = show_form.call_args.kwargs
+        assert kwargs["errors"] == {"base": "invalid_yaml"}
+        placeholders = kwargs["description_placeholders"]
+        assert placeholders["error"]
+        assert placeholders["preview_content"]
+        assert "preview_status" in placeholders

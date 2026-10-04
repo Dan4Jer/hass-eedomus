@@ -508,6 +508,7 @@ class EedomusHistoryProgressSensor(EedomusEntity, SensorEntity):
         from .entity import get_entry_prefix
         self._attr_unique_id = f"{get_entry_prefix(coordinator)}_eedomus_history_progress_{device_data['periph_id']}"
         self._attr_name = f"{device_data['name']} (History Progress)"
+        self._adopt_derived_name()
         self._attr_icon = "mdi:progress-clock"
 
     @property
@@ -548,6 +549,8 @@ class EedomusBatterySensor(EedomusEntity, SensorEntity):
         # Configure battery sensor attributes
         device_name = self.coordinator.data[periph_id].get("name", "Unknown Device")
         self._attr_name = f"{device_name} Battery"
+        # A derived real name replaces the base translated fallback
+        self._adopt_derived_name()
         from .entity import get_entry_prefix
         self._attr_unique_id = f"{get_entry_prefix(coordinator)}_{periph_id}_battery"
         self._attr_device_class = "battery"

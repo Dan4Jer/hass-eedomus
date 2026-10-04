@@ -62,14 +62,22 @@ class EedomusSelect(EedomusEntity, SelectEntity):
     def __init__(self, coordinator, periph_id: str):
         """Initialize the select entity."""
         super().__init__(coordinator, periph_id)
-        self._attr_name = self.coordinator.data[periph_id]["name"]
+        # Route the name through the base's adoption path: a blank or
+        # missing name must keep the translated fallback (entity.* keys),
+        # not shadow it with an empty string.
+        periph_name = self.coordinator.data.get(periph_id, {}).get("name")
+        if periph_name is not None and str(periph_name).strip():
+            self._attr_name = periph_name
+            self._adopt_derived_name()
         from .entity import get_entry_prefix
         self._attr_unique_id = f"{get_entry_prefix(coordinator)}_{periph_id}_select"
         self._attr_current_option = self.coordinator.data[periph_id].get(
             "last_value", ""
         )
         _LOGGER.debug(
-            "Initializing select entity for %s (%s)", self._attr_name, periph_id
+            "Initializing select entity for %s (%s)",
+            getattr(self, "_attr_name", self._periph_id),
+            periph_id,
         )
 
     @property
@@ -124,7 +132,7 @@ class EedomusSelect(EedomusEntity, SelectEntity):
         _LOGGER.info(
             "Selecting option '%s' for %s (%s)",
             option,
-            self._attr_name,
+            getattr(self, "_attr_name", self._periph_id),
             self._periph_id,
         )
 
@@ -147,7 +155,7 @@ class EedomusSelect(EedomusEntity, SelectEntity):
                 "Selecting option '%s' (eedomus value: '%s') for %s (%s)",
                 option,
                 eedomus_value,
-                self._attr_name,
+                getattr(self, "_attr_name", self._periph_id),
                 self._periph_id,
             )
 
@@ -156,7 +164,9 @@ class EedomusSelect(EedomusEntity, SelectEntity):
 
             if result.get("success", 0) == 1:
                 _LOGGER.debug(
-                    "Successfully selected option '%s' for %s", option, self._attr_name
+                    "Successfully selected option '%s' for %s",
+                    option,
+                    getattr(self, "_attr_name", self._periph_id),
                 )
                 # Update the coordinator data to reflect the change
                 await self.coordinator.async_request_refresh()
@@ -164,14 +174,14 @@ class EedomusSelect(EedomusEntity, SelectEntity):
                 _LOGGER.error(
                     "Failed to select option '%s' for %s: %s",
                     option,
-                    self._attr_name,
+                    getattr(self, "_attr_name", self._periph_id),
                     result.get("error", "Unknown error"),
                 )
         except Exception as e:
             _LOGGER.error(
                 "Exception while selecting option '%s' for %s: %s",
                 option,
-                self._attr_name,
+                getattr(self, "_attr_name", self._periph_id),
                 str(e),
             )
             raise
@@ -195,7 +205,7 @@ class EedomusSelect(EedomusEntity, SelectEntity):
         )
         _LOGGER.debug(
             "Updated select entity %s (%s) - current option: %s",
-            self._attr_name,
+            getattr(self, "_attr_name", self._periph_id),
             self._periph_id,
             self._attr_current_option,
         )
