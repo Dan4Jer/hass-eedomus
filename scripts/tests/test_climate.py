@@ -10,7 +10,10 @@ import pytest
 
 from homeassistant.const import STATE_ON
 
-from custom_components.eedomus.climate import EedomusClimate
+from custom_components.eedomus.climate import (
+    EedomusClimate,
+    async_setup_entry,
+)
 from custom_components.eedomus.device_mapping import (
     load_and_merge_yaml_mappings,
     load_yaml_file,
@@ -370,3 +373,196 @@ async def test_climate_set_temperature_exception():
         await entity.async_set_temperature(temperature=22)
     except Exception:
         pass
+
+
+@pytest.mark.asyncio
+async def test_climate_async_setup_entry_maps_and_creates_entities(hass):
+    coordinator = MagicMock()
+
+    coordinator.data = {
+        "climate_1": {
+            "name": "Thermostat Salon",
+            "usage_id": "15",
+            "last_value": "20",
+        },
+        "sensor_1": {
+            "name": "Température",
+            "usage_id": "7",
+            "last_value": "19",
+            "ha_entity": "sensor",
+        },
+    }
+
+    coordinator.get_all_peripherals.return_value = {
+        "climate_1": coordinator.data["climate_1"],
+        "sensor_1": coordinator.data["sensor_1"],
+    }
+
+    hass.data.setdefault("eedomus", {})
+    hass.data["eedomus"]["entry_1"] = {
+        "coordinator": coordinator,
+    }
+
+    entry = MagicMock()
+    entry.entry_id = "entry_1"
+
+    async_add_entities = MagicMock()
+
+    with (
+        patch(
+            "custom_components.eedomus.climate.map_device_to_ha_entity",
+            return_value={
+                "ha_entity": "climate",
+                "ha_subtype": "thermostat",
+            },
+        ) as mock_mapping,
+        patch(
+            "custom_components.eedomus.climate.register_device_mapping",
+        ) as mock_register,
+    ):
+        await async_setup_entry(
+            hass,
+            entry,
+            async_add_entities,
+        )
+
+    mock_mapping.assert_called_once()
+    mock_register.assert_called_once()
+
+    assert coordinator.data["climate_1"]["ha_entity"] == "climate"
+
+    async_add_entities.assert_called_once()
+
+    entities, update_before_add = async_add_entities.call_args.args
+
+    assert update_before_add is True
+    assert len(entities) == 1
+    assert isinstance(entities[0], EedomusClimate)
+    assert entities[0]._periph_id == "climate_1"
+
+def test_climate_yaml_linked_temperature_sensor_and_switch():
+    coordinator = MagicMock()
+    coordinator.config_entry.entry_id = "entry_1"
+
+    coordinator.data = {
+        "climate_1": {
+            "name": "Thermostat Salon",
+            "usage_id": "15",
+            "last_value": "20",
+        },
+        "temp_1": {
+            "name": "Sonde Salon",
+            "usage_id": "7",
+            "last_value": "19.5",
+        },
+        "switch_1": {
+            "name": "Chauffage Salon",
+            "last_value": "1",
+        },
+    }
+
+    coordinator.get_all_peripherals.return_value = coordinator.data
+
+    coordinator.get_yaml_config_sync.return_value = {
+        "temperature_setpoint_mappings": {
+            "climate_1": "temp_1",
+        },
+        "heating_switch_mappings": {
+            "climate_1": "switch_1",
+        },
+    }
+
+    entity = EedomusClimate(
+        coordinator,
+        "climate_1",
+    )
+
+    assert entity._linked_temperature_sensor == "temp_1"
+    assert entity._linked_heating_switch == "switch_1"
+
+@pytest.mark.asyncio
+async def test_climate_async_added_loads_custom_links(hass):
+    coordinator = MagicMock()
+    coordinator.config_entry.entry_id = "entry_1"
+
+    coordinator.data = {
+        "climate_1": {
+            "name": "Thermostat Salon",
+            "usage_id": "15",
+            "last_value": "20",
+        }
+    }
+
+    coordinator.get_all_peripherals.return_value = coordinator.data
+    coordinator.get_yaml_config_sync.return_value = {}
+
+    entity = EedomusClimate(
+        coordinator,
+        "climate_1",
+    )
+    entity.hass = hass
+
+    custom_mappings = {
+        "temperature_setpoint_mappings": {
+            "climate_1": "temp_1",
+        },
+        "heating_switch_mappings": {
+            "climate_1": "switch_1",
+        },
+    }
+
+    with (
+        patch(
+            "custom_components.eedomus.entity.EedomusEntity.async_added_to_hass",
+            new_callable=AsyncMock,
+        ),
+        patch(
+            "custom_components.eedomus.device_mapping.load_custom_yaml_mappings_async",
+            new_callable=AsyncMock,
+            return_value=custom_mappings,
+        ),
+    ):
+        await entity.async_added_to_hass()
+
+    assert entity._linked_temperature_sensor == "temp_1"
+    assert entity._linked_heating_switch == "switch_1"
+
+@pytest.mark.asyncio
+async def test_climate_async_added_custom_mapping_failure(hass):
+    coordinator = MagicMock()
+    coordinator.config_entry.entry_id = "entry_1"
+
+    coordinator.data = {
+        "climate_1": {
+            "name": "Thermostat Salon",
+            "usage_id": "15",
+            "last_value": "20",
+        }
+    }
+
+    coordinator.get_all_peripherals.return_value = coordinator.data
+    coordinator.get_yaml_config_sync.return_value = {}
+
+    entity = EedomusClimate(
+        coordinator,
+        "climate_1",
+    )
+    entity.hass = hass
+
+    with (
+        patch(
+            "custom_components.eedomus.entity.EedomusEntity.async_added_to_hass",
+            new_callable=AsyncMock,
+        ),
+        patch(
+            "custom_components.eedomus.device_mapping.load_custom_yaml_mappings_async",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("mapping failure"),
+        ),
+    ):
+        await entity.async_added_to_hass()
+
+    assert entity._linked_temperature_sensor is None
+    assert entity._linked_heating_switch is None
+
+
