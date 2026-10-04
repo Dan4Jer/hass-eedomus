@@ -546,6 +546,83 @@ class TestGetPeripheralsHandler:
         connection.send_result.assert_not_called()
 
 
+class TestProjectCoordinatorWithRaw:
+    """Sweep: the raw section rides the shared projection (with_raw).
+
+    Pins the refactor's edge contract: _raw exists only in the with_raw
+    path, is the exact coordinator entry, a non-dict coordinator value
+    yields no row (the projection's dict skip still guards the attach),
+    and the get_peripherals row shape stays frozen without _raw.
+    """
+
+    def make_coordinator(self):
+        coordinator = MagicMock()
+        coordinator.data = {
+            "111": {
+                "periph_id": "111",
+                "name": "Température Salon",
+                "usage_id": "7",
+            },
+            "999": "not-a-dict",
+        }
+        coordinator._resolve_main_entity_id = MagicMock(return_value=None)
+        return coordinator
+
+    def make_hass(self, coordinator):
+        hass = MagicMock()
+        hass.data = {"eedomus": {"entry_1": {COORDINATOR: coordinator}}}
+        hass.states.get = MagicMock(return_value=None)
+        return hass
+
+    def project(self, with_raw=False):
+        coordinator = self.make_coordinator()
+        hass = self.make_hass(coordinator)
+        service = EedomusUIService(hass)
+        rows = service._project_coordinator(
+            hass, coordinator, {}, with_raw=with_raw
+        )
+        return coordinator, rows
+
+    def test_raw_rides_only_the_with_raw_path(self):
+        _, plain = self.project()
+        _, with_raw = self.project(with_raw=True)
+
+        assert [row["periph_id"] for row in plain] == ["111"]
+        assert [row["periph_id"] for row in with_raw] == ["111"]
+        assert all("_raw" not in row for row in plain)
+        assert all("_raw" in row for row in with_raw)
+
+    def test_raw_is_the_exact_coordinator_entry(self):
+        coordinator, rows = self.project(with_raw=True)
+
+        assert rows[0]["_raw"] is coordinator.data["111"]
+
+    def test_non_dict_value_yields_no_row(self):
+        _, plain = self.project()
+        _, with_raw = self.project(with_raw=True)
+
+        assert [row["periph_id"] for row in plain] == ["111"]
+        assert [row["periph_id"] for row in with_raw] == ["111"]
+
+    @pytest.mark.asyncio
+    async def test_get_peripherals_rows_never_carry_raw(self, monkeypatch):
+        coordinator = self.make_coordinator()
+        hass = self.make_hass(coordinator)
+        service = EedomusUIService(hass)
+        connection = MagicMock()
+        monkeypatch.setattr(
+            device_mapping_module,
+            "load_custom_yaml_mappings_async",
+            AsyncMock(return_value={}),
+        )
+
+        await service._handle_get_peripherals(hass, connection, {"id": 5})
+
+        rows = connection.send_result.call_args.args[1]["peripherals"]
+        assert [row["periph_id"] for row in rows] == ["111"]
+        assert all("_raw" not in row for row in rows)
+
+
 class TestGetCoherenceHandler:
     """CAP-6: the Cohérence tab reads a fused view of every peripheral
     through eedomus/get_coherence — registry fields joined by periph_id,

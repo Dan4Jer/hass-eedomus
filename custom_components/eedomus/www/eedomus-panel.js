@@ -42,8 +42,8 @@ const COHERENCE_OK_SIGNAL = {
   label: 'cohérent',
   icon: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>',
 };
-// Shared by the coherence table (sortable headers) and its skeleton so the
-// columns cannot drift: key is the sort key, label the visible column name.
+// Shared by the coherence table head generator and its skeleton (sweep)
+// so the columns cannot drift: key is the sort key, label the column name.
 const COHERENCE_COLUMNS = [
   { key: 'periph_id', label: 'periph_id' },
   { key: 'name', label: 'Nom' },
@@ -51,21 +51,15 @@ const COHERENCE_COLUMNS = [
   { key: 'type', label: 'Type / sous-type' },
   { key: 'status', label: 'Statut' },
 ];
-const COHERENCE_TH = COHERENCE_COLUMNS.map(
-  (col) => `<th scope="col">${col.label}</th>`
-).join('\n        ');
-const COHERENCE_TABLE_HEAD = `
-    <thead>
-      <tr>
-        ${COHERENCE_TH}
-      </tr>
-    </thead>
-  `;
 // The single breakpoint of the coherence tab (ticket 2.5): the JS
 // surface switch (coherenceNarrowView, matchMedia) and the CSS
 // reflow (@media in _render — cross-referenced there) both derive
 // from it — one breakpoint, two surfaces.
 const COHERENCE_NARROW_PX = 900;
+// Debounce of the result-count announcement (sweep): a burst of typing
+// in either search field produces ONE screen-reader announcement, once
+// typing pauses for this delay. The visible filtering stays real-time.
+const SEARCH_ANNOUNCE_DELAY_MS = 300;
 // Sort direction indicator: the arrow carries the direction visually,
 // aria-sort on the header cell carries the state (EXPERIENCE.md).
 const SORT_ARROW_ASC =
@@ -177,6 +171,65 @@ function nextCoherenceSort(sort, key) {
     return { key, dir: 'desc' };
   }
   return { key: null, dir: null };
+}
+
+// Shared head generator (sweep): the loaded table and its skeleton
+// render the SAME thead markup from COHERENCE_COLUMNS — labels and
+// markup, so the columns cannot drift. The skeleton passes the
+// neutral sort; the table passes its live sort state.
+function coherenceHeadHtml(sort) {
+  const cells = COHERENCE_COLUMNS.map((col) => {
+    const active = sort.key === col.key;
+    const ariaSort = !active
+      ? 'none'
+      : sort.dir === 'asc' ? 'ascending' : 'descending';
+    const stateLabel = !active
+      ? ''
+      : sort.dir === 'asc'
+        ? ', actuellement croissant'
+        : ', actuellement décroissant';
+    const arrow = !active
+      ? ''
+      : sort.dir === 'asc'
+        ? `<span class="sort-arrow">${SORT_ARROW_ASC}</span>`
+        : `<span class="sort-arrow">${SORT_ARROW_DESC}</span>`;
+    return `
+          <th scope="col" aria-sort="${ariaSort}">
+            <button class="sort-header" type="button" data-sort-key="${col.key}"
+                    aria-label="Trier par ${col.label}${stateLabel}">
+              ${col.label}${arrow}
+            </button>
+          </th>`;
+  });
+  return `
+      <thead>
+        <tr>${cells.join('')}
+        </tr>
+      </thead>
+    `;
+}
+
+// Status-line texts (sweep): one pure helper per tab so the immediate
+// render path and the debounced announcement compute the exact same
+// message — the live region never disagrees with the table.
+function periphStatusText(total, shown, touchedOnly) {
+  const filterLabel = touchedOnly
+    ? ` — filtre « Périphériques touchés » actif : ${shown} résultats`
+    : '';
+  return `${total} périphériques${filterLabel}`;
+}
+
+function coherenceStatusText(shown, search, view) {
+  if (shown === 0 && search) {
+    return `Aucun périphérique ne correspond à “${search}”.`;
+  }
+  if (shown === 0 && view === 'to_verify') {
+    return 'Tout est cohérent. Aucun périphérique à vérifier.';
+  }
+  const viewLabel = view === 'to_verify'
+    ? ` — vue « À vérifier » active : ${shown} résultats`
+    : '';
+  return `${shown} périphériques${viewLabel}`;
 }
 
 // ---- Popover pure helpers (ticket 2.4) ----
@@ -586,6 +639,9 @@ class EedomusConfigPanel extends HTMLElement {
     this._error = null;
     this._search = '';
     this._touchedOnly = false;
+    // Result-count announcements (sweep): one debounce timer per status
+    // element id — a keystroke burst collapses into a single announce.
+    this._statusAnnounceTimers = {};
     this._pendingRuleUsageId = null;
     this._boundHashChange = () => this._onHashChange();
     // Regles tab state (P.1.4)
@@ -696,6 +752,11 @@ class EedomusConfigPanel extends HTMLElement {
     // mobile expanded state is just as volatile.
     this._closeCoherencePopover();
     this._coherenceExpandedId = null;
+    // Pending debounced announcements never fire on a detached panel.
+    for (const statusId of Object.keys(this._statusAnnounceTimers)) {
+      clearTimeout(this._statusAnnounceTimers[statusId]);
+    }
+    this._statusAnnounceTimers = {};
   }
 
   _tabFromLocation() {
@@ -1457,10 +1518,19 @@ class EedomusConfigPanel extends HTMLElement {
   _onInput(ev) {
     if (ev.target.id === 'periph-search') {
       this._search = ev.target.value;
-      this._renderPeriphList();
+      // Visual filtering is real-time; only the live-region
+      // announcement is debounced (sweep) — one announce per typing
+      // burst, not one per character.
+      this._renderPeriphList({ announceStatus: false });
+      this._debounceStatusAnnounce(
+        'periph-status-live', () => this._announcePeriphStatus()
+      );
     } else if (ev.target.id === 'coherence-search') {
       this._coherenceSearch = ev.target.value;
-      this._renderCoherenceTable();
+      this._renderCoherenceTable({ announceStatus: false });
+      this._debounceStatusAnnounce(
+        'coherence-status-live', () => this._announceCoherenceStatus()
+      );
     } else if (ev.target.id === 'yaml-editor') {
       this._yamlText = ev.target.value;
       this._renderYamlHighlight();
@@ -1911,7 +1981,8 @@ class EedomusConfigPanel extends HTMLElement {
     }
     return `
       ${this._renderCoherenceToolbar()}
-      <p class="result-count" id="coherence-status" role="status"></p>
+      <p class="result-count" id="coherence-status"></p>
+      <p class="sr-only" id="coherence-status-live" role="status"></p>
       <div id="coherence-body"></div>
     `;
   }
@@ -1935,11 +2006,44 @@ class EedomusConfigPanel extends HTMLElement {
     `;
   }
 
-  _renderCoherenceTable() {
+  // Result-count announcements (sweep). The visible count element
+  // updates with every render (it must never lag the filtering); only
+  // the sr-only live region is debounced, so a typing burst yields
+  // one announcement from the same pure message helper as the render.
+  _cancelStatusAnnounce(statusId) {
+    if (statusId && this._statusAnnounceTimers[statusId]) {
+      clearTimeout(this._statusAnnounceTimers[statusId]);
+      delete this._statusAnnounceTimers[statusId];
+    }
+  }
+
+  _debounceStatusAnnounce(statusId, announce) {
+    // One shared timer per live region, cancelled on every keystroke:
+    // a typing burst collapses into a single post-pause announcement.
+    this._cancelStatusAnnounce(statusId);
+    this._statusAnnounceTimers[statusId] = setTimeout(() => {
+      delete this._statusAnnounceTimers[statusId];
+      announce();
+    }, SEARCH_ANNOUNCE_DELAY_MS);
+  }
+
+  _announceStatusNow(live, text) {
+    // An immediate announce (sort, bascule, Échap) cancels any pending
+    // debounced one so the two paths never double-fire.
+    this._cancelStatusAnnounce(live.id);
+    live.textContent = text;
+  }
+
+  _renderCoherenceTable(opts) {
     const root = this.shadowRoot;
     if (!root || this._tab !== 'coherence' || this._coherence === null) {
       return;
     }
+    // Typing renders the table on every keystroke (visible count
+    // included) but defers the live-region announcement
+    // (announceStatus, sweep) — the announce paths below stay
+    // immediate for every other caller.
+    const announceStatus = !(opts && opts.announceStatus === false);
     // Any reshuffle (sort, filtre, recherche, bascule) can remove the
     // anchor row: the popover closes, never floats orphaned.
     this._closeCoherencePopover();
@@ -1957,6 +2061,7 @@ class EedomusConfigPanel extends HTMLElement {
       }
     }
     const status = root.getElementById('coherence-status');
+    const live = root.getElementById('coherence-status-live');
     const body = root.getElementById('coherence-body');
     if (!status || !body) {
       return;
@@ -1975,10 +2080,17 @@ class EedomusConfigPanel extends HTMLElement {
     ) {
       this._coherenceExpandedId = null;
     }
+    const statusText = coherenceStatusText(
+      rows.length,
+      this._coherenceSearch,
+      this._coherenceView
+    );
     if (rows.length === 0 && this._coherenceSearch) {
       // Explicit no-result state, announced — never a silent empty table.
-      status.textContent =
-        `Aucun périphérique ne correspond à “${this._coherenceSearch}”.`;
+      status.textContent = statusText;
+      if (announceStatus && live) {
+        this._announceStatusNow(live, statusText);
+      }
       body.innerHTML = `
         <div class="state-message">
           Aucun périphérique ne correspond à
@@ -1990,8 +2102,10 @@ class EedomusConfigPanel extends HTMLElement {
     }
     if (rows.length === 0 && this._coherenceView === 'to_verify') {
       // Positive empty: nothing to check is good news, not an error.
-      status.textContent =
-        'Tout est cohérent. Aucun périphérique à vérifier.';
+      status.textContent = statusText;
+      if (announceStatus && live) {
+        this._announceStatusNow(live, statusText);
+      }
       body.innerHTML = `
         <div class="state-message">
           Tout est cohérent. Aucun périphérique à vérifier.
@@ -2008,47 +2122,38 @@ class EedomusConfigPanel extends HTMLElement {
       <div class="coherence-table-wrap">
         <table class="coherence-table">
           <caption class="sr-only">Cohérence du mapping des périphériques eedomus</caption>
-          ${this._renderCoherenceHead()}
+          ${coherenceHeadHtml(this._coherenceSort)}
           <tbody>${rows.map((row) => this._renderCoherenceRow(row)).join('')}</tbody>
         </table>
       </div>
     `;
-    const viewLabel = this._coherenceView === 'to_verify'
-      ? ` — vue « À vérifier » active : ${rows.length} résultats`
-      : '';
-    status.textContent = `${rows.length} périphériques${viewLabel}`;
+    status.textContent = statusText;
+    if (announceStatus && live) {
+      this._announceStatusNow(live, statusText);
+    }
   }
 
-  _renderCoherenceHead() {
-    const cells = COHERENCE_COLUMNS.map((col) => {
-      const active = this._coherenceSort.key === col.key;
-      const ariaSort = !active
-        ? 'none'
-        : this._coherenceSort.dir === 'asc' ? 'ascending' : 'descending';
-      const stateLabel = !active
-        ? ''
-        : this._coherenceSort.dir === 'asc'
-          ? ', actuellement croissant'
-          : ', actuellement décroissant';
-      const arrow = !active
-        ? ''
-        : this._coherenceSort.dir === 'asc'
-          ? `<span class="sort-arrow">${SORT_ARROW_ASC}</span>`
-          : `<span class="sort-arrow">${SORT_ARROW_DESC}</span>`;
-      return `
-          <th scope="col" aria-sort="${ariaSort}">
-            <button class="sort-header" type="button" data-sort-key="${col.key}"
-                    aria-label="Trier par ${col.label}${stateLabel}">
-              ${col.label}${arrow}
-            </button>
-          </th>`;
+  // Debounced counterpart of the announce paths in _renderCoherenceTable:
+  // fires once typing pauses, from the same pure message helper.
+  _announceCoherenceStatus() {
+    const root = this.shadowRoot;
+    if (!root || this._tab !== 'coherence' || this._coherence === null) {
+      return;
+    }
+    const live = root.getElementById('coherence-status-live');
+    if (!live) {
+      return;
+    }
+    const rows = filterCoherenceRows(this._coherence, {
+      search: this._coherenceSearch,
+      view: this._coherenceView,
+      sort: this._coherenceSort,
     });
-    return `
-      <thead>
-        <tr>${cells.join('')}
-        </tr>
-      </thead>
-    `;
+    live.textContent = coherenceStatusText(
+      rows.length,
+      this._coherenceSearch,
+      this._coherenceView
+    );
   }
 
   _coherenceSortBy(key) {
@@ -2505,12 +2610,16 @@ class EedomusConfigPanel extends HTMLElement {
 
   _renderCoherenceSkeleton() {
     // Skeletons shaped like the expected content: table header + rows.
+    // The head is the SAME generator as the loaded table (sweep) —
+    // shared labels and markup, neutral sort. inert keeps the loading
+    // copy out of the tab order: its buttons are placeholders, not
+    // controls, and the table is aria-hidden anyway.
     const row = `
-      <tr><td colspan="5"><div class="skeleton-cell" aria-hidden="true"></div></td></tr>`;
+      <tr><td colspan="${COHERENCE_COLUMNS.length}"><div class="skeleton-cell" aria-hidden="true"></div></td></tr>`;
     return `
       <div class="coherence-table-wrap" role="status" aria-label="Chargement de la cohérence…">
-        <table class="coherence-table" aria-hidden="true">
-          ${COHERENCE_TABLE_HEAD}
+        <table class="coherence-table" aria-hidden="true" inert>
+          ${coherenceHeadHtml({ key: null, dir: null })}
           <tbody>${row.repeat(8)}</tbody>
         </table>
       </div>
@@ -2543,16 +2652,21 @@ class EedomusConfigPanel extends HTMLElement {
           Périphériques touchés <span class="count">(${touchedCount})</span>
         </button>
       </div>
-      <p class="result-count" id="periph-status" role="status"></p>
+      <p class="result-count" id="periph-status"></p>
+      <p class="sr-only" id="periph-status-live" role="status"></p>
       <div class="periph-list" id="periph-list"></div>
     `;
   }
 
-  _renderPeriphList() {
+  _renderPeriphList(opts) {
     const root = this.shadowRoot;
     if (!root || this._tab !== 'peripheriques') {
       return;
     }
+    // Typing re-renders the list on every keystroke (visible count
+    // included) but defers the live-region announcement (announceStatus,
+    // sweep); every other caller keeps the immediate announce.
+    const announceStatus = !(opts && opts.announceStatus === false);
     const filterBtn = root.querySelector('.filter-touches');
     if (filterBtn) {
       filterBtn.setAttribute('aria-pressed', String(this._touchedOnly));
@@ -2565,12 +2679,19 @@ class EedomusConfigPanel extends HTMLElement {
 
     const list = root.getElementById('periph-list');
     const status = root.getElementById('periph-status');
+    const live = root.getElementById('periph-status-live');
     if (!list || !status) {
       return;
     }
 
     if (this._error) {
+      // The error state owns the status line (blank) — any pending
+      // debounced announce dies with it.
+      this._cancelStatusAnnounce('periph-status-live');
       status.textContent = '';
+      if (live) {
+        live.textContent = '';
+      }
       list.innerHTML = `
         <div class="state-message" role="alert">
           Impossible de charger les périphériques : ${this._escapeHtml(this._error)}.
@@ -2582,13 +2703,21 @@ class EedomusConfigPanel extends HTMLElement {
     }
 
     if (this._periphs === null) {
+      this._cancelStatusAnnounce('periph-status-live');
       status.textContent = '';
+      if (live) {
+        live.textContent = '';
+      }
       list.innerHTML = '<div class="skeleton-row"></div>'.repeat(6);
       return;
     }
 
     if (this._periphs.length === 0) {
+      this._cancelStatusAnnounce('periph-status-live');
       status.textContent = '';
+      if (live) {
+        live.textContent = '';
+      }
       list.innerHTML = `
         <div class="state-message">
           Aucun périphérique détecté. Vérifiez que l'intégration eedomus est
@@ -2605,10 +2734,46 @@ class EedomusConfigPanel extends HTMLElement {
     }
     list.innerHTML = parts.join('');
 
-    const filterLabel = this._touchedOnly
-      ? ` — filtre « Périphériques touchés » actif : ${rows.length} résultats`
-      : '';
-    status.textContent = `${this._periphs.length} périphériques${filterLabel}`;
+    status.textContent = periphStatusText(
+      this._periphs.length,
+      rows.length,
+      this._touchedOnly
+    );
+    if (announceStatus && live) {
+      this._announceStatusNow(
+        live,
+        periphStatusText(this._periphs.length, rows.length, this._touchedOnly)
+      );
+    }
+  }
+
+  // Debounced counterpart of the announce path in _renderPeriphList:
+  // fires once typing pauses, from the same pure message helper.
+  _announcePeriphStatus() {
+    const root = this.shadowRoot;
+    if (!root || this._tab !== 'peripheriques') {
+      return;
+    }
+    // The empty and error states deliberately keep their status line
+    // blank — never overwrite it with a count (their own messages
+    // carry the state).
+    if (
+      this._periphs === null ||
+      this._periphs.length === 0 ||
+      this._error
+    ) {
+      return;
+    }
+    const live = root.getElementById('periph-status-live');
+    if (!live) {
+      return;
+    }
+    const rows = this._filteredPeriphs();
+    live.textContent = periphStatusText(
+      this._periphs.length,
+      rows.length,
+      this._touchedOnly
+    );
   }
 
   _renderRow(row) {

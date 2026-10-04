@@ -505,9 +505,20 @@ class EedomusUIService:
         return peripherals
 
     def _project_coordinator(
-        self, hass: HomeAssistant, coordinator, custom_config: Dict[str, Any]
+        self,
+        hass: HomeAssistant,
+        coordinator,
+        custom_config: Dict[str, Any],
+        with_raw: bool = False,
     ) -> List[Dict[str, Any]]:
-        """Project one coordinator's data into panel rows."""
+        """Project one coordinator's data into panel rows.
+
+        with_raw carries each raw coordinator dict on its row under the
+        private "_raw" key: the raw section rides the same single walk
+        as the base fields instead of a re-indexed second pass, so the
+        two can never disagree. The get_peripherals path leaves it off,
+        keeping that contract frozen.
+        """
         usage_id_mappings = custom_config.get("custom_usage_id_mappings")
         if not isinstance(usage_id_mappings, dict):
             usage_id_mappings = {}
@@ -530,20 +541,21 @@ class EedomusUIService:
             entity_id = self._resolve_entity_id(coordinator, periph_id)
             state = hass.states.get(entity_id) if entity_id else None
             attributes = state.attributes if state else {}
-            rows.append(
-                {
-                    "periph_id": str(periph_id),
-                    "name": periph.get("name") or "",
-                    "usage_id": str(usage_id) if usage_id is not None else "",
-                    "entity_id": entity_id,
-                    "platform": entity_id.split(".")[0] if entity_id else None,
-                    "device_class": attributes.get("device_class"),
-                    "unit": attributes.get("unit_of_measurement"),
-                    "modified": rule_name is not None,
-                    "modified_by_rule": rule_name,
-                    "modified_date": modified_date if rule_name else None,
-                }
-            )
+            row: Dict[str, Any] = {
+                "periph_id": str(periph_id),
+                "name": periph.get("name") or "",
+                "usage_id": str(usage_id) if usage_id is not None else "",
+                "entity_id": entity_id,
+                "platform": entity_id.split(".")[0] if entity_id else None,
+                "device_class": attributes.get("device_class"),
+                "unit": attributes.get("unit_of_measurement"),
+                "modified": rule_name is not None,
+                "modified_by_rule": rule_name,
+                "modified_date": modified_date if rule_name else None,
+            }
+            if with_raw:
+                row["_raw"] = periph
+            rows.append(row)
         return rows
 
     @staticmethod
@@ -595,22 +607,15 @@ class EedomusUIService:
             if not isinstance(value, dict) or COORDINATOR not in value:
                 continue
             coordinator = value[COORDINATOR]
-            # Index the raw dicts by the same key _project_coordinator
-            # uses (str of the data key) so the raw section cannot miss.
-            raw_by_id = {
-                str(key): periph
-                for key, periph in (coordinator.data or {}).items()
-                if isinstance(periph, dict)
-            }
-            for base in self._project_coordinator(hass, coordinator, custom_config):
+            # The raw dict rides the shared projection (with_raw): the
+            # same single walk builds the base row and carries its raw
+            # counterpart, so the raw section cannot miss.
+            for base in self._project_coordinator(
+                hass, coordinator, custom_config, with_raw=True
+            ):
+                raw = base.pop("_raw", {})
                 rows.append(
-                    self._coherence_row(
-                        hass,
-                        coordinator,
-                        base,
-                        registry,
-                        raw_by_id.get(base["periph_id"]) or {},
-                    )
+                    self._coherence_row(hass, coordinator, base, registry, raw)
                 )
         return rows
 

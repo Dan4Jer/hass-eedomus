@@ -33,6 +33,19 @@ jobs:
         echo "Running integration tests..."
         python3 -m pytest scripts/tests/ -v --tb=short || echo "Tests completed (some may be skipped)"
     
+    - name: Set up Node
+      uses: actions/setup-node@v7
+      with:
+        # Matches the runner's bundled major; the JS suite only needs
+        # a stock Node runtime.
+        node-version: '20.x'
+    
+    # Strict on purpose: a failed JS assertion must fail the workflow.
+    - name: Run JS coherence tests
+      run: |
+        echo "Running coherence JS tests..."
+        node tests/js/test-coherence.js
+
     - name: Test energy sensor (Issue #9)
       run: |
         echo "Testing energy sensor implementation..."

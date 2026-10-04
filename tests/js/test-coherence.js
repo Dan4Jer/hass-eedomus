@@ -35,6 +35,12 @@ class StubCustomEvent {
   }
 }
 
+// Timer stubs (sweep): the debounce test captures scheduled timers
+// instead of waiting — flushing is manual, so no test ever depends
+// on real timing. Handles are 1-based indices into sandboxTimers.
+const sandboxTimers = [];
+const sandboxCleared = [];
+
 const sandbox = {
   // attachShadow stub: the constructor calls it — the instances under
   // test never touch a real shadowRoot beyond the guarded noops.
@@ -49,6 +55,13 @@ const sandbox = {
   },
   customElements: { get: () => true, define() {} },
   CustomEvent: StubCustomEvent,
+  setTimeout: (fn, delay) => {
+    sandboxTimers.push({ fn, delay });
+    return sandboxTimers.length;
+  },
+  clearTimeout: (handle) => {
+    sandboxCleared.push(handle);
+  },
   window: {
     addEventListener() {},
     removeEventListener() {},
@@ -86,6 +99,10 @@ const hook = `
   coherenceExpandedRowHtml,
   coherenceRowExpansionHtml,
   POPOVER_FOCUSABLE_SELECTOR,
+  coherenceHeadHtml,
+  periphStatusText,
+  coherenceStatusText,
+  COHERENCE_COLUMNS,
 };`;
 vm.runInContext(fs.readFileSync(PANEL_PATH, 'utf8') + hook, sandbox);
 const {
@@ -113,6 +130,10 @@ const {
   coherenceExpandedRowHtml,
   coherenceRowExpansionHtml,
   POPOVER_FOCUSABLE_SELECTOR,
+  coherenceHeadHtml,
+  periphStatusText,
+  coherenceStatusText,
+  COHERENCE_COLUMNS,
 } = sandbox.__coherence;
 
 let failures = 0;
@@ -811,6 +832,149 @@ assertEq(
     POPOVER_FOCUSABLE_SELECTOR.includes('summary'),
   ],
   [true, true, true, true, true]
+);
+
+// --- shared head generator (sweep): table and skeleton, same markup ---
+const NEUTRAL_SORT = { key: null, dir: null };
+const neutralHead = coherenceHeadHtml(NEUTRAL_SORT);
+assertEq(
+  'head: neutral sort renders the five columns as plain sort buttons',
+  [
+    (neutralHead.match(/<th scope="col" aria-sort="none">/g) || []).length,
+    ['periph_id', 'name', 'entity_id', 'type', 'status'].every((key) =>
+      neutralHead.includes(`data-sort-key="${key}"`)
+    ),
+    ['periph_id', 'Nom', 'Entité HA', 'Type / sous-type', 'Statut'].every(
+      (label) => neutralHead.includes(`Trier par ${label}"`)
+    ),
+    !neutralHead.includes('sort-arrow'),
+    !neutralHead.includes('actuellement'),
+  ],
+  [5, true, true, true, true]
+);
+const sortedHead = coherenceHeadHtml({ key: 'name', dir: 'desc' });
+assertEq(
+  'head: sorted column carries aria-sort, arrow and state label',
+  [
+    (sortedHead.match(/aria-sort="descending"/g) || []).length,
+    (sortedHead.match(/aria-sort="none"/g) || []).length,
+    sortedHead.includes('aria-label="Trier par Nom, actuellement décroissant"'),
+    sortedHead.includes('sort-arrow'),
+    !sortedHead.includes('actuellement croissant'),
+  ],
+  [1, 4, true, true, true]
+);
+
+// --- status-line texts (sweep): render and debounce share one helper ---
+assertEq(
+  'periph status: plain count, then filter label with its own count',
+  [
+    periphStatusText(63, 63, false),
+    periphStatusText(63, 12, true),
+  ],
+  [
+    '63 périphériques',
+    '63 périphériques — filtre « Périphériques touchés » actif : 12 résultats',
+  ]
+);
+assertEq(
+  'coherence status: count, view label, no-result and positive empty',
+  [
+    coherenceStatusText(165, '', 'all'),
+    coherenceStatusText(4, '', 'to_verify'),
+    coherenceStatusText(0, 'zzz', 'all'),
+    coherenceStatusText(0, '', 'to_verify'),
+  ],
+  [
+    '165 périphériques',
+    '4 périphériques — vue « À vérifier » active : 4 résultats',
+    'Aucun périphérique ne correspond à “zzz”.',
+    'Tout est cohérent. Aucun périphérique à vérifier.',
+  ]
+);
+
+// --- keystroke debounce wiring (sweep): one announcement per burst ---
+// The visible count updates on every keystroke; only the sr-only live
+// region waits for the captured 300 ms timer.
+const announcePanel = new EedomusConfigPanel();
+const liveLog = [];
+const liveEl = { id: 'coherence-status-live' };
+Object.defineProperty(liveEl, 'textContent', {
+  get: () => liveLog[liveLog.length - 1] || '',
+  set: (value) => {
+    liveLog.push(value);
+  },
+});
+const coherenceEls = {
+  'coherence-status': { id: 'coherence-status', textContent: '' },
+  'coherence-status-live': liveEl,
+  'coherence-body': { id: 'coherence-body', innerHTML: '' },
+};
+announcePanel.shadowRoot = {
+  getElementById: (id) => coherenceEls[id] || null,
+  querySelector: () => null,
+};
+announcePanel._tab = 'coherence';
+announcePanel._coherence = ROWS.slice();
+announcePanel._coherenceSearch = '';
+announcePanel._coherenceView = 'all';
+announcePanel._coherenceSort = { key: null, dir: null };
+announcePanel._onInput({ target: { id: 'coherence-search', value: 'sal' } });
+assertEq(
+  'debounce: keystroke schedules one timer, visible count immediate',
+  [
+    sandboxTimers.length,
+    sandboxTimers[0].delay,
+    coherenceEls['coherence-status'].textContent,
+    liveLog,
+  ],
+  [1, 300, '1 périphériques', []]
+);
+announcePanel._onInput({ target: { id: 'coherence-search', value: 'salon' } });
+assertEq(
+  'debounce: next keystroke cancels the pending timer, live stays quiet',
+  [
+    sandboxTimers.length,
+    sandboxCleared,
+    liveLog,
+    announcePanel._statusAnnounceTimers['coherence-status-live'],
+  ],
+  [2, [1], [], 2]
+);
+sandboxTimers[1].fn();
+assertEq(
+  'debounce: flush announces exactly once with the filtered count',
+  [
+    liveLog,
+    announcePanel._statusAnnounceTimers['coherence-status-live'],
+  ],
+  [['1 périphériques'], undefined]
+);
+announcePanel._onInput({ target: { id: 'coherence-search', value: 'sal' } });
+announcePanel._coherenceSortBy('name');
+assertEq(
+  'debounce: an immediate announce cancels the pending timer',
+  [
+    announcePanel._statusAnnounceTimers['coherence-status-live'],
+    sandboxCleared[sandboxCleared.length - 1],
+    sandboxTimers.length,
+    liveLog[liveLog.length - 1],
+  ],
+  [undefined, 3, 3, '1 périphériques']
+);
+
+// --- skeleton (sweep): shared head, inert, derived colspan ---
+const skeleton = announcePanel._renderCoherenceSkeleton();
+assertEq(
+  'skeleton: inert, neutral shared head, labels and colspan derived',
+  [
+    skeleton.includes('inert'),
+    (skeleton.match(/aria-sort="none"/g) || []).length,
+    !skeleton.includes('sort-arrow'),
+    COHERENCE_COLUMNS.every((col) => skeleton.includes(col.label)),
+    skeleton.includes(`colspan="${COHERENCE_COLUMNS.length}"`),
+  ],
+  [true, 5, true, true, true]
 );
 
 if (failures) {
