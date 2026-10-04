@@ -544,6 +544,7 @@ The current suite includes tests for:
 
 A recent successful local run used:
 
+<!-- TEST-ENV-START -->
 ```text
 Python 3.14.3
 pytest 9.0.3
@@ -552,7 +553,9 @@ pytest-homeassistant-custom-component 0.13.367
 404 tests collected
 404 tests passed
 87% total coverage
+Last test run: 2026-10-05 00:37:00 Europe/Paris
 ```
+<!-- TEST-ENV-END -->
 
 GitHub Actions may use newer compatible patch versions.
 

@@ -114,9 +114,19 @@ jobs:
           python3 - <<'PY'
           import re
           import xml.etree.ElementTree as ET
+          import importlib.metadata
+          import platform
           from datetime import datetime
           from pathlib import Path
           from zoneinfo import ZoneInfo
+
+          python_version = platform.python_version()
+
+          pytest_version = importlib.metadata.version("pytest")
+          pytest_cov_version = importlib.metadata.version("pytest-cov")
+          pytest_ha_version = importlib.metadata.version(
+              "pytest-homeassistant-custom-component"
+          )
 
           # =========================================================
           # Date / heure Europe/Paris
@@ -308,6 +318,31 @@ jobs:
           if count != 1:
               raise SystemExit(
                   "COVERAGE-MODULES block not found or duplicated"
+              )
+
+          env_block = f"""<!-- TEST-ENV-START -->
+              ```text
+              Python {python_version}
+              pytest {pytest_version}
+              pytest-cov {pytest_cov_version}
+              pytest-homeassistant-custom-component {pytest_ha_version}
+              {tests} tests collected
+              {passed} tests passed
+              {coverage:.2f}% total coverage
+              Last test run: {run_date}
+              ```
+              <!-- TEST-ENV-END -->""" 
+
+          content, count = re.subn(
+              r"<!-- TEST-ENV-START -->.*?<!-- TEST-ENV-END -->",
+              env_block,
+              content,
+              flags=re.DOTALL,
+          )
+
+          if count != 1:
+              raise SystemExit(
+                  "TEST-ENV block not found or duplicated"
               )
 
           # =========================================================
