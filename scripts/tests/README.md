@@ -15,12 +15,12 @@ The values below are updated automatically by the GitHub Actions
 `Run Tests` workflow after a successful test run.
 
 <!-- TEST-STATS-START -->
-- Tests: **404 passed**
+- Tests: **415 passed**
 - Statements: **4393**
-- Covered: **3836**
-- Missing: **557**
-- Coverage: **87.00%**
-- Last test run: **2026-10-04 12:00:00 UTC**
+- Covered: **3849**
+- Missing: **544**
+- Coverage: **87.62%**
+- Last test run: **2026-10-04 14:56:08 Europe/Paris**
 <!-- TEST-STATS-END -->
 
 The latest successful GitHub Actions run is the reference for the current
