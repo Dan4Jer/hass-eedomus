@@ -57,6 +57,10 @@ const COHERENCE_NARROW_PX = 900;
 // in either search field produces ONE screen-reader announcement, once
 // typing pauses for this delay. The visible filtering stays real-time.
 const SEARCH_ANNOUNCE_DELAY_MS = 300;
+
+// Ceiling of a clipboard write: a permission prompt abandoned by the
+// user never settles — the race converts it into an announced failure.
+const COPY_WRITE_TIMEOUT_MS = 2000;
 // Sort direction indicator: the arrow carries the direction visually,
 // aria-sort on the header cell carries the state (EXPERIENCE.md).
 const SORT_ARROW_ASC =
@@ -307,6 +311,14 @@ function coherenceRawPairs(raw) {
   ]);
 }
 
+// Raw JSON text of the payload (UX run 3): pretty-printed with indent
+// 2, keys in the payload's original order — JSON.stringify never
+// sorts, the sorted list above stays the first level. A null payload
+// renders the honest "null", never the string "undefined".
+function coherenceRawJson(raw) {
+  return JSON.stringify(raw === undefined ? null : raw, null, 2);
+}
+
 // Anchor the popover under the trigger cell, flip above when there is
 // strictly more room there, clamp so it never leaves the viewport
 // (8 px margin). Pure: the DOM only supplies the rects.
@@ -449,6 +461,16 @@ function coherenceDetailHtml(row, t) {
       <details class="popover-raw">
         <summary>${t('panel.coherence.detail.raw_summary')}</summary>
         <dl>${coherenceDetailPairsHtml(coherenceRawPairs(row.raw))}</dl>
+        <div class="raw-json-bar">
+          <button class="row-action copy-json" type="button"
+                  data-copy-json="1">
+            ${t('panel.coherence.detail.copy_json')}
+          </button>
+        </div>
+        <p class="sr-only" id="copy-status-live" role="status"></p>
+        <pre class="raw-json"><code>${escapeHtml(
+          coherenceRawJson(row.raw)
+        )}</code></pre>
       </details>
     `;
 }
@@ -1463,6 +1485,19 @@ class EedomusConfigPanel extends HTMLElement {
           outline: 2px solid var(--primary-color); outline-offset: 2px;
         }
         .popover-raw .detail-row dt { flex: 0 0 45%; }
+        .popover-raw .raw-json-bar { margin-top: 8px; }
+        .popover-raw .raw-json {
+          margin: 4px 0 8px; padding: 8px;
+          background: var(--input-fill-color, var(--card-background-color));
+          border-radius: var(--ha-card-border-radius, 12px);
+          overflow-x: auto;
+          color: var(--primary-text-color);
+          font-size: 12px;
+        }
+        .popover-raw .raw-json code {
+          font-family: var(--code-font-family, ui-monospace, Menlo, monospace);
+          white-space: pre;
+        }
 
         .skeleton-cell {
           height: 18px;
@@ -1640,6 +1675,13 @@ class EedomusConfigPanel extends HTMLElement {
       this._openEntityMoreInfo(entityLink.dataset.entityId);
       return;
     }
+    const copyJsonBtn = ev.target.closest('[data-copy-json]');
+    if (copyJsonBtn) {
+      // Copy stays on its surface: no popover/extension teardown, the
+      // verdict lands in the dedicated copy-status-live region.
+      this._copyCoherenceRawJson(copyJsonBtn);
+      return;
+    }
     const filterBtn = ev.target.closest('.filter-touches');
     if (filterBtn) {
       this._touchedOnly = !this._touchedOnly;
@@ -1671,6 +1713,92 @@ class EedomusConfigPanel extends HTMLElement {
     if (ev.target.closest && ev.target.closest('[data-entity-id]')) {
       ev.preventDefault();
     }
+  }
+
+  // Copy of the payload JSON (UX run 3): the text comes from the
+  // rendered <code> of the open detail — textContent unescapes, so
+  // the clipboard receives the exact rendered payload, no re-fetch.
+  // The clipboard API first (raced against a short timeout — a stuck
+  // permission prompt never settles), then an execCommand fallback
+  // (insecure context, refused permission); the verdict is always
+  // announced in the dedicated copy-status-live region — a copy
+  // failure is never silent.
+  async _copyCoherenceRawJson(btn) {
+    const details = btn.closest ? btn.closest('details') : null;
+    const code = details ? details.querySelector('.raw-json code') : null;
+    const text = code ? code.textContent : '';
+    const root = this.shadowRoot;
+    const live = root ? root.getElementById('copy-status-live') : null;
+    const announce = (copied) => {
+      if (live) {
+        this._announceStatusNow(
+          live,
+          this.t(
+            copied
+              ? 'panel.coherence.detail.copy_feedback'
+              : 'panel.coherence.detail.copy_failed'
+          )
+        );
+      }
+    };
+    // Missing markup or an empty payload copies nothing — announce
+    // the failure, never attempt a copy of the empty string.
+    if (!code || !text) {
+      announce(false);
+      return;
+    }
+    const clipboard =
+      typeof navigator !== 'undefined' && navigator.clipboard
+        ? navigator.clipboard
+        : null;
+    let copied = false;
+    if (clipboard && clipboard.writeText) {
+      try {
+        copied = await Promise.race([
+          clipboard.writeText(text).then(() => true),
+          new Promise((resolve) => {
+            setTimeout(() => resolve(false), COPY_WRITE_TIMEOUT_MS);
+          }),
+        ]);
+      } catch (err) {
+        copied = false;
+      }
+    }
+    if (!copied) {
+      copied = this._copyCoherenceRawFallback(text);
+    }
+    announce(copied);
+  }
+
+  // execCommand fallback of the JSON copy: an off-viewport textarea,
+  // select then copy, cleanup — the honest boolean verdict decides
+  // the announcement.
+  _copyCoherenceRawFallback(text) {
+    if (
+      typeof document === 'undefined' ||
+      !document.createElement ||
+      !document.execCommand
+    ) {
+      return false;
+    }
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.top = '-9999px';
+    document.body.appendChild(area);
+    // execCommand('copy') reads the selection of the focused element
+    // in several browsers — focus before select.
+    area.focus();
+    area.select();
+    let copied = false;
+    try {
+      copied = document.execCommand('copy');
+    } catch (err) {
+      copied = false;
+    }
+    document.body.removeChild(area);
+    return copied;
   }
 
   _onInput(ev) {

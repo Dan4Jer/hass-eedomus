@@ -1,6 +1,6 @@
 """Panel translation catalog served by eedomus/get_translations (CAP-3).
 
-EN is the source of truth (137 panel.* keys from the i18n inventory);
+EN is the source of truth (140 panel.* keys from the i18n inventory);
 FR is its full translation. Texts carry raw {placeholder} tokens — the
 panel performs the replacement client-side.
 """
@@ -176,6 +176,9 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "panel.coherence.detail.view_in_ha": "View in HA",
         "panel.coherence.detail.create_rule": "Create a rule",
         "panel.coherence.detail.raw_summary": "Raw fields from the eedomus API",
+        "panel.coherence.detail.copy_json": "Copy JSON",
+        "panel.coherence.detail.copy_feedback": "JSON copied.",
+        "panel.coherence.detail.copy_failed": "Copy failed.",
         "panel.coherence.error.load": "Failed to load coherence: {err}.",
         "panel.coherence.empty": (
             "No peripheral detected. Check that the eedomus box is "
@@ -375,6 +378,9 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "panel.coherence.detail.view_in_ha": "Voir dans HA",
         "panel.coherence.detail.create_rule": "Créer une règle",
         "panel.coherence.detail.raw_summary": "Champs bruts de l'API eedomus",
+        "panel.coherence.detail.copy_json": "Copier le JSON",
+        "panel.coherence.detail.copy_feedback": "JSON copié.",
+        "panel.coherence.detail.copy_failed": "Copie impossible.",
         "panel.coherence.error.load": ("Impossible de charger la cohérence : {err}."),
         "panel.coherence.empty": (
             "Aucun périphérique détecté. Vérifiez que la box eedomus est "

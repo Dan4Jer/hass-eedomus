@@ -96,6 +96,7 @@ Mechanisms: **ws-catalog** = panel string served by `eedomus/get_translations` (
 | Voir dans HA | detail action | panel.coherence.detail.view_in_ha |
 | Créer une règle | popover/expanded-row action (distinct from the Périphériques row and the Règles tab buttons) | panel.coherence.detail.create_rule |
 | Champs bruts de l'API eedomus | raw summary | panel.coherence.detail.raw_summary |
+| Copier le JSON / JSON copié. / Copie impossible. | raw JSON block: copy button + announced feedback (dedicated copy-status-live region) | panel.coherence.detail.copy_json / .copy_feedback / .copy_failed |
 | Impossible de charger la cohérence : {err}. | error state | panel.coherence.error.load |
 | Aucun périphérique détecté. Vérifiez que la box eedomus est joignable… / Aucun périphérique ne correspond… Effacez le filtre… / Tout est cohérent… / Tout afficher | empty states | panel.coherence.empty / .empty.search / .empty.all_clear / .empty.show_all |
 | Chargement de la cohérence… | skeleton aria | panel.coherence.skeleton.aria |

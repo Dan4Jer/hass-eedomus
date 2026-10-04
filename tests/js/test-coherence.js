@@ -91,6 +91,7 @@ const hook = `
   coherenceLiveFields,
   coherenceIdentityFields,
   coherenceRawPairs,
+  coherenceRawJson,
   coherencePopoverPosition,
   coherenceTriggerHtml,
   coherenceEntityLinkHtml,
@@ -122,6 +123,7 @@ const {
   coherenceLiveFields,
   coherenceIdentityFields,
   coherenceRawPairs,
+  coherenceRawJson,
   coherencePopoverPosition,
   coherenceTriggerHtml,
   coherenceEntityLinkHtml,
@@ -617,6 +619,69 @@ assertEq(
     !noEntityDetail.includes('Voir dans HA'),
   ],
   [true, true, true, true, true, true]
+);
+
+// --- raw JSON block (UX run 3): fidelity under the sorted list ---
+// Payload whose key order differs from the sorted one: the JSON must
+// keep the original order, the list above it stays the sorted scan.
+const ORDERED_RAW = { zebra: 1, alpha: 'x', mid: { deep: [1, 2] } };
+const rawJsonText = coherenceRawJson(ORDERED_RAW);
+assertEq(
+  'raw json: indent 2, payload key order preserved',
+  [
+    rawJsonText.startsWith('{\n  "zebra": 1,'),
+    rawJsonText.indexOf('zebra') < rawJsonText.indexOf('alpha'),
+    rawJsonText.indexOf('alpha') < rawJsonText.indexOf('mid'),
+    rawJsonText.includes('\n  "mid": {\n    "deep": [\n      1,\n      2\n    ]\n  }'),
+  ],
+  [true, true, true, true]
+);
+assertEq(
+  'raw json: null and undefined render the honest "null"',
+  [coherenceRawJson(null), coherenceRawJson(undefined)],
+  ['null', 'null']
+);
+const jsonDetail = coherenceDetailHtml(
+  Object.assign({}, DETAIL_ROW, { raw: ORDERED_RAW }),
+  t
+);
+const rawBlock = jsonDetail.match(
+  /<details class="popover-raw">([\s\S]*?)<\/details>/
+)[1];
+const listPart = rawBlock.split('<pre')[0];
+const jsonPart = rawBlock.split('<pre')[1];
+assertEq(
+  'detail: JSON under the sorted list, keys in payload order',
+  [
+    rawBlock.indexOf('<dl>') < rawBlock.indexOf('<pre'),
+    listPart.indexOf('alpha') < listPart.indexOf('zebra'),
+    jsonPart.indexOf('zebra') < jsonPart.indexOf('alpha'),
+    jsonPart.includes('&quot;zebra&quot;: 1'),
+    // One escape pass only: quotes become entities, never double.
+    !jsonDetail.includes('&amp;quot;'),
+    !jsonDetail.includes('&amp;lt;'),
+  ],
+  [true, true, true, true, true, true]
+);
+assertEq(
+  'detail: copy button and dedicated live region travel with the block',
+  [
+    rawBlock.includes('data-copy-json="1"'),
+    rawBlock.includes('Copier le JSON'),
+    rawBlock.includes('<p class="sr-only" id="copy-status-live" role="status">'),
+    // Mobile parity is free: the expansion reuses coherenceDetailHtml.
+    coherenceRowExpansionHtml(DETAIL_ROW, DETAIL_ROW.periph_id, true, t)
+      .expansion.includes('data-copy-json="1"'),
+    coherenceRowExpansionHtml(DETAIL_ROW, DETAIL_ROW.periph_id, true, t)
+      .expansion.includes('copy-status-live'),
+  ],
+  [true, true, true, true, true]
+);
+assertEq(
+  'detail: null payload renders the honest JSON "null"',
+  coherenceDetailHtml({ periph_id: '12', name: '', raw: null }, t)
+    .includes('<pre class="raw-json"><code>null</code></pre>'),
+  true
 );
 
 // --- entity link (2.6, CAP-8): markup, hostile and null cases ---
@@ -1221,7 +1286,188 @@ function runPeriphSearchTests() {
 
 runPeriphSearchTests();
 
-runCatalogLifecycleTests().then(
+// --- payload JSON copy (UX run 3): stubbed clipboard, both verdicts ---
+// The handler resolves navigator/document at call time, so the vm
+// sandbox globals below are observable to the panel scope. The
+// navigator/document stubs are restored in the finally block — a
+// later chained test sees clean globals.
+async function runCopyJsonTests() {
+  const RAW_TEXT = JSON.stringify(ORDERED_RAW, null, 2);
+  const codeEl = { textContent: RAW_TEXT };
+  // The lookup selector is derived from what coherenceDetailHtml
+  // actually emits (pre class + inner tag), not from the handler's
+  // own literal — a markup/handler drift makes the stub answer null
+  // and the success paths fail loudly.
+  const emittedRaw = coherenceDetailHtml(
+    { periph_id: '101', name: 'Salon', raw: ORDERED_RAW },
+    t
+  ).match(/<details class="popover-raw">([\s\S]*?)<\/details>/)[1];
+  const emittedPre = emittedRaw.match(/<pre class="([^"]+)"><(\w+)>/);
+  if (!emittedPre) {
+    throw new Error('coherenceDetailHtml emits no raw JSON pre/code block');
+  }
+  const markupSelector = `.${emittedPre[1]} ${emittedPre[2]}`;
+  const detailsStub = {
+    querySelector: (sel) => (sel === markupSelector ? codeEl : null),
+  };
+  const buttonStub = {
+    closest: (sel) => (sel === 'details' ? detailsStub : null),
+  };
+  const copyPanel = new EedomusConfigPanel();
+  copyPanel._strings = FR;
+  const copyLive = { id: 'copy-status-live', textContent: '' };
+  copyPanel.shadowRoot = {
+    getElementById: (id) => (id === 'copy-status-live' ? copyLive : null),
+  };
+
+  const savedNavigator = sandbox.navigator;
+  const savedDocument = sandbox.document;
+  const restoreSandbox = () => {
+    if (savedNavigator === undefined) {
+      delete sandbox.navigator;
+    } else {
+      sandbox.navigator = savedNavigator;
+    }
+    if (savedDocument === undefined) {
+      delete sandbox.document;
+    } else {
+      sandbox.document = savedDocument;
+    }
+  };
+
+  try {
+    // Delegation: the [data-copy-json] branch of _onClick routes the
+    // button to the handler (spy — removing the branch ships a dead
+    // button with the suite green).
+    const routed = [];
+    copyPanel._copyCoherenceRawJson = (btn) => {
+      routed.push(btn);
+      return Promise.resolve();
+    };
+    copyPanel._onClick({
+      target: {
+        closest: (sel) => (sel === '[data-copy-json]' ? buttonStub : null),
+      },
+    });
+    assertEq(
+      'copy delegation: _onClick routes the copy button to the handler',
+      [routed.length, routed[0] === buttonStub],
+      [1, true]
+    );
+    copyPanel._copyCoherenceRawJson =
+      EedomusConfigPanel.prototype._copyCoherenceRawJson;
+
+    // Success: the clipboard receives the exact rendered JSON and the
+    // verdict is announced in the dedicated live region.
+    const written = [];
+    sandbox.navigator = {
+      clipboard: {
+        writeText: (text) => {
+          written.push(text);
+          return Promise.resolve();
+        },
+      },
+    };
+    await copyPanel._copyCoherenceRawJson(buttonStub);
+    assertEq(
+      'copy: clipboard success writes the JSON and announces it',
+      [written, copyLive.textContent],
+      [[RAW_TEXT], 'JSON copié.']
+    );
+
+    // Missing source read: no code element (selector drift) or empty
+    // text — the announced verdict is the failure, nothing is written.
+    const emptyDetailsStub = {
+      querySelector: () => ({ textContent: '' }),
+    };
+    const emptyButtonStub = {
+      closest: (sel) => (sel === 'details' ? emptyDetailsStub : null),
+    };
+    await copyPanel._copyCoherenceRawJson(emptyButtonStub);
+    const noCodeButtonStub = {
+      closest: (sel) => (sel === 'details' ? { querySelector: () => null } : null),
+    };
+    await copyPanel._copyCoherenceRawJson(noCodeButtonStub);
+    assertEq(
+      'copy: missing or empty source announces the failure, copies nothing',
+      [written, copyLive.textContent],
+      [[RAW_TEXT], 'Copie impossible.']
+    );
+
+    // Refusal: the API rejects and no execCommand fallback exists (no
+    // document in the sandbox yet) — the failure is announced, never
+    // silent.
+    sandbox.navigator = {
+      clipboard: {
+        writeText: () => Promise.reject(new Error('denied')),
+      },
+    };
+    await copyPanel._copyCoherenceRawJson(buttonStub);
+    assertEq(
+      'copy: refused clipboard announces « Copie impossible. »',
+      copyLive.textContent,
+      'Copie impossible.'
+    );
+
+    // Fallback: no clipboard API at all, execCommand succeeds. The
+    // created textarea is captured — the copied text is asserted, an
+    // empty-string fallback would stay green otherwise.
+    const execLog = [];
+    const areaLog = [];
+    let createdArea = null;
+    sandbox.navigator = {};
+    sandbox.document = {
+      createElement: () => {
+        createdArea = {
+          value: '',
+          style: {},
+          setAttribute() {},
+          focus() {
+            areaLog.push('focus');
+          },
+          select() {
+            areaLog.push('select');
+          },
+        };
+        return createdArea;
+      },
+      execCommand: (cmd) => {
+        execLog.push(cmd);
+        return true;
+      },
+      body: {
+        appendChild() {
+          areaLog.push('append');
+        },
+        removeChild() {
+          areaLog.push('remove');
+        },
+      },
+    };
+    await copyPanel._copyCoherenceRawJson(buttonStub);
+    assertEq(
+      'copy: execCommand fallback copies the text, focuses, and announces',
+      [execLog, areaLog, createdArea.value, copyLive.textContent],
+      [['copy'], ['append', 'focus', 'select', 'remove'], RAW_TEXT, 'JSON copié.']
+    );
+
+    // Fallback refusal: execCommand answers false — the failure is
+    // announced on the copy-status-live region too.
+    sandbox.document.execCommand = () => false;
+    await copyPanel._copyCoherenceRawJson(buttonStub);
+    assertEq(
+      'copy: execCommand refusal announces the failure too',
+      copyLive.textContent,
+      'Copie impossible.'
+    );
+  } finally {
+    restoreSandbox();
+  }
+}
+
+runCatalogLifecycleTests()
+  .then(runCopyJsonTests)
+  .then(
   () => {
     if (failures) {
       console.log(`\n${failures} failure(s)`);
