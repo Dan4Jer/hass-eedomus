@@ -116,6 +116,7 @@ jobs:
           import xml.etree.ElementTree as ET
           import importlib.metadata
           import platform
+          import textwrap
           from datetime import datetime
           from pathlib import Path
           from zoneinfo import ZoneInfo
@@ -320,7 +321,9 @@ jobs:
                   "COVERAGE-MODULES block not found or duplicated"
               )
 
-          env_block = f"""<!-- TEST-ENV-START -->
+          env_block = textwrap.dedent(
+              f"""\
+              <!-- TEST-ENV-START -->
               ```text
               Python {python_version}
               pytest {pytest_version}
@@ -331,7 +334,9 @@ jobs:
               {coverage:.2f}% total coverage
               Last test run: {run_date}
               ```
-              <!-- TEST-ENV-END -->""" 
+              <!-- TEST-ENV-END -->
+              """
+          ).strip()
 
           content, count = re.subn(
               r"<!-- TEST-ENV-START -->.*?<!-- TEST-ENV-END -->",
