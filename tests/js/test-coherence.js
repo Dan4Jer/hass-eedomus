@@ -7,12 +7,18 @@
  * loads it in a vm with stubbed browser globals and asserts on the
  * top-level pure functions exported by the module scope.
  *
+ * Since CAP-3 the label-bearing helpers take a translator as their
+ * last argument; the tests pass a fixture built from the frozen FR
+ * catalog (tests/js/fr-catalog.js parses panel_translations.py), so
+ * the expected texts below stay the real FR panel texts.
+ *
  * Run: node tests/js/test-coherence.js (exit 0 on success)
  */
 
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const { loadFrCatalog, catalogTranslator } = require('./fr-catalog');
 
 const PANEL_PATH = path.resolve(
   __dirname,
@@ -135,6 +141,11 @@ const {
   coherenceStatusText,
   COHERENCE_COLUMNS,
 } = sandbox.__coherence;
+
+// Fixture translator (CAP-3): the frozen FR catalog, identical
+// interpolation semantics to the panel's t().
+const FR = loadFrCatalog();
+const t = catalogTranslator(FR);
 
 let failures = 0;
 function assertEq(label, actual, expected) {
@@ -332,7 +343,7 @@ const LIVE_ROW = {
 };
 assertEq(
   'live: full row projects every field',
-  coherenceLiveFields(LIVE_ROW).map((f) => [f.label, f.value]),
+  coherenceLiveFields(LIVE_ROW, t).map((f) => [f.label, f.value]),
   [
     ['Entité HA', 'sensor.salon'],
     ['Valeur courante', '21.5'],
@@ -343,7 +354,7 @@ assertEq(
 );
 assertEq(
   'live: null/empty values stay visible as null',
-  coherenceLiveFields({ entity_id: 'sensor.x', state: null, usage_id: '' }),
+  coherenceLiveFields({ entity_id: 'sensor.x', state: null, usage_id: '' }, t),
   [
     { label: 'Entité HA', value: 'sensor.x', mono: true },
     { label: 'Valeur courante', value: null },
@@ -354,7 +365,7 @@ assertEq(
 );
 assertEq(
   'live: row without entity shows « aucune entité » and no value',
-  coherenceLiveFields({ entity_id: null, state: '21.5' }),
+  coherenceLiveFields({ entity_id: null, state: '21.5' }, t),
   [
     { label: 'Entité HA', value: 'aucune entité', mono: true },
     { label: 'Valeur courante', value: null },
@@ -371,7 +382,7 @@ assertEq(
     ha_entity: 'sensor',
     ha_subtype: 'temperature',
     justification: 'Unité température salon',
-  }),
+  }, t),
   [
     { label: 'ha_entity', value: 'sensor', mono: true },
     { label: 'ha_subtype', value: 'temperature', mono: true },
@@ -380,7 +391,7 @@ assertEq(
 );
 assertEq(
   'identity: unmapped row keeps null fields',
-  coherenceIdentityFields({}),
+  coherenceIdentityFields({}, t),
   [
     { label: 'ha_entity', value: null, mono: true },
     { label: 'ha_subtype', value: null, mono: true },
@@ -475,7 +486,7 @@ assertEq(
 );
 
 // --- popover: trigger markup (hostile periph_id) ---
-const triggerHtml = coherenceTriggerHtml('"><script>&');
+const triggerHtml = coherenceTriggerHtml('"><script>&', false, null, t);
 assertEq(
   'trigger: periph_id escaped in attribute, text and accessible name',
   [
@@ -496,16 +507,16 @@ assertEq(
 assertEq(
   'trigger: expanded flag reflects the mobile extended row (2.5)',
   [
-    coherenceTriggerHtml('101', true).includes('aria-expanded="true"'),
-    coherenceTriggerHtml('101', true).includes(
+    coherenceTriggerHtml('101', true, null, t).includes('aria-expanded="true"'),
+    coherenceTriggerHtml('101', true, null, t).includes(
       'aria-label="Détails du périphérique 101"'
     ),
-    coherenceTriggerHtml('101', true, 'coherence-expanded-101').includes(
+    coherenceTriggerHtml('101', true, 'coherence-expanded-101', t).includes(
       'aria-controls="coherence-expanded-101"'
     ),
     // Documented default: no expansion arguments -> collapsed trigger.
-    coherenceTriggerHtml('101').includes('aria-expanded="false"'),
-    !coherenceTriggerHtml('101').includes('aria-controls'),
+    coherenceTriggerHtml('101', false, null, t).includes('aria-expanded="false"'),
+    !coherenceTriggerHtml('101', false, null, t).includes('aria-controls'),
   ],
   [true, true, true, true, true]
 );
@@ -549,7 +560,7 @@ const DETAIL_ROW = {
   retry_after: '2026-10-03T15:00:00',
   raw: { name: 'a"b<c>&d', nested: { x: 1 } },
 };
-const detail = coherenceDetailHtml(DETAIL_ROW);
+const detail = coherenceDetailHtml(DETAIL_ROW, t);
 assertEq(
   'detail: hostile strings escape in every section',
   [
@@ -582,7 +593,10 @@ assertEq(
 );
 assertEq(
   'detail: non-numeric attempts never pluralize as NaN',
-  [detail.includes('(beaucoup tentative)'), detail.includes('NaN')],
+  [
+    detail.includes('(beaucoup tentatives)'),
+    detail.includes('NaN'),
+  ],
   [true, false]
 );
 const noEntityDetail = coherenceDetailHtml({
@@ -590,7 +604,7 @@ const noEntityDetail = coherenceDetailHtml({
   name: '',
   entity_id: null,
   raw: null,
-});
+}, t);
 assertEq(
   'detail: row without entity and empty name stays honest',
   [
@@ -609,9 +623,9 @@ assertEq(
 assertEq(
   'entity link: null/undefined/empty stays inert « aucune entité »',
   [
-    coherenceEntityLinkHtml(null),
-    coherenceEntityLinkHtml(undefined),
-    coherenceEntityLinkHtml(''),
+    coherenceEntityLinkHtml(null, t),
+    coherenceEntityLinkHtml(undefined, t),
+    coherenceEntityLinkHtml('', t),
   ],
   [
     '<em>aucune entité</em>',
@@ -619,7 +633,7 @@ assertEq(
     '<em>aucune entité</em>',
   ]
 );
-const linkHtml = coherenceEntityLinkHtml('sensor.salon');
+const linkHtml = coherenceEntityLinkHtml('sensor.salon', t);
 assertEq(
   'entity link: inline text link carrying the entity label',
   [
@@ -634,7 +648,7 @@ assertEq(
   ],
   [true, true, true, true, true, true]
 );
-const hostileLink = coherenceEntityLinkHtml('"><script>&');
+const hostileLink = coherenceEntityLinkHtml('"><script>&', t);
 assertEq(
   'entity link: hostile entity_id escapes in attribute and text',
   [
@@ -649,16 +663,16 @@ assertEq(
   'predicate: whitespace-only id is inert on both surfaces',
   [
     coherenceHasEntity('   '),
-    coherenceEntityLinkHtml('   '),
-    coherenceDetailHtml({ periph_id: '5', name: 'X', entity_id: '   ' })
+    coherenceEntityLinkHtml('   ', t),
+    coherenceDetailHtml({ periph_id: '5', name: 'X', entity_id: '   ' }, t)
       .includes('data-entity-id'),
   ],
   [false, '<em>aucune entité</em>', false]
 );
 
 // --- composed row (2.6): the entity cell on both sides of the mapping ---
-const mappedRow = coherenceRowHtml(ROWS[0], null, false);
-const inertRow = coherenceRowHtml(ROWS[1], null, false);
+const mappedRow = coherenceRowHtml(ROWS[0], null, false, t);
+const inertRow = coherenceRowHtml(ROWS[1], null, false, t);
 assertEq(
   'row: mapped row carries the entity link, null-entity row stays inert',
   [
@@ -679,7 +693,7 @@ const hostileDetail = coherenceDetailHtml({
   periph_id: '5',
   name: 'X',
   entity_id: '"><script>&',
-});
+}, t);
 assertEq(
   'detail: hostile entity_id escapes in the action attribute and name',
   [
@@ -743,7 +757,7 @@ assertEq(
   ],
   [true, false, false, false]
 );
-const expandedOut = coherenceRowExpansionHtml(DETAIL_ROW, '101', true);
+const expandedOut = coherenceRowExpansionHtml(DETAIL_ROW, '101', true, t);
 assertEq(
   'expansion: composed output emits the full surface when expanded',
   [
@@ -764,8 +778,8 @@ assertEq(
   ],
   [true, true, true, true, true, true, true, true, true, true]
 );
-const otherIdOut = coherenceRowExpansionHtml(DETAIL_ROW, '77', true);
-const wideOut = coherenceRowExpansionHtml(DETAIL_ROW, '101', false);
+const otherIdOut = coherenceRowExpansionHtml(DETAIL_ROW, '77', true, t);
+const wideOut = coherenceRowExpansionHtml(DETAIL_ROW, '101', false, t);
 assertEq(
   'expansion: nothing emitted when not expanded (other id or wide)',
   [
@@ -787,7 +801,8 @@ const HOSTILE_ID = '"><s>&';
 const hostileOut = coherenceRowExpansionHtml(
   { periph_id: HOSTILE_ID },
   HOSTILE_ID,
-  true
+  true,
+  t
 );
 assertEq(
   'expansion: hostile periph_id matches and escapes on both sides',
@@ -805,20 +820,22 @@ assertEq(
 );
 
 // --- popover: attempts plural guard ---
+// The catalog splits the singular/plural forms (CAP-3 review): 1 takes
+// attempts_one, everything else (non-numeric included) attempts_other.
 assertEq(
   'attempts: finite count > 1 pluralizes',
-  coherenceDetailAttempts(3),
+  coherenceDetailAttempts(3, t),
   ' (3 tentatives)'
 );
 assertEq(
   'attempts: 1 stays singular',
-  coherenceDetailAttempts(1),
+  coherenceDetailAttempts(1, t),
   ' (1 tentative)'
 );
 assertEq(
-  'attempts: non-numeric stays singular, never NaN',
-  coherenceDetailAttempts('beaucoup'),
-  ' (beaucoup tentative)'
+  'attempts: non-numeric takes the plural, never NaN',
+  coherenceDetailAttempts('beaucoup', t),
+  ' (beaucoup tentatives)'
 );
 
 // --- popover: focus trap selector excludes disabled uniformly ---
@@ -836,7 +853,7 @@ assertEq(
 
 // --- shared head generator (sweep): table and skeleton, same markup ---
 const NEUTRAL_SORT = { key: null, dir: null };
-const neutralHead = coherenceHeadHtml(NEUTRAL_SORT);
+const neutralHead = coherenceHeadHtml(NEUTRAL_SORT, t);
 assertEq(
   'head: neutral sort renders the five columns as plain sort buttons',
   [
@@ -852,7 +869,7 @@ assertEq(
   ],
   [5, true, true, true, true]
 );
-const sortedHead = coherenceHeadHtml({ key: 'name', dir: 'desc' });
+const sortedHead = coherenceHeadHtml({ key: 'name', dir: 'desc' }, t);
 assertEq(
   'head: sorted column carries aria-sort, arrow and state label',
   [
@@ -869,8 +886,8 @@ assertEq(
 assertEq(
   'periph status: plain count, then filter label with its own count',
   [
-    periphStatusText(63, 63, false),
-    periphStatusText(63, 12, true),
+    periphStatusText(63, 63, false, t),
+    periphStatusText(63, 12, true, t),
   ],
   [
     '63 périphériques',
@@ -880,10 +897,10 @@ assertEq(
 assertEq(
   'coherence status: count, view label, no-result and positive empty',
   [
-    coherenceStatusText(165, '', 'all'),
-    coherenceStatusText(4, '', 'to_verify'),
-    coherenceStatusText(0, 'zzz', 'all'),
-    coherenceStatusText(0, '', 'to_verify'),
+    coherenceStatusText(165, '', 'all', t),
+    coherenceStatusText(4, '', 'to_verify', t),
+    coherenceStatusText(0, 'zzz', 'all', t),
+    coherenceStatusText(0, '', 'to_verify', t),
   ],
   [
     '165 périphériques',
@@ -897,6 +914,10 @@ assertEq(
 // The visible count updates on every keystroke; only the sr-only live
 // region waits for the captured 300 ms timer.
 const announcePanel = new EedomusConfigPanel();
+// CAP-3: the render paths go through t() — the instance carries the FR
+// fixture catalog, exactly what set hass loads in production.
+announcePanel._strings = FR;
+announcePanel._stringsLocale = 'fr';
 const liveLog = [];
 const liveEl = { id: 'coherence-status-live' };
 Object.defineProperty(liveEl, 'textContent', {
@@ -971,14 +992,245 @@ assertEq(
     skeleton.includes('inert'),
     (skeleton.match(/aria-sort="none"/g) || []).length,
     !skeleton.includes('sort-arrow'),
-    COHERENCE_COLUMNS.every((col) => skeleton.includes(col.label)),
+    COHERENCE_COLUMNS.every((col) => skeleton.includes(t(col.labelKey))),
     skeleton.includes(`colspan="${COHERENCE_COLUMNS.length}"`),
   ],
   [true, 5, true, true, true]
 );
 
+// Sync suite boundary: a sync failure exits before the async block.
 if (failures) {
   console.log(`\n${failures} failure(s)`);
   process.exit(1);
 }
-console.log('\nAll coherence tests passed.');
+
+// ====================================================================
+// CAP-3 (ticket 3.3) — catalog consumption, below the sync suite: the
+// lifecycle tests drive set hass with a stubbed callWS and a stubbed
+// shadow root; the search test drives the Périphériques empty state.
+// ====================================================================
+
+// One macrotask: the async _loadStrings continuations settle before
+// the assertions run (the panel's own setTimeout stays sandboxed).
+const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+// Fresh panel over a recording shadow-root stub: the delegation
+// handlers land in listeners[type] so the once-only attachment is
+// observable.
+function lifecyclePanel() {
+  const panel = new EedomusConfigPanel();
+  panel.shadowRoot = {
+    innerHTML: '',
+    listeners: {},
+    addEventListener(type, handler) {
+      (this.listeners[type] = this.listeners[type] || []).push(handler);
+    },
+    removeEventListener() {},
+    getElementById: () => null,
+    querySelector: () => null,
+    querySelectorAll: () => [],
+  };
+  return panel;
+}
+
+async function runCatalogLifecycleTests() {
+  // (1) the command is issued with hass.locale.language
+  const issued = [];
+  const firstPanel = lifecyclePanel();
+  firstPanel.hass = {
+    locale: { language: 'fr' },
+    callWS: async (msg) => {
+      issued.push(msg);
+      return { locale: 'fr', translations: FR };
+    },
+  };
+  await tick();
+  assertEq(
+    'lifecycle: get_translations issued with the hass locale',
+    issued,
+    [{ type: 'eedomus/get_translations', locale: 'fr' }]
+  );
+  assertEq(
+    'lifecycle: catalog stored with its locale',
+    [firstPanel._stringsLocale, firstPanel.t('panel.common.retry')],
+    ['fr', 'Réessayer']
+  );
+
+  // (2) a rejected callWS leaves _strings null; a second set hass
+  // re-issues the command (silent retry, skeleton in between).
+  const failPanel = lifecyclePanel();
+  let failCalls = 0;
+  const refuse = () => {
+    failCalls += 1;
+    return Promise.reject(new Error('commande refusée'));
+  };
+  failPanel.hass = { locale: { language: 'fr' }, callWS: refuse };
+  await tick();
+  assertEq(
+    'lifecycle: ws failure leaves no catalog, no throw',
+    [failPanel._strings, failPanel.t('panel.common.retry')],
+    [null, 'panel.common.retry']
+  );
+  failPanel.hass = { locale: { language: 'fr' }, callWS: refuse };
+  await tick();
+  assertEq(
+    'lifecycle: second set hass re-issues the command',
+    failCalls,
+    2
+  );
+
+  // (3) a locale change requests the new locale and swaps the catalog
+  const locales = [];
+  const localePanel = lifecyclePanel();
+  localePanel.hass = {
+    locale: { language: 'fr' },
+    callWS: async (msg) => {
+      locales.push(msg.locale);
+      return { locale: 'fr', translations: FR };
+    },
+  };
+  await tick();
+  localePanel.hass = {
+    locale: { language: 'en' },
+    callWS: async (msg) => {
+      locales.push(msg.locale);
+      return { locale: 'en', translations: { 'panel.common.title': 'X' } };
+    },
+  };
+  await tick();
+  assertEq(
+    'lifecycle: locale change requests the new locale, catalog swaps',
+    [locales, localePanel._stringsLocale, localePanel._strings['panel.common.title']],
+    [['fr', 'en'], 'en', 'X']
+  );
+
+  // (4) a locale change mid-flight discards the stale response
+  const stalePanel = lifecyclePanel();
+  let resolveFr;
+  const frInFlight = new Promise((resolve) => {
+    resolveFr = resolve;
+  });
+  stalePanel.hass = { locale: { language: 'fr' }, callWS: () => frInFlight };
+  // The locale flips before the fr response arrives.
+  stalePanel.hass = {
+    locale: { language: 'en' },
+    callWS: async () => ({
+      locale: 'en',
+      translations: { 'panel.common.title': 'EN' },
+    }),
+  };
+  await tick();
+  resolveFr({ locale: 'fr', translations: FR });
+  await tick();
+  assertEq(
+    'lifecycle: stale in-flight response is discarded',
+    [stalePanel._stringsLocale, stalePanel._strings['panel.common.title']],
+    ['en', 'EN']
+  );
+
+  // (5) + (6) + (7) one panel: gate, catalog arrival, delegation
+  const gatePanel = lifecyclePanel();
+  gatePanel._render();
+  const gatedHtml = gatePanel.shadowRoot.innerHTML;
+  assertEq(
+    'lifecycle: catalog-absent render is skeleton only, no key text',
+    [
+      gatedHtml.includes('skeleton-row'),
+      gatedHtml.includes('role="status"'),
+      gatedHtml.includes('aria-busy="true"'),
+      !gatedHtml.includes('panel.'),
+      !gatedHtml.includes('tab-content'),
+    ],
+    [true, true, true, true, true]
+  );
+  gatePanel.hass = {
+    locale: { language: 'fr' },
+    callWS: async () => ({ locale: 'fr', translations: FR }),
+  };
+  await tick();
+  const liveHtml = gatePanel.shadowRoot.innerHTML;
+  assertEq(
+    'lifecycle: catalog arrival re-renders real content',
+    [
+      liveHtml.includes('Périphériques'),
+      liveHtml.includes('id="tab-content"'),
+      gatePanel._stringsLocale,
+    ],
+    [true, true, 'fr']
+  );
+  assertEq(
+    'lifecycle: delegation listeners attached exactly once',
+    gatePanel.shadowRoot.listeners.click.length,
+    1
+  );
+  let onClickRuns = 0;
+  const realOnClick = gatePanel._onClick;
+  gatePanel._onClick = (ev) => {
+    onClickRuns += 1;
+    return realOnClick.call(gatePanel, ev);
+  };
+  gatePanel.shadowRoot.listeners.click[0]({
+    target: { closest: () => null },
+    preventDefault: () => {},
+    stopPropagation: () => {},
+  });
+  assertEq(
+    'lifecycle: one dispatched click runs the delegation once',
+    onClickRuns,
+    1
+  );
+}
+
+// --- periphs search-no-result state (CAP-3 spine row, 3.3) ---
+function runPeriphSearchTests() {
+  const searchPanel = new EedomusConfigPanel();
+  searchPanel._strings = FR;
+  searchPanel._stringsLocale = 'fr';
+  const periphEls = {
+    'periph-list': { id: 'periph-list', innerHTML: '' },
+    'periph-status': { id: 'periph-status', textContent: '' },
+    'periph-status-live': { id: 'periph-status-live', textContent: '' },
+  };
+  searchPanel.shadowRoot = {
+    querySelector: () => null,
+    getElementById: (id) => periphEls[id] || null,
+  };
+  searchPanel._tab = 'peripheriques';
+  searchPanel._periphs = [
+    { periph_id: '101', name: 'Salon', usage_id: '1', entity_id: 'sensor.s' },
+    { periph_id: '12', name: 'Cave', usage_id: '2', entity_id: null },
+  ];
+  searchPanel._search = 'zzz';
+  searchPanel._renderPeriphList();
+  assertEq(
+    'periphs search: empty-search state message renders',
+    periphEls['periph-list'].innerHTML.includes(
+      'Aucun périphérique ne correspond à “zzz”'
+    ),
+    true
+  );
+  assertEq(
+    'periphs search: count status keeps announcing',
+    [
+      periphEls['periph-status'].textContent,
+      periphEls['periph-status-live'].textContent,
+    ],
+    ['2 périphériques', '2 périphériques']
+  );
+}
+
+runPeriphSearchTests();
+
+runCatalogLifecycleTests().then(
+  () => {
+    if (failures) {
+      console.log(`\n${failures} failure(s)`);
+      process.exit(1);
+    }
+    console.log('\nAll coherence tests passed.');
+  },
+  (err) => {
+    console.error(err);
+    process.exit(1);
+  }
+);

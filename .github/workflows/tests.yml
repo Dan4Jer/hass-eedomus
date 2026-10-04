@@ -45,6 +45,8 @@ jobs:
       run: |
         echo "Running coherence JS tests..."
         node tests/js/test-coherence.js
+        echo "Running i18n guard..."
+        node tests/js/test-i18n-guard.js
 
     - name: Test energy sensor (Issue #9)
       run: |

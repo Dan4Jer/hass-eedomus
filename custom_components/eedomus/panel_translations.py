@@ -1,6 +1,6 @@
 """Panel translation catalog served by eedomus/get_translations (CAP-3).
 
-EN is the source of truth (136 panel.* keys from the i18n inventory);
+EN is the source of truth (137 panel.* keys from the i18n inventory);
 FR is its full translation. Texts carry raw {placeholder} tokens — the
 panel performs the replacement client-side.
 """
@@ -163,7 +163,8 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "panel.coherence.detail.section_identity": "Mapping identity",
         "panel.coherence.detail.error_message": "{error_message}",
         "panel.coherence.detail.retry_after": "— retry at {retry_after}",
-        "panel.coherence.detail.attempts": "({n} attempt(s))",
+        "panel.coherence.detail.attempts_one": "({n} attempt)",
+        "panel.coherence.detail.attempts_other": "({n} attempts)",
         "panel.coherence.detail.entity_id": "HA entity",
         "panel.coherence.detail.current_value": "Current value",
         "panel.coherence.detail.usage_id": "usage_id",
@@ -361,7 +362,8 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "panel.coherence.detail.section_identity": "Identité de mapping",
         "panel.coherence.detail.error_message": "{error_message}",
         "panel.coherence.detail.retry_after": ("— nouvelle tentative {retry_after}"),
-        "panel.coherence.detail.attempts": "({n} tentative(s))",
+        "panel.coherence.detail.attempts_one": "({n} tentative)",
+        "panel.coherence.detail.attempts_other": "({n} tentatives)",
         "panel.coherence.detail.entity_id": "Entité HA",
         "panel.coherence.detail.current_value": "Valeur courante",
         "panel.coherence.detail.usage_id": "usage_id",

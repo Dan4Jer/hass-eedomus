@@ -12,44 +12,41 @@
  */
 
 const TABS = ['peripheriques', 'regles', 'historique', 'coherence'];
-const TAB_LABELS = {
-  peripheriques: 'Périphériques',
-  regles: 'Règles',
-  historique: 'Historique',
-};
 
 // Coherence signals (CAP-6): exact strings from eedomus/get_coherence,
 // one chip per signal — glyph + label, never color alone (DESIGN.md).
+// labelKey resolves at render time through t() (CAP-3).
 const COHERENCE_SIGNALS = {
   sans_entite: {
-    label: 'sans entité HA',
+    labelKey: 'panel.coherence.chips.sans_entite',
     icon: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/></svg>',
   },
   douteux: {
-    label: 'mapping douteux',
+    labelKey: 'panel.coherence.chips.douteux',
     icon: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>',
   },
   regle_active: {
-    label: 'règle active',
+    labelKey: 'panel.coherence.chips.regle_active',
     icon: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-4-4h2V7h4V5h-4V3h-2v6z"/></svg>',
   },
   en_erreur: {
-    label: 'en erreur',
+    labelKey: 'panel.coherence.chips.en_erreur',
     icon: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12 6v3l4-4-4-4v3c-4.42 0-8 3.58-8 8 0 1.57.46 3.03 1.24 4.26L6.7 14.8c-.45-.83-.7-1.79-.7-2.8 0-3.31 2.69-6 6-6zm6.76 1.74L17.3 9.2c.44.84.7 1.8.7 2.8 0 3.31-2.69 6-6 6v-3l-4 4 4 4v-3c4.42 0 8-3.58 8-8 0-1.57-.46-3.03-1.24-4.26z"/></svg>',
   },
 };
 const COHERENCE_OK_SIGNAL = {
-  label: 'cohérent',
+  labelKey: 'panel.coherence.chips.coherent',
   icon: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>',
 };
 // Shared by the coherence table head generator and its skeleton (sweep)
-// so the columns cannot drift: key is the sort key, label the column name.
+// so the columns cannot drift: key is the sort key, labelKey the
+// panel.* column label resolved at render time (CAP-3).
 const COHERENCE_COLUMNS = [
-  { key: 'periph_id', label: 'periph_id' },
-  { key: 'name', label: 'Nom' },
-  { key: 'entity_id', label: 'Entité HA' },
-  { key: 'type', label: 'Type / sous-type' },
-  { key: 'status', label: 'Statut' },
+  { key: 'periph_id', labelKey: 'panel.coherence.columns.periph_id' },
+  { key: 'name', labelKey: 'panel.coherence.columns.name' },
+  { key: 'entity_id', labelKey: 'panel.coherence.columns.entity_id' },
+  { key: 'type', labelKey: 'panel.coherence.columns.type' },
+  { key: 'status', labelKey: 'panel.coherence.columns.status' },
 ];
 // The single breakpoint of the coherence tab (ticket 2.5): the JS
 // surface switch (coherenceNarrowView, matchMedia) and the CSS
@@ -177,8 +174,9 @@ function nextCoherenceSort(sort, key) {
 // render the SAME thead markup from COHERENCE_COLUMNS — labels and
 // markup, so the columns cannot drift. The skeleton passes the
 // neutral sort; the table passes its live sort state.
-function coherenceHeadHtml(sort) {
+function coherenceHeadHtml(sort, t) {
   const cells = COHERENCE_COLUMNS.map((col) => {
+    const label = t(col.labelKey);
     const active = sort.key === col.key;
     const ariaSort = !active
       ? 'none'
@@ -186,8 +184,9 @@ function coherenceHeadHtml(sort) {
     const stateLabel = !active
       ? ''
       : sort.dir === 'asc'
-        ? ', actuellement croissant'
-        : ', actuellement décroissant';
+        ? t('panel.coherence.sort.aria_asc')
+        : t('panel.coherence.sort.aria_desc');
+    const ariaText = t('panel.coherence.sort.aria', { label }) + stateLabel;
     const arrow = !active
       ? ''
       : sort.dir === 'asc'
@@ -196,8 +195,8 @@ function coherenceHeadHtml(sort) {
     return `
           <th scope="col" aria-sort="${ariaSort}">
             <button class="sort-header" type="button" data-sort-key="${col.key}"
-                    aria-label="Trier par ${col.label}${stateLabel}">
-              ${col.label}${arrow}
+                    aria-label="${escapeHtml(ariaText)}">
+              ${label}${arrow}
             </button>
           </th>`;
   });
@@ -212,24 +211,24 @@ function coherenceHeadHtml(sort) {
 // Status-line texts (sweep): one pure helper per tab so the immediate
 // render path and the debounced announcement compute the exact same
 // message — the live region never disagrees with the table.
-function periphStatusText(total, shown, touchedOnly) {
+function periphStatusText(total, shown, touchedOnly, t) {
   const filterLabel = touchedOnly
-    ? ` — filtre « Périphériques touchés » actif : ${shown} résultats`
+    ? ` ${t('panel.peripheriques.status.filtered', { n: shown })}`
     : '';
-  return `${total} périphériques${filterLabel}`;
+  return t('panel.peripheriques.status.total', { n: total }) + filterLabel;
 }
 
-function coherenceStatusText(shown, search, view) {
+function coherenceStatusText(shown, search, view, t) {
   if (shown === 0 && search) {
-    return `Aucun périphérique ne correspond à “${search}”.`;
+    return t('panel.coherence.status.no_result', { q: search });
   }
   if (shown === 0 && view === 'to_verify') {
-    return 'Tout est cohérent. Aucun périphérique à vérifier.';
+    return t('panel.coherence.status.all_clear');
   }
   const viewLabel = view === 'to_verify'
-    ? ` — vue « À vérifier » active : ${shown} résultats`
+    ? ` ${t('panel.coherence.status.filtered', { n: shown })}`
     : '';
-  return `${shown} périphériques${viewLabel}`;
+  return t('panel.coherence.status.total', { n: shown }) + viewLabel;
 }
 
 // ---- Popover pure helpers (ticket 2.4) ----
@@ -246,37 +245,54 @@ function coherenceFieldValue(value) {
 
 // « État vivant » fields. A row without an entity shows
 // « aucune entité » and no current value (edge-case matrix).
-function coherenceLiveFields(row) {
+function coherenceLiveFields(row, t) {
   const hasEntity = Boolean(row.entity_id);
   return [
     {
-      label: 'Entité HA',
-      value: hasEntity ? String(row.entity_id) : 'aucune entité',
+      label: t('panel.coherence.detail.entity_id'),
+      value: hasEntity
+        ? String(row.entity_id)
+        : t('panel.common.no_entity'),
       mono: true,
     },
     {
-      label: 'Valeur courante',
+      label: t('panel.coherence.detail.current_value'),
       value: hasEntity ? coherenceFieldValue(row.state) : null,
     },
-    { label: 'usage_id', value: coherenceFieldValue(row.usage_id), mono: true },
     {
-      label: 'Périphérique parent',
+      label: t('panel.coherence.detail.usage_id'),
+      value: coherenceFieldValue(row.usage_id),
+      mono: true,
+    },
+    {
+      label: t('panel.coherence.detail.parent'),
       value: coherenceFieldValue(row.parent_periph_id),
       mono: true,
     },
     {
-      label: 'Dernière mise à jour',
+      label: t('panel.coherence.detail.last_update'),
       value: coherenceFieldValue(row.last_update),
     },
   ];
 }
 
 // Mapping identity fields: what was mapped and why.
-function coherenceIdentityFields(row) {
+function coherenceIdentityFields(row, t) {
   return [
-    { label: 'ha_entity', value: coherenceFieldValue(row.ha_entity), mono: true },
-    { label: 'ha_subtype', value: coherenceFieldValue(row.ha_subtype), mono: true },
-    { label: 'Justification', value: coherenceFieldValue(row.justification) },
+    {
+      label: t('panel.coherence.detail.ha_entity'),
+      value: coherenceFieldValue(row.ha_entity),
+      mono: true,
+    },
+    {
+      label: t('panel.coherence.detail.ha_subtype'),
+      value: coherenceFieldValue(row.ha_subtype),
+      mono: true,
+    },
+    {
+      label: t('panel.coherence.detail.justification'),
+      value: coherenceFieldValue(row.justification),
+    },
   ];
 }
 
@@ -326,7 +342,7 @@ function escapeHtml(value) {
 // aria-haspopup="dialog" dynamically (the narrow surface is an
 // inline row, not a dialog), and `controlsId` points at the
 // expansion row when it exists (2.5).
-function coherenceTriggerHtml(periphId, expanded, controlsId) {
+function coherenceTriggerHtml(periphId, expanded, controlsId, t) {
   const controls = controlsId
     ? ` aria-controls="${escapeHtml(controlsId)}"`
     : '';
@@ -334,7 +350,9 @@ function coherenceTriggerHtml(periphId, expanded, controlsId) {
     <button class="coherence-id-trigger" type="button"
             data-coherence-popover="${escapeHtml(periphId)}"
             aria-expanded="${expanded ? 'true' : 'false'}"${controls}
-            aria-label="Détails du périphérique ${escapeHtml(periphId)}">
+            aria-label="${escapeHtml(t('panel.coherence.trigger.aria', {
+              periph_id: periphId,
+            }))}">
       <code>${escapeHtml(periphId)}</code>
     </button>`;
 }
@@ -351,35 +369,46 @@ function coherenceHasEntity(entityId) {
 // label is the entity itself. The accessible name carries the action
 // and the destination, mirroring the detail's « Voir dans HA ».
 // A row without an entity keeps its inert « aucune entité ».
-function coherenceEntityLinkHtml(entityId) {
+function coherenceEntityLinkHtml(entityId, t) {
   if (!coherenceHasEntity(entityId)) {
-    return '<em>aucune entité</em>';
+    return `<em>${t('panel.common.no_entity')}</em>`;
   }
   return `<a class="entity-link" href="#"
             data-entity-id="${escapeHtml(entityId)}"
-            aria-label="Voir ${escapeHtml(entityId)} dans Home Assistant"
+            aria-label="${escapeHtml(t('panel.coherence.entity_link.aria', {
+              entity_id: entityId,
+            }))}"
            >${escapeHtml(entityId)}</a>`;
 }
 
-// Attempts detail of the error state: the plural only applies to a
-// finite count > 1 (a non-numeric value never renders NaN).
-function coherenceDetailAttempts(attempts) {
+// Attempts detail of the error state: 1 takes the singular form,
+// everything else (a non-numeric value included) the plural — the
+// count only interpolates, a non-numeric value never renders NaN.
+function coherenceDetailAttempts(attempts, t) {
   const count = Number(attempts);
-  const plural = Number.isFinite(count) && count > 1 ? 's' : '';
-  return ` (${escapeHtml(attempts)} tentative${plural})`;
+  const key = count === 1
+    ? 'panel.coherence.detail.attempts_one'
+    : 'panel.coherence.detail.attempts_other';
+  return ` ${t(key, { n: escapeHtml(attempts) })}`;
 }
 
 // Detail body shared by the desktop popover (2.4) and the mobile
 // expanded row (2.5): the same sections from the same coherence row,
 // no re-fetch. Everything is eedomus-sourced and escaped.
-function coherenceDetailHtml(row) {
+function coherenceDetailHtml(row, t) {
   const errorHtml = row.error_message
     ? `<p class="popover-error">
-         ${escapeHtml(row.error_message)}
+         ${t('panel.coherence.detail.error_message', {
+           error_message: escapeHtml(row.error_message),
+         })}
          ${row.retry_after
-           ? ` — nouvelle tentative ${escapeHtml(row.retry_after)}`
+           ? ` ${t('panel.coherence.detail.retry_after', {
+               retry_after: escapeHtml(row.retry_after),
+             })}`
            : ''}
-         ${row.attempts != null ? coherenceDetailAttempts(row.attempts) : ''}
+         ${row.attempts != null
+           ? coherenceDetailAttempts(row.attempts, t)
+           : ''}
        </p>`
     : '';
   return `
@@ -388,41 +417,50 @@ function coherenceDetailHtml(row) {
         <code class="popover-id">${escapeHtml(row.periph_id)}</code>
       </div>
       <div class="popover-section">
-        <h3 class="popover-heading">État vivant</h3>
+        <h3 class="popover-heading">${t(
+          'panel.coherence.detail.section_live'
+        )}</h3>
         ${errorHtml}
-        <dl>${coherenceDetailFieldsHtml(coherenceLiveFields(row))}</dl>
+        <dl>${coherenceDetailFieldsHtml(coherenceLiveFields(row, t), t)}</dl>
       </div>
       <div class="popover-section">
-        <h3 class="popover-heading">Identité de mapping</h3>
-        <dl>${coherenceDetailFieldsHtml(coherenceIdentityFields(row))}</dl>
+        <h3 class="popover-heading">${t(
+          'panel.coherence.detail.section_identity'
+        )}</h3>
+        <dl>${coherenceDetailFieldsHtml(coherenceIdentityFields(row, t), t)}</dl>
       </div>
       <div class="popover-actions">
         <button class="row-action" type="button"
                 data-periph-id="${escapeHtml(row.periph_id)}"
                 data-usage-id="${escapeHtml(row.usage_id || '')}">
-          Créer une règle
+          ${t('panel.coherence.detail.create_rule')}
         </button>
         ${coherenceHasEntity(row.entity_id)
           ? `<button class="row-action" type="button"
                      data-entity-id="${escapeHtml(row.entity_id)}"
-                     aria-label="Voir ${escapeHtml(row.entity_id)} dans Home Assistant">
-               Voir dans HA
+                     aria-label="${escapeHtml(t(
+                       'panel.coherence.entity_link.aria',
+                       { entity_id: row.entity_id }
+                     ))}">
+               ${t('panel.coherence.detail.view_in_ha')}
              </button>`
           : ''}
       </div>
       <details class="popover-raw">
-        <summary>Champs bruts de l'API eedomus</summary>
+        <summary>${t('panel.coherence.detail.raw_summary')}</summary>
         <dl>${coherenceDetailPairsHtml(coherenceRawPairs(row.raw))}</dl>
       </details>
     `;
 }
 
-function coherenceDetailFieldsHtml(fields) {
+function coherenceDetailFieldsHtml(fields, t) {
   return fields
     .map((field) => {
       let valueHtml;
       if (field.value == null) {
-        valueHtml = '<em class="detail-unknown">inconnu</em>';
+        valueHtml = `<em class="detail-unknown">${t(
+          'panel.common.unknown_value'
+        )}</em>`;
       } else if (field.mono) {
         valueHtml = `<span class="detail-code">${escapeHtml(field.value)}</span>`;
       } else {
@@ -529,12 +567,12 @@ function coherenceExpandedRowId(periphId) {
 
 // The expansion row itself: the shared detail body (strict parity
 // with the popover) inside the table reflow, spanning every column.
-function coherenceExpandedRowHtml(row) {
+function coherenceExpandedRowHtml(row, t) {
   return `
       <tr class="coherence-expanded-row"
           id="${escapeHtml(coherenceExpandedRowId(row.periph_id))}">
         <td colspan="${COHERENCE_COLUMNS.length}">
-          <div class="coherence-expanded-body">${coherenceDetailHtml(row)}</div>
+          <div class="coherence-expanded-body">${coherenceDetailHtml(row, t)}</div>
         </td>
       </tr>
     `;
@@ -544,7 +582,7 @@ function coherenceExpandedRowHtml(row) {
 // reflecting the state, aria-controls only when the target exists)
 // and the expansion row when the predicate says so — nothing of it
 // otherwise (the wide side never emits an expansion).
-function coherenceRowExpansionHtml(row, expandedId, narrow) {
+function coherenceRowExpansionHtml(row, expandedId, narrow, t) {
   const expanded = coherenceIsExpanded(row, expandedId, narrow);
   return {
     expanded,
@@ -552,9 +590,10 @@ function coherenceRowExpansionHtml(row, expandedId, narrow) {
     trigger: coherenceTriggerHtml(
       row.periph_id,
       expanded,
-      expanded ? coherenceExpandedRowId(row.periph_id) : null
+      expanded ? coherenceExpandedRowId(row.periph_id) : null,
+      t
     ),
-    expansion: expanded ? coherenceExpandedRowHtml(row) : '',
+    expansion: expanded ? coherenceExpandedRowHtml(row, t) : '',
   };
 }
 
@@ -571,32 +610,41 @@ function coherenceTruncateText(text, max) {
 // Chips of the Statut cell: one chip per signal, « cohérent » when
 // there is none; an unknown string keeps a neutral chip carrying
 // the raw value — never dropped, never "cohérent".
-function coherenceChipsHtml(row) {
+function coherenceChipsHtml(row, t) {
   const signals = (row && row.signals) || [];
   if (signals.length === 0) {
-    return coherenceChipHtml('coherent', row);
+    return coherenceChipHtml('coherent', row, t);
   }
-  return signals.map((signal) => coherenceChipHtml(signal, row)).join('');
+  return signals
+    .map((signal) => coherenceChipHtml(signal, row, t))
+    .join('');
 }
 
-function coherenceChipHtml(signal, row) {
+function coherenceChipHtml(signal, row, t) {
   const known = signal === 'coherent' || Boolean(COHERENCE_SIGNALS[signal]);
   const def = signal === 'coherent'
     ? COHERENCE_OK_SIGNAL
-    : COHERENCE_SIGNALS[signal] || { label: signal, icon: '' };
-  let label = def.label;
+    : COHERENCE_SIGNALS[signal] || null;
+  let label;
   let title = '';
   if (signal === 'en_erreur' && row && row.error_message) {
     // The retry detail is visible (truncated), in the accessible name,
     // and complete in the title — never color or title alone.
     const detail = coherenceTruncateText(row.error_message, 40);
-    label = `en erreur : ${detail}`;
-    title = ` title="${escapeHtml(row.error_message)}"`;
+    label = t('panel.coherence.chips.en_erreur_detail', { truncated: detail });
+    title = ` title="${escapeHtml(
+      t('panel.coherence.chips.error_title', { msg: row.error_message })
+    )}"`;
+  } else if (def) {
+    label = t(def.labelKey);
+  } else {
+    label = t('panel.coherence.chips.unknown', { raw: signal });
   }
+  const icon = def ? def.icon : '';
   return `
       <span class="coherence-chip coherence-chip-${known ? signal : 'unknown'}"${title}
             aria-label="${escapeHtml(label)}">
-        ${def.icon}
+        ${icon}
         ${escapeHtml(label)}
       </span>
     `;
@@ -606,22 +654,30 @@ function coherenceChipHtml(signal, row) {
 // (CAP-8), type and chips, plus the expansion carried by
 // coherenceRowExpansionHtml — pure over the payload + the volatile
 // state, like the rest of the composition.
-function coherenceRowHtml(row, expandedId, narrow) {
+function coherenceRowHtml(row, expandedId, narrow, t) {
   const type = coherenceType(row);
   // CAP-8 : l'entité est un lien texte inline vers la surface
   // standard HA — inerte « aucune entité » quand il n'y en a pas.
-  const entity = coherenceEntityLinkHtml(row.entity_id);
-  const detail = coherenceRowExpansionHtml(row, expandedId, narrow);
+  const entity = coherenceEntityLinkHtml(row.entity_id, t);
+  const detail = coherenceRowExpansionHtml(row, expandedId, narrow, t);
   return `
       <tr${detail.rowClass}>
-        <td class="coherence-id" data-label="Périphérique">
+        <td class="coherence-id" data-label="${escapeHtml(t(
+          'panel.coherence.cell_labels.periph_id'
+        ))}">
           ${detail.trigger}
         </td>
-        <td data-label="Nom">${escapeHtml(row.name || '')}</td>
-        <td class="ha-entity" data-label="Entité HA">${entity}</td>
-        <td data-label="Type / sous-type">${escapeHtml(type)}</td>
-        <td data-label="Statut">
-          <div class="coherence-chips">${coherenceChipsHtml(row)}</div>
+        <td data-label="${escapeHtml(t('panel.coherence.columns.name'))}">${escapeHtml(
+    row.name || ''
+  )}</td>
+        <td class="ha-entity" data-label="${escapeHtml(t(
+          'panel.coherence.columns.entity_id'
+        ))}">${entity}</td>
+        <td data-label="${escapeHtml(t('panel.coherence.columns.type'))}">${escapeHtml(
+    type
+  )}</td>
+        <td data-label="${escapeHtml(t('panel.coherence.columns.status'))}">
+          <div class="coherence-chips">${coherenceChipsHtml(row, t)}</div>
         </td>
       </tr>
       ${detail.expansion}
@@ -633,6 +689,14 @@ class EedomusConfigPanel extends HTMLElement {
     super();
     this.attachShadow({ mode: 'open' });
     this._hass = null;
+    // i18n catalog (CAP-3): (locale, strings) from
+    // eedomus/get_translations. Absent until the command answers —
+    // renders then stay on skeletons, never a key as text.
+    this._strings = null;
+    this._stringsLocale = null;
+    this._stringsLoadingLocale = null;
+    // Translator handed to the pure helpers (they stay this-free).
+    this._t = (key, params) => this.t(key, params);
     this._config = {};
     this._tab = 'peripheriques';
     this._periphs = null;
@@ -664,7 +728,7 @@ class EedomusConfigPanel extends HTMLElement {
     this._currentMapping = null;
     this._versionsError = null;
     this._confirmRestore = null;
-    this._historyStatus = '';
+    this._historyStatus = null; // null | {key, ts?} — resolved via t()
     // Coherence tab state (ticket 2.2)
     this._coherence = null;
     this._coherenceError = null;
@@ -695,6 +759,7 @@ class EedomusConfigPanel extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
+    this._loadStrings();
     if (this._built) {
       this._loadPeripherals();
       // Direct #coherence entry: the tab rendered before hass was assigned,
@@ -707,6 +772,66 @@ class EedomusConfigPanel extends HTMLElement {
 
   get hass() {
     return this._hass;
+  }
+
+  // Translator (CAP-3): the catalog text with {token} params replaced.
+  // A missing key returns the key itself (developer-visible); an absent
+  // catalog also returns keys — renders gate on the catalog so users
+  // never see them. Simple replacement, no escaping here: values are
+  // escaped where the surrounding templates already escape them.
+  t(key, params) {
+    const text = (this._strings && this._strings[key]) || key;
+    if (!params) {
+      return text;
+    }
+    return text.replace(/\{(\w+)\}/g, (match, name) =>
+      params[name] === undefined || params[name] === null
+        ? match
+        : String(params[name])
+    );
+  }
+
+  // Catalog loading (CAP-3): one request per locale, fired from set
+  // hass. A failure leaves the panel without a catalog (skeletons) —
+  // the next set hass retries naturally; a locale change reloads.
+  async _loadStrings() {
+    const hass = this._hass;
+    if (!hass || !hass.callWS) {
+      return;
+    }
+    const locale = (hass.locale && hass.locale.language) || 'en';
+    if (this._stringsLoadingLocale === locale) {
+      return;
+    }
+    if (this._strings && this._stringsLocale === locale) {
+      return;
+    }
+    this._stringsLoadingLocale = locale;
+    let translations = null;
+    try {
+      const result = await hass.callWS({
+        type: 'eedomus/get_translations',
+        locale,
+      });
+      translations = (result && result.translations) || null;
+    } catch (err) {
+      translations = null;
+    }
+    if (this._stringsLoadingLocale === locale) {
+      this._stringsLoadingLocale = null;
+    }
+    const current = (this._hass && this._hass.locale &&
+      this._hass.locale.language) || 'en';
+    if (!translations || locale !== current) {
+      // Failure or stale response (the locale changed mid-flight):
+      // no catalog, skeletons — the next set hass retries.
+      return;
+    }
+    this._strings = translations;
+    this._stringsLocale = locale;
+    if (this._built) {
+      this._render();
+    }
   }
 
   setConfig(config) {
@@ -798,7 +923,10 @@ class EedomusConfigPanel extends HTMLElement {
       });
       this._periphs = (result && result.peripherals) || [];
     } catch (err) {
-      this._error = (err && (err.message || err.code)) || 'commande refusée';
+      // Raw message or the panel.* fallback key — the render resolves
+      // it through t() (CAP-3).
+      this._error = (err && (err.message || err.code)) ||
+        'panel.common.command_refused';
     }
     this._loading = false;
     this._renderPeriphList();
@@ -827,7 +955,42 @@ class EedomusConfigPanel extends HTMLElement {
     if (!this.shadowRoot) {
       return;
     }
-    this._built = true;
+    // Listeners live on the shadow root itself: attached once, on the
+    // first build — a catalog re-render never doubles them.
+    if (!this._built) {
+      this._built = true;
+      this.shadowRoot.addEventListener('click', (ev) => this._onClick(ev));
+      this.shadowRoot.addEventListener('auxclick', (ev) => this._onAuxClick(ev));
+      this.shadowRoot.addEventListener('input', (ev) => this._onInput(ev));
+      this.shadowRoot.addEventListener('keydown', (ev) => this._onKeyDown(ev));
+      this.shadowRoot.addEventListener(
+        'mouseover', (ev) => this._onCoherenceMouseOver(ev)
+      );
+      this.shadowRoot.addEventListener(
+        'mouseout', (ev) => this._onCoherenceMouseOut(ev)
+      );
+    }
+    if (!this._strings) {
+      // Catalog absent (in flight or failed): skeletons only — no text
+      // at all, never a key shown to the user. The next set hass
+      // retries the command and re-renders.
+      this.shadowRoot.innerHTML = `
+        <style>
+          .skeleton-row {
+            height: 64px;
+            background: var(--card-background-color);
+            border: 1px solid var(--divider-color);
+            border-radius: var(--ha-card-border-radius, 12px);
+            opacity: 0.6;
+          }
+        </style>
+        <div class="panel" role="status" aria-busy="true">
+          <div class="skeleton-row"></div>
+          <div class="skeleton-row"></div>
+          <div class="skeleton-row"></div>
+        </div>`;
+      return;
+    }
     this.shadowRoot.innerHTML = `
       <style>
         :host { box-sizing: border-box; }
@@ -1387,30 +1550,25 @@ class EedomusConfigPanel extends HTMLElement {
 
       <div class="panel">
         <header class="panel-header">
-          <h1>Eedomus Config</h1>
+          <h1>${this.t('panel.common.title')}</h1>
         </header>
 
-        <nav class="tabs" aria-label="Sections du panneau">
-          <button class="tab" role="tab" data-tab="peripheriques" aria-selected="false">Périphériques</button>
-          <button class="tab" role="tab" data-tab="regles" aria-selected="false">Règles</button>
-          <button class="tab" role="tab" data-tab="historique" aria-selected="false">Historique</button>
-          <button class="tab" role="tab" data-tab="coherence" aria-selected="false">Cohérence</button>
+        <nav class="tabs" aria-label="${this._escapeHtml(
+          this.t('panel.nav.aria')
+        )}">
+          <button class="tab" role="tab" data-tab="peripheriques"
+                  aria-selected="false">${this.t('panel.tabs.peripheriques')}</button>
+          <button class="tab" role="tab" data-tab="regles"
+                  aria-selected="false">${this.t('panel.tabs.regles')}</button>
+          <button class="tab" role="tab" data-tab="historique"
+                  aria-selected="false">${this.t('panel.tabs.historique')}</button>
+          <button class="tab" role="tab" data-tab="coherence"
+                  aria-selected="false">${this.t('panel.tabs.coherence')}</button>
         </nav>
 
         <main id="tab-content" aria-live="polite"></main>
       </div>
     `;
-
-    this.shadowRoot.addEventListener('click', (ev) => this._onClick(ev));
-    this.shadowRoot.addEventListener('auxclick', (ev) => this._onAuxClick(ev));
-    this.shadowRoot.addEventListener('input', (ev) => this._onInput(ev));
-    this.shadowRoot.addEventListener('keydown', (ev) => this._onKeyDown(ev));
-    this.shadowRoot.addEventListener(
-      'mouseover', (ev) => this._onCoherenceMouseOver(ev)
-    );
-    this.shadowRoot.addEventListener(
-      'mouseout', (ev) => this._onCoherenceMouseOut(ev)
-    );
 
     this._renderTabContent();
   }
@@ -1664,7 +1822,7 @@ class EedomusConfigPanel extends HTMLElement {
     } else {
       content.innerHTML = `
         <p class="placeholder">
-          Onglet inconnu.
+          ${this.t('panel.common.unknown_tab')}
         </p>
       `;
     }
@@ -1684,7 +1842,8 @@ class EedomusConfigPanel extends HTMLElement {
       this._versions = (result && result.versions) || [];
       this._currentMapping = (result && result.current) || {};
     } catch (err) {
-      this._versionsError = (err && (err.message || err.code)) || 'commande refusée';
+      this._versionsError = (err && (err.message || err.code)) ||
+        'panel.common.command_refused';
     }
     if (this._tab === 'historique') {
       const content = this.shadowRoot.getElementById('tab-content');
@@ -1697,7 +1856,7 @@ class EedomusConfigPanel extends HTMLElement {
 
   _formatTimestamp(ts) {
     if (!ts) {
-      return 'date inconnue';
+      return 'panel.common.unknown_date';
     }
     // Storage format: 2026-09-28T09:19:00
     const [datePart, timePart] = String(ts).split('T');
@@ -1709,21 +1868,25 @@ class EedomusConfigPanel extends HTMLElement {
 
   _reasonLabel(reason) {
     if (reason === 'ingestion') {
-      return 'édition manuelle du fichier';
+      return 'panel.historique.reason.ingestion';
     }
     if (reason === 'migration') {
-      return 'migration de schéma';
+      return 'panel.historique.reason.migration';
     }
-    return 'sauvegarde depuis le panneau';
+    return 'panel.historique.reason.panel';
   }
 
   _renderHistoryTab() {
     if (this._versionsError) {
       return `
         <div class="state-message" role="alert">
-          Impossible de charger l'historique : ${this._escapeHtml(this._versionsError)}.
+          ${this.t('panel.historique.error.load', {
+            err: this._escapeHtml(this.t(this._versionsError)),
+          })}
           <br>
-          <button class="retry" type="button" data-retry="versions">Réessayer</button>
+          <button class="retry" type="button" data-retry="versions">
+            ${this.t('panel.common.retry')}
+          </button>
         </div>
       `;
     }
@@ -1733,8 +1896,7 @@ class EedomusConfigPanel extends HTMLElement {
     if (this._versions.length === 0) {
       return `
         <div class="state-message">
-          Aucune sauvegarde encore. La première sauvegarde archivera la version
-          courante.
+          ${this.t('panel.historique.empty')}
         </div>
       `;
     }
@@ -1748,9 +1910,15 @@ class EedomusConfigPanel extends HTMLElement {
     cards.push(`
       <div class="version-card">
         <div class="version-head">
-          <span class="version-title">Configuration actuelle</span>
-          <span class="version-active">actuelle</span>
-          <span class="version-meta">en vigueur</span>
+          <span class="version-title">
+            ${this.t('panel.historique.current.title')}
+          </span>
+          <span class="version-active">
+            ${this.t('panel.historique.current.badge')}
+          </span>
+          <span class="version-meta">
+            ${this.t('panel.historique.current.meta')}
+          </span>
         </div>
       </div>
     `);
@@ -1759,18 +1927,40 @@ class EedomusConfigPanel extends HTMLElement {
       const confirm = this._confirmRestore === index;
       const diffHtml =
         this._versions.length === 1
-          ? '<p class="version-meta">Première version — le diff apparaîtra à la prochaine sauvegarde.</p>'
+          ? `<p class="version-meta">${this.t(
+              'panel.historique.diff.first_version'
+            )}</p>`
           : this._renderDiff(index);
       cards.push(`
         <div class="version-card">
           <div class="version-head">
-            <span class="version-title">Version du ${this._escapeHtml(this._formatTimestamp(version.timestamp))}</span>
-            <span class="version-meta">${this._escapeHtml(this._reasonLabel(version.reason))}</span>
+            <span class="version-title">${this.t(
+              'panel.historique.version.title',
+              {
+                timestamp: this._escapeHtml(
+                  this.t(this._formatTimestamp(version.timestamp))
+                ),
+              }
+            )}</span>
+            <span class="version-meta">${this._escapeHtml(
+              this.t(this._reasonLabel(version.reason))
+            )}</span>
             <button class="row-action" type="button" data-restore="${index}">
-              ${confirm ? 'Confirmer la restauration ?' : 'Restaurer'}
+              ${confirm
+                ? this.t('panel.historique.restore.confirm')
+                : this.t('panel.historique.restore.action')}
             </button>
           </div>
-          ${confirm ? `<p class="form-validation" role="alert">Restaurer la version du ${this._escapeHtml(this._formatTimestamp(version.timestamp))} ? Le mapping actuel sera archivé.</p>` : ''}
+          ${confirm
+            ? `<p class="form-validation" role="alert">${this.t(
+                'panel.historique.restore.confirm_message',
+                {
+                  ts: this._escapeHtml(
+                    this.t(this._formatTimestamp(version.timestamp))
+                  ),
+                }
+              )}</p>`
+            : ''}
           ${diffHtml}
         </div>
       `);
@@ -1782,8 +1972,22 @@ class EedomusConfigPanel extends HTMLElement {
   _wireHistoryTab() {
     const status = this.shadowRoot.getElementById('history-status');
     if (status) {
-      status.textContent = this._historyStatus;
+      status.textContent = this._historyStatusText();
     }
+  }
+
+  // Restore status as a key descriptor resolved at display time — a
+  // mid-session locale switch never replays a stale-language status
+  // (same key-storing model as _error/_validation/_yamlError).
+  _historyStatusText() {
+    const status = this._historyStatus;
+    if (!status) {
+      return '';
+    }
+    return this.t(
+      status.key,
+      status.ts != null ? { ts: this.t(status.ts) } : null
+    );
   }
 
   _renderDiff(index) {
@@ -1800,10 +2004,21 @@ class EedomusConfigPanel extends HTMLElement {
         if (!cls) {
           return `<div class="diff-line"><span class="prefix"> </span><span class="content">${this._escapeHtml(op.line)}</span></div>`;
         }
-        return `<div class="diff-line ${cls}" aria-label="${op.type === 'added' ? 'ligne ajoutée' : op.type === 'removed' ? 'ligne supprimée' : 'ligne modifiée'}"><span class="prefix" aria-hidden="true">${prefix}</span><span class="content">${this._escapeHtml(op.line)}</span></div>`;
+        const lineKey = op.type === 'added'
+          ? 'panel.historique.diff.line_added'
+          : op.type === 'removed'
+            ? 'panel.historique.diff.line_removed'
+            : 'panel.historique.diff.line_modified';
+        return `<div class="diff-line ${cls}"` +
+          ` aria-label="${this._escapeHtml(this.t(lineKey))}">` +
+          `<span class="prefix" aria-hidden="true">${prefix}</span>` +
+          `<span class="content">${this._escapeHtml(op.line)}</span></div>`;
       })
       .join('');
-    return `<div class="diff" tabindex="0" role="region" aria-label="Différences avec la version précédente">${html}</div>`;
+    return `<div class="diff" tabindex="0" role="region"` +
+      ` aria-label="${this._escapeHtml(
+        this.t('panel.historique.diff.region_aria')
+      )}">${html}</div>`;
   }
 
   _diffLines(a, b) {
@@ -1904,7 +2119,7 @@ class EedomusConfigPanel extends HTMLElement {
       return;
     }
     this._confirmRestore = null;
-    this._historyStatus = 'Sauvegarde… puis Application…';
+    this._historyStatus = { key: 'panel.historique.restore.progress' };
     const content = this.shadowRoot.getElementById('tab-content');
     if (content) {
       content.innerHTML = this._renderHistoryTab();
@@ -1912,15 +2127,18 @@ class EedomusConfigPanel extends HTMLElement {
     }
     const ok = await this._persistMapping(version.config || {});
     if (ok) {
-      this._historyStatus = `Version du ${this._formatTimestamp(version.timestamp)} restaurée. Le mapping remplacé est archivé.`;
+      this._historyStatus = {
+        key: 'panel.historique.restore.success',
+        ts: this._formatTimestamp(version.timestamp),
+      };
       this._versions = null;
       await this._loadVersions();
     } else {
-      this._historyStatus = 'Échec de la restauration. Le mapping courant est conservé.';
+      this._historyStatus = { key: 'panel.historique.restore.failed' };
     }
     const status = this.shadowRoot.getElementById('history-status');
     if (status) {
-      status.textContent = this._historyStatus;
+      status.textContent = this._historyStatusText();
     }
   }
 
@@ -1946,7 +2164,8 @@ class EedomusConfigPanel extends HTMLElement {
       });
       this._coherence = (result && result.peripherals) || [];
     } catch (err) {
-      this._coherenceError = (err && (err.message || err.code)) || 'commande refusée';
+      this._coherenceError = (err && (err.message || err.code)) ||
+        'panel.common.command_refused';
     }
     this._coherenceLoading = false;
     if (this._tab === 'coherence') {
@@ -1962,9 +2181,13 @@ class EedomusConfigPanel extends HTMLElement {
     if (this._coherenceError) {
       return `
         <div class="state-message" role="alert">
-          Impossible de charger la cohérence : ${this._escapeHtml(this._coherenceError)}.
+          ${this.t('panel.coherence.error.load', {
+            err: this._escapeHtml(this.t(this._coherenceError)),
+          })}
           <br>
-          <button class="retry" type="button" data-retry="coherence">Réessayer</button>
+          <button class="retry" type="button" data-retry="coherence">
+            ${this.t('panel.common.retry')}
+          </button>
         </div>
       `;
     }
@@ -1974,8 +2197,7 @@ class EedomusConfigPanel extends HTMLElement {
     if (this._coherence.length === 0) {
       return `
         <div class="state-message">
-          Aucun périphérique détecté. Vérifiez que la box eedomus est
-          joignable et que l'intégration est configurée.
+          ${this.t('panel.coherence.empty')}
         </div>
       `;
     }
@@ -1994,13 +2216,20 @@ class EedomusConfigPanel extends HTMLElement {
         <div class="search">
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>
           <input id="coherence-search" type="search"
-                 placeholder="Rechercher par nom ou periph_id"
-                 aria-label="Rechercher un périphérique par nom ou periph_id"
+                 placeholder="${this._escapeHtml(
+                   this.t('panel.coherence.search.placeholder')
+                 )}"
+                 aria-label="${this._escapeHtml(
+                   this.t('panel.coherence.search.aria')
+                 )}"
                  value="${this._escapeHtml(this._coherenceSearch)}">
         </div>
         <button class="filter-touches" type="button" data-coherence-view="to_verify"
                 aria-pressed="${this._coherenceView === 'to_verify'}">
-          À vérifier <span class="count">(${toVerify})</span>
+          ${this.t('panel.coherence.filter.label')}
+          <span class="count">
+            ${this.t('panel.coherence.filter.count', { n: toVerify })}
+          </span>
         </button>
       </div>
     `;
@@ -2057,7 +2286,9 @@ class EedomusConfigPanel extends HTMLElement {
       const countSpan = viewBtn.querySelector('.count');
       if (countSpan) {
         const toVerify = (this._coherence || []).filter(coherenceToVerify).length;
-        countSpan.textContent = `(${toVerify})`;
+        countSpan.textContent = this.t('panel.coherence.filter.count', {
+          n: toVerify,
+        });
       }
     }
     const status = root.getElementById('coherence-status');
@@ -2083,7 +2314,8 @@ class EedomusConfigPanel extends HTMLElement {
     const statusText = coherenceStatusText(
       rows.length,
       this._coherenceSearch,
-      this._coherenceView
+      this._coherenceView,
+      this._t
     );
     if (rows.length === 0 && this._coherenceSearch) {
       // Explicit no-result state, announced — never a silent empty table.
@@ -2093,9 +2325,9 @@ class EedomusConfigPanel extends HTMLElement {
       }
       body.innerHTML = `
         <div class="state-message">
-          Aucun périphérique ne correspond à
-          “${this._escapeHtml(this._coherenceSearch)}”.
-          Effacez le filtre pour restituer la table.
+          ${this.t('panel.coherence.empty.search', {
+            q: this._escapeHtml(this._coherenceSearch),
+          })}
         </div>
       `;
       return;
@@ -2108,10 +2340,10 @@ class EedomusConfigPanel extends HTMLElement {
       }
       body.innerHTML = `
         <div class="state-message">
-          Tout est cohérent. Aucun périphérique à vérifier.
+          ${this.t('panel.coherence.empty.all_clear')}
           <br>
           <button class="row-action" type="button" data-coherence-show-all="1">
-            Tout afficher
+            ${this.t('panel.coherence.empty.show_all')}
           </button>
         </div>
       `;
@@ -2121,8 +2353,8 @@ class EedomusConfigPanel extends HTMLElement {
     body.innerHTML = `
       <div class="coherence-table-wrap">
         <table class="coherence-table">
-          <caption class="sr-only">Cohérence du mapping des périphériques eedomus</caption>
-          ${coherenceHeadHtml(this._coherenceSort)}
+          <caption class="sr-only">${this.t('panel.coherence.table.caption')}</caption>
+          ${coherenceHeadHtml(this._coherenceSort, this._t)}
           <tbody>${rows.map((row) => this._renderCoherenceRow(row)).join('')}</tbody>
         </table>
       </div>
@@ -2152,7 +2384,8 @@ class EedomusConfigPanel extends HTMLElement {
     live.textContent = coherenceStatusText(
       rows.length,
       this._coherenceSearch,
-      this._coherenceView
+      this._coherenceView,
+      this._t
     );
   }
 
@@ -2465,9 +2698,12 @@ class EedomusConfigPanel extends HTMLElement {
     pop.setAttribute('role', 'dialog');
     pop.setAttribute(
       'aria-label',
-      `Détail du périphérique ${row.name || row.periph_id} (${row.periph_id})`
+      this.t('panel.coherence.trigger.popover.aria', {
+        name: row.name || row.periph_id,
+        periph_id: row.periph_id,
+      })
     );
-    pop.innerHTML = coherenceDetailHtml(row);
+    pop.innerHTML = coherenceDetailHtml(row, this._t);
     this.shadowRoot.appendChild(pop);
     this._coherencePopover = pop;
     this._coherencePopoverTrigger = trigger;
@@ -2617,9 +2853,12 @@ class EedomusConfigPanel extends HTMLElement {
     const row = `
       <tr><td colspan="${COHERENCE_COLUMNS.length}"><div class="skeleton-cell" aria-hidden="true"></div></td></tr>`;
     return `
-      <div class="coherence-table-wrap" role="status" aria-label="Chargement de la cohérence…">
+      <div class="coherence-table-wrap" role="status"
+           aria-label="${this._escapeHtml(
+             this.t('panel.coherence.skeleton.aria')
+           )}">
         <table class="coherence-table" aria-hidden="true" inert>
-          ${coherenceHeadHtml({ key: null, dir: null })}
+          ${coherenceHeadHtml({ key: null, dir: null }, this._t)}
           <tbody>${row.repeat(8)}</tbody>
         </table>
       </div>
@@ -2632,7 +2871,8 @@ class EedomusConfigPanel extends HTMLElement {
     return coherenceRowHtml(
       row,
       this._coherenceExpandedId,
-      coherenceNarrowView()
+      coherenceNarrowView(),
+      this._t
     );
   }
 
@@ -2643,13 +2883,20 @@ class EedomusConfigPanel extends HTMLElement {
         <div class="search">
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>
           <input id="periph-search" type="search"
-                 placeholder="Rechercher par nom ou usage_id"
-                 aria-label="Rechercher un périphérique par nom ou usage_id"
+                 placeholder="${this._escapeHtml(
+                   this.t('panel.peripheriques.search.placeholder')
+                 )}"
+                 aria-label="${this._escapeHtml(
+                   this.t('panel.peripheriques.search.aria')
+                 )}"
                  value="${this._escapeHtml(this._search)}">
         </div>
         <button class="filter-touches" type="button"
                 aria-pressed="${this._touchedOnly}">
-          Périphériques touchés <span class="count">(${touchedCount})</span>
+          ${this.t('panel.peripheriques.filter.label')}
+          <span class="count">
+            ${this.t('panel.peripheriques.filter.count', { n: touchedCount })}
+          </span>
         </button>
       </div>
       <p class="result-count" id="periph-status"></p>
@@ -2673,7 +2920,9 @@ class EedomusConfigPanel extends HTMLElement {
       const countSpan = filterBtn.querySelector('.count');
       if (countSpan) {
         const touched = (this._periphs || []).filter((row) => row.modified).length;
-        countSpan.textContent = `(${touched})`;
+        countSpan.textContent = this.t('panel.peripheriques.filter.count', {
+          n: touched,
+        });
       }
     }
 
@@ -2694,9 +2943,11 @@ class EedomusConfigPanel extends HTMLElement {
       }
       list.innerHTML = `
         <div class="state-message" role="alert">
-          Impossible de charger les périphériques : ${this._escapeHtml(this._error)}.
+          ${this.t('panel.peripheriques.error.load', {
+            err: this._escapeHtml(this.t(this._error)),
+          })}
           <br>
-          <button class="retry" type="button">Réessayer</button>
+          <button class="retry" type="button">${this.t('panel.common.retry')}</button>
         </div>
       `;
       return;
@@ -2720,14 +2971,43 @@ class EedomusConfigPanel extends HTMLElement {
       }
       list.innerHTML = `
         <div class="state-message">
-          Aucun périphérique détecté. Vérifiez que l'intégration eedomus est
-          configurée.
+          ${this.t('panel.peripheriques.empty')}
         </div>
       `;
       return;
     }
 
     const rows = this._filteredPeriphs();
+    if (rows.length === 0 && this._search) {
+      // Explicit search-no-result state (CAP-3 spine row) — never a
+      // silent empty list. The count status keeps announcing.
+      list.innerHTML = `
+        <div class="state-message">
+          ${this.t('panel.peripheriques.empty.search', {
+            q: this._escapeHtml(this._search),
+          })}
+        </div>
+      `;
+      status.textContent = periphStatusText(
+        this._periphs.length,
+        rows.length,
+        this._touchedOnly,
+        this._t
+      );
+      if (announceStatus && live) {
+        this._announceStatusNow(
+          live,
+          periphStatusText(
+            this._periphs.length,
+            rows.length,
+            this._touchedOnly,
+            this._t
+          )
+        );
+      }
+      return;
+    }
+
     const parts = [];
     for (const row of rows) {
       parts.push(this._renderRow(row));
@@ -2737,12 +3017,18 @@ class EedomusConfigPanel extends HTMLElement {
     status.textContent = periphStatusText(
       this._periphs.length,
       rows.length,
-      this._touchedOnly
+      this._touchedOnly,
+      this._t
     );
     if (announceStatus && live) {
       this._announceStatusNow(
         live,
-        periphStatusText(this._periphs.length, rows.length, this._touchedOnly)
+        periphStatusText(
+          this._periphs.length,
+          rows.length,
+          this._touchedOnly,
+          this._t
+        )
       );
     }
   }
@@ -2772,7 +3058,8 @@ class EedomusConfigPanel extends HTMLElement {
     live.textContent = periphStatusText(
       this._periphs.length,
       rows.length,
-      this._touchedOnly
+      this._touchedOnly,
+      this._t
     );
   }
 
@@ -2780,11 +3067,21 @@ class EedomusConfigPanel extends HTMLElement {
     const badge = row.modified
       ? `
         <span class="badge-modified"
-              title="Modifié par ${this._escapeAttr(row.modified_by_rule)}, ${this._escapeAttr(row.modified_date || 'date inconnue')}"
-              aria-label="Modifié par la règle « ${this._escapeAttr(row.modified_by_rule)} », ${this._escapeAttr(row.modified_date || 'date inconnue')}">
+              title="${this._escapeHtml(this.t('panel.peripheriques.badge.title', {
+                rule: row.modified_by_rule,
+                date: row.modified_date ||
+                  this.t('panel.common.unknown_date'),
+              }))}"
+              aria-label="${this._escapeHtml(
+                this.t('panel.peripheriques.badge.aria', {
+                  rule: row.modified_by_rule,
+                  date: row.modified_date ||
+                    this.t('panel.common.unknown_date'),
+                })
+              )}">
           <span class="dot" aria-hidden="true"></span>
           <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-          modifié
+          ${this.t('panel.peripheriques.badge.label')}
         </span>`
       : '<span></span>';
 
@@ -2794,18 +3091,28 @@ class EedomusConfigPanel extends HTMLElement {
         <div class="row-top">
           <div class="periph-identity">
             <span class="periph-name">${this._escapeHtml(row.name || row.periph_id)}</span>
-            <span class="periph-meta">usage_id <code>${this._escapeHtml(row.usage_id || '?')}</code></span>
+            <span class="periph-meta">
+              ${this.t('panel.peripheriques.row.usage_id_label')}
+              <code>${this._escapeHtml(
+                row.usage_id ||
+                  this.t('panel.peripheriques.row.usage_id_missing')
+              )}</code>
+            </span>
           </div>
           ${badge}
         </div>
         <div class="periph-mapping">
-          <span class="ha-entity">${row.entity_id ? this._escapeHtml(row.entity_id) : '<em>aucune entité</em>'}</span>
+          <span class="ha-entity">${
+            row.entity_id
+              ? this._escapeHtml(row.entity_id)
+              : `<em>${this.t('panel.common.no_entity')}</em>`
+          }</span>
           <span class="mapping-meta">${this._escapeHtml(mappingMeta || row.platform || '')}</span>
         </div>
         <button class="row-action" type="button"
                 data-periph-id="${this._escapeAttr(row.periph_id)}"
                 data-usage-id="${this._escapeAttr(row.usage_id || '')}">
-          Créer une règle pour ce périphérique
+          ${this.t('panel.peripheriques.row.create_rule')}
         </button>
       </div>
     `;
@@ -2832,7 +3139,8 @@ class EedomusConfigPanel extends HTMLElement {
       });
       this._mapping = (result && result.mapping) || {};
     } catch (err) {
-      this._mappingError = (err && (err.message || err.code)) || 'commande refusée';
+      this._mappingError = (err && (err.message || err.code)) ||
+        'panel.common.command_refused';
     }
     if (this._tab === 'regles') {
       const content = this.shadowRoot.getElementById('tab-content');
@@ -2904,13 +3212,15 @@ class EedomusConfigPanel extends HTMLElement {
         const error = result && result.error;
         this._validation = {
           valid: false,
-          message: (error && (error.message || error.error)) || 'configuration invalide',
+          message: (error && (error.message || error.error)) ||
+            'panel.regles.validation.invalid',
         };
       }
     } catch (err) {
       this._validation = {
         valid: false,
-        message: (err && (err.message || err.code)) || 'validation impossible',
+        message: (err && (err.message || err.code)) ||
+          'panel.regles.validation.unavailable',
       };
     }
     if (this._tab === 'regles' && this._ruleForm) {
@@ -2932,7 +3242,7 @@ class EedomusConfigPanel extends HTMLElement {
     if (validationEl) {
       validationEl.textContent = this._validation.valid
         ? ''
-        : this._validation.message;
+        : this.t(this._validation.message);
     }
     if (saveBtn) {
       const clientValid = form.usage_id && form.justification.trim() !== '';
@@ -2941,10 +3251,10 @@ class EedomusConfigPanel extends HTMLElement {
         this._saveState === 'applying';
       saveBtn.textContent =
         this._saveState === 'saving'
-          ? 'Sauvegarde…'
+          ? this.t('panel.common.saving')
           : this._saveState === 'applying'
-            ? 'Application…'
-            : 'Enregistrer';
+            ? this.t('panel.common.applying')
+            : this.t('panel.common.save');
     }
     this._updateRulesStatus();
   }
@@ -2955,18 +3265,29 @@ class EedomusConfigPanel extends HTMLElement {
       return;
     }
     if (this._saveState === 'saving') {
-      status.textContent = 'Sauvegarde…';
+      status.textContent = this.t('panel.common.saving');
     } else if (this._saveState === 'applying') {
-      status.textContent = 'Application…';
+      status.textContent = this.t('panel.common.applying');
     } else if (this._saveState && this._saveState.applied === true) {
-      status.textContent = 'Configuration appliquée.';
+      status.textContent = this.t('panel.regles.status.applied');
     } else if (this._saveState && this._saveState.applied) {
       const applied = this._saveState.applied;
-      status.textContent = `Règle appliquée. ${applied.entity_id} est maintenant en ${applied.unit}.`;
+      // Fallback descriptors resolve through t() at display time — a
+      // mid-session locale switch never replays a stale language.
+      const resolveApplied = (value) =>
+        value && typeof value === 'object'
+          ? this.t(value.key, value.params)
+          : value;
+      status.textContent = this.t('panel.regles.status.rule_applied', {
+        entity: resolveApplied(applied.entity_id),
+        unit: resolveApplied(applied.unit),
+      });
     } else if (this._saveState && this._saveState.error) {
-      status.textContent = `Échec de la sauvegarde : ${this._saveState.error}. Le formulaire conserve vos modifications.`;
+      status.textContent = this.t('panel.regles.status.save_failed', {
+        err: this.t(this._saveState.error),
+      });
     } else if (this._validation.message) {
-      status.textContent = this._validation.message;
+      status.textContent = this.t(this._validation.message);
     } else {
       status.textContent = this._rulesStatus;
     }
@@ -2992,7 +3313,8 @@ class EedomusConfigPanel extends HTMLElement {
       return true;
     } catch (err) {
       this._saveState = {
-        error: (err && (err.message || err.code)) || 'erreur inconnue',
+        error: (err && (err.message || err.code)) ||
+          'panel.common.unknown_error',
       };
       return false;
     }
@@ -3018,8 +3340,15 @@ class EedomusConfigPanel extends HTMLElement {
       const row = (this._periphs || []).find((p) => p.usage_id === rule);
       this._saveState = {
         applied: {
-          entity_id: row && row.entity_id ? row.entity_id : `usage_id ${rule}`,
-          unit: row && row.unit ? row.unit : 'sa nouvelle valeur',
+          entity_id: row && row.entity_id
+            ? row.entity_id
+            : {
+                key: 'panel.regles.status.rule_applied_entity_fallback',
+                params: { rule },
+              },
+          unit: row && row.unit
+            ? row.unit
+            : { key: 'panel.regles.status.rule_applied_unit_fallback' },
         },
       };
       this._ruleForm = null;
@@ -3051,11 +3380,20 @@ class EedomusConfigPanel extends HTMLElement {
     try {
       await this._hass.callWS({ type: 'eedomus/save_mapping', mapping });
       this._mapping = mapping;
-      this._saveState = { applied: { entity_id: `règle ${usageId}`, unit: 'supprimée' } };
+      this._saveState = {
+        applied: {
+          entity_id: {
+            key: 'panel.regles.status.deleted_entity',
+            params: { usageId },
+          },
+          unit: { key: 'panel.regles.status.deleted_unit' },
+        },
+      };
       await this._loadPeripherals();
     } catch (err) {
       this._saveState = {
-        error: (err && (err.message || err.code)) || 'erreur inconnue',
+        error: (err && (err.message || err.code)) ||
+          'panel.common.unknown_error',
       };
     }
     const content = this.shadowRoot.getElementById('tab-content');
@@ -3075,7 +3413,7 @@ class EedomusConfigPanel extends HTMLElement {
     if (rules.length === 0) {
       listEl.innerHTML = `
         <div class="state-message">
-          Aucune règle de mapping. Le mapping par défaut s'applique.
+          ${this.t('panel.regles.empty')}
         </div>
       `;
       return;
@@ -3087,7 +3425,10 @@ class EedomusConfigPanel extends HTMLElement {
         <div class="periph-row">
           <div class="row-top">
             <div class="periph-identity">
-              <span class="periph-name">usage_id <code>${this._escapeHtml(usageId)}</code></span>
+              <span class="periph-name">
+                ${this.t('panel.regles.row.usage_id_label')}
+                <code>${this._escapeHtml(usageId)}</code>
+              </span>
               <span class="periph-meta">${this._escapeHtml(rule.justification || '')}</span>
             </div>
           </div>
@@ -3095,10 +3436,12 @@ class EedomusConfigPanel extends HTMLElement {
             <span class="ha-entity">${this._escapeHtml(rule.ha_entity || '')}${rule.ha_subtype ? '.' + this._escapeHtml(rule.ha_subtype) : ''}</span>
           </div>
           <button class="row-action" type="button" data-edit-rule="${this._escapeAttr(usageId)}">
-            Modifier
+            ${this.t('panel.regles.row.edit')}
           </button>
           <button class="row-action" type="button" data-delete-rule="${this._escapeAttr(usageId)}">
-            ${confirm ? 'Confirmer la suppression ?' : 'Supprimer'}
+            ${confirm
+              ? this.t('panel.regles.row.delete_confirm')
+              : this.t('panel.regles.row.delete')}
           </button>
         </div>
       `;
@@ -3110,9 +3453,13 @@ class EedomusConfigPanel extends HTMLElement {
     if (this._mappingError) {
       return `
         <div class="state-message" role="alert">
-          Impossible de charger la configuration : ${this._escapeHtml(this._mappingError)}.
+          ${this.t('panel.regles.error.load', {
+            err: this._escapeHtml(this.t(this._mappingError)),
+          })}
           <br>
-          <button class="retry" type="button" data-retry="mapping">Réessayer</button>
+          <button class="retry" type="button" data-retry="mapping">
+            ${this.t('panel.common.retry')}
+          </button>
         </div>
       `;
     }
@@ -3126,16 +3473,20 @@ class EedomusConfigPanel extends HTMLElement {
     `;
 
     const modeToggle = `
-      <div class="mode-toggle" role="group" aria-label="Mode d'édition des règles">
-        <button type="button" data-rule-mode="form" aria-pressed="${this._rulesMode === 'form'}">Formulaire</button>
-        <button type="button" data-rule-mode="yaml" aria-pressed="${this._rulesMode === 'yaml'}">YAML</button>
+      <div class="mode-toggle" role="group"
+           aria-label="${this._escapeHtml(this.t('panel.regles.mode.aria'))}">
+        <button type="button" data-rule-mode="form"
+                aria-pressed="${this._rulesMode === 'form'}">
+          ${this.t('panel.regles.mode.form')}
+        </button>
+        <button type="button" data-rule-mode="yaml"
+                aria-pressed="${this._rulesMode === 'yaml'}">
+          ${this.t('panel.regles.mode.yaml')}
+        </button>
       </div>
     `;
 
     if (this._rulesMode === 'yaml') {
-      const errorHtml = this._yamlError
-        ? `<p class="form-validation" role="alert">${this._escapeHtml(this._yamlError.message)}</p>`
-        : '';
       return `
         ${modeToggle}
         <div class="yaml-editor-wrap">
@@ -3143,13 +3494,19 @@ class EedomusConfigPanel extends HTMLElement {
           <div class="yaml-code-area">
             <pre class="yaml-highlight" id="yaml-highlight" aria-hidden="true"></pre>
             <textarea class="yaml-editor" id="yaml-editor" spellcheck="false"
-              aria-label="Éditeur YAML du mapping custom"
+              aria-label="${this._escapeHtml(this.t('panel.regles.yaml.aria'))}"
               aria-describedby="yaml-error"></textarea>
           </div>
         </div>
-        <p class="form-validation" id="yaml-error" role="alert">${errorHtml ? this._escapeHtml(this._yamlError.message) : ''}</p>
+        <p class="form-validation" id="yaml-error" role="alert">${
+          this._yamlError
+            ? this._escapeHtml(this.t(this._yamlError.message))
+            : ''
+        }</p>
         <div class="form-actions">
-          <button class="row-action" id="yaml-save" type="button" disabled>Enregistrer</button>
+          <button class="row-action" id="yaml-save" type="button" disabled>
+            ${this.t('panel.common.save')}
+          </button>
         </div>
         <p class="result-count" id="rules-status" role="status"></p>
       `;
@@ -3157,14 +3514,16 @@ class EedomusConfigPanel extends HTMLElement {
 
     if (!this._ruleForm) {
       const prefillNote = this._pendingRuleUsageId
-        ? `<p class="result-count">usage_id pré-rempli : <code>${this._escapeHtml(this._pendingRuleUsageId)}</code></p>`
+        ? `<p class="result-count">${this.t('panel.regles.prefill_note', {
+            id: `<code>${this._escapeHtml(this._pendingRuleUsageId)}</code>`,
+          })}</p>`
         : '';
       return `
         ${modeToggle}
         ${prefillNote}
         <div class="toolbar">
           <button class="row-action" type="button" data-new-rule="${this._escapeAttr(this._pendingRuleUsageId || '')}">
-            Créer une règle
+            ${this.t('panel.regles.create_rule')}
           </button>
         </div>
         ${rulesListHtml}
@@ -3186,21 +3545,31 @@ class EedomusConfigPanel extends HTMLElement {
     return `
       <form class="rule-form" id="rule-form" novalidate>
         <div class="form-field">
-          <label for="rule-usage-id">usage_id</label>
+          <label for="rule-usage-id">
+            ${this.t('panel.regles.form.usage_id')}
+          </label>
           <input id="rule-usage-id" list="${datalistId}" type="text" inputmode="numeric"
-                 placeholder="ex. 7" required
+                 placeholder="${this._escapeHtml(
+                   this.t('panel.regles.form.usage_id_placeholder')
+                 )}"
+                 required
                  aria-describedby="rule-validation"
                  value="${this._escapeAttr(form.usage_id)}">
           <datalist id="${datalistId}">${options}</datalist>
         </div>
         <div class="form-field">
-          <label for="rule-name">Nom de la règle</label>
-          <input id="rule-name" type="text" placeholder="ex. Unité température salon"
+          <label for="rule-name">${this.t('panel.regles.form.name')}</label>
+          <input id="rule-name" type="text"
+                 placeholder="${this._escapeHtml(
+                   this.t('panel.regles.form.name_placeholder')
+                 )}"
                  required aria-describedby="rule-validation"
                  value="${this._escapeAttr(form.justification)}">
         </div>
         <div class="form-field">
-          <label for="rule-entity">Plateforme HA</label>
+          <label for="rule-entity">
+            ${this.t('panel.regles.form.ha_entity')}
+          </label>
           <select id="rule-entity">
             ${['sensor', 'light', 'switch', 'cover', 'climate', 'binary_sensor', 'select', 'text_sensor']
               .map(
@@ -3211,9 +3580,13 @@ class EedomusConfigPanel extends HTMLElement {
           </select>
         </div>
         <div class="form-field">
-          <label for="rule-subtype">Classe de périphérique</label>
+          <label for="rule-subtype">
+            ${this.t('panel.regles.form.ha_subtype')}
+          </label>
           <select id="rule-subtype">
-            <option value=""${form.ha_subtype === '' ? ' selected' : ''}>(aucune)</option>
+            <option value=""${
+              form.ha_subtype === '' ? ' selected' : ''
+            }>${this.t('panel.regles.form.ha_subtype_none')}</option>
             ${['temperature', 'humidity', 'energy', 'power', 'time', 'cpu', 'disk_free_space', 'text']
               .map(
                 (subtype) =>
@@ -3221,12 +3594,18 @@ class EedomusConfigPanel extends HTMLElement {
               )
               .join('')}
           </select>
-          <span class="form-hint">La classe détermine device_class et unité appliquées (ex. temperature → °C).</span>
+          <span class="form-hint">
+            ${this.t('panel.regles.form.ha_subtype_hint')}
+          </span>
         </div>
         <p id="rule-validation" class="form-validation" role="alert"></p>
         <div class="form-actions">
-          <button class="row-action" type="button" data-cancel-rule="1">Annuler</button>
-          <button class="row-action rule-save" id="rule-save" type="button" disabled>Enregistrer</button>
+          <button class="row-action" type="button" data-cancel-rule="1">
+            ${this.t('panel.common.cancel')}
+          </button>
+          <button class="row-action rule-save" id="rule-save" type="button" disabled>
+            ${this.t('panel.common.save')}
+          </button>
         </div>
       </form>
       ${rulesListHtml}
@@ -3296,16 +3675,18 @@ class EedomusConfigPanel extends HTMLElement {
       content.innerHTML = this._renderRulesTab();
       this._wireRulesTab();
       this._scheduleYamlValidation();
-      this._announceMode('YAML');
+      this._announceMode(this.t('panel.regles.mode.yaml'));
     } else {
       // yaml -> form: allowed only when the text validates - never lose
       // content silently. The validated config becomes the mapping.
       if (!this._yamlValidated) {
         this._announceMode(
-          'Formulaire',
+          this.t('panel.regles.mode.form'),
           this._yamlError && this._yamlError.message
-            ? `bascule refusée : ${this._yamlError.message}`
-            : 'bascule refusée : corrigez les erreurs YAML ou revenez au texte validé'
+            ? this.t('panel.regles.mode.switch_refused', {
+                msg: this.t(this._yamlError.message),
+              })
+            : this.t('panel.regles.mode.switch_refused_generic')
         );
         return;
       }
@@ -3315,14 +3696,18 @@ class EedomusConfigPanel extends HTMLElement {
       const content = this.shadowRoot.getElementById('tab-content');
       content.innerHTML = this._renderRulesTab();
       this._wireRulesTab();
-      this._announceMode('Formulaire');
+      this._announceMode(this.t('panel.regles.mode.form'));
     }
   }
 
   _announceMode(mode, extra = '') {
     const status = this.shadowRoot.getElementById('rules-status');
     if (status) {
-      status.textContent = `Mode ${mode}${extra ? ` — ${extra}` : ''}.`;
+      // The refused extra composes inside {mode} so the announced text
+      // matches the pre-i18n rendering: « Mode YAML — bascule… . »
+      status.textContent = this.t('panel.regles.mode.announce', {
+        mode: extra ? `${mode} — ${extra}` : mode,
+      });
     }
   }
 
@@ -3351,13 +3736,14 @@ class EedomusConfigPanel extends HTMLElement {
         const raw = (result && result.error) || {};
         const message =
           (typeof raw === 'string' ? raw : raw.error || raw.message) ||
-          'configuration invalide';
+          'panel.regles.validation.invalid';
         this._yamlError = { message, line: this._yamlLineFromError(message, text) };
         this._yamlValidated = null;
       }
     } catch (err) {
       // Syntax errors arrive as websocket errors carrying "line N"
-      const message = (err && (err.message || err.code)) || 'validation impossible';
+      const message = (err && (err.message || err.code)) ||
+        'panel.regles.validation.unavailable';
       this._yamlError = {
         message,
         line: this._yamlLineFromError(message, editor.value),
@@ -3398,7 +3784,10 @@ class EedomusConfigPanel extends HTMLElement {
     const saveBtn = this.shadowRoot.getElementById('yaml-save');
     if (errEl) {
       errEl.textContent = this._yamlError
-        ? `ligne ${this._yamlError.line || '?'} : ${this._yamlError.message}`
+        ? this.t('panel.regles.yaml.error_line', {
+            n: this._yamlError.line || '?',
+            msg: this.t(this._yamlError.message),
+          })
         : '';
     }
     if (saveBtn) {
@@ -3407,10 +3796,10 @@ class EedomusConfigPanel extends HTMLElement {
         this._saveState === 'applying';
       saveBtn.textContent =
         this._saveState === 'saving'
-          ? 'Sauvegarde…'
+          ? this.t('panel.common.saving')
           : this._saveState === 'applying'
-            ? 'Application…'
-            : 'Enregistrer';
+            ? this.t('panel.common.applying')
+            : this.t('panel.common.save');
     }
   }
 

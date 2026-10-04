@@ -90,7 +90,7 @@ Mechanisms: **ws-catalog** = panel string served by `eedomus/get_translations` (
 | Voir {entity_id} dans Home Assistant | entity-link aria (table + detail button) | panel.coherence.entity_link.aria |
 | Détails du périphérique {periph_id} / Détail du périphérique {name} ({periph_id}) | trigger + popover aria | panel.coherence.trigger.aria / .popover.aria |
 | État vivant / Identité de mapping | detail section headings | panel.coherence.detail.section_live / .section_identity |
-| {error_message} / — nouvelle tentative {retry_after} / ({n} tentative(s)) | error details | panel.coherence.detail.error_message / .retry_after / .attempts |
+| {error_message} / — nouvelle tentative {retry_after} / ({n} tentative) / ({n} tentatives) | error details | panel.coherence.detail.error_message / .retry_after / .attempts_one / .attempts_other |
 | Entité HA / Valeur courante / usage_id / Périphérique parent / Dernière mise à jour | live field labels | panel.coherence.detail.entity_id / .current_value / .usage_id / .parent / .last_update |
 | ha_entity / ha_subtype / Justification | identity field labels | panel.coherence.detail.ha_entity / .ha_subtype / .justification |
 | Voir dans HA | detail action | panel.coherence.detail.view_in_ha |
