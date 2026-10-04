@@ -73,6 +73,8 @@ Status: built
 - Verification: `python3 -m pytest tests/unit/ -q` — 168 passed including the new cadence test; no added line over 88 chars. E2E panel suite NOT run: requires deploy to the live Pi (see deferred).
 - Residual risks: reload-latency improvement is evidenced by live logs (entry setup blocked through the history cycle) but not yet confirmed end-to-end on the deployed instance; the backfill of ~90 pending periphs now drains at N per scan interval (default 1 → slow initial drain after each reload until AD-2's full background-task + persistence epic lands).
 
+Post-deploy verification (2026-10-04, commit cf4205d deployed to the Pi): the deferred criterion is closed. `pytest tests/e2e/test_e2e_panel.py -v` — 7/7 passed in 16.65 s including `test_identical_save_applies_and_changes_nothing` (previously hung >120 s); full E2E suite 19/19 in 61 s. Logs show the awaited first refresh at 11:05:50 with `History: 8.319s [4 periphs]` and `Eedomus integration initialized successfully` seconds after boot; subsequent PARTIAL REFRESH cycles run 7-10 s with ~8 s of history each instead of ~180 s. The remaining residual risk (backfill drain spread over scan intervals until the full AD-2 epic) still stands by design.
+
 ## Verification
 
 **Commands:**
