@@ -8,18 +8,29 @@ deregistration handle (it returns None in HA 2026).
 The P.1.3 tests cover eedomus/get_peripherals: coordinator.data projected
 into JSON-safe rows with the current mapping (live HA state) and the
 accessible "modified" badge (custom rule name + date).
+
+The CAP-6 tests cover eedomus/get_coherence: the fused per-peripheral view
+(registry x live state x raw data x coherence signals) that feeds the
+Cohérence tab, while the eedomus/get_peripherals response shape stays
+frozen.
 """
 
 import json
+from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 import custom_components.eedomus.device_mapping as device_mapping_module
+import custom_components.eedomus.mapping_registry as mapping_registry_module
 import custom_components.eedomus.ui_service as ui_service_module
 from custom_components.eedomus.const import COORDINATOR
 from custom_components.eedomus.ui_service import (
+    SIGNAL_DOUTEUX,
+    SIGNAL_EN_ERREUR,
+    SIGNAL_REGLE_ACTIVE,
+    SIGNAL_SANS_ENTITE,
     WS_TYPE_EEDOMUS_SCHEMA,
     WS_TYPE_EEDOMUS_SUGGESTIONS,
     WS_TYPE_EEDOMUS_VALIDATE,
@@ -53,7 +64,7 @@ class TestAsyncInit:
 
         await service.async_init()
 
-        assert register.call_count == 7
+        assert register.call_count == 8
         # Handler form: (hass, handler) on the module-level dispatchers -
         # HA calls websocket handlers as plain (hass, connection, msg)
         # functions, so bound methods cannot be dispatched directly
@@ -67,6 +78,7 @@ class TestAsyncInit:
             ui_service_module._ws_get_mapping,
             ui_service_module._ws_save_mapping,
             ui_service_module._ws_get_mapping_versions,
+            ui_service_module._ws_get_coherence,
         ]
         assert service._registered_commands == [
             WS_TYPE_EEDOMUS_VALIDATE,
@@ -76,6 +88,7 @@ class TestAsyncInit:
             ui_service_module.WS_TYPE_EEDOMUS_GET_MAPPING,
             ui_service_module.WS_TYPE_EEDOMUS_SAVE_MAPPING,
             ui_service_module.WS_TYPE_EEDOMUS_GET_VERSIONS,
+            ui_service_module.WS_TYPE_EEDOMUS_GET_COHERENCE,
         ]
         assert service.is_initialized() is True
 
@@ -115,7 +128,7 @@ class TestAsyncInit:
         await service.async_init()
 
         assert service._registered_commands == first
-        assert register.call_count == 14
+        assert register.call_count == 16
 
     @pytest.mark.asyncio
     async def test_shutdown_resets_state_without_unregistering(self):
@@ -529,6 +542,552 @@ class TestGetPeripheralsHandler:
 
         connection.send_error.assert_called_once()
         connection.send_result.assert_not_called()
+
+
+class TestGetCoherenceHandler:
+    """CAP-6: the Cohérence tab reads a fused view of every peripheral
+    through eedomus/get_coherence — registry fields joined by periph_id,
+    living state, raw coordinator data and the derived signals — while
+    the eedomus/get_peripherals contract stays frozen."""
+
+    # The 10 keys of the frozen eedomus/get_peripherals row contract.
+    PERIPHERALS_ROW_KEYS = frozenset(
+        {
+            "periph_id",
+            "name",
+            "usage_id",
+            "entity_id",
+            "platform",
+            "device_class",
+            "unit",
+            "modified",
+            "modified_by_rule",
+            "modified_date",
+        }
+    )
+    COHERENCE_EXTRA_KEYS = frozenset(
+        {
+            "ha_entity",
+            "ha_subtype",
+            "parent_periph_id",
+            "justification",
+            "state",
+            "last_update",
+            "raw",
+            "signals",
+            "error_message",
+            "attempts",
+            "retry_after",
+        }
+    )
+
+    CUSTOM_CONFIG = {
+        "custom_usage_id_mappings": {"24": {"ha_entity": "sensor.humidite"}},
+        "custom_rules": [
+            {
+                "name": "Unité température salon",
+                "condition": {"usage_id": "7", "state": "any"},
+                "actions": [{"type": "override", "attributes": {}}],
+            }
+        ],
+        "metadata": {"last_modified": "2026-09-26 21:04"},
+    }
+
+    def make_coordinator(self):
+        coordinator = MagicMock()
+        coordinator.data = {
+            "111": {
+                "periph_id": "111",
+                "name": "Température Salon",
+                "usage_id": "7",
+                # Datetimes can leak into coordinator.data (history
+                # imports): the raw section must serialize them.
+                "last_seen": datetime(2026, 10, 1, 12, 0),
+            },
+            "222": {
+                "periph_id": "222",
+                "name": "Humidité Salle de bain",
+                "usage_id": "24",
+            },
+            "333": {"periph_id": "333", "name": "RubanLED Salon", "usage_id": "133"},
+            "444": {"periph_id": "444", "name": "Capteur CO2", "usage_id": "150"},
+            "555": {"periph_id": "555", "name": "Énergie", "usage_id": "200"},
+            "777": {"periph_id": "777", "name": "Sonnette", "usage_id": "7"},
+        }
+        coordinator._retry_queue = {
+            "555": {
+                "error_time": 1759300000.0,
+                "retry_after": 1759386400.0,
+                "error_message": "API rate limit",
+                "attempts": 1,
+            },
+            "777": {
+                "error_time": 1759300000.0,
+                "retry_after": 1759386400.0,
+                "error_message": "API rate limit",
+                "attempts": 2,
+            },
+        }
+        coordinator._resolve_main_entity_id = MagicMock(
+            side_effect=lambda pid: {
+                "111": "sensor.temperature_salon",
+                "222": "sensor.humidite_salle_de_bain",
+                "444": "sensor.co2",
+                "555": "sensor.energie",
+            }.get(pid)
+        )
+        return coordinator
+
+    def make_hass(self, coordinator):
+        hass = MagicMock()
+        hass.data = {"eedomus": {"entry_1": {COORDINATOR: coordinator}}}
+        hass.states.get = MagicMock(
+            side_effect=lambda entity_id: {
+                "sensor.temperature_salon": SimpleNamespace(
+                    state="21.5",
+                    last_updated=datetime(2026, 10, 2, 8, 30),
+                    attributes={
+                        "device_class": "temperature",
+                        "unit_of_measurement": "°C",
+                    },
+                ),
+                "sensor.co2": SimpleNamespace(
+                    state="812",
+                    last_updated=datetime(2026, 10, 2, 8, 30),
+                    # Living sensor without unit: doubtful mapping.
+                    attributes={"device_class": "carbon_dioxide"},
+                ),
+                "sensor.energie": SimpleNamespace(
+                    state="1.4",
+                    last_updated=datetime(2026, 10, 2, 8, 30),
+                    attributes={
+                        "device_class": "power",
+                        "unit_of_measurement": "kW",
+                    },
+                ),
+            }.get(entity_id)
+        )
+        return hass
+
+    def patch_registry(self, monkeypatch):
+        """Populate the global mapping registry (only mapped periphs)."""
+        monkeypatch.setattr(
+            mapping_registry_module,
+            "_MAPPING_REGISTRY",
+            [
+                {
+                    "periph_id": "111",
+                    "periph_name": "Température Salon",
+                    "parent_periph_id": "999",
+                    "ha_entity": "sensor",
+                    "ha_subtype": "temperature",
+                    "justification": "usage_id 7 = température",
+                },
+                {
+                    "periph_id": "555",
+                    "periph_name": "Énergie",
+                    "parent_periph_id": None,
+                    "ha_entity": "sensor",
+                    "ha_subtype": "power",
+                    "justification": "compteur électrique",
+                },
+            ],
+        )
+
+    def patch_custom_mapping(self, monkeypatch, config=None, side_effect=None):
+        """Patch the raw custom mapping loader used by the handler."""
+        loader = AsyncMock(
+            return_value=self.CUSTOM_CONFIG if config is None else config
+        )
+        if side_effect is not None:
+            loader.side_effect = side_effect
+        monkeypatch.setattr(
+            device_mapping_module, "load_custom_yaml_mappings_async", loader
+        )
+        return loader
+
+    async def fetch_rows(self, monkeypatch, coordinator=None):
+        """Run eedomus/get_coherence and return the response payload."""
+        if coordinator is None:
+            coordinator = self.make_coordinator()
+        hass = self.make_hass(coordinator)
+        service = EedomusUIService(hass)
+        connection = MagicMock()
+        self.patch_registry(monkeypatch)
+        self.patch_custom_mapping(monkeypatch)
+
+        await service._handle_get_coherence(hass, connection, {"id": 11})
+
+        connection.send_result.assert_called_once()
+        return connection.send_result.call_args.args[1]
+
+    @pytest.mark.asyncio
+    async def test_full_join_locks_row_contract(self, monkeypatch):
+        """A mapped, healthy, rule-driven peripheral carries all sections."""
+        result = await self.fetch_rows(monkeypatch)
+
+        assert result["total"] == 6
+        rows = {row["periph_id"]: row for row in result["peripherals"]}
+        assert rows["111"] == {
+            "periph_id": "111",
+            "name": "Température Salon",
+            "usage_id": "7",
+            "entity_id": "sensor.temperature_salon",
+            "platform": "sensor",
+            "device_class": "temperature",
+            "unit": "°C",
+            "modified": True,
+            "modified_by_rule": "Unité température salon",
+            "modified_date": "2026-09-26 21:04",
+            "ha_entity": "sensor",
+            "ha_subtype": "temperature",
+            "parent_periph_id": "999",
+            "justification": "usage_id 7 = température",
+            "state": "21.5",
+            "last_update": "2026-10-02T08:30:00",
+            "raw": {
+                "periph_id": "111",
+                "name": "Température Salon",
+                "usage_id": "7",
+                "last_seen": "2026-10-01T12:00:00",
+            },
+            "signals": [SIGNAL_REGLE_ACTIVE],
+            "error_message": None,
+            "attempts": None,
+            "retry_after": None,
+        }
+
+    @pytest.mark.asyncio
+    async def test_periph_without_entity_is_never_lost(self, monkeypatch):
+        """An unresolved peripheral still gets a line, flagged sans_entite."""
+        result = await self.fetch_rows(monkeypatch)
+
+        rows = {row["periph_id"]: row for row in result["peripherals"]}
+        assert "333" in rows
+        assert rows["333"]["entity_id"] is None
+        assert SIGNAL_SANS_ENTITE in rows["333"]["signals"]
+
+    @pytest.mark.asyncio
+    async def test_periph_outside_registry_gets_null_registry_fields(
+        self, monkeypatch
+    ):
+        """The registry only covers mapped periphs: the join must not raise."""
+        result = await self.fetch_rows(monkeypatch)
+
+        rows = {row["periph_id"]: row for row in result["peripherals"]}
+        assert "444" in rows
+        assert rows["444"]["ha_entity"] is None
+        assert rows["444"]["ha_subtype"] is None
+        assert rows["444"]["parent_periph_id"] is None
+        assert rows["444"]["justification"] is None
+
+    @pytest.mark.asyncio
+    async def test_signals_derivation_covers_the_four_signals(self, monkeypatch):
+        """sans_entite / douteux / regle_active / en_erreur, cumulable."""
+        result = await self.fetch_rows(monkeypatch)
+
+        rows = {row["periph_id"]: row for row in result["peripherals"]}
+        # Living sensor with unit, custom rule on usage 7.
+        assert rows["111"]["signals"] == [SIGNAL_REGLE_ACTIVE]
+        # Entity resolved but no living state + custom mapping on usage 24.
+        assert rows["222"]["signals"] == [SIGNAL_DOUTEUX, SIGNAL_REGLE_ACTIVE]
+        # Entity resolution failed.
+        assert rows["333"]["signals"] == [SIGNAL_SANS_ENTITE]
+        # Living sensor without unit_of_measurement.
+        assert rows["444"]["signals"] == [SIGNAL_DOUTEUX]
+        # In the coordinator retry queue.
+        assert rows["555"]["signals"] == [SIGNAL_EN_ERREUR]
+        # All signals can stack on one peripheral.
+        assert rows["777"]["signals"] == [
+            SIGNAL_SANS_ENTITE,
+            SIGNAL_REGLE_ACTIVE,
+            SIGNAL_EN_ERREUR,
+        ]
+
+    @pytest.mark.asyncio
+    async def test_unavailable_and_unknown_states_are_douteux(self, monkeypatch):
+        """A resolved entity resting on a placeholder state carries no
+        living data: douteux, exactly like an absent state."""
+        coordinator = MagicMock()
+        coordinator.data = {
+            "888": {"periph_id": "888", "name": "Prise indisponible", "usage_id": "10"},
+            "889": {"periph_id": "889", "name": "Capteur inconnu", "usage_id": "11"},
+        }
+        coordinator._retry_queue = {}
+        coordinator._resolve_main_entity_id = MagicMock(
+            side_effect=lambda pid: {
+                "888": "switch.prise_indisponible",
+                "889": "sensor.capteur_inconnu",
+            }.get(pid)
+        )
+        hass = MagicMock()
+        hass.data = {"eedomus": {"entry_1": {COORDINATOR: coordinator}}}
+        hass.states.get = MagicMock(
+            side_effect=lambda entity_id: {
+                "switch.prise_indisponible": SimpleNamespace(
+                    state="unavailable",
+                    last_updated=datetime(2026, 10, 2, 8, 30),
+                    attributes={"device_class": "outlet"},
+                ),
+                "sensor.capteur_inconnu": SimpleNamespace(
+                    state="unknown",
+                    last_updated=datetime(2026, 10, 2, 8, 30),
+                    attributes={"device_class": "power"},
+                ),
+            }.get(entity_id)
+        )
+        service = EedomusUIService(hass)
+        connection = MagicMock()
+        self.patch_registry(monkeypatch)
+        self.patch_custom_mapping(monkeypatch, config={})
+
+        await service._handle_get_coherence(hass, connection, {"id": 11})
+
+        rows = {
+            row["periph_id"]: row
+            for row in connection.send_result.call_args.args[1]["peripherals"]
+        }
+        assert rows["888"]["signals"] == [SIGNAL_DOUTEUX]
+        assert rows["889"]["signals"] == [SIGNAL_DOUTEUX]
+
+    @pytest.mark.asyncio
+    async def test_enum_sensor_without_unit_is_not_flagged(self, monkeypatch):
+        """Enum sensors legitimately have no unit: never douteux."""
+        coordinator = MagicMock()
+        coordinator.data = {
+            "890": {"periph_id": "890", "name": "Mode chauffage", "usage_id": "12"},
+        }
+        coordinator._retry_queue = {}
+        coordinator._resolve_main_entity_id = MagicMock(
+            return_value="sensor.mode_chauffage"
+        )
+        hass = MagicMock()
+        hass.data = {"eedomus": {"entry_1": {COORDINATOR: coordinator}}}
+        hass.states.get = MagicMock(
+            return_value=SimpleNamespace(
+                state="auto",
+                last_updated=datetime(2026, 10, 2, 8, 30),
+                attributes={"device_class": "enum"},
+            )
+        )
+        service = EedomusUIService(hass)
+        connection = MagicMock()
+        self.patch_registry(monkeypatch)
+        self.patch_custom_mapping(monkeypatch, config={})
+
+        await service._handle_get_coherence(hass, connection, {"id": 11})
+
+        rows = connection.send_result.call_args.args[1]["peripherals"]
+        assert rows[0]["signals"] == []
+
+    @pytest.mark.asyncio
+    async def test_error_message_is_exposed_with_en_erreur(self, monkeypatch):
+        result = await self.fetch_rows(monkeypatch)
+
+        rows = {row["periph_id"]: row for row in result["peripherals"]}
+        assert rows["555"]["error_message"] == "API rate limit"
+        assert rows["555"]["attempts"] == 1
+        assert rows["555"]["retry_after"] == datetime.fromtimestamp(
+            1759386400.0
+        ).isoformat()
+        assert rows["111"]["error_message"] is None
+        assert rows["111"]["attempts"] is None
+        assert rows["111"]["retry_after"] is None
+
+    @pytest.mark.asyncio
+    async def test_registry_join_is_last_wins(self, monkeypatch):
+        """On reload, devices re-register into the never-cleared global
+        registry: the latest (post-change) entry must win the join."""
+        monkeypatch.setattr(
+            mapping_registry_module,
+            "_MAPPING_REGISTRY",
+            [
+                {
+                    "periph_id": "111",
+                    "periph_name": "Température Salon (avant rechargement)",
+                    "parent_periph_id": None,
+                    "ha_entity": "sensor",
+                    "ha_subtype": "temperature",
+                    "justification": "mapping avant rechargement",
+                },
+                {
+                    "periph_id": "111",
+                    "periph_name": "Température Salon",
+                    "parent_periph_id": "999",
+                    "ha_entity": "sensor",
+                    "ha_subtype": "temperature",
+                    "justification": "usage_id 7 = température",
+                },
+            ],
+        )
+        coordinator = self.make_coordinator()
+        hass = self.make_hass(coordinator)
+        service = EedomusUIService(hass)
+        connection = MagicMock()
+        self.patch_custom_mapping(monkeypatch)
+
+        await service._handle_get_coherence(hass, connection, {"id": 11})
+
+        row = {
+            r["periph_id"]: r
+            for r in connection.send_result.call_args.args[1]["peripherals"]
+        }["111"]
+        assert row["parent_periph_id"] == "999"
+        assert row["justification"] == "usage_id 7 = température"
+
+    @pytest.mark.asyncio
+    async def test_non_finite_floats_in_raw_become_strings(self, monkeypatch):
+        """NaN/Infinity would emit invalid JSON tokens and break the whole
+        websocket payload: they must be serialized as strings."""
+        coordinator = self.make_coordinator()
+        coordinator.data["111"]["value"] = float("nan")
+        coordinator.data["111"]["peak"] = float("inf")
+
+        result = await self.fetch_rows(monkeypatch, coordinator)
+
+        row = {r["periph_id"]: r for r in result["peripherals"]}["111"]
+        assert row["raw"]["value"] == "nan"
+        assert row["raw"]["peak"] == "inf"
+        json.dumps(result)
+
+    @pytest.mark.asyncio
+    async def test_payload_is_json_serializable(self, monkeypatch):
+        """Datetimes in the raw dict are serialized, not smuggled through."""
+        result = await self.fetch_rows(monkeypatch)
+
+        rows = {row["periph_id"]: row for row in result["peripherals"]}
+        assert rows["111"]["raw"]["last_seen"] == "2026-10-01T12:00:00"
+        json.dumps(result)
+
+    @pytest.mark.asyncio
+    async def test_multi_box_collects_every_coordinator(self, monkeypatch):
+        """One line per peripheral of each coordinator (multi-box)."""
+        coordinator_1 = self.make_coordinator()
+        coordinator_2 = self.make_coordinator()
+        coordinator_2.data = {
+            "900": {"periph_id": "900", "name": "Box 2 capteur", "usage_id": "7"},
+        }
+        coordinator_2._retry_queue = {}
+        coordinator_2._resolve_main_entity_id = MagicMock(return_value=None)
+        hass = MagicMock()
+        hass.data = {
+            "eedomus": {
+                "entry_1": {COORDINATOR: coordinator_1},
+                "entry_2": {COORDINATOR: coordinator_2},
+            }
+        }
+        hass.states.get = MagicMock(return_value=None)
+        service = EedomusUIService(hass)
+        connection = MagicMock()
+        self.patch_registry(monkeypatch)
+        self.patch_custom_mapping(monkeypatch)
+
+        await service._handle_get_coherence(hass, connection, {"id": 11})
+
+        result = connection.send_result.call_args.args[1]
+        rows = {row["periph_id"]: row for row in result["peripherals"]}
+        assert "900" in rows
+        # The second coordinator's walk must not disturb the box-1 rows.
+        assert rows["111"]["ha_subtype"] == "temperature"
+        assert SIGNAL_REGLE_ACTIVE in rows["111"]["signals"]
+        assert result["total"] == 7
+
+    @pytest.mark.asyncio
+    async def test_get_peripherals_contract_stays_frozen(self, monkeypatch):
+        """get_peripherals rows must not gain any coherence field."""
+        coordinator = self.make_coordinator()
+        hass = self.make_hass(coordinator)
+        service = EedomusUIService(hass)
+        connection = MagicMock()
+        self.patch_registry(monkeypatch)
+        self.patch_custom_mapping(monkeypatch)
+
+        await service._handle_get_peripherals(hass, connection, {"id": 5})
+        peripherals = connection.send_result.call_args.args[1]
+        assert peripherals["total"] == 6
+        for row in peripherals["peripherals"]:
+            assert set(row) == self.PERIPHERALS_ROW_KEYS
+
+        await service._handle_get_coherence(hass, connection, {"id": 11})
+        coherence = connection.send_result.call_args.args[1]
+        for row in coherence["peripherals"]:
+            assert set(row) == self.PERIPHERALS_ROW_KEYS | self.COHERENCE_EXTRA_KEYS
+
+    @pytest.mark.asyncio
+    async def test_custom_mapping_load_failure_keeps_rows(self, monkeypatch):
+        """A broken custom mapping degrades the badge, never the join."""
+        coordinator = self.make_coordinator()
+        hass = self.make_hass(coordinator)
+        service = EedomusUIService(hass)
+        connection = MagicMock()
+        self.patch_registry(monkeypatch)
+        self.patch_custom_mapping(monkeypatch, side_effect=Exception("no file"))
+
+        await service._handle_get_coherence(hass, connection, {"id": 11})
+
+        result = connection.send_result.call_args.args[1]
+        assert result["total"] == 6
+        rows = {row["periph_id"]: row for row in result["peripherals"]}
+        assert SIGNAL_REGLE_ACTIVE not in rows["111"]["signals"]
+
+    @pytest.mark.asyncio
+    async def test_no_coordinator_entries_returns_empty_list(self, monkeypatch):
+        service, connection = make_service({})
+        self.patch_registry(monkeypatch)
+        self.patch_custom_mapping(monkeypatch)
+
+        await service._handle_get_coherence(service.hass, connection, {"id": 11})
+
+        result = connection.send_result.call_args.args[1]
+        assert result == {"peripherals": [], "total": 0}
+
+    @pytest.mark.asyncio
+    async def test_exception_sends_error(self):
+        """A mid-row failure (state machine error) surfaces as send_error,
+        never as a half-loaded result."""
+        coordinator = self.make_coordinator()
+        hass = self.make_hass(coordinator)
+        hass.states.get = MagicMock(side_effect=RuntimeError("state machine down"))
+        service = EedomusUIService(hass)
+        connection = MagicMock()
+
+        await service._handle_get_coherence(hass, connection, {"id": 11})
+
+        connection.send_error.assert_called_once()
+        connection.send_result.assert_not_called()
+
+
+class TestGetCoherenceDispatcher:
+    """The module dispatcher resolves the service from hass.data at call
+    time - a copy-paste error in its body would otherwise go unexercised
+    by the handler-level tests."""
+
+    @pytest.mark.asyncio
+    async def test_dispatches_to_the_service_handler(self):
+        service = MagicMock()
+        service._handle_get_coherence = AsyncMock()
+        hass = MagicMock()
+        hass.data = {"eedomus": {"ui_service": service}}
+        connection = MagicMock()
+
+        await ui_service_module._ws_get_coherence(hass, connection, {"id": 21})
+
+        service._handle_get_coherence.assert_awaited_once_with(
+            hass, connection, {"id": 21}
+        )
+        connection.send_error.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_no_service_sends_service_unavailable(self):
+        hass = MagicMock()
+        hass.data = {"eedomus": {}}
+        connection = MagicMock()
+
+        await ui_service_module._ws_get_coherence(hass, connection, {"id": 21})
+
+        connection.send_error.assert_called_once_with(
+            21, "service_unavailable", "Eedomus UI service not initialized"
+        )
 
 
 class TestMappingHandlers:

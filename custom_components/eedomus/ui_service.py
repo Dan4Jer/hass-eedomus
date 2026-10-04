@@ -1,6 +1,8 @@
 """UI Service for Eedomus Integration with WebSocket API for frontend communication."""
 
 import logging
+import math
+from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
 import voluptuous as vol
@@ -8,6 +10,7 @@ import voluptuous as vol
 from homeassistant.core import HomeAssistant
 
 from .const import COORDINATOR, DOMAIN
+from .mapping_registry import get_mapping_registry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -19,6 +22,16 @@ WS_TYPE_EEDOMUS_PERIPHERALS = f"{DOMAIN}/get_peripherals"
 WS_TYPE_EEDOMUS_GET_MAPPING = f"{DOMAIN}/get_mapping"
 WS_TYPE_EEDOMUS_SAVE_MAPPING = f"{DOMAIN}/save_mapping"
 WS_TYPE_EEDOMUS_GET_VERSIONS = f"{DOMAIN}/get_mapping_versions"
+WS_TYPE_EEDOMUS_GET_COHERENCE = f"{DOMAIN}/get_coherence"
+
+# Coherence signals (CAP-6): cumulable strings, one chip per signal.
+SIGNAL_SANS_ENTITE = "sans_entite"
+SIGNAL_DOUTEUX = "douteux"
+SIGNAL_REGLE_ACTIVE = "regle_active"
+SIGNAL_EN_ERREUR = "en_erreur"
+
+# Placeholder entity states that mean "no living data" (CAP-6 douteux).
+NOT_LIVING_STATES = ("unavailable", "unknown")
 
 # The handlers are decorated at class-definition time, so the websocket_api
 # imports must happen at module level. When the component is unavailable the
@@ -54,6 +67,29 @@ except ImportError:  # pragma: no cover
 def _get_ui_service(hass: HomeAssistant) -> Optional["EedomusUIService"]:
     """Fetch the domain-level UI service instance from hass.data."""
     return hass.data.get(DOMAIN, {}).get("ui_service")
+
+
+def _json_safe(value: Any) -> Any:
+    """Recursively convert a value into JSON-safe primitives.
+
+    The raw peripheral dicts come straight from coordinator.data and may
+    embed datetimes (e.g. history imports); the websocket layer cannot
+    serialize them, so dates become ISO strings and exotic objects fall
+    back to str().
+    """
+    if isinstance(value, dict):
+        return {str(key): _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(item) for item in value]
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, float) and not math.isfinite(value):
+        # NaN/Infinity are valid Python but emit invalid JSON tokens,
+        # which would break the whole websocket payload.
+        return str(value)
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    return str(value)
 
 
 # Module-level dispatch functions: HA calls websocket handlers as plain
@@ -175,6 +211,20 @@ async def _ws_get_mapping_versions(hass: HomeAssistant, connection, msg: dict) -
     await service._handle_get_mapping_versions(hass, connection, msg)
 
 
+@require_admin
+@websocket_command({vol.Required("type"): WS_TYPE_EEDOMUS_GET_COHERENCE})
+@async_response
+async def _ws_get_coherence(hass: HomeAssistant, connection, msg: dict) -> None:
+    """Dispatch eedomus/get_coherence to the UI service."""
+    service = _get_ui_service(hass)
+    if service is None:
+        connection.send_error(
+            msg["id"], "service_unavailable", "Eedomus UI service not initialized"
+        )
+        return
+    await service._handle_get_coherence(hass, connection, msg)
+
+
 # The commands in registration order: (command type, module dispatcher).
 WS_COMMANDS = (
     (WS_TYPE_EEDOMUS_VALIDATE, _ws_validate_config),
@@ -184,6 +234,7 @@ WS_COMMANDS = (
     (WS_TYPE_EEDOMUS_GET_MAPPING, _ws_get_mapping),
     (WS_TYPE_EEDOMUS_SAVE_MAPPING, _ws_save_mapping),
     (WS_TYPE_EEDOMUS_GET_VERSIONS, _ws_get_mapping_versions),
+    (WS_TYPE_EEDOMUS_GET_COHERENCE, _ws_get_coherence),
 )
 
 
@@ -503,6 +554,147 @@ class EedomusUIService:
         except Exception as e:
             _LOGGER.debug("Entity resolution failed for %s: %s", periph_id, e)
             return None
+
+    async def _handle_get_coherence(
+        self,
+        hass: HomeAssistant,
+        connection,
+        msg: dict,
+    ) -> None:
+        """Handle the coherence WebSocket command (Cohérence tab, CAP-6)."""
+        try:
+            custom_config = await self._load_custom_mapping(hass)
+            peripherals = self._collect_coherence(hass, custom_config)
+            connection.send_result(
+                msg.get("id"),
+                {"peripherals": peripherals, "total": len(peripherals)},
+            )
+        except Exception as e:
+            _LOGGER.error("Coherence error: %s", e, exc_info=True)
+            connection.send_error(msg.get("id"), "error", str(e))
+
+    def _collect_coherence(
+        self, hass: HomeAssistant, custom_config: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """Project coordinator.data into fused coherence rows (CAP-6).
+
+        Same multi-box walk as _collect_peripherals. The registry only
+        covers mapped peripherals, so the join is driven by the
+        coordinator rows (never by the registry): every peripheral gets a
+        line, mapped or not.
+        """
+        registry = self._registry_by_periph_id()
+        rows: List[Dict[str, Any]] = []
+        for value in hass.data.get(DOMAIN, {}).values():
+            if not isinstance(value, dict) or COORDINATOR not in value:
+                continue
+            coordinator = value[COORDINATOR]
+            # Index the raw dicts by the same key _project_coordinator
+            # uses (str of the data key) so the raw section cannot miss.
+            raw_by_id = {
+                str(key): periph
+                for key, periph in (coordinator.data or {}).items()
+                if isinstance(periph, dict)
+            }
+            for base in self._project_coordinator(hass, coordinator, custom_config):
+                rows.append(
+                    self._coherence_row(
+                        hass,
+                        coordinator,
+                        base,
+                        registry,
+                        raw_by_id.get(base["periph_id"]) or {},
+                    )
+                )
+        return rows
+
+    @staticmethod
+    def _registry_by_periph_id() -> Dict[str, Dict[str, Any]]:
+        """Index the global mapping registry by periph_id (last wins).
+
+        Devices re-register on every integration reload (the global
+        registry is never cleared), so the latest entry reflects the
+        current mapping - the first one would be stale.
+        """
+        registry: Dict[str, Dict[str, Any]] = {}
+        for entry in get_mapping_registry():
+            if not isinstance(entry, dict) or entry.get("periph_id") is None:
+                continue
+            registry[str(entry["periph_id"])] = entry
+        return registry
+
+    def _coherence_row(
+        self,
+        hass: HomeAssistant,
+        coordinator,
+        base: Dict[str, Any],
+        registry: Dict[str, Dict[str, Any]],
+        raw: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Extend a peripherals row with registry, live state, raw, signals.
+
+        The signals are cumulable strings so the frontend can render one
+        chip per signal (EXPERIENCE.md coherence-chip).
+        """
+        periph_id = base["periph_id"]
+        mapping = registry.get(periph_id) or {}
+        entity_id = base["entity_id"]
+        state = hass.states.get(entity_id) if entity_id else None
+
+        # The retry queue is a coordinator internal (no public accessor):
+        # guarded with getattr so a coordinator variant without it still
+        # projects a line instead of raising.
+        retry_queue = getattr(coordinator, "_retry_queue", None)
+        retry_info = (
+            retry_queue.get(periph_id) if isinstance(retry_queue, dict) else None
+        )
+
+        signals: List[str] = []
+        if entity_id is None:
+            # No HA entity: nothing else can be checked on this line.
+            signals.append(SIGNAL_SANS_ENTITE)
+        elif state is None or state.state in NOT_LIVING_STATES:
+            # Resolved but absent from hass.states, or resting on a
+            # placeholder state: no living data, doubtful mapping.
+            signals.append(SIGNAL_DOUTEUX)
+        elif (
+            base["platform"] == "sensor"
+            and base["device_class"]
+            and base["device_class"] != "enum"
+            and base["unit"] is None
+        ):
+            # A living sensor expected to carry a unit but lacking one is
+            # a mapping smell (CAP-6); enum sensors legitimately have none.
+            signals.append(SIGNAL_DOUTEUX)
+        if base["modified_by_rule"]:
+            signals.append(SIGNAL_REGLE_ACTIVE)
+        if retry_info is not None:
+            signals.append(SIGNAL_EN_ERREUR)
+
+        # The queue stores epoch floats (coordinator); a datetime variant
+        # would serialize the same way - both render as ISO.
+        retry_after = retry_info.get("retry_after") if retry_info else None
+        if isinstance(retry_after, (int, float)):
+            retry_after = datetime.fromtimestamp(retry_after)
+
+        base.update(
+            {
+                "ha_entity": mapping.get("ha_entity"),
+                "ha_subtype": mapping.get("ha_subtype"),
+                "parent_periph_id": mapping.get("parent_periph_id"),
+                "justification": mapping.get("justification"),
+                "state": state.state if state else None,
+                "last_update": _json_safe(state.last_updated) if state else None,
+                "raw": _json_safe(raw),
+                "signals": signals,
+                "error_message": retry_info.get("error_message")
+                if retry_info
+                else None,
+                "attempts": retry_info.get("attempts") if retry_info else None,
+                "retry_after": _json_safe(retry_after),
+            }
+        )
+        return base
 
     async def _handle_get_mapping(
         self,
