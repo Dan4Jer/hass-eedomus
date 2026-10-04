@@ -9,21 +9,22 @@ history support, fallback logic and monitoring sensors.
 
 ---
 
-## Current status
+## Current test status
 
-A recent successful full test run produced:
+The values below are updated automatically by the GitHub Actions
+`Run Tests` workflow after a successful test run.
 
-```text
-404 tests passed
-Overall coverage: 87%
-Statements: 4393
-Missed statements: 557
-```
+<!-- TEST-STATS-START -->
+- Tests: **404 passed**
+- Statements: **4393**
+- Covered: **3836**
+- Missing: **557**
+- Coverage: **87.00%**
+- Last test run: **2026-10-04 12:00:00 UTC**
+<!-- TEST-STATS-END -->
 
-This value is a snapshot only.
-
-The latest successful GitHub Actions `Run Tests` workflow and its generated
-coverage artifacts should be considered the current reference.
+The latest successful GitHub Actions run is the reference for the current
+test and coverage status.
 
 ---
 

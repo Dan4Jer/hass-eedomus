@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: read
+      contents: write
 
     env:
       PYTHONPATH: .
@@ -65,6 +65,7 @@ jobs:
             scripts/tests/ \
             -v \
             --tb=short \
+            --junitxml \
             --cov=custom_components/eedomus \
             --cov-report=term-missing \
             --cov-report=xml \
@@ -106,6 +107,127 @@ jobs:
           print(content)
           PY
 
+      - name: Update README test statistics
+        if: success()
+        run: |
+          python3 - <<'PY'
+          import re
+          import xml.etree.ElementTree as ET
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          from pathlib import Path
+
+          # ---------------------------------------------------------
+          # Coverage
+          # ---------------------------------------------------------
+
+          coverage_root = ET.parse("coverage.xml").getroot()
+
+          rate = float(coverage_root.attrib.get("line-rate", 0))
+          statements = int(coverage_root.attrib.get("lines-valid", 0))
+          covered = int(coverage_root.attrib.get("lines-covered", 0))
+          missing = statements - covered
+          coverage = rate * 100
+
+          # ---------------------------------------------------------
+          # Tests
+          # ---------------------------------------------------------
+
+          junit_root = ET.parse("pytest-results.xml").getroot()
+
+          if junit_root.tag == "testsuites":
+              tests = sum(
+                  int(suite.attrib.get("tests", 0))
+                  for suite in junit_root.findall("testsuite")
+              )
+              failures = sum(
+                  int(suite.attrib.get("failures", 0))
+                  for suite in junit_root.findall("testsuite")
+              )
+              errors = sum(
+                  int(suite.attrib.get("errors", 0))
+                  for suite in junit_root.findall("testsuite")
+              )
+              skipped = sum(
+                  int(suite.attrib.get("skipped", 0))
+                  for suite in junit_root.findall("testsuite")
+              )
+          else:
+              tests = int(junit_root.attrib.get("tests", 0))
+              failures = int(junit_root.attrib.get("failures", 0))
+              errors = int(junit_root.attrib.get("errors", 0))
+              skipped = int(junit_root.attrib.get("skipped", 0))
+
+          passed = tests - failures - errors - skipped
+
+          # Date / heure du workflow
+          run_date = datetime.now(
+              ZoneInfo("Europe/Paris")
+          ).strftime("%Y-%m-%d %H:%M:%S Europe/Paris")
+
+          # ---------------------------------------------------------
+          # README
+          # ---------------------------------------------------------
+
+          readme = Path("scripts/tests/README.md")
+
+          content = readme.read_text(encoding="utf-8")
+
+          new_block = f"""<!-- TEST-STATS-START -->
+          - Tests: **{passed} passed**
+          - Statements: **{statements}**
+          - Covered: **{covered}**
+          - Missing: **{missing}**
+          - Coverage: **{coverage:.2f}%**
+          - Last test run: **{run_date}**
+          <!-- TEST-STATS-END -->"""
+
+          pattern = (
+              r"<!-- TEST-STATS-START -->"
+              r".*?"
+              r"<!-- TEST-STATS-END -->"
+          )
+
+          updated, count = re.subn(
+              pattern,
+              new_block,
+              content,
+              flags=re.DOTALL,
+          )
+
+          if count != 1:
+              raise SystemExit(
+                  "Unable to find exactly one TEST-STATS block in README.md"
+              )
+
+          readme.write_text(updated, encoding="utf-8")
+
+          print()
+          print("README statistics updated:")
+          print(f"Tests      : {passed}")
+          print(f"Statements : {statements}")
+          print(f"Covered    : {covered}")
+          print(f"Missing    : {missing}")
+          print(f"Coverage   : {coverage:.2f}%")
+          PY
+
+      - name: Commit README coverage update
+        if: success() && github.event_name == 'push'
+        run: |
+          if git diff --quiet scripts/tests/README.md; then
+            echo "README already up to date."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add scripts/tests/README.md
+
+          git commit -m "docs: update test coverage [skip ci]"
+
+          git push
+
       - name: Upload HTML coverage report
         if: always()
         uses: actions/upload-artifact@v6
@@ -122,3 +244,4 @@ jobs:
           name: coverage-summary
           path: coverage-summary.md
           retention-days: 30
+
