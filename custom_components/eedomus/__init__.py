@@ -347,9 +347,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 device_registry,
             )
 
-            _LOGGER.info(
-                "✅ History sensors registered successfully"
-            )
+            _LOGGER.info("✅ History sensors registered successfully")
 
         except Exception as err:
             _LOGGER.error(
@@ -646,10 +644,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
         )
 
     else:
-        _LOGGER.info(
-            "Remove entities option is disabled, skipping entity removal"
-        )
+        _LOGGER.info("Remove entities option is disabled, skipping entity removal")
 
     # Remove the config entry
     _LOGGER.info("Removing eedomus integration config entry")
-
