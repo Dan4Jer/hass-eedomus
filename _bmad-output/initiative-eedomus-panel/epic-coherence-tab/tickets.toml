@@ -1,0 +1,101 @@
+# tickets.toml — epic-coherence-tab : 8 entrées, ordre de build (lane JS séquentielle).
+
+[[entry]]
+id = 1
+type = "story"
+title = "Commande eedomus/get_coherence (contrat + vue fusionnée)"
+description = "Nouvelle commande websocket eedomus/get_coherence (dispatcher ui_service, require_admin) fusionnant par periph_id : mapping registry (ha_entity, ha_subtype, parent_periph_id, justification) × données get_peripherals × état vivant (hass.states) × champs bruts de l'API depuis coordinator.data × signaux de cohérence (sans entité, douteux, règle active, en erreur) ; une ligne par périphérique, jamais une ligne perdue ; le contrat de eedomus/get_peripherals reste inchangé (AD-7 : aucun appel direct à l'API eedomus)."
+verify = "Sur l'instance live, un appel eedomus/get_coherence renvoie ~165 lignes ; tests unitaires couvrant la jointure (un periph sans entité HA est présent), la dérivation des 4 signaux et l'absence de changement de get_peripherals."
+covers = ["CAP-6"]
+after = []
+hitl = false
+risk = "medium"
+unknown = "Champs bruts exacts disponibles dans coordinator.data par périphérique — à confirmer contre les données réelles de l'instance."
+references = ["../../specs/spec-eedomus-mapping-panel/SPEC.md", "../../planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/EXPERIENCE.md#component-patterns"]
+plan_checkpoint = true
+
+[[entry]]
+id = 2
+type = "story"
+title = "Onglet Cohérence : tableau + puces de statut"
+description = "4e onglet du panel (TABS, TAB_LABELS, nav, switch, hash routing), chargement différé de get_coherence avec squelettes et reprise « Réessayer » ; colonnes periph_id / nom / entité HA / type-sous-type / puces ; chips des 4 signaux + « cohérent » cumulables, glyphe + libellé, teintes DESIGN.md (jamais la couleur seule)."
+verify = "L'onglet affiche les ~165 périphériques avec leurs statuts sur l'instance ; chips lisibles en thème clair et sombre ; états squelette et erreur conformes à EXPERIENCE.md."
+covers = ["CAP-6"]
+after = [1]
+hitl = false
+risk = "medium"
+references = ["../../planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/DESIGN.md#components", "../../planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/EXPERIENCE.md#state-patterns"]
+
+[[entry]]
+id = 3
+type = "story"
+title = "Tri, filtre rapide et bascule Tout / À vérifier"
+description = "Tri par colonne (boutons focusables, aria-sort, cycle croissant/décroissant/neutre, réordonnancement local sans appel réseau), filtre rapide texte, bascule « Tout afficher » / « À vérifier » avec compte annoncé en aria-live, état « filtre sans résultat » et vide positif « Tout est cohérent »."
+verify = "Tri, filtre et bascule fonctionnent sans nouvel appel réseau ; les états vides affichent leur microcopie ; annonces aria-live vérifiées."
+covers = ["CAP-6"]
+after = [2]
+hitl = false
+risk = "low"
+references = ["../../planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/EXPERIENCE.md#interaction-primitives"]
+
+[[entry]]
+id = 4
+type = "story"
+title = "Popover de détail périphérique (desktop)"
+description = "Popover riche au survol et au focus du periph_id : état vivant (valeur courante, usage_id, pièce/parent, dernière mise à jour), identité de mapping + justification, actions correctif inline (« Créer une règle » → onglet Règles avec usage_id pré-rempli ; lien réglages HA), champs bruts API en section repliable ; une seule ouverte, focus piégé, Échap referme, focus rendu au déclencheur, aria-expanded."
+verify = "Le popover s'ouvre au survol et au clavier, se referme par Échap avec focus rendu ; contenu conforme au composant periph-popover d'EXPERIENCE.md."
+covers = ["CAP-7"]
+after = [3]
+hitl = false
+risk = "medium"
+references = ["../../planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/EXPERIENCE.md#component-patterns", "../../planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/DESIGN.md#elevation--depth"]
+plan_checkpoint = true
+
+[[entry]]
+id = 5
+type = "story"
+title = "Ligne étendue mobile (parité popover)"
+description = "Sous 900px, la ligne de périphérique s'étend à la demande et montre exactement le contenu du popover desktop (parité de contenu, surface différente) ; tri, filtre et bascule restent opérables, cibles ≥ 44 px, en-tête collant au défilement."
+verify = "Sur viewport mobile, le détail s'obtient par extension de ligne avec le même contenu que le popover desktop ; critères Responsive d'EXPERIENCE.md vérifiés."
+covers = ["CAP-7"]
+after = [4]
+hitl = false
+risk = "low"
+references = ["../../planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/EXPERIENCE.md#responsive--platform"]
+
+[[entry]]
+id = 6
+type = "story"
+title = "Navigation vers les réglages d'entité HA"
+description = "Lien texte inline sur l'entité HA (ligne du tableau et popover) ouvrant la page de réglages standard de l'entité (fonctionnement standard Home Assistant, web et mobile) ; un lien, pas un bouton d'action ; aucune édition du registry depuis le panneau."
+verify = "Le clic ouvre les réglages standard de l'entité visée dans HA (web et mobile) ; aucune écriture registry depuis le panneau."
+covers = ["CAP-8"]
+after = [5]
+hitl = false
+risk = "medium"
+unknown = "Mécanisme HA exact pour naviguer vers la page de réglages d'une entité depuis un panneau custom (route navigate vs more-info) — à trancher au plan_checkpoint."
+references = ["../../specs/spec-eedomus-mapping-panel/SPEC.md#capabilities", "../../planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/EXPERIENCE.md#information-architecture"]
+plan_checkpoint = true
+
+[[entry]]
+id = 7
+type = "story"
+title = "Refactor sweep"
+description = "Nettoyage de fin d'épique sur la base des build records et des findings reportés pendant l'épique ; périmètre fixé à son démarrage ; cleanup uniquement, pas de nouvelle portée."
+verify = "Aucun finding reporté non traité ; le panneau et ses 4 onglets passent la suite de tests existante."
+covers = []
+after = [6]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 8
+type = "story"
+title = "Suite E2E cohérence"
+description = "Extension de tests/e2e/test_e2e_panel.py : get_coherence (forme de réponse, ~165 lignes), popover au clavier, parité mobile simulée, navigation réglages entité ; non destructif ; validation post-déploiement sur le Pi."
+verify = "pytest tests/e2e/ -v vert sur l'instance déployée, y compris les nouveaux tests cohérence."
+covers = ["CAP-6", "CAP-7", "CAP-8"]
+after = [7]
+hitl = false
+risk = "low"
+references = ["tests/e2e/conftest.py"]
