@@ -362,34 +362,38 @@ artifacts are the reference for the current coverage value.
 The following values correspond to the same successful local run mentioned
 above and are not intended to remain permanently current.
 
-| Component | Coverage |
-|---|---:|
-| `api_proxy.py` | 100% |
-| `binary_sensor.py` | 100% |
-| `config_flow.py` | 100% |
-| `const.py` | 100% |
-| `cover.py` | 100% |
-| `endpoint_volume_sensor.py` | 100% |
-| `history_sensor.py` | 100% |
-| `light.py` | 100% |
-| `mapping_registry.py` | 100% |
-| `mapping_rules.py` | 100% |
-| `options_flow.py` | 100% |
-| `refresh_timing_sensor.py` | 100% |
-| `select.py` | 100% |
-| `sensor.py` | 100% |
-| `storage_mapping.py` | 100% |
-| `switch.py` | 100% |
-| `text_sensor.py` | 100% |
-| `webhook.py` | 100% |
-| `eedomus_client.py` | 90% |
-| `services.py` | 87% |
-| `coordinator.py` | 81% |
-| `entity.py` | 78% |
-| `device_mapping.py` | 71% |
-| `climate.py` | 63% |
-| `__init__.py` | 62% |
-| **TOTAL** | **87%** |
+<!-- COVERAGE-MODULES-START -->
+Last update: **2026-10-04 20:54:00 Europe/Paris**
+
+| Component | Statements | Missed | Coverage |
+|---|---:|---:|---:|
+| `__init__.py` | 263 | 100 | 62.00% |
+| `api_proxy.py` | 37 | 0 | 100.00% |
+| `binary_sensor.py` | 72 | 0 | 100.00% |
+| `climate.py` | 403 | 148 | 63.00% |
+| `config_flow.py` | 114 | 0 | 100.00% |
+| `const.py` | 49 | 0 | 100.00% |
+| `coordinator.py` | 595 | 114 | 81.00% |
+| `cover.py` | 136 | 0 | 100.00% |
+| `device_mapping.py` | 320 | 93 | 71.00% |
+| `eedomus_client.py` | 251 | 26 | 90.00% |
+| `endpoint_volume_sensor.py` | 93 | 0 | 100.00% |
+| `entity.py` | 219 | 48 | 78.00% |
+| `history_sensor.py` | 136 | 0 | 100.00% |
+| `light.py` | 369 | 0 | 100.00% |
+| `mapping_registry.py` | 47 | 0 | 100.00% |
+| `mapping_rules.py` | 77 | 0 | 100.00% |
+| `options_flow.py` | 133 | 0 | 100.00% |
+| `refresh_timing_sensor.py` | 125 | 0 | 100.00% |
+| `select.py` | 97 | 0 | 100.00% |
+| `sensor.py` | 327 | 0 | 100.00% |
+| `services.py` | 214 | 28 | 87.00% |
+| `storage_mapping.py` | 62 | 0 | 100.00% |
+| `switch.py` | 103 | 0 | 100.00% |
+| `text_sensor.py` | 95 | 0 | 100.00% |
+| `webhook.py` | 56 | 0 | 100.00% |
+| **TOTAL** | **4393** | **557** | **87.00%** |
+<!-- COVERAGE-MODULES-END -->
 
 ---
 

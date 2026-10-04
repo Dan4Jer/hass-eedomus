@@ -110,16 +110,25 @@ jobs:
       - name: Update README test statistics
         if: success()
         run: |
+
           python3 - <<'PY'
           import re
           import xml.etree.ElementTree as ET
           from datetime import datetime
-          from zoneinfo import ZoneInfo
           from pathlib import Path
+          from zoneinfo import ZoneInfo
 
-          # ---------------------------------------------------------
-          # Coverage
-          # ---------------------------------------------------------
+          # =========================================================
+          # Date / heure Europe/Paris
+          # =========================================================
+
+          run_date = datetime.now(
+              ZoneInfo("Europe/Paris")
+          ).strftime("%Y-%m-%d %H:%M:%S Europe/Paris")
+
+          # =========================================================
+          # Coverage globale
+          # =========================================================
 
           coverage_root = ET.parse("coverage.xml").getroot()
 
@@ -129,86 +138,198 @@ jobs:
           missing = statements - covered
           coverage = rate * 100
 
-          # ---------------------------------------------------------
-          # Tests
-          # ---------------------------------------------------------
+          # =========================================================
+          # Résultats pytest
+          # =========================================================
 
           junit_root = ET.parse("pytest-results.xml").getroot()
 
           if junit_root.tag == "testsuites":
-              tests = sum(
-                  int(suite.attrib.get("tests", 0))
-                  for suite in junit_root.findall("testsuite")
-              )
-              failures = sum(
-                  int(suite.attrib.get("failures", 0))
-                  for suite in junit_root.findall("testsuite")
-              )
-              errors = sum(
-                  int(suite.attrib.get("errors", 0))
-                  for suite in junit_root.findall("testsuite")
-              )
-              skipped = sum(
-                  int(suite.attrib.get("skipped", 0))
-                  for suite in junit_root.findall("testsuite")
-              )
+              suites = junit_root.findall("testsuite")
           else:
-              tests = int(junit_root.attrib.get("tests", 0))
-              failures = int(junit_root.attrib.get("failures", 0))
-              errors = int(junit_root.attrib.get("errors", 0))
-              skipped = int(junit_root.attrib.get("skipped", 0))
+              suites = [junit_root]
+
+          tests = sum(
+              int(x.attrib.get("tests", 0))
+              for x in suites
+          )
+
+          failures = sum(
+              int(x.attrib.get("failures", 0))
+              for x in suites
+          )
+
+          errors = sum(
+              int(x.attrib.get("errors", 0))
+              for x in suites
+          )
+
+          skipped = sum(
+              int(x.attrib.get("skipped", 0))
+              for x in suites
+          )
 
           passed = tests - failures - errors - skipped
 
-          # Date / heure du workflow
-          run_date = datetime.now(
-              ZoneInfo("Europe/Paris")
-          ).strftime("%Y-%m-%d %H:%M:%S Europe/Paris")
-
-          # ---------------------------------------------------------
-          # README
-          # ---------------------------------------------------------
+          # =========================================================
+          # Lecture README
+          # =========================================================
 
           readme = Path("scripts/tests/README.md")
-
           content = readme.read_text(encoding="utf-8")
 
-          new_block = f"""<!-- TEST-STATS-START -->
+          # =========================================================
+          # Bloc Current test status
+          # =========================================================
+
+          status_block = f"""<!-- TEST-STATS-START -->
           - Tests: **{passed} passed**
           - Statements: **{statements}**
           - Covered: **{covered}**
           - Missing: **{missing}**
           - Coverage: **{coverage:.2f}%**
-          - Last test run: **{run_date}**
           <!-- TEST-STATS-END -->"""
 
-          pattern = (
-              r"<!-- TEST-STATS-START -->"
-              r".*?"
-              r"<!-- TEST-STATS-END -->"
-          )
-
-          updated, count = re.subn(
-              pattern,
-              new_block,
+          content, count = re.subn(
+              r"<!-- TEST-STATS-START -->.*?<!-- TEST-STATS-END -->",
+              status_block,
               content,
               flags=re.DOTALL,
           )
 
           if count != 1:
               raise SystemExit(
-                  "Unable to find exactly one TEST-STATS block in README.md"
+                  "TEST-STATS block not found or duplicated"
               )
 
-          readme.write_text(updated, encoding="utf-8")
+          # =========================================================
+          # Couverture par module
+          # =========================================================
+
+          modules = []
+
+          for class_node in coverage_root.findall(".//class"):
+
+              filename = class_node.attrib.get("filename", "")
+
+              if not filename.endswith(".py"):
+                  continue
+
+              # Nom affiché dans le README
+              module_name = Path(filename).name
+
+              lines = class_node.findall("./lines/line")
+
+              module_statements = len(lines)
+
+              module_covered = sum(
+                  1
+                  for line in lines
+                  if int(line.attrib.get("hits", "0")) > 0
+              )
+
+              module_missing = (
+                  module_statements - module_covered
+              )
+
+              if module_statements:
+                  module_coverage = (
+                      module_covered
+                      / module_statements
+                      * 100
+                  )
+              else:
+                  module_coverage = 100.0
+
+              modules.append(
+                  (
+                      module_name,
+                      module_statements,
+                      module_missing,
+                      module_coverage,
+                  )
+              )
+
+          # Tri alphabétique
+          modules.sort(key=lambda item: item[0].lower())
+
+          # =========================================================
+          # Création tableau Markdown
+          # =========================================================
+
+          table = [
+              "<!-- COVERAGE-MODULES-START -->",
+              f"Last update: **{run_date}**",
+              "",
+              "| Component | Statements | Missed | Coverage |",
+              "|---|---:|---:|---:|",
+          ]
+
+          for (
+              module_name,
+              module_statements,
+              module_missing,
+              module_coverage,
+          ) in modules:
+
+              table.append(
+                  f"| `{module_name}` "
+                  f"| {module_statements} "
+                  f"| {module_missing} "
+                  f"| {module_coverage:.2f}% |"
+              )
+
+          table.append(
+              f"| **TOTAL** "
+              f"| **{statements}** "
+              f"| **{missing}** "
+              f"| **{coverage:.2f}%** |"
+          )
+
+          table.append(
+              "<!-- COVERAGE-MODULES-END -->"
+          )
+
+          coverage_block = "\n".join(table)
+
+          # =========================================================
+          # Remplacement tableau README
+          # =========================================================
+
+          content, count = re.subn(
+              r"<!-- COVERAGE-MODULES-START -->"
+              r".*?"
+              r"<!-- COVERAGE-MODULES-END -->",
+              coverage_block,
+              content,
+              flags=re.DOTALL,
+          )
+
+          if count != 1:
+              raise SystemExit(
+                  "COVERAGE-MODULES block not found or duplicated"
+              )
+
+          # =========================================================
+          # Sauvegarde
+          # =========================================================
+
+          readme.write_text(
+              content,
+              encoding="utf-8",
+          )
 
           print()
-          print("README statistics updated:")
+          print("README updated")
+          print("=" * 50)
           print(f"Tests      : {passed}")
           print(f"Statements : {statements}")
           print(f"Covered    : {covered}")
           print(f"Missing    : {missing}")
           print(f"Coverage   : {coverage:.2f}%")
+          print(f"Modules    : {len(modules)}")
+          print(f"Run date   : {run_date}")
+          print("=" * 50)
           PY
 
       - name: Commit README coverage update

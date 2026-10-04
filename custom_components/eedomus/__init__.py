@@ -284,24 +284,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         # Create history progress sensors if history is enabled
         # Check both config_entry.data and options
-        history_from_config = coordinator.config_entry.data.get(
-            CONF_ENABLE_HISTORY, False
-        )
-
         # Check if history option is explicitly set in options
-        if CONF_ENABLE_HISTORY in coordinator.config_entry.options:
-            history_from_options = coordinator.config_entry.options[CONF_ENABLE_HISTORY]
-            # Only use options if they're different from the default
-            if (
-                history_from_options is not False
-            ):  # Only use options if explicitly enabled
-                history_enabled = history_from_options
+
+        history_enabled = False
+
+        if api_eedomus_enabled:
+            history_from_config = coordinator.config_entry.data.get(
+                CONF_ENABLE_HISTORY,
+                False,
+            )
+
+            if CONF_ENABLE_HISTORY in coordinator.config_entry.options:
+                history_from_options = coordinator.config_entry.options[
+                    CONF_ENABLE_HISTORY
+                ]
+
+                if history_from_options is not False:
+                    history_enabled = history_from_options
+                else:
+                    history_enabled = history_from_config
             else:
-                # If options has False, check if config has True (options might have been reset)
                 history_enabled = history_from_config
-        else:
-            # No options set, use config
-            history_enabled = history_from_config
 
         # Debug logging to understand the decision process
         _LOGGER.debug(
@@ -310,23 +313,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             coordinator.config_entry.options.get(CONF_ENABLE_HISTORY, "not_set"),
             history_enabled,
         )
-
-        if history_enabled:
-            try:
-                # Get device registry for proper device attachment
-                from homeassistant.helpers.device_registry import (
-                    async_get as async_get_device_registry,
-                )
-
-                device_registry = async_get_device_registry(hass)
-
-                # Create proper history sensor entities
-                from .history_sensor import async_setup_history_sensors
-
-                await async_setup_history_sensors(hass, coordinator, device_registry)
-
-            except Exception as err:
-                _LOGGER.error("Failed to create history sensors: %s", err)
 
     # If neither mode is enabled, this shouldn't happen due to validation, but handle it anyway
     if not api_eedomus_enabled and not api_proxy_enabled:
@@ -345,7 +331,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Create entities based on supported classes (only if API Eedomus mode is enabled)
     # Setup history sensors if history feature is enabled
-    if api_eedomus_enabled and entry.data.get(CONF_ENABLE_HISTORY, False):
+    if api_eedomus_enabled and history_enabled:
         try:
             from homeassistant.helpers.device_registry import (
                 async_get as async_get_device_registry,
@@ -354,10 +340,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             from .history_sensor import async_setup_history_sensors
 
             device_registry = async_get_device_registry(hass)
-            await async_setup_history_sensors(hass, coordinator, device_registry)
-            _LOGGER.info("✅ History sensors registered successfully")
+
+            await async_setup_history_sensors(
+                hass,
+                coordinator,
+                device_registry,
+            )
+
+            _LOGGER.info(
+                "✅ History sensors registered successfully"
+            )
+
         except Exception as err:
-            _LOGGER.error("Failed to setup history sensors: %s", err)
+            _LOGGER.error(
+                "Failed to setup history sensors: %s",
+                err,
+            )
 
     # Setup coordinator monitoring sensors only when a coordinator exists
     if coordinator:
@@ -617,25 +615,41 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     remove_entities = entry.options.get(CONF_REMOVE_ENTITIES, DEFAULT_REMOVE_ENTITIES)
 
     if remove_entities:
-        _LOGGER.info("Removing all entities associated with eedomus integration")
+        _LOGGER.info(
+            "Removing entities associated with eedomus config entry %s",
+            entry.entry_id,
+        )
+
+        from homeassistant.helpers import entity_registry as er
 
         # Get all entities from the entity registry
-        entity_registry = await hass.helpers.entity_registry.async_get(hass)
+        entity_registry = er.async_get(hass)
 
         # Find all entities that belong to this integration
         entities_to_remove = []
+
         for entity_entry in entity_registry.entities.values():
-            if entity_entry.platform == DOMAIN:
+            if (
+                entity_entry.platform == DOMAIN
+                and entity_entry.config_entry_id == entry.entry_id
+            ):
                 entities_to_remove.append(entity_entry.entity_id)
 
         # Remove the entities
         for entity_id in entities_to_remove:
-            _LOGGER.info(f"Removing entity: {entity_id}")
+            _LOGGER.info("Removing entity: %s", entity_id)
             entity_registry.async_remove(entity_id)
 
-        _LOGGER.info(f"Removed {len(entities_to_remove)} entities")
+        _LOGGER.info(
+            "Removed %d entities",
+            len(entities_to_remove),
+        )
+
     else:
-        _LOGGER.info("Remove entities option is disabled, skipping entity removal")
+        _LOGGER.info(
+            "Remove entities option is disabled, skipping entity removal"
+        )
 
     # Remove the config entry
     _LOGGER.info("Removing eedomus integration config entry")
+
