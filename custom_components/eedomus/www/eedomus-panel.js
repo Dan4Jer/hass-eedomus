@@ -11,12 +11,49 @@
  * keyboard-operable and announces state changes through aria-live.
  */
 
-const TABS = ['peripheriques', 'regles', 'historique'];
+const TABS = ['peripheriques', 'regles', 'historique', 'coherence'];
 const TAB_LABELS = {
   peripheriques: 'Périphériques',
   regles: 'Règles',
   historique: 'Historique',
 };
+
+// Coherence signals (CAP-6): exact strings from eedomus/get_coherence,
+// one chip per signal — glyph + label, never color alone (DESIGN.md).
+const COHERENCE_SIGNALS = {
+  sans_entite: {
+    label: 'sans entité HA',
+    icon: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/></svg>',
+  },
+  douteux: {
+    label: 'mapping douteux',
+    icon: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>',
+  },
+  regle_active: {
+    label: 'règle active',
+    icon: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-4-4h2V7h4V5h-4V3h-2v6z"/></svg>',
+  },
+  en_erreur: {
+    label: 'en erreur',
+    icon: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12 6v3l4-4-4-4v3c-4.42 0-8 3.58-8 8 0 1.57.46 3.03 1.24 4.26L6.7 14.8c-.45-.83-.7-1.79-.7-2.8 0-3.31 2.69-6 6-6zm6.76 1.74L17.3 9.2c.44.84.7 1.8.7 2.8 0 3.31-2.69 6-6 6v-3l-4 4 4 4v-3c4.42 0 8-3.58 8-8 0-1.57-.46-3.03-1.24-4.26z"/></svg>',
+  },
+};
+const COHERENCE_OK_SIGNAL = {
+  label: 'cohérent',
+  icon: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>',
+};
+// Shared by the coherence table and its skeleton so the columns cannot drift.
+const COHERENCE_TABLE_HEAD = `
+    <thead>
+      <tr>
+        <th scope="col">periph_id</th>
+        <th scope="col">Nom</th>
+        <th scope="col">Entité HA</th>
+        <th scope="col">Type / sous-type</th>
+        <th scope="col">Statut</th>
+      </tr>
+    </thead>
+  `;
 
 class EedomusConfigPanel extends HTMLElement {
   constructor() {
@@ -52,12 +89,21 @@ class EedomusConfigPanel extends HTMLElement {
     this._versionsError = null;
     this._confirmRestore = null;
     this._historyStatus = '';
+    // Coherence tab state (ticket 2.2)
+    this._coherence = null;
+    this._coherenceError = null;
+    this._coherenceLoading = false;
   }
 
   set hass(hass) {
     this._hass = hass;
     if (this._built) {
       this._loadPeripherals();
+      // Direct #coherence entry: the tab rendered before hass was assigned,
+      // so its lazy load bailed out — start it now.
+      if (this._tab === 'coherence' && this._coherence === null && !this._coherenceError) {
+        this._loadCoherence();
+      }
     }
   }
 
@@ -460,6 +506,80 @@ class EedomusConfigPanel extends HTMLElement {
           border-left: 3px solid var(--warning-color, #ff9800);
         }
 
+        .coherence-table-wrap {
+          border: 1px solid var(--divider-color);
+          border-radius: var(--ha-card-border-radius, 12px);
+          background: var(--card-background-color);
+          overflow: auto;
+          max-height: 70vh;
+        }
+        .coherence-table { width: 100%; border-collapse: collapse; }
+        .coherence-table th {
+          position: sticky; top: 0; z-index: 1;
+          background: var(--card-background-color);
+          color: var(--secondary-text-color);
+          font-weight: 500; text-align: left;
+          padding: 12px 16px; white-space: nowrap;
+          border-bottom: 1px solid var(--divider-color);
+        }
+        .coherence-table td {
+          padding: 12px 16px;
+          border-bottom: 1px solid var(--divider-color);
+          vertical-align: top;
+          word-break: break-word;
+        }
+        .coherence-table tbody tr:last-child td { border-bottom: none; }
+        .coherence-table .coherence-id code {
+          font-family: var(--code-font-family, ui-monospace, Menlo, monospace);
+          font-size: 12.5px;
+        }
+        .coherence-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+        .coherence-chip {
+          display: inline-flex; align-items: center; gap: 6px;
+          padding: 4px 12px;
+          border-radius: 9999px;
+          font-size: 12.5px;
+          color: var(--primary-text-color);
+          white-space: nowrap;
+        }
+        .coherence-chip svg { flex: none; }
+        .coherence-chip-sans_entite {
+          background: var(--card-background-color);
+          background: color-mix(in srgb, var(--error-color, #db4437) 12%, var(--card-background-color));
+        }
+        .coherence-chip-sans_entite svg { color: var(--error-color, #db4437); }
+        .coherence-chip-douteux {
+          background: var(--card-background-color);
+          background: color-mix(in srgb, var(--warning-color, #ff9800) 12%, var(--card-background-color));
+        }
+        .coherence-chip-douteux svg { color: var(--warning-color, #ff9800); }
+        .coherence-chip-regle_active {
+          background: var(--card-background-color);
+          background: color-mix(in srgb, var(--primary-color) 12%, var(--card-background-color));
+        }
+        .coherence-chip-regle_active svg { color: var(--primary-color); }
+        .coherence-chip-en_erreur {
+          background: var(--card-background-color);
+          background: color-mix(in srgb, var(--error-color, #db4437) 12%, var(--card-background-color));
+        }
+        .coherence-chip-en_erreur svg { color: var(--error-color, #db4437); }
+        .coherence-chip-coherent {
+          background: var(--card-background-color);
+          background: color-mix(in srgb, var(--success-color, #43a047) 12%, var(--card-background-color));
+        }
+        .coherence-chip-coherent svg { color: var(--success-color, #43a047); }
+        .coherence-chip-unknown {
+          background: var(--input-fill-color, var(--card-background-color));
+          background: color-mix(in srgb, var(--secondary-text-color) 12%, var(--card-background-color));
+        }
+
+        .skeleton-cell {
+          height: 18px;
+          border-radius: 9999px;
+          background: var(--input-fill-color, var(--card-background-color));
+          opacity: 0.6;
+        }
+
         @media (max-width: 900px) {
           .periph-row {
             display: flex; flex-direction: column; align-items: stretch; gap: 8px;
@@ -469,6 +589,27 @@ class EedomusConfigPanel extends HTMLElement {
           .row-top .periph-meta { display: block; }
           .periph-mapping { border-top: 1px solid var(--divider-color); padding-top: 8px; }
           .row-action { width: 100%; }
+
+          .coherence-table thead { display: none; }
+          .coherence-table, .coherence-table tbody,
+          .coherence-table tr, .coherence-table td {
+            display: block; width: 100%;
+          }
+          .coherence-table tr {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--divider-color);
+          }
+          .coherence-table tbody tr:last-child { border-bottom: none; }
+          .coherence-table td {
+            padding: 0 0 8px;
+            border-bottom: none;
+          }
+          .coherence-table td[data-label]::before {
+            content: attr(data-label);
+            display: block;
+            color: var(--secondary-text-color);
+            font-size: 12px;
+          }
         }
       </style>
 
@@ -481,6 +622,7 @@ class EedomusConfigPanel extends HTMLElement {
           <button class="tab" role="tab" data-tab="peripheriques" aria-selected="false">Périphériques</button>
           <button class="tab" role="tab" data-tab="regles" aria-selected="false">Règles</button>
           <button class="tab" role="tab" data-tab="historique" aria-selected="false">Historique</button>
+          <button class="tab" role="tab" data-tab="coherence" aria-selected="false">Cohérence</button>
         </nav>
 
         <main id="tab-content" aria-live="polite"></main>
@@ -505,6 +647,9 @@ class EedomusConfigPanel extends HTMLElement {
       if (retry.dataset.retry === 'versions') {
         this._versionsError = null;
         this._loadVersions();
+      } else if (retry.dataset.retry === 'coherence') {
+        this._coherenceError = null;
+        this._loadCoherence();
       } else {
         this._loadPeripherals();
       }
@@ -607,6 +752,11 @@ class EedomusConfigPanel extends HTMLElement {
       this._wireHistoryTab();
       if (this._versions === null && !this._versionsError) {
         this._loadVersions();
+      }
+    } else if (this._tab === 'coherence') {
+      content.innerHTML = this._renderCoherenceTab();
+      if (this._coherence === null && !this._coherenceError) {
+        this._loadCoherence();
       }
     } else {
       content.innerHTML = `
@@ -869,6 +1019,153 @@ class EedomusConfigPanel extends HTMLElement {
     if (status) {
       status.textContent = this._historyStatus;
     }
+  }
+
+  // ================= Cohérence (ticket 2.2) =================
+
+  async _loadCoherence() {
+    if (!this._hass || this._coherenceLoading) {
+      return;
+    }
+    this._coherenceLoading = true;
+    this._coherenceError = null;
+    this._coherence = null;
+    if (this._tab === 'coherence') {
+      const content = this.shadowRoot.getElementById('tab-content');
+      if (content) {
+        // Retry shows the loading state again, never a stale table/error.
+        content.innerHTML = this._renderCoherenceTab();
+      }
+    }
+    try {
+      const result = await this._hass.callWS({
+        type: 'eedomus/get_coherence',
+      });
+      this._coherence = (result && result.peripherals) || [];
+    } catch (err) {
+      this._coherenceError = (err && (err.message || err.code)) || 'commande refusée';
+    }
+    this._coherenceLoading = false;
+    if (this._tab === 'coherence') {
+      const content = this.shadowRoot.getElementById('tab-content');
+      if (content) {
+        content.innerHTML = this._renderCoherenceTab();
+      }
+    }
+  }
+
+  _renderCoherenceTab() {
+    if (this._coherenceError) {
+      return `
+        <div class="state-message" role="alert">
+          Impossible de charger la cohérence : ${this._escapeHtml(this._coherenceError)}.
+          <br>
+          <button class="retry" type="button" data-retry="coherence">Réessayer</button>
+        </div>
+      `;
+    }
+    if (this._coherence === null) {
+      return this._renderCoherenceSkeleton();
+    }
+    if (this._coherence.length === 0) {
+      return `
+        <div class="state-message">
+          Aucun périphérique détecté. Vérifiez que la box eedomus est
+          joignable et que l'intégration est configurée.
+        </div>
+      `;
+    }
+    const rows = this._coherence
+      .map((row) => this._renderCoherenceRow(row))
+      .join('');
+    return `
+      <div class="coherence-table-wrap">
+        <table class="coherence-table">
+          <caption class="sr-only">Cohérence du mapping des périphériques eedomus</caption>
+          ${COHERENCE_TABLE_HEAD}
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  _renderCoherenceSkeleton() {
+    // Skeletons shaped like the expected content: table header + rows.
+    const row = `
+      <tr><td colspan="5"><div class="skeleton-cell" aria-hidden="true"></div></td></tr>`;
+    return `
+      <div class="coherence-table-wrap" role="status" aria-label="Chargement de la cohérence…">
+        <table class="coherence-table" aria-hidden="true">
+          ${COHERENCE_TABLE_HEAD}
+          <tbody>${row.repeat(8)}</tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  _renderCoherenceRow(row) {
+    // Mapping identity first: the coherence table shows what was mapped,
+    // the effective platform/class is only the fallback.
+    const type = [row.ha_entity || row.platform, row.ha_subtype || row.device_class]
+      .filter(Boolean)
+      .join(' / ');
+    const entity = row.entity_id
+      ? this._escapeHtml(row.entity_id)
+      : '<em>aucune entité</em>';
+    return `
+      <tr>
+        <td class="coherence-id" data-label="Périphérique">
+          <code>${this._escapeHtml(row.periph_id)}</code>
+        </td>
+        <td data-label="Nom">${this._escapeHtml(row.name || '')}</td>
+        <td class="ha-entity" data-label="Entité HA">${entity}</td>
+        <td data-label="Type / sous-type">${this._escapeHtml(type)}</td>
+        <td data-label="Statut">
+          <div class="coherence-chips">${this._renderCoherenceChips(row)}</div>
+        </td>
+      </tr>
+    `;
+  }
+
+  _renderCoherenceChips(row) {
+    const signals = (row && row.signals) || [];
+    if (signals.length === 0) {
+      return this._renderCoherenceChip('coherent', row);
+    }
+    // Known signals render their chip; an unknown string keeps a neutral
+    // chip carrying the raw value — never dropped, never "cohérent".
+    return signals.map((signal) => this._renderCoherenceChip(signal, row)).join('');
+  }
+
+  _renderCoherenceChip(signal, row) {
+    const known = signal === 'coherent' || Boolean(COHERENCE_SIGNALS[signal]);
+    const def = signal === 'coherent'
+      ? COHERENCE_OK_SIGNAL
+      : COHERENCE_SIGNALS[signal] || { label: signal, icon: '' };
+    let label = def.label;
+    let title = '';
+    if (signal === 'en_erreur' && row && row.error_message) {
+      // The retry detail is visible (truncated), in the accessible name,
+      // and complete in the title — never color or title alone.
+      const detail = this._truncateText(row.error_message, 40);
+      label = `en erreur : ${detail}`;
+      title = ` title="${this._escapeAttr(row.error_message)}"`;
+    }
+    return `
+      <span class="coherence-chip coherence-chip-${known ? signal : 'unknown'}"${title}
+            aria-label="${this._escapeAttr(label)}">
+        ${def.icon}
+        ${this._escapeHtml(label)}
+      </span>
+    `;
+  }
+
+  _truncateText(text, max) {
+    const value = String(text);
+    if (value.length <= max) {
+      return value;
+    }
+    return `${value.slice(0, max - 1)}…`;
   }
 
   _renderPeriphToolbar() {

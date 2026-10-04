@@ -1,9 +1,10 @@
 """E2E tests for the Eedomus Config panel on the live instance (P.1.7).
 
 Covers the panel registration (CAP-1), the websocket commands backing the
-three tabs, and the save + auto-apply path (CAP-4). The save test writes
-the IDENTICAL mapping content: it exercises the full persist/reload path
-without changing any behavior, and archives nothing (skip-if-identical).
+four tabs (Périphériques, Règles, Historique, Cohérence), and the save +
+auto-apply path (CAP-4). The save test writes the IDENTICAL mapping
+content: it exercises the full persist/reload path without changing any
+behavior, and archives nothing (skip-if-identical).
 """
 
 import os
@@ -54,6 +55,16 @@ class TestWebsocketCommands:
         assert result["total"] > 100
         row = result["peripherals"][0]
         for key in ("periph_id", "name", "usage_id", "entity_id", "modified"):
+            assert key in row
+
+    def test_get_coherence_lists_every_peripheral(self, ws_call):
+        """Cohérence tab (CAP-6): one fused row per peripheral, signals included."""
+        # Same empty-coordinator window as get_peripherals: gate on it first.
+        _get_peripherals_retrying(ws_call)
+        result = ws_call("eedomus/get_coherence")
+        assert result["total"] > 0
+        row = result["peripherals"][0]
+        for key in ("periph_id", "name", "entity_id", "signals"):
             assert key in row
 
     def test_get_mapping_returns_the_canon(self, ws_call):
