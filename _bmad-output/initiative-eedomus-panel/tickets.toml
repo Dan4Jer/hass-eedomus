@@ -11,3 +11,15 @@ id = 2
 slug = "epic-coherence-tab"
 title = "Onglet Cohérence (vérification du mapping eedomus ↔ HA)"
 covers = ["CAP-6", "CAP-7", "CAP-8"]
+
+[[epic]]
+id = 3
+slug = "epic-i18n"
+title = "i18n — audit et migration vers les mécanismes natifs Home Assistant"
+covers = ["CAP-1", "CAP-2", "CAP-3", "CAP-4"]
+
+[[epic]]
+id = 4
+slug = "epic-supervision-tab"
+title = "Onglet Supervision — métriques box et pilotage du backfill"
+covers = ["CAP-9", "CAP-5"]

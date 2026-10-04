@@ -1,0 +1,81 @@
+# tickets.toml — epic-i18n : 7 entrées, ordre de build.
+
+[[entry]]
+id = 1
+type = "story"
+title = "Inventaire i18n"
+description = "Catalogue chaque chaîne user-facing du repo avec sa surface (panneau, flows, services, entités, logs), son mécanisme cible (translations backend, catalogue websocket panneau, source anglaise) et sa clé ; livrable = document d'inventaire ; c'est la référence de toute la migration."
+verify = "L'inventaire couvre toutes les chaînes ; un grep croisé ne trouve aucune chaîne user-facing en dur absente de l'inventaire."
+covers = ["CAP-1"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 2
+type = "story"
+title = "Commande eedomus/get_translations (catalogue en/fr)"
+description = "Le backend sert un catalogue de chaînes localisées via une commande websocket (pattern dispatcher ui_service, require_admin) : clés de l'inventaire, en source de vérité, fr complet, repli EN quand la locale n'est pas couverte ; le panneau demandera selon hass.locale."
+verify = "Un appel websocket renvoie le catalogue complet pour en et fr (tests unitaires : arbre des clés, repli EN) ; le test de contrat des commandes gelées reste vert."
+covers = ["CAP-3"]
+after = [1]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 3
+type = "story"
+title = "Panneau : consommation du catalogue (zéro chaîne en dur)"
+description = "Le panneau charge le catalogue au démarrage selon la locale et remplace les ~42 chaînes codées en dur (microcopie, chips, statuts, aria-labels, états vides) par des clés ; squelettes pendant le chargement ; aucun texte user-facing ne reste en dur dans le JS."
+verify = "Grep : aucune chaîne user-facing en dur dans www/eedomus-panel.js ; le panneau s'affiche en anglais sous HA anglais et en français sous HA français (harnais node + garde grep)."
+covers = ["CAP-3"]
+after = [2]
+hitl = false
+risk = "medium"
+unknown = "Les clés nommées dans l'inventaire (3.1) font foi ; le plan peut proposer un ajustement de nommage."
+plan_checkpoint = true
+
+[[entry]]
+id = 4
+type = "story"
+title = "Traductions backend complètes"
+description = "en.json devient la source de vérité et fr.json reproduit son arbre exact (section ui manquante comblée) ; les descriptions de services passent par la section services de strings.json ; les replis d'entités (Unknown Device) sont localisés ; test d'identité structurelle en CI."
+verify = "Test automatisé : en.json et fr.json partagent le même arbre de clés ; services et replis d'entités s'affichent dans la langue de HA."
+covers = ["CAP-2"]
+after = [1]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 5
+type = "story"
+title = "Passe complète : logs, docstrings et commentaires en anglais"
+description = "Tous les messages de log, docstrings et commentaires en français de custom_components/eedomus migrent en anglais — une passe complète, fichier par fichier, sans changement de comportement (aucune logique touchée, sémantique des messages préservée)."
+verify = "Grep : aucun message de log ni docstring en français dans custom_components/eedomus ; la suite unitaire reste verte à l'identique ; les logs de l'instance live s'affichent en anglais."
+covers = ["CAP-4"]
+after = [4]
+hitl = false
+risk = "medium"
+plan_checkpoint = true
+
+[[entry]]
+id = 6
+type = "story"
+title = "Refactor sweep"
+description = "Nettoyage de fin d'épique sur la base des build records et findings différés ; périmètre fixé à son démarrage ; cleanup uniquement."
+verify = "Aucun finding différé non traité ; les suites (unit, node, e2e collect) restent vertes."
+covers = []
+after = [5]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 7
+type = "story"
+title = "Validation E2E i18n (live + gardes CI)"
+description = "Extension de la suite E2E : appel live de eedomus/get_translations (arbres en/fr), garde grep en CI (zéro chaîne user-facing en dur dans le panneau, zéro log/docstring FR), validation post-déploiement sur le Pi."
+verify = "pytest tests/e2e/ -v vert sur l'instance déployée, y compris les nouveaux tests i18n ; les gardes CI échouent sur toute régression."
+covers = ["CAP-1", "CAP-2", "CAP-3", "CAP-4"]
+after = [6]
+hitl = false
+risk = "low"

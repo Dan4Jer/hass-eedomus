@@ -1,0 +1,61 @@
+# tickets.toml — epic-supervision-tab : 5 entrées, ordre de build.
+
+[[entry]]
+id = 1
+type = "story"
+title = "Commandes websocket de la file de backfill (état + 4 actions)"
+description = "Backend : une commande d'état (file par périphérique : en attente/position, en cours, en erreur avec message et retry_after, ignoré, en pause ; état global du moteur) et les quatre actions — réessayer maintenant (hors cadence), prioriser (tête de file au prochain drain), pause/reprise par périphérique + interrupteur global, ignorer (persisté en .storage, réactivable) — via le dispatcher ui_service (require_admin) ; toutes passent par le coordinator (AD-7), jamais d'appel direct à l'API eedomus ; la file et les actions respectent AD-2 (tâche de fond, un importer actif)."
+verify = "Tests unitaires : état complet dérivé du coordinator, chaque action produit l'effet attendu sur la file, l'ignorage survit à une réinstanciation (persistance), la pause globale stoppe le drain sans casser la reprise ; les contrats gelés restent verts."
+covers = ["CAP-5"]
+after = []
+hitl = false
+risk = "medium"
+unknown = "La persistance de l'ignorage et de la pause (extension des clés .storage existantes du backfill) se calque sur la progression déjà persistée — à préciser au plan_checkpoint."
+plan_checkpoint = true
+
+[[entry]]
+id = 2
+type = "story"
+title = "Onglet Supervision : vue métriques + lien Cohérence"
+description = "5e onglet du panneau (TABS/labels/nav/switch/hash) : chart cards thémées des métriques box (temps de refresh, nombre de périphériques, sollicitations de l'API proxy) alimentées par une commande websocket dédiée, équivalents textuels accessibles, composants graphiques du frontend HA quand disponibles dans le contexte avec repli SVG inline thémé, lien vers l'onglet Cohérence (hash existant) ; squelettes/erreur conformes à EXPERIENCE.md."
+verify = "L'onglet affiche les métriques avec équivalents textuels, le lien bascule sur Cohérence ; garde grep : aucune chaîne user-facing en dur (catalogue i18n) ; harnais node."
+covers = ["CAP-9"]
+after = ["3.2"]
+hitl = false
+risk = "medium"
+unknown = "Disponibilité des composants graphiques HA dans le contexte du panneau — repli SVG prévu ; à trancher au démarrage."
+references = ["../../planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/EXPERIENCE.md#component-patterns"]
+
+[[entry]]
+id = 3
+type = "story"
+title = "Vue file de backfill + actions"
+description = "Sous la vue métriques : rendu de la file (lignes par périphérique : periph_id, nom, statut textuel jamais couleur seule, position), les quatre actions par ligne, l'interrupteur global en tête, confirmation deux gestes pour Ignorer (« Ignorer {nom} ? Sa récupération sera abandonnée. »), retour nominatif par action puis la file est re-rendue ; états vide positif (« Tout est récupéré. ») et erreur."
+verify = "Chaque action appelle sa commande et affiche le retour nominatif ; l'ignorage demande confirmation ; les statuts portent leur sens sans la couleur seule ; opérable au clavier ; cibles >= 44 px."
+covers = ["CAP-5", "CAP-9"]
+after = [1, 2]
+hitl = false
+risk = "medium"
+plan_checkpoint = true
+
+[[entry]]
+id = 4
+type = "story"
+title = "Refactor sweep"
+description = "Nettoyage de fin d'épique sur la base des build records et findings différés ; périmètre fixé à son démarrage ; cleanup uniquement."
+verify = "Aucun finding différé non traité ; les suites (unit, node, e2e collect) restent vertes."
+covers = []
+after = [3]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 5
+type = "story"
+title = "Validation E2E + live"
+description = "Extension de la suite E2E : état de la file en live (non destructif — les actions ne sont pas exercées sur l'instance réelle), métriques servies, panneau rendu ; validation post-déploiement sur le Pi avec contrôle visuel des graphiques et des actions."
+verify = "pytest tests/e2e/ -v vert sur l'instance déployée ; les actions sont vérifiées visuellement sans altérer la file réelle."
+covers = ["CAP-5", "CAP-9"]
+after = [4]
+hitl = false
+risk = "low"
