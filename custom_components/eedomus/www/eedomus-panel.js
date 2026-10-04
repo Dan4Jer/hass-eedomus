@@ -42,18 +42,137 @@ const COHERENCE_OK_SIGNAL = {
   label: 'cohérent',
   icon: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>',
 };
-// Shared by the coherence table and its skeleton so the columns cannot drift.
+// Shared by the coherence table (sortable headers) and its skeleton so the
+// columns cannot drift: key is the sort key, label the visible column name.
+const COHERENCE_COLUMNS = [
+  { key: 'periph_id', label: 'periph_id' },
+  { key: 'name', label: 'Nom' },
+  { key: 'entity_id', label: 'Entité HA' },
+  { key: 'type', label: 'Type / sous-type' },
+  { key: 'status', label: 'Statut' },
+];
+const COHERENCE_TH = COHERENCE_COLUMNS.map(
+  (col) => `<th scope="col">${col.label}</th>`
+).join('\n        ');
 const COHERENCE_TABLE_HEAD = `
     <thead>
       <tr>
-        <th scope="col">periph_id</th>
-        <th scope="col">Nom</th>
-        <th scope="col">Entité HA</th>
-        <th scope="col">Type / sous-type</th>
-        <th scope="col">Statut</th>
+        ${COHERENCE_TH}
       </tr>
     </thead>
   `;
+// Sort direction indicator: the arrow carries the direction visually,
+// aria-sort on the header cell carries the state (EXPERIENCE.md).
+const SORT_ARROW_ASC =
+  '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12 5l7 9H5z"/></svg>';
+const SORT_ARROW_DESC =
+  '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12 19l-7-9h14z"/></svg>';
+
+// ---- Coherence pure helpers (ticket 2.3) ----
+// Top-level and this-free: pure functions over the payload + tab state,
+// exercised directly by tests/js/test-coherence.js.
+
+// « À vérifier » predicate: any signal counts, including unknown strings.
+function coherenceToVerify(row) {
+  return (row.signals || []).length > 0;
+}
+
+// Mapping identity first: the coherence table shows what was mapped, the
+// effective platform/class is only the fallback.
+function coherenceType(row) {
+  return [row.ha_entity || row.platform, row.ha_subtype || row.device_class]
+    .filter(Boolean)
+    .join(' / ');
+}
+
+// Statut tie-break severity: en_erreur first, then douteux, then
+// sans_entite, then regle_active; unknown signal strings rank last.
+const COHERENCE_SIGNAL_SEVERITY = [
+  'en_erreur',
+  'douteux',
+  'sans_entite',
+  'regle_active',
+];
+
+function coherenceSeverity(signals) {
+  let severity = COHERENCE_SIGNAL_SEVERITY.length;
+  for (const signal of signals) {
+    const rank = COHERENCE_SIGNAL_SEVERITY.indexOf(signal);
+    if (rank !== -1 && rank < severity) {
+      severity = rank;
+    }
+  }
+  return severity;
+}
+
+function coherenceSortValue(row, key) {
+  switch (key) {
+    case 'periph_id':
+      return String(row.periph_id || '');
+    case 'name':
+      return String(row.name || '');
+    case 'entity_id':
+      return String(row.entity_id || '');
+    case 'type':
+      return coherenceType(row);
+    default:
+      return '';
+  }
+}
+
+function coherenceCompare(a, b, key) {
+  if (key === 'status') {
+    // Signal count first, severity as the tie-break for equal counts.
+    const av = a.signals || [];
+    const bv = b.signals || [];
+    if (av.length !== bv.length) {
+      return av.length - bv.length;
+    }
+    if (av.length === 0) {
+      return 0;
+    }
+    return coherenceSeverity(av) - coherenceSeverity(bv);
+  }
+  return coherenceSortValue(a, key).localeCompare(
+    coherenceSortValue(b, key),
+    undefined,
+    { numeric: true }
+  );
+}
+
+// Composition: filter first (view + text), then sort the filtered result.
+// The sort works on a copy so the neutral state restores response order.
+function filterCoherenceRows(rows, state) {
+  let out = rows;
+  if (state.view === 'to_verify') {
+    out = out.filter(coherenceToVerify);
+  }
+  if (state.search) {
+    const q = state.search.toLowerCase();
+    out = out.filter(
+      (row) =>
+        (row.name || '').toLowerCase().includes(q) ||
+        String(row.periph_id || '').toLowerCase().includes(q)
+    );
+  }
+  if (state.sort && state.sort.key) {
+    const key = state.sort.key;
+    const dir = state.sort.dir === 'asc' ? 1 : -1;
+    out = out.slice().sort((a, b) => coherenceCompare(a, b, key) * dir);
+  }
+  return out;
+}
+
+// Sort cycle: croissant -> décroissant -> neutre (ordre de réponse).
+function nextCoherenceSort(sort, key) {
+  if (sort.key !== key) {
+    return { key, dir: 'asc' };
+  }
+  if (sort.dir === 'asc') {
+    return { key, dir: 'desc' };
+  }
+  return { key: null, dir: null };
+}
 
 class EedomusConfigPanel extends HTMLElement {
   constructor() {
@@ -93,6 +212,12 @@ class EedomusConfigPanel extends HTMLElement {
     this._coherence = null;
     this._coherenceError = null;
     this._coherenceLoading = false;
+    // Coherence interactions (ticket 2.3) — volatile per tab, like the
+    // rest of the panel: filter, view and sort survive re-renders but are
+    // never persisted between sessions.
+    this._coherenceSearch = '';
+    this._coherenceView = 'all'; // 'all' | 'to_verify'
+    this._coherenceSort = { key: null, dir: null }; // dir: 'asc' | 'desc'
   }
 
   set hass(hass) {
@@ -522,6 +647,16 @@ class EedomusConfigPanel extends HTMLElement {
           padding: 12px 16px; white-space: nowrap;
           border-bottom: 1px solid var(--divider-color);
         }
+        .sort-header {
+          display: inline-flex; align-items: center; gap: 4px;
+          font: inherit; font-size: 13px; cursor: pointer;
+          color: inherit; background: transparent; border: none;
+          padding: 0; text-align: left; white-space: nowrap;
+        }
+        .sort-header:focus-visible {
+          outline: 2px solid var(--primary-color); outline-offset: 2px;
+        }
+        .sort-arrow { color: var(--secondary-text-color); display: inline-flex; }
         .coherence-table td {
           padding: 12px 16px;
           border-bottom: 1px solid var(--divider-color);
@@ -590,7 +725,22 @@ class EedomusConfigPanel extends HTMLElement {
           .periph-mapping { border-top: 1px solid var(--divider-color); padding-top: 8px; }
           .row-action { width: 100%; }
 
-          .coherence-table thead { display: none; }
+          /* The sort headers stay operable on mobile: the thead becomes a
+             sticky wrapping bar of sort buttons, still collant au
+             défilement. */
+          .coherence-table thead {
+            display: flex; flex-wrap: wrap; gap: 8px;
+            position: sticky; top: 0; z-index: 1;
+            padding: 8px 16px;
+            background: var(--card-background-color);
+            border-bottom: 1px solid var(--divider-color);
+          }
+          .coherence-table thead tr { display: contents; }
+          .coherence-table thead th {
+            display: block; position: static;
+            padding: 0; border-bottom: none; white-space: normal;
+          }
+          .sort-header { min-height: 44px; }
           .coherence-table, .coherence-table tbody,
           .coherence-table tr, .coherence-table td {
             display: block; width: 100%;
@@ -655,6 +805,24 @@ class EedomusConfigPanel extends HTMLElement {
       }
       return;
     }
+    const coherenceViewBtn = ev.target.closest('[data-coherence-view]');
+    if (coherenceViewBtn) {
+      this._coherenceView =
+        this._coherenceView === 'to_verify' ? 'all' : 'to_verify';
+      this._renderCoherenceTable();
+      return;
+    }
+    const sortHeader = ev.target.closest('[data-sort-key]');
+    if (sortHeader) {
+      this._coherenceSortBy(sortHeader.dataset.sortKey);
+      return;
+    }
+    const coherenceShowAll = ev.target.closest('[data-coherence-show-all]');
+    if (coherenceShowAll) {
+      this._coherenceView = 'all';
+      this._renderCoherenceTable();
+      return;
+    }
     const filterBtn = ev.target.closest('.filter-touches');
     if (filterBtn) {
       this._touchedOnly = !this._touchedOnly;
@@ -682,6 +850,9 @@ class EedomusConfigPanel extends HTMLElement {
     if (ev.target.id === 'periph-search') {
       this._search = ev.target.value;
       this._renderPeriphList();
+    } else if (ev.target.id === 'coherence-search') {
+      this._coherenceSearch = ev.target.value;
+      this._renderCoherenceTable();
     } else if (ev.target.id === 'yaml-editor') {
       this._yamlText = ev.target.value;
       this._renderYamlHighlight();
@@ -701,6 +872,13 @@ class EedomusConfigPanel extends HTMLElement {
           this._search = '';
           ev.target.value = '';
           this._renderPeriphList();
+        }
+        ev.target.blur();
+      } else if (ev.target.id === 'coherence-search') {
+        if (this._coherenceSearch !== '') {
+          this._coherenceSearch = '';
+          ev.target.value = '';
+          this._renderCoherenceTable();
         }
         ev.target.blur();
       } else if (ev.target.closest && ev.target.closest('.rule-form')) {
@@ -755,6 +933,7 @@ class EedomusConfigPanel extends HTMLElement {
       }
     } else if (this._tab === 'coherence') {
       content.innerHTML = this._renderCoherenceTab();
+      this._renderCoherenceTable();
       if (this._coherence === null && !this._coherenceError) {
         this._loadCoherence();
       }
@@ -1050,6 +1229,7 @@ class EedomusConfigPanel extends HTMLElement {
       const content = this.shadowRoot.getElementById('tab-content');
       if (content) {
         content.innerHTML = this._renderCoherenceTab();
+        this._renderCoherenceTable();
       }
     }
   }
@@ -1075,18 +1255,147 @@ class EedomusConfigPanel extends HTMLElement {
         </div>
       `;
     }
-    const rows = this._coherence
-      .map((row) => this._renderCoherenceRow(row))
-      .join('');
     return `
+      ${this._renderCoherenceToolbar()}
+      <p class="result-count" id="coherence-status" role="status"></p>
+      <div id="coherence-body"></div>
+    `;
+  }
+
+  _renderCoherenceToolbar() {
+    const toVerify = (this._coherence || []).filter(coherenceToVerify).length;
+    return `
+      <div class="toolbar">
+        <div class="search">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>
+          <input id="coherence-search" type="search"
+                 placeholder="Rechercher par nom ou periph_id"
+                 aria-label="Rechercher un périphérique par nom ou periph_id"
+                 value="${this._escapeHtml(this._coherenceSearch)}">
+        </div>
+        <button class="filter-touches" type="button" data-coherence-view="to_verify"
+                aria-pressed="${this._coherenceView === 'to_verify'}">
+          À vérifier <span class="count">(${toVerify})</span>
+        </button>
+      </div>
+    `;
+  }
+
+  _renderCoherenceTable() {
+    const root = this.shadowRoot;
+    if (!root || this._tab !== 'coherence' || this._coherence === null) {
+      return;
+    }
+    // Keep the view toggle in sync (mirror of the Périphériques filter).
+    const viewBtn = root.querySelector('[data-coherence-view]');
+    if (viewBtn) {
+      viewBtn.setAttribute(
+        'aria-pressed',
+        String(this._coherenceView === 'to_verify')
+      );
+      const countSpan = viewBtn.querySelector('.count');
+      if (countSpan) {
+        const toVerify = (this._coherence || []).filter(coherenceToVerify).length;
+        countSpan.textContent = `(${toVerify})`;
+      }
+    }
+    const status = root.getElementById('coherence-status');
+    const body = root.getElementById('coherence-body');
+    if (!status || !body) {
+      return;
+    }
+
+    const rows = filterCoherenceRows(this._coherence, {
+      search: this._coherenceSearch,
+      view: this._coherenceView,
+      sort: this._coherenceSort,
+    });
+    if (rows.length === 0 && this._coherenceSearch) {
+      // Explicit no-result state, announced — never a silent empty table.
+      status.textContent =
+        `Aucun périphérique ne correspond à “${this._coherenceSearch}”.`;
+      body.innerHTML = `
+        <div class="state-message">
+          Aucun périphérique ne correspond à
+          “${this._escapeHtml(this._coherenceSearch)}”.
+          Effacez le filtre pour restituer la table.
+        </div>
+      `;
+      return;
+    }
+    if (rows.length === 0 && this._coherenceView === 'to_verify') {
+      // Positive empty: nothing to check is good news, not an error.
+      status.textContent =
+        'Tout est cohérent. Aucun périphérique à vérifier.';
+      body.innerHTML = `
+        <div class="state-message">
+          Tout est cohérent. Aucun périphérique à vérifier.
+          <br>
+          <button class="row-action" type="button" data-coherence-show-all="1">
+            Tout afficher
+          </button>
+        </div>
+      `;
+      return;
+    }
+
+    body.innerHTML = `
       <div class="coherence-table-wrap">
         <table class="coherence-table">
           <caption class="sr-only">Cohérence du mapping des périphériques eedomus</caption>
-          ${COHERENCE_TABLE_HEAD}
-          <tbody>${rows}</tbody>
+          ${this._renderCoherenceHead()}
+          <tbody>${rows.map((row) => this._renderCoherenceRow(row)).join('')}</tbody>
         </table>
       </div>
     `;
+    const viewLabel = this._coherenceView === 'to_verify'
+      ? ` — vue « À vérifier » active : ${rows.length} résultats`
+      : '';
+    status.textContent = `${rows.length} périphériques${viewLabel}`;
+  }
+
+  _renderCoherenceHead() {
+    const cells = COHERENCE_COLUMNS.map((col) => {
+      const active = this._coherenceSort.key === col.key;
+      const ariaSort = !active
+        ? 'none'
+        : this._coherenceSort.dir === 'asc' ? 'ascending' : 'descending';
+      const stateLabel = !active
+        ? ''
+        : this._coherenceSort.dir === 'asc'
+          ? ', actuellement croissant'
+          : ', actuellement décroissant';
+      const arrow = !active
+        ? ''
+        : this._coherenceSort.dir === 'asc'
+          ? `<span class="sort-arrow">${SORT_ARROW_ASC}</span>`
+          : `<span class="sort-arrow">${SORT_ARROW_DESC}</span>`;
+      return `
+          <th scope="col" aria-sort="${ariaSort}">
+            <button class="sort-header" type="button" data-sort-key="${col.key}"
+                    aria-label="Trier par ${col.label}${stateLabel}">
+              ${col.label}${arrow}
+            </button>
+          </th>`;
+    });
+    return `
+      <thead>
+        <tr>${cells.join('')}
+        </tr>
+      </thead>
+    `;
+  }
+
+  _coherenceSortBy(key) {
+    this._coherenceSort = nextCoherenceSort(this._coherenceSort, key);
+    this._renderCoherenceTable();
+    // The re-render replaced the focused sort button: restore focus to
+    // the control the user is operating (neutral keeps the same key).
+    const focusKey = this._coherenceSort.key || key;
+    const btn = this.shadowRoot.querySelector(`[data-sort-key="${focusKey}"]`);
+    if (btn) {
+      btn.focus();
+    }
   }
 
   _renderCoherenceSkeleton() {
@@ -1106,9 +1415,7 @@ class EedomusConfigPanel extends HTMLElement {
   _renderCoherenceRow(row) {
     // Mapping identity first: the coherence table shows what was mapped,
     // the effective platform/class is only the fallback.
-    const type = [row.ha_entity || row.platform, row.ha_subtype || row.device_class]
-      .filter(Boolean)
-      .join(' / ');
+    const type = coherenceType(row);
     const entity = row.entity_id
       ? this._escapeHtml(row.entity_id)
       : '<em>aucune entité</em>';
