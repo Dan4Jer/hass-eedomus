@@ -2,7 +2,7 @@
 
 import logging
 import math
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional
 
 import voluptuous as vol
@@ -570,8 +570,14 @@ class EedomusUIService:
                 {"peripherals": peripherals, "total": len(peripherals)},
             )
         except Exception as e:
+            # The client gets a stable, branchable code and message; the
+            # internal detail (paths, upstream messages) stays in the log.
             _LOGGER.error("Coherence error: %s", e, exc_info=True)
-            connection.send_error(msg.get("id"), "error", str(e))
+            connection.send_error(
+                msg.get("id"),
+                "internal_error",
+                "Échec de la construction de la vue de cohérence",
+            )
 
     def _collect_coherence(
         self, hass: HomeAssistant, custom_config: Dict[str, Any]
@@ -668,14 +674,28 @@ class EedomusUIService:
             signals.append(SIGNAL_DOUTEUX)
         if base["modified_by_rule"]:
             signals.append(SIGNAL_REGLE_ACTIVE)
+        # A queue entry outlives its retry window: the coordinator never
+        # purges on success, so flag (and expose details) only while the
+        # retry is still pending. A missing/invalid retry_after keeps the
+        # flag on — never hide an unknown error state.
+        retry_active = False
         if retry_info is not None:
+            retry_after_epoch = retry_info.get("retry_after")
+            retry_active = (
+                not isinstance(retry_after_epoch, (int, float))
+                or datetime.now().timestamp() < retry_after_epoch
+            )
+        active_info = retry_info if retry_active else None
+        if retry_active:
             signals.append(SIGNAL_EN_ERREUR)
 
         # The queue stores epoch floats (coordinator); a datetime variant
-        # would serialize the same way - both render as ISO.
-        retry_after = retry_info.get("retry_after") if retry_info else None
+        # would serialize the same way - both render as ISO. Converted as
+        # UTC-aware so the payload carries one time convention (matches
+        # state.last_updated).
+        retry_after = active_info.get("retry_after") if active_info else None
         if isinstance(retry_after, (int, float)):
-            retry_after = datetime.fromtimestamp(retry_after)
+            retry_after = datetime.fromtimestamp(retry_after, tz=timezone.utc)
 
         base.update(
             {
@@ -687,10 +707,10 @@ class EedomusUIService:
                 "last_update": _json_safe(state.last_updated) if state else None,
                 "raw": _json_safe(raw),
                 "signals": signals,
-                "error_message": retry_info.get("error_message")
-                if retry_info
+                "error_message": active_info.get("error_message")
+                if active_info
                 else None,
-                "attempts": retry_info.get("attempts") if retry_info else None,
+                "attempts": active_info.get("attempts") if active_info else None,
                 "retry_after": _json_safe(retry_after),
             }
         )

@@ -102,3 +102,6 @@ Status: built
 **Manual checks (if no CLI):**
 - Sur l'instance déployée (après les tickets suivants ou via un appel websocket manuel) : `eedomus/get_coherence` renvoie ~165 lignes avec signals.
 </intent-contract>
+
+### 2026-10-04 — Follow-up pass (bmad-review of commits 2.1+2.2, user-routed)
+- Independent review (adversarial, edge-case-hunter, verification-gap): 19 findings. Actionable fixes applied immediately per user decision: en_erreur now fires only inside its retry window (stale queue entries clear), retry_after serialized as UTC-aware (single time convention), client gets a stable internal_error code/message instead of str(e), E2E compares periph_id sets between get_peripherals and get_coherence, signal contract pinned by a JS-as-text unit test (backend constants == COHERENCE_SIGNALS keys). Pre-existing Historique deep-link bug filed as backlog bug. Deferred findings unchanged (payload size, JS test infra, multi-box collision, doubteux semantics refinements).

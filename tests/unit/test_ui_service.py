@@ -16,7 +16,9 @@ frozen.
 """
 
 import json
-from datetime import datetime
+import time
+from datetime import datetime, timezone
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -614,16 +616,18 @@ class TestGetCoherenceHandler:
             "555": {"periph_id": "555", "name": "Énergie", "usage_id": "200"},
             "777": {"periph_id": "777", "name": "Sonnette", "usage_id": "7"},
         }
+        # 555 is inside its retry window (active error); 777 is past it
+        # (stale: the coordinator never purges, so it must NOT flag).
         coordinator._retry_queue = {
             "555": {
-                "error_time": 1759300000.0,
-                "retry_after": 1759386400.0,
+                "error_time": time.time() - 60,
+                "retry_after": time.time() + 3600,
                 "error_message": "API rate limit",
                 "attempts": 1,
             },
             "777": {
-                "error_time": 1759300000.0,
-                "retry_after": 1759386400.0,
+                "error_time": time.time() - 90000,
+                "retry_after": time.time() - 3600,
                 "error_message": "API rate limit",
                 "attempts": 2,
             },
@@ -797,12 +801,15 @@ class TestGetCoherenceHandler:
         assert rows["444"]["signals"] == [SIGNAL_DOUTEUX]
         # In the coordinator retry queue.
         assert rows["555"]["signals"] == [SIGNAL_EN_ERREUR]
-        # All signals can stack on one peripheral.
+        # Stale retry entry (window long past): the coordinator never
+        # purges, but the signal must clear with the window.
         assert rows["777"]["signals"] == [
             SIGNAL_SANS_ENTITE,
             SIGNAL_REGLE_ACTIVE,
-            SIGNAL_EN_ERREUR,
         ]
+        assert rows["777"]["error_message"] is None
+        assert rows["777"]["attempts"] is None
+        assert rows["777"]["retry_after"] is None
 
     @pytest.mark.asyncio
     async def test_unavailable_and_unknown_states_are_douteux(self, monkeypatch):
@@ -887,9 +894,12 @@ class TestGetCoherenceHandler:
         rows = {row["periph_id"]: row for row in result["peripherals"]}
         assert rows["555"]["error_message"] == "API rate limit"
         assert rows["555"]["attempts"] == 1
-        assert rows["555"]["retry_after"] == datetime.fromtimestamp(
-            1759386400.0
-        ).isoformat()
+        # The epoch is dynamic (active window): assert the UTC convention
+        # and that the value is in the future, not an exact timestamp.
+        retry_after = rows["555"]["retry_after"]
+        parsed = datetime.fromisoformat(retry_after)
+        assert parsed.tzinfo is not None
+        assert parsed.timestamp() > datetime.now(timezone.utc).timestamp()
         assert rows["111"]["error_message"] is None
         assert rows["111"]["attempts"] is None
         assert rows["111"]["retry_after"] is None
@@ -1248,3 +1258,32 @@ class TestGetMappingVersionsHandler:
         connection.send_error.assert_called_once_with(
             8, "service_unavailable", "ConfigManager not available"
         )
+
+
+class TestCoherenceSignalContract:
+    """The signal strings are a cross-language contract: the backend
+    constants and the panel's COHERENCE_SIGNALS keys must match exactly,
+    or chips silently degrade to the neutral fallback (nothing fails)."""
+
+    def test_panel_js_keys_every_backend_signal(self):
+        import re
+
+        panel_path = (
+            Path(__file__).resolve().parents[2]
+            / "custom_components"
+            / "eedomus"
+            / "www"
+            / "eedomus-panel.js"
+        )
+        panel_js = panel_path.read_text(encoding="utf-8")
+        for signal in (
+            ui_service_module.SIGNAL_SANS_ENTITE,
+            ui_service_module.SIGNAL_DOUTEUX,
+            ui_service_module.SIGNAL_REGLE_ACTIVE,
+            ui_service_module.SIGNAL_EN_ERREUR,
+        ):
+            assert re.search(rf"{re.escape(signal)}:\s*\{{", panel_js), (
+                f"signal {signal!r} missing from the panel's "
+                "COHERENCE_SIGNALS: the chip would degrade to the "
+                "neutral fallback with no test failure"
+            )

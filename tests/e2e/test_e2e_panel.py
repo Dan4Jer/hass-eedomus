@@ -66,6 +66,12 @@ class TestWebsocketCommands:
         row = result["peripherals"][0]
         for key in ("periph_id", "name", "entity_id", "signals"):
             assert key in row
+        # CAP-6 promises a line for every peripheral, mapped or not:
+        # the coherence row set must equal the peripherals row set.
+        periphs = ws_call("eedomus/get_peripherals")
+        coherence_ids = {p["periph_id"] for p in result["peripherals"]}
+        periph_ids = {p["periph_id"] for p in periphs["peripherals"]}
+        assert coherence_ids == periph_ids
 
     def test_get_mapping_returns_the_canon(self, ws_call):
         result = ws_call("eedomus/get_mapping")
