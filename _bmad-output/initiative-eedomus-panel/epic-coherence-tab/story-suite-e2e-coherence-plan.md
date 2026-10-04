@@ -3,7 +3,7 @@ title: 'Suite E2E cohérence'
 type: 'chore'
 ticket: 8
 created: '2026-10-04'
-status: 'built'
+status: done
 route: 'oneshot'
 route_source: 'auto'
 baseline_revision: '9d05f0f'

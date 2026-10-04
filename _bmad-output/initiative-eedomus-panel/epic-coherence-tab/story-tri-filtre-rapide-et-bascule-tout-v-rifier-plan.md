@@ -3,7 +3,7 @@ title: 'Tri, filtre rapide et bascule Tout / À vérifier'
 type: 'feature'
 ticket: 3
 created: '2026-10-04'
-status: 'built'
+status: done
 route: 'full'
 route_source: 'auto'
 review: ''

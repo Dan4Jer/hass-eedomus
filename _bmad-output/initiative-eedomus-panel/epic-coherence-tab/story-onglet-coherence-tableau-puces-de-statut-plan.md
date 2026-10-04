@@ -3,7 +3,7 @@ title: 'Onglet Cohérence : tableau + puces de statut'
 type: 'feature'
 ticket: 2
 created: '2026-10-04'
-status: 'built'
+status: done
 route: 'full'
 route_source: 'auto'
 review: ''

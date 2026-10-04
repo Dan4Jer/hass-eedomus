@@ -3,7 +3,7 @@ title: 'Navigation vers les réglages d’entité HA'
 type: 'feature'
 ticket: 6
 created: '2026-10-04'
-status: 'built'
+status: done
 route: 'full'
 route_source: 'auto'
 review: ''
