@@ -61,6 +61,11 @@ const COHERENCE_TABLE_HEAD = `
       </tr>
     </thead>
   `;
+// The single breakpoint of the coherence tab (ticket 2.5): the JS
+// surface switch (coherenceNarrowView, matchMedia) and the CSS
+// reflow (@media in _render — cross-referenced there) both derive
+// from it — one breakpoint, two surfaces.
+const COHERENCE_NARROW_PX = 900;
 // Sort direction indicator: the arrow carries the direction visually,
 // aria-sort on the header cell carries the state (EXPERIENCE.md).
 const SORT_ARROW_ASC =
@@ -263,12 +268,19 @@ function escapeHtml(value) {
 }
 
 // Trigger of the periph_id cell: the only element of the row that
-// opens the popover, carrying its accessible name.
-function coherenceTriggerHtml(periphId) {
+// opens the detail, carrying its accessible name. The template
+// carries aria-expanded only — the popover wiring sets
+// aria-haspopup="dialog" dynamically (the narrow surface is an
+// inline row, not a dialog), and `controlsId` points at the
+// expansion row when it exists (2.5).
+function coherenceTriggerHtml(periphId, expanded, controlsId) {
+  const controls = controlsId
+    ? ` aria-controls="${escapeHtml(controlsId)}"`
+    : '';
   return `
     <button class="coherence-id-trigger" type="button"
             data-coherence-popover="${escapeHtml(periphId)}"
-            aria-expanded="false" aria-haspopup="dialog"
+            aria-expanded="${expanded ? 'true' : 'false'}"${controls}
             aria-label="Détails du périphérique ${escapeHtml(periphId)}">
       <code>${escapeHtml(periphId)}</code>
     </button>`;
@@ -384,6 +396,89 @@ function hoverCapable() {
   return hoverMediaQuery.matches;
 }
 
+// Narrow viewport (ticket 2.5): the exact breakpoint of the mobile
+// reflow below. matchMedia — not a width read at tap time — keeps
+// the tap-vs-popover switch and the CSS reflow on one source of
+// truth; a browser without matchMedia reads as desktop (popover).
+let narrowMediaQuery = null;
+function coherenceNarrowMedia() {
+  if (!window.matchMedia) {
+    return null;
+  }
+  if (!narrowMediaQuery) {
+    narrowMediaQuery = window.matchMedia(
+      `(max-width: ${COHERENCE_NARROW_PX}px)`
+    );
+  }
+  return narrowMediaQuery;
+}
+
+function coherenceNarrowView() {
+  const media = coherenceNarrowMedia();
+  return Boolean(media && media.matches);
+}
+
+// Toggle decision of the mobile expanded row (ticket 2.5): re-tap
+// on the open line closes, tap on another line moves the extension
+// (one line expanded at most), null taps never open. Same contract
+// as nextCoherenceSort — pure, test-covered.
+function nextCoherenceExpanded(currentId, tappedId) {
+  const current = currentId == null ? null : String(currentId);
+  const tapped = tappedId == null ? null : String(tappedId);
+  if (tapped === null || tapped === current) {
+    return null;
+  }
+  return tapped;
+}
+
+// Predicate of the expanded emission: the row identity compares on
+// String(periph_id) — the same normalization as the popover lookup,
+// so an id with &, quotes or angle brackets expands exactly like the
+// popover opens.
+function coherenceIsExpanded(row, expandedId, narrow) {
+  return Boolean(
+    narrow &&
+      expandedId != null &&
+      String(row.periph_id) === String(expandedId)
+  );
+}
+
+// DOM id of the expansion row — the trigger's aria-controls target.
+function coherenceExpandedRowId(periphId) {
+  return `coherence-expanded-${String(periphId)}`;
+}
+
+// The expansion row itself: the shared detail body (strict parity
+// with the popover) inside the table reflow, spanning every column.
+function coherenceExpandedRowHtml(row) {
+  return `
+      <tr class="coherence-expanded-row"
+          id="${escapeHtml(coherenceExpandedRowId(row.periph_id))}">
+        <td colspan="${COHERENCE_COLUMNS.length}">
+          <div class="coherence-expanded-body">${coherenceDetailHtml(row)}</div>
+        </td>
+      </tr>
+    `;
+}
+
+// Composed detail surface of one row: the trigger (aria-expanded
+// reflecting the state, aria-controls only when the target exists)
+// and the expansion row when the predicate says so — nothing of it
+// otherwise (the wide side never emits an expansion).
+function coherenceRowExpansionHtml(row, expandedId, narrow) {
+  const expanded = coherenceIsExpanded(row, expandedId, narrow);
+  return {
+    expanded,
+    rowClass: expanded ? ' class="coherence-row-expanded"' : '',
+    trigger: coherenceTriggerHtml(
+      row.periph_id,
+      expanded,
+      expanded ? coherenceExpandedRowId(row.periph_id) : null
+    ),
+    expansion: expanded ? coherenceExpandedRowHtml(row) : '',
+  };
+}
+
 class EedomusConfigPanel extends HTMLElement {
   constructor() {
     super();
@@ -439,6 +534,11 @@ class EedomusConfigPanel extends HTMLElement {
     this._coherenceLeaveTimer = null; // grace crossing the anchor gap
     this._coherenceDismiss = null; // outside click/scroll/resize listener
     this._coherenceFocusOut = null; // focusout listener while open
+    // Mobile expanded row (ticket 2.5) — the touch counterpart of
+    // the popover, same trigger. One line expanded at most; the key
+    // survives tbody re-renders as long as the row stays visible.
+    this._coherenceExpandedId = null;
+    this._boundCoherenceBreakpoint = (ev) => this._onCoherenceBreakpoint(ev);
   }
 
   set hass(hass) {
@@ -468,6 +568,17 @@ class EedomusConfigPanel extends HTMLElement {
     this._tab = this._tabFromLocation();
     this._render();
     window.addEventListener('hashchange', this._boundHashChange);
+    // Crossing the 900 px boundary swaps the detail surface: the
+    // expanded-row state is dropped on the wide side (popover only).
+    // Legacy browsers without MQL addEventListener use addListener.
+    const narrowMedia = coherenceNarrowMedia();
+    if (narrowMedia) {
+      if (narrowMedia.addEventListener) {
+        narrowMedia.addEventListener('change', this._boundCoherenceBreakpoint);
+      } else if (narrowMedia.addListener) {
+        narrowMedia.addListener(this._boundCoherenceBreakpoint);
+      }
+    }
     if (this._hass) {
       this._loadPeripherals();
     }
@@ -475,8 +586,20 @@ class EedomusConfigPanel extends HTMLElement {
 
   disconnectedCallback() {
     window.removeEventListener('hashchange', this._boundHashChange);
-    // Tears down the popover and its document-level listeners.
+    const narrowMedia = coherenceNarrowMedia();
+    if (narrowMedia) {
+      if (narrowMedia.removeEventListener) {
+        narrowMedia.removeEventListener(
+          'change', this._boundCoherenceBreakpoint
+        );
+      } else if (narrowMedia.removeListener) {
+        narrowMedia.removeListener(this._boundCoherenceBreakpoint);
+      }
+    }
+    // Tears down the popover and its document-level listeners — the
+    // mobile expanded state is just as volatile.
     this._closeCoherencePopover();
+    this._coherenceExpandedId = null;
   }
 
   _tabFromLocation() {
@@ -489,6 +612,9 @@ class EedomusConfigPanel extends HTMLElement {
     const tab = this._tabFromLocation();
     if (tab !== this._tab) {
       this._tab = tab;
+      // The replaced table carries no anchor row: like the popover,
+      // a stale expanded row never survives the switch.
+      this._coherenceExpandedId = null;
       this._renderTabContent();
     }
   }
@@ -1013,7 +1139,10 @@ class EedomusConfigPanel extends HTMLElement {
           opacity: 0.6;
         }
 
-        @media (max-width: 900px) {
+        /* The COHERENCE_NARROW_PX constant (JS surface switch of
+           ticket 2.5, coherenceNarrowView) — one breakpoint, two
+           surfaces: this reflow and the tap-vs-popover switch. */
+        @media (max-width: ${COHERENCE_NARROW_PX}px) {
           .periph-row {
             display: flex; flex-direction: column; align-items: stretch; gap: 8px;
           }
@@ -1057,6 +1186,28 @@ class EedomusConfigPanel extends HTMLElement {
             display: block;
             color: var(--secondary-text-color);
             font-size: 12px;
+          }
+
+          /* Ligne étendue (2.5) : parité de contenu avec le popover,
+             surface différente — la paire ligne + extension lit comme
+             une seule unité au doigt, l'extension vit dans le reflow
+             bloc (jamais de scroll horizontal silencieux). */
+          .coherence-id-trigger {
+            display: inline-flex; align-items: center;
+            min-height: 44px;
+          }
+          .coherence-table tr.coherence-row-expanded {
+            padding-bottom: 0;
+            border-bottom: none;
+          }
+          .coherence-table tr.coherence-expanded-row {
+            padding-top: 0;
+            border-top: none;
+          }
+          .coherence-table tr.coherence-expanded-row td { padding: 0; }
+          .coherence-expanded-body {
+            border-top: 1px solid var(--divider-color);
+            padding-top: 12px;
           }
         }
       </style>
@@ -1129,9 +1280,17 @@ class EedomusConfigPanel extends HTMLElement {
     }
     const popoverTrigger = ev.target.closest('[data-coherence-popover]');
     if (popoverTrigger) {
+      this._cancelCoherenceHover();
+      if (coherenceNarrowView()) {
+        // Sous 900 px (2.5) : le tap étend la ligne — le popover de
+        // 2.4 reste une surface desktop, le hover gating est intact.
+        this._toggleCoherenceExpanded(
+          popoverTrigger.dataset.coherencePopover
+        );
+        return;
+      }
       // Entrée/click on the periph_id cell: open without the hover
       // delay; clicking the open trigger toggles it closed.
-      this._cancelCoherenceHover();
       if (this._coherencePopoverTrigger === popoverTrigger) {
         this._closeCoherencePopover();
       } else {
@@ -1196,6 +1355,34 @@ class EedomusConfigPanel extends HTMLElement {
           return;
         }
       }
+      if (this._coherenceExpandedId !== null) {
+        // Échap referme aussi la ligne étendue mobile (même geste que
+        // le popover, 2.5) : le focus revient au déclencheur quand il
+        // opérait l'extension ; sinon l'Échap poursuit vers le champ
+        // actif — vider la recherche reste fonctionnel (contrat 2.4).
+        const id = this._coherenceExpandedId;
+        const root = this.shadowRoot;
+        const expandedRow = root
+          ? root.getElementById(coherenceExpandedRowId(id))
+          : null;
+        const active = root ? root.activeElement : null;
+        const onTrigger = ev.target && ev.target.closest
+          ? ev.target.closest('[data-coherence-popover]')
+          : null;
+        const inside = Boolean(
+          (expandedRow && active && expandedRow.contains(active)) ||
+            (onTrigger && String(onTrigger.dataset.coherencePopover) === id)
+        );
+        this._coherenceExpandedId = null;
+        this._renderCoherenceTable();
+        if (inside) {
+          const btn = this._coherenceTriggerFor(id);
+          if (btn) {
+            btn.focus();
+          }
+          return;
+        }
+      }
       if (ev.target.id === 'periph-search') {
         if (ev.target.value !== '') {
           this._search = '';
@@ -1236,8 +1423,10 @@ class EedomusConfigPanel extends HTMLElement {
       return;
     }
     // A tab switch replaces the coherence table: the popover closes,
-    // never survives detached from its anchor row.
+    // never survives detached from its anchor row — the mobile
+    // expanded state is just as volatile.
     this._closeCoherencePopover();
+    this._coherenceExpandedId = null;
     root.querySelectorAll('.tab').forEach((tab) => {
       tab.setAttribute('aria-selected', String(tab.dataset.tab === this._tab));
     });
@@ -1645,6 +1834,14 @@ class EedomusConfigPanel extends HTMLElement {
       view: this._coherenceView,
       sort: this._coherenceSort,
     });
+    // Jamais d'extension orpheline : la ligne étendue absente du
+    // résultat filtré referme l'état mobile avec le reste du corps.
+    if (
+      this._coherenceExpandedId !== null &&
+      !rows.some((r) => String(r.periph_id) === this._coherenceExpandedId)
+    ) {
+      this._coherenceExpandedId = null;
+    }
     if (rows.length === 0 && this._coherenceSearch) {
       // Explicit no-result state, announced — never a silent empty table.
       status.textContent =
@@ -1733,6 +1930,101 @@ class EedomusConfigPanel extends HTMLElement {
     }
   }
 
+  // ---- Ligne étendue mobile (ticket 2.5) ----
+  // Sous 900 px, la contrepartie tactile du popover : le même
+  // déclencheur, le même contenu, une surface inline dans la table.
+
+  _toggleCoherenceExpanded(periphId) {
+    // Never two detail surfaces at once: a popover opened before the
+    // breakpoint crossed (narrow window + mouse) closes first.
+    this._closeCoherencePopover();
+    // Canonical key from the row itself — the same lookup and
+    // normalization as _openCoherencePopover, so the render-side
+    // predicate (String(periph_id)) always matches, hostile ids
+    // included.
+    const row = (this._coherence || []).find(
+      (r) => String(r.periph_id) === String(periphId)
+    );
+    if (!row) {
+      return;
+    }
+    const id = String(row.periph_id);
+    // Focus contract (mirror of _coherenceSortBy): the re-render
+    // replaces the trigger — Entrée at narrow width keeps operating
+    // the same line, a tap never had the focus anyway.
+    const restoreFocus =
+      this.shadowRoot.activeElement === this._coherenceTriggerFor(id);
+    // Une seule ligne étendue à la fois : re-tap referme, tap sur
+    // une autre ligne déplace l'extension (nextCoherenceExpanded).
+    this._coherenceExpandedId = nextCoherenceExpanded(
+      this._coherenceExpandedId,
+      id
+    );
+    this._renderCoherenceTable();
+    if (restoreFocus) {
+      const btn = this._coherenceTriggerFor(id);
+      if (btn) {
+        btn.focus();
+      }
+    }
+  }
+
+  _onCoherenceBreakpoint(ev) {
+    // Wide side: the expanded row does not exist there — the popover
+    // of 2.4 is the only detail surface, the state does not survive
+    // the crossing (the resize listener already closed any popover).
+    if (!ev.matches && this._coherenceExpandedId !== null) {
+      const id = this._coherenceExpandedId;
+      const root = this.shadowRoot;
+      const expandedRow = root
+        ? root.getElementById(coherenceExpandedRowId(id))
+        : null;
+      const active = root ? root.activeElement : null;
+      // Focus contract: the re-render drops the expansion — the
+      // user operating it (trigger or inside) lands back on the
+      // trigger, like the toggle and sort paths.
+      const inside = Boolean(
+        (expandedRow && active && expandedRow.contains(active)) ||
+          active === this._coherenceTriggerFor(id)
+      );
+      this._coherenceExpandedId = null;
+      if (this._tab === 'coherence') {
+        this._renderCoherenceTable();
+      }
+      if (inside) {
+        const btn = this._coherenceTriggerFor(id);
+        if (btn) {
+          btn.focus();
+        }
+      }
+    }
+  }
+
+  _coherenceTriggerFor(periphId) {
+    const root = this.shadowRoot;
+    if (!root) {
+      return null;
+    }
+    const id = String(periphId);
+    // CSS.escape guarded: when unavailable the exact dataset
+    // comparison takes over — a hostile id never builds a selector.
+    if (window.CSS && window.CSS.escape) {
+      const btn = root.querySelector(
+        `[data-coherence-popover="${window.CSS.escape(id)}"]`
+      );
+      if (btn) {
+        return btn;
+      }
+    }
+    const triggers = root.querySelectorAll('[data-coherence-popover]');
+    for (const el of triggers) {
+      if (el.dataset.coherencePopover === id) {
+        return el;
+      }
+    }
+    return null;
+  }
+
   // ---- Popover de détail périphérique (ticket 2.4) ----
   // Desktop floating surface of the Cohérence tab. The trigger stays
   // the periph_id cell (code font); nothing else in the row opens it.
@@ -1757,6 +2049,12 @@ class EedomusConfigPanel extends HTMLElement {
     }
     if (!hoverCapable()) {
       // Touch: a tap fires mouseover — only the click path opens.
+      return;
+    }
+    if (coherenceNarrowView()) {
+      // Sous 900 px (2.5), la surface est la ligne étendue : le
+      // hover n'ouvre jamais le popover à côté d'elle — une seule
+      // surface de détail à la fois, même fenêtre étroite + souris.
       return;
     }
     const trigger = ev.target.closest
@@ -1852,6 +2150,9 @@ class EedomusConfigPanel extends HTMLElement {
     this._coherencePopoverTrigger = trigger;
     this._coherencePopoverByHover = Boolean(opts && opts.byHover);
     trigger.setAttribute('aria-expanded', 'true');
+    // haspopup lives on the open popover only: the static template
+    // stays surface-neutral (the narrow side expands a row, 2.5).
+    trigger.setAttribute('aria-haspopup', 'dialog');
     this._positionCoherencePopover(pop, trigger);
     this._wireCoherencePopover(pop, trigger);
     if (opts && opts.focusPopover) {
@@ -1883,6 +2184,7 @@ class EedomusConfigPanel extends HTMLElement {
     }
     if (trigger) {
       trigger.setAttribute('aria-expanded', 'false');
+      trigger.removeAttribute('aria-haspopup');
     }
     if (!pop) {
       return;
@@ -2004,10 +2306,17 @@ class EedomusConfigPanel extends HTMLElement {
     const entity = row.entity_id
       ? this._escapeHtml(row.entity_id)
       : '<em>aucune entité</em>';
+    // Expanded row: the pure composition carries the state — same
+    // 900 px query as the reflow, nothing emitted on the wide side.
+    const detail = coherenceRowExpansionHtml(
+      row,
+      this._coherenceExpandedId,
+      coherenceNarrowView()
+    );
     return `
-      <tr>
+      <tr${detail.rowClass}>
         <td class="coherence-id" data-label="Périphérique">
-          ${coherenceTriggerHtml(row.periph_id)}
+          ${detail.trigger}
         </td>
         <td data-label="Nom">${this._escapeHtml(row.name || '')}</td>
         <td class="ha-entity" data-label="Entité HA">${entity}</td>
@@ -2016,6 +2325,7 @@ class EedomusConfigPanel extends HTMLElement {
           <div class="coherence-chips">${this._renderCoherenceChips(row)}</div>
         </td>
       </tr>
+      ${detail.expansion}
     `;
   }
 

@@ -54,6 +54,11 @@ const hook = `
   coherenceTriggerHtml,
   coherenceDetailHtml,
   coherenceDetailAttempts,
+  nextCoherenceExpanded,
+  coherenceIsExpanded,
+  coherenceExpandedRowId,
+  coherenceExpandedRowHtml,
+  coherenceRowExpansionHtml,
   POPOVER_FOCUSABLE_SELECTOR,
 };`;
 vm.runInContext(fs.readFileSync(PANEL_PATH, 'utf8') + hook, sandbox);
@@ -72,6 +77,11 @@ const {
   coherenceTriggerHtml,
   coherenceDetailHtml,
   coherenceDetailAttempts,
+  nextCoherenceExpanded,
+  coherenceIsExpanded,
+  coherenceExpandedRowId,
+  coherenceExpandedRowHtml,
+  coherenceRowExpansionHtml,
   POPOVER_FOCUSABLE_SELECTOR,
 } = sandbox.__coherence;
 
@@ -426,9 +436,49 @@ assertEq(
       'aria-label="Détails du périphérique &quot;&gt;&lt;script&gt;&amp;"'
     ),
     triggerHtml.includes('aria-expanded="false"'),
-    triggerHtml.includes('aria-haspopup="dialog"'),
+    // Surface-neutral template: haspopup is set by the popover wiring
+    // when it opens, never statically (the narrow side expands a row).
+    !triggerHtml.includes('aria-haspopup'),
   ],
   [true, true, true, true, true]
+);
+assertEq(
+  'trigger: expanded flag reflects the mobile extended row (2.5)',
+  [
+    coherenceTriggerHtml('101', true).includes('aria-expanded="true"'),
+    coherenceTriggerHtml('101', true).includes(
+      'aria-label="Détails du périphérique 101"'
+    ),
+    coherenceTriggerHtml('101', true, 'coherence-expanded-101').includes(
+      'aria-controls="coherence-expanded-101"'
+    ),
+    // Documented default: no expansion arguments -> collapsed trigger.
+    coherenceTriggerHtml('101').includes('aria-expanded="false"'),
+    !coherenceTriggerHtml('101').includes('aria-controls'),
+  ],
+  [true, true, true, true, true]
+);
+
+// --- mobile expanded row (2.5): toggle semantics ---
+assertEq(
+  'expanded toggle: tap on a collapsed line opens it',
+  nextCoherenceExpanded(null, '101'),
+  '101'
+);
+assertEq(
+  'expanded toggle: re-tap on the open line closes it',
+  nextCoherenceExpanded('101', '101'),
+  null
+);
+assertEq(
+  'expanded toggle: tap on another line moves the extension',
+  nextCoherenceExpanded('77', '101'),
+  '101'
+);
+assertEq(
+  'expanded toggle: null tap never opens',
+  nextCoherenceExpanded('101', null),
+  null
 );
 
 // --- popover: detail body (hostile values, edge rows) ---
@@ -490,6 +540,78 @@ assertEq(
     noEntityDetail.includes('inconnu'),
     noEntityDetail.includes('<span class="popover-name"></span>'),
     noEntityDetail.includes('<code class="popover-id">12</code>'),
+  ],
+  [true, true, true, true]
+);
+
+// --- mobile expanded row (2.5): predicate + composed emission ---
+assertEq(
+  'expansion predicate: narrow viewport and matching id, nothing else',
+  [
+    coherenceIsExpanded(DETAIL_ROW, '101', true),
+    coherenceIsExpanded(DETAIL_ROW, '101', false),
+    coherenceIsExpanded(DETAIL_ROW, '77', true),
+    coherenceIsExpanded(DETAIL_ROW, null, true),
+  ],
+  [true, false, false, false]
+);
+const expandedOut = coherenceRowExpansionHtml(DETAIL_ROW, '101', true);
+assertEq(
+  'expansion: composed output emits the full surface when expanded',
+  [
+    expandedOut.expanded,
+    expandedOut.rowClass.includes('coherence-row-expanded'),
+    expandedOut.trigger.includes('aria-expanded="true"'),
+    expandedOut.trigger.includes('aria-controls="coherence-expanded-101"'),
+    expandedOut.expansion.includes('coherence-expanded-row'),
+    expandedOut.expansion.includes('id="coherence-expanded-101"'),
+    // Content parity: the shared detail body inside the expansion,
+    // spanning every column of COHERENCE_COLUMNS.
+    expandedOut.expansion.includes(
+      '<div class="coherence-expanded-body">'
+    ),
+    expandedOut.expansion.includes('colspan="5"'),
+    expandedOut.expansion.includes('Salon &quot;Nord&quot;'),
+    expandedOut.expansion.includes('Créer une règle'),
+  ],
+  [true, true, true, true, true, true, true, true, true, true]
+);
+const otherIdOut = coherenceRowExpansionHtml(DETAIL_ROW, '77', true);
+const wideOut = coherenceRowExpansionHtml(DETAIL_ROW, '101', false);
+assertEq(
+  'expansion: nothing emitted when not expanded (other id or wide)',
+  [
+    otherIdOut.expanded,
+    otherIdOut.rowClass,
+    otherIdOut.expansion,
+    otherIdOut.trigger.includes('aria-expanded="false"'),
+    !otherIdOut.trigger.includes('aria-controls'),
+    wideOut.expanded,
+    wideOut.rowClass,
+    wideOut.expansion,
+  ],
+  [false, '', '', true, true, false, '', '']
+);
+// Hostile periph_id: the predicate and the aria-controls target use
+// the same id on both sides — an id with quotes or angle brackets
+// expands exactly like the popover opens.
+const HOSTILE_ID = '"><s>&';
+const hostileOut = coherenceRowExpansionHtml(
+  { periph_id: HOSTILE_ID },
+  HOSTILE_ID,
+  true
+);
+assertEq(
+  'expansion: hostile periph_id matches and escapes on both sides',
+  [
+    coherenceIsExpanded({ periph_id: HOSTILE_ID }, HOSTILE_ID, true),
+    hostileOut.trigger.includes(
+      'aria-controls="coherence-expanded-&quot;&gt;&lt;s&gt;&amp;"'
+    ),
+    hostileOut.expansion.includes(
+      'id="coherence-expanded-&quot;&gt;&lt;s&gt;&amp;"'
+    ),
+    hostileOut.expansion.includes('coherence-expanded-row'),
   ],
   [true, true, true, true]
 );
