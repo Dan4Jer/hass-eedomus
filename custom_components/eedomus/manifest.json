@@ -11,5 +11,5 @@
   "documentation": "https://github.com/fmo01/hass-eedomus/blob/main/docs/OPTIONS_DOCUMENTATION.md",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/fmo01/hass-eedomus/issues",
-  "version": "0.24.0"
+  "version": "0.24.1"
 }

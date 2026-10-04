@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.24.1](https://github.com/fmo01/hass-eedomus/compare/0.24.0...0.24.1) (2026-10-04)
+
+### Bug Fixes
+
+* amélioration de __init__.py et couverture des tests ([4d352c0](https://github.com/fmo01/hass-eedomus/commit/4d352c0601d911375b445aaaa40000e96264465a))
+
 ## [0.24.0](https://github.com/fmo01/hass-eedomus/compare/0.23.0...0.24.0) (2026-10-03)
 
 ### Features
