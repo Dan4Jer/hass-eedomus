@@ -15,12 +15,11 @@ The values below are updated automatically by the GitHub Actions
 `Run Tests` workflow after a successful test run.
 
 <!-- TEST-STATS-START -->
-- Tests: **415 passed**
-- Statements: **4393**
-- Covered: **3849**
-- Missing: **544**
-- Coverage: **87.62%**
-- Last test run: **2026-10-04 14:56:08 Europe/Paris**
+- Tests: **442 passed**
+- Statements: **4388**
+- Covered: **3928**
+- Missing: **460**
+- Coverage: **89.52%**
 <!-- TEST-STATS-END -->
 
 The latest successful GitHub Actions run is the reference for the current
@@ -363,22 +362,22 @@ The following values correspond to the same successful local run mentioned
 above and are not intended to remain permanently current.
 
 <!-- COVERAGE-MODULES-START -->
-Last update: **2026-10-04 20:54:00 Europe/Paris**
+Last update: **2026-10-05 00:49:56 Europe/Paris**
 
 | Component | Statements | Missed | Coverage |
 |---|---:|---:|---:|
-| `__init__.py` | 263 | 100 | 62.00% |
+| `__init__.py` | 258 | 3 | 98.84% |
 | `api_proxy.py` | 37 | 0 | 100.00% |
 | `binary_sensor.py` | 72 | 0 | 100.00% |
-| `climate.py` | 403 | 148 | 63.00% |
+| `climate.py` | 403 | 148 | 63.28% |
 | `config_flow.py` | 114 | 0 | 100.00% |
 | `const.py` | 49 | 0 | 100.00% |
-| `coordinator.py` | 595 | 114 | 81.00% |
+| `coordinator.py` | 595 | 114 | 80.84% |
 | `cover.py` | 136 | 0 | 100.00% |
-| `device_mapping.py` | 320 | 93 | 71.00% |
-| `eedomus_client.py` | 251 | 26 | 90.00% |
+| `device_mapping.py` | 320 | 93 | 70.94% |
+| `eedomus_client.py` | 251 | 26 | 89.64% |
 | `endpoint_volume_sensor.py` | 93 | 0 | 100.00% |
-| `entity.py` | 219 | 48 | 78.00% |
+| `entity.py` | 219 | 48 | 78.08% |
 | `history_sensor.py` | 136 | 0 | 100.00% |
 | `light.py` | 369 | 0 | 100.00% |
 | `mapping_registry.py` | 47 | 0 | 100.00% |
@@ -387,12 +386,12 @@ Last update: **2026-10-04 20:54:00 Europe/Paris**
 | `refresh_timing_sensor.py` | 125 | 0 | 100.00% |
 | `select.py` | 97 | 0 | 100.00% |
 | `sensor.py` | 327 | 0 | 100.00% |
-| `services.py` | 214 | 28 | 87.00% |
+| `services.py` | 214 | 28 | 86.92% |
 | `storage_mapping.py` | 62 | 0 | 100.00% |
 | `switch.py` | 103 | 0 | 100.00% |
 | `text_sensor.py` | 95 | 0 | 100.00% |
 | `webhook.py` | 56 | 0 | 100.00% |
-| **TOTAL** | **4393** | **557** | **87.00%** |
+| **TOTAL** | **4388** | **460** | **89.52%** |
 <!-- COVERAGE-MODULES-END -->
 
 ---
@@ -545,17 +544,17 @@ The current suite includes tests for:
 A recent successful local run used:
 
 <!-- TEST-ENV-START -->
-```text
-Python 3.14.3
-pytest 9.0.3
-pytest-cov 7.1.0
-pytest-homeassistant-custom-component 0.13.367
-404 tests collected
-404 tests passed
-87% total coverage
-Last test run: 2026-10-05 00:37:00 Europe/Paris
-```
-<!-- TEST-ENV-END -->
+    ```text
+    Python 3.14.7
+    pytest 9.0.3
+    pytest-cov 7.1.0
+    pytest-homeassistant-custom-component 0.13.367
+    442 tests collected
+    442 tests passed
+    89.52% total coverage
+    Last test run: 2026-10-05 00:49:56 Europe/Paris
+    ```
+    <!-- TEST-ENV-END -->
 
 GitHub Actions may use newer compatible patch versions.
 
