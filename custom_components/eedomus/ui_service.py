@@ -11,6 +11,7 @@ from homeassistant.core import HomeAssistant
 
 from .const import COORDINATOR, DOMAIN
 from .mapping_registry import get_mapping_registry
+from .panel_translations import get_panel_translations
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ WS_TYPE_EEDOMUS_GET_MAPPING = f"{DOMAIN}/get_mapping"
 WS_TYPE_EEDOMUS_SAVE_MAPPING = f"{DOMAIN}/save_mapping"
 WS_TYPE_EEDOMUS_GET_VERSIONS = f"{DOMAIN}/get_mapping_versions"
 WS_TYPE_EEDOMUS_GET_COHERENCE = f"{DOMAIN}/get_coherence"
+WS_TYPE_EEDOMUS_GET_TRANSLATIONS = f"{DOMAIN}/get_translations"
 
 # Coherence signals (CAP-6): cumulable strings, one chip per signal.
 SIGNAL_SANS_ENTITE = "sans_entite"
@@ -225,6 +227,25 @@ async def _ws_get_coherence(hass: HomeAssistant, connection, msg: dict) -> None:
     await service._handle_get_coherence(hass, connection, msg)
 
 
+@require_admin
+@websocket_command(
+    {
+        vol.Required("type"): WS_TYPE_EEDOMUS_GET_TRANSLATIONS,
+        vol.Optional("locale", default=""): vol.Any(str, None),
+    }
+)
+@async_response
+async def _ws_get_translations(hass: HomeAssistant, connection, msg: dict) -> None:
+    """Dispatch eedomus/get_translations to the UI service."""
+    service = _get_ui_service(hass)
+    if service is None:
+        connection.send_error(
+            msg["id"], "service_unavailable", "Eedomus UI service not initialized"
+        )
+        return
+    await service._handle_get_translations(hass, connection, msg)
+
+
 # The commands in registration order: (command type, module dispatcher).
 WS_COMMANDS = (
     (WS_TYPE_EEDOMUS_VALIDATE, _ws_validate_config),
@@ -235,6 +256,7 @@ WS_COMMANDS = (
     (WS_TYPE_EEDOMUS_SAVE_MAPPING, _ws_save_mapping),
     (WS_TYPE_EEDOMUS_GET_VERSIONS, _ws_get_mapping_versions),
     (WS_TYPE_EEDOMUS_GET_COHERENCE, _ws_get_coherence),
+    (WS_TYPE_EEDOMUS_GET_TRANSLATIONS, _ws_get_translations),
 )
 
 
@@ -614,9 +636,7 @@ class EedomusUIService:
                 hass, coordinator, custom_config, with_raw=True
             ):
                 raw = base.pop("_raw", {})
-                rows.append(
-                    self._coherence_row(hass, coordinator, base, registry, raw)
-                )
+                rows.append(self._coherence_row(hass, coordinator, base, registry, raw))
         return rows
 
     @staticmethod
@@ -712,9 +732,9 @@ class EedomusUIService:
                 "last_update": _json_safe(state.last_updated) if state else None,
                 "raw": _json_safe(raw),
                 "signals": signals,
-                "error_message": active_info.get("error_message")
-                if active_info
-                else None,
+                "error_message": (
+                    active_info.get("error_message") if active_info else None
+                ),
                 "attempts": active_info.get("attempts") if active_info else None,
                 "retry_after": _json_safe(retry_after),
             }
@@ -833,6 +853,37 @@ class EedomusUIService:
         except Exception as e:
             _LOGGER.error(f"Get mapping versions error: {e}")
             connection.send_error(msg.get("id"), "error", str(e))
+
+    async def _handle_get_translations(
+        self,
+        hass: HomeAssistant,
+        connection,
+        msg: dict,
+    ) -> None:
+        """Handle the get translations command (panel i18n catalog, CAP-3).
+
+        Serves the flat panel.* catalog for the requested locale, with
+        English as the source of truth and the fallback for any unknown
+        locale or missing key. An explicit null locale is coerced to the
+        English catalog (vol.Any(str, None) admits it through the
+        schema); a non-string locale stays a schema error.
+        """
+        try:
+            requested = msg.get("locale") or ""
+            locale, translations = get_panel_translations(requested)
+            connection.send_result(
+                msg.get("id"),
+                {"locale": locale, "translations": translations},
+            )
+        except Exception as e:
+            # The client gets a stable, branchable code and message; the
+            # internal detail (paths, upstream messages) stays in the log.
+            _LOGGER.error("Get translations error: %s", e, exc_info=True)
+            connection.send_error(
+                msg.get("id"),
+                "internal_error",
+                "Failed to build the translations catalog",
+            )
 
     @staticmethod
     def _matching_rule_name(
@@ -975,6 +1026,11 @@ class EedomusUIService:
                 "name": "Get Schema",
                 "endpoint": WS_TYPE_EEDOMUS_SCHEMA,
                 "description": "Get schema information and documentation",
+            },
+            {
+                "name": "Get Translations",
+                "endpoint": WS_TYPE_EEDOMUS_GET_TRANSLATIONS,
+                "description": "Get the panel translation catalog for a locale",
             },
         ]
 

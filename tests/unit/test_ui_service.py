@@ -23,9 +23,11 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+import voluptuous as vol
 
 import custom_components.eedomus.device_mapping as device_mapping_module
 import custom_components.eedomus.mapping_registry as mapping_registry_module
+import custom_components.eedomus.panel_translations as panel_translations_module
 import custom_components.eedomus.ui_service as ui_service_module
 from custom_components.eedomus.const import COORDINATOR
 from custom_components.eedomus.ui_service import (
@@ -66,7 +68,7 @@ class TestAsyncInit:
 
         await service.async_init()
 
-        assert register.call_count == 8
+        assert register.call_count == 9
         # Handler form: (hass, handler) on the module-level dispatchers -
         # HA calls websocket handlers as plain (hass, connection, msg)
         # functions, so bound methods cannot be dispatched directly
@@ -81,6 +83,7 @@ class TestAsyncInit:
             ui_service_module._ws_save_mapping,
             ui_service_module._ws_get_mapping_versions,
             ui_service_module._ws_get_coherence,
+            ui_service_module._ws_get_translations,
         ]
         assert service._registered_commands == [
             WS_TYPE_EEDOMUS_VALIDATE,
@@ -91,8 +94,32 @@ class TestAsyncInit:
             ui_service_module.WS_TYPE_EEDOMUS_SAVE_MAPPING,
             ui_service_module.WS_TYPE_EEDOMUS_GET_VERSIONS,
             ui_service_module.WS_TYPE_EEDOMUS_GET_COHERENCE,
+            ui_service_module.WS_TYPE_EEDOMUS_GET_TRANSLATIONS,
         ]
         assert service.is_initialized() is True
+
+    def test_get_translations_handler_declares_its_ws_contract(self):
+        """The dispatcher must carry its command type and a locale
+        schema that admits an explicit null (served as the English
+        catalog) while a malformed non-string value stays a schema
+        error - standard HA message validation."""
+        handler = ui_service_module._ws_get_translations
+        assert handler._ws_command == (
+            ui_service_module.WS_TYPE_EEDOMUS_GET_TRANSLATIONS
+        )
+        schema = handler._ws_schema
+        locale_marker = next(
+            key for key in schema if getattr(key, "schema", None) == "locale"
+        )
+        assert isinstance(locale_marker, vol.Optional)
+        # voluptuous wraps a non-callable default in a factory.
+        default = locale_marker.default
+        assert (default() if callable(default) else default) == ""
+        validator = schema[locale_marker]
+        assert validator(None) is None
+        assert validator("fr") == "fr"
+        with pytest.raises(vol.Invalid):
+            validator(123)
 
     @pytest.mark.asyncio
     async def test_registration_failure_leaves_service_uninitialized(self, monkeypatch):
@@ -130,7 +157,7 @@ class TestAsyncInit:
         await service.async_init()
 
         assert service._registered_commands == first
-        assert register.call_count == 16
+        assert register.call_count == 18
 
     @pytest.mark.asyncio
     async def test_shutdown_resets_state_without_unregistering(self):
@@ -578,9 +605,7 @@ class TestProjectCoordinatorWithRaw:
         coordinator = self.make_coordinator()
         hass = self.make_hass(coordinator)
         service = EedomusUIService(hass)
-        rows = service._project_coordinator(
-            hass, coordinator, {}, with_raw=with_raw
-        )
+        rows = service._project_coordinator(hass, coordinator, {}, with_raw=with_raw)
         return coordinator, rows
 
     def test_raw_rides_only_the_with_raw_path(self):
@@ -849,9 +874,7 @@ class TestGetCoherenceHandler:
         assert SIGNAL_SANS_ENTITE in rows["333"]["signals"]
 
     @pytest.mark.asyncio
-    async def test_periph_outside_registry_gets_null_registry_fields(
-        self, monkeypatch
-    ):
+    async def test_periph_outside_registry_gets_null_registry_fields(self, monkeypatch):
         """The registry only covers mapped periphs: the join must not raise."""
         result = await self.fetch_rows(monkeypatch)
 
@@ -1364,3 +1387,254 @@ class TestCoherenceSignalContract:
                 "COHERENCE_SIGNALS: the chip would degrade to the "
                 "neutral fallback with no test failure"
             )
+
+
+class TestGetTranslationsHandler:
+    """CAP-3: the panel reads its localized strings through
+    eedomus/get_translations — a flat key -> text catalog for the
+    requested locale, English as the source of truth and the fallback
+    for anything unknown."""
+
+    @pytest.mark.asyncio
+    async def test_fr_locale_serves_the_complete_fr_catalog(self):
+        service, connection = make_service()
+
+        await service._handle_get_translations(
+            service.hass, connection, {"id": 12, "locale": "fr"}
+        )
+
+        connection.send_result.assert_called_once_with(
+            12,
+            {
+                "locale": "fr",
+                "translations": panel_translations_module.PANEL_TRANSLATIONS["fr"],
+            },
+        )
+        connection.send_error.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_unknown_locale_serves_the_en_catalog(self):
+        """A locale without a translation must never error, never be empty."""
+        service, connection = make_service()
+
+        await service._handle_get_translations(
+            service.hass, connection, {"id": 12, "locale": "de"}
+        )
+
+        connection.send_result.assert_called_once_with(
+            12,
+            {
+                "locale": "en",
+                "translations": panel_translations_module.PANEL_TRANSLATIONS["en"],
+            },
+        )
+
+    @pytest.mark.asyncio
+    async def test_missing_locale_serves_the_en_catalog(self):
+        service, connection = make_service()
+
+        await service._handle_get_translations(service.hass, connection, {"id": 12})
+
+        result = connection.send_result.call_args.args[1]
+        assert result["locale"] == "en"
+        assert result["translations"] == (
+            panel_translations_module.PANEL_TRANSLATIONS["en"]
+        )
+
+    @pytest.mark.asyncio
+    async def test_locale_variant_resolves_to_its_base(self):
+        """hass.locale may carry a region suffix (fr-FR): the base
+        language is what selects the catalog."""
+        service, connection = make_service()
+
+        await service._handle_get_translations(
+            service.hass, connection, {"id": 12, "locale": "fr-FR"}
+        )
+
+        result = connection.send_result.call_args.args[1]
+        assert result["locale"] == "fr"
+        assert result["translations"] == (
+            panel_translations_module.PANEL_TRANSLATIONS["fr"]
+        )
+
+    @pytest.mark.asyncio
+    async def test_missing_fr_key_falls_back_to_the_en_text(self, monkeypatch):
+        """Transitory partial catalog: a missing key serves the English
+        source text, never an empty string."""
+        monkeypatch.setattr(
+            panel_translations_module,
+            "PANEL_TRANSLATIONS",
+            {
+                "en": {
+                    "panel.common.retry": "Retry",
+                    "panel.common.save": "Save",
+                },
+                "fr": {"panel.common.retry": "Réessayer"},
+            },
+        )
+        service, connection = make_service()
+
+        await service._handle_get_translations(
+            service.hass, connection, {"id": 12, "locale": "fr"}
+        )
+
+        result = connection.send_result.call_args.args[1]
+        assert result["locale"] == "fr"
+        assert result["translations"] == {
+            "panel.common.retry": "Réessayer",
+            "panel.common.save": "Save",
+        }
+
+    @pytest.mark.asyncio
+    async def test_served_catalog_is_a_copy_not_the_module_dict(self):
+        """A mutated response must never leak into the module catalog."""
+        service, connection = make_service()
+
+        await service._handle_get_translations(
+            service.hass, connection, {"id": 12, "locale": "en"}
+        )
+
+        served = connection.send_result.call_args.args[1]["translations"]
+        served["panel.common.retry"] = "mutated"
+        assert (
+            panel_translations_module.PANEL_TRANSLATIONS["en"]["panel.common.retry"]
+            == "Retry"
+        )
+
+    @pytest.mark.asyncio
+    async def test_exception_sends_error(self, monkeypatch):
+        """A catalog build failure sends the stable client error, not
+        the raw exception - the internal detail stays in the log."""
+
+        def raise_boom(locale):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(ui_service_module, "get_panel_translations", raise_boom)
+        service, connection = make_service()
+
+        await service._handle_get_translations(
+            service.hass, connection, {"id": 12, "locale": "fr"}
+        )
+
+        connection.send_error.assert_called_once_with(
+            12, "internal_error", "Failed to build the translations catalog"
+        )
+        connection.send_result.assert_not_called()
+
+
+class TestPanelTranslationsCatalog:
+    """Catalog invariants: the en/fr key trees are identical (a missing
+    key in either language silently degrades the panel — the identity
+    test also guards the 3.4 backend-i18n trees), and every key is a
+    panel.* key from the i18n inventory."""
+
+    def test_en_and_fr_key_trees_are_identical(self):
+        en = set(panel_translations_module.PANEL_TRANSLATIONS["en"])
+        fr = set(panel_translations_module.PANEL_TRANSLATIONS["fr"])
+        assert en == fr
+
+    def test_every_key_is_a_panel_key(self):
+        for catalog in panel_translations_module.PANEL_TRANSLATIONS.values():
+            assert catalog
+            assert all(
+                key.startswith("panel.") and " " not in key for key in catalog
+            ), "keys must be flat panel.* identifiers"
+
+    def test_every_value_is_a_non_empty_string(self):
+        for catalog in panel_translations_module.PANEL_TRANSLATIONS.values():
+            for key, value in catalog.items():
+                assert isinstance(value, str) and value, key
+
+    def test_placeholders_match_between_en_and_fr(self):
+        """Every {token} of the EN source must exist in the FR text and
+        vice versa: the panel interpolates client-side, so a mismatched
+        placeholder would leak into the rendered string."""
+        import re
+
+        token = re.compile(r"\{(\w+)\}")
+        en = panel_translations_module.PANEL_TRANSLATIONS["en"]
+        fr = panel_translations_module.PANEL_TRANSLATIONS["fr"]
+        for key, en_text in en.items():
+            assert sorted(token.findall(en_text)) == sorted(token.findall(fr[key])), key
+
+    def test_locale_normalization_resolves_space_case_and_underscore(self):
+        """A leading space with uppercase and an underscore variant
+        must resolve to the FR catalog, not silently fall back to EN."""
+        fr = panel_translations_module.PANEL_TRANSLATIONS["fr"]
+        for variant in (" FR", "fr_FR"):
+            locale, catalog = panel_translations_module.get_panel_translations(variant)
+            assert locale == "fr"
+            assert catalog == fr
+
+    def test_inventory_key_set_equals_the_catalog(self):
+        """The i18n inventory's Key column is the single source for the
+        panel.* family: expanding its '/' shorthand (a suffix replaces
+        the last segment of the base key), it must yield exactly the
+        catalog's key set."""
+        inventory_path = (
+            Path(__file__).resolve().parents[2]
+            / "_bmad-output"
+            / "specs"
+            / "spec-eedomus-i18n"
+            / "i18n-inventory.md"
+        )
+        text = inventory_path.read_text(encoding="utf-8")
+        section = text.split("## 1.", 1)[1].split("## 2.", 1)[0]
+
+        keys = set()
+        for line in section.splitlines():
+            if not line.startswith("|"):
+                continue
+            cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+            key_cell = cells[-1]
+            if not key_cell.startswith("panel."):
+                continue
+            tokens = [token.strip() for token in key_cell.split("/")]
+            base = tokens[0]
+            keys.add(base)
+            for suffix in tokens[1:]:
+                if suffix.startswith("."):
+                    keys.add(base.rsplit(".", 1)[0] + suffix)
+                else:
+                    keys.add(suffix)
+
+        assert keys == set(
+            panel_translations_module.PANEL_TRANSLATIONS["en"]
+        ), "the catalog and the i18n inventory key column have diverged"
+
+
+class TestGetTranslationsDispatcher:
+    """The module dispatcher resolves the service from hass.data at call
+    time - a copy-paste error in its body would otherwise go unexercised
+    by the handler-level tests."""
+
+    @pytest.mark.asyncio
+    async def test_dispatches_to_the_service_handler(self):
+        service = MagicMock()
+        service._handle_get_translations = AsyncMock()
+        hass = MagicMock()
+        hass.data = {"eedomus": {"ui_service": service}}
+        connection = MagicMock()
+
+        await ui_service_module._ws_get_translations(
+            hass, connection, {"id": 21, "locale": "fr"}
+        )
+
+        service._handle_get_translations.assert_awaited_once_with(
+            hass, connection, {"id": 21, "locale": "fr"}
+        )
+        connection.send_error.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_no_service_sends_service_unavailable(self):
+        hass = MagicMock()
+        hass.data = {"eedomus": {}}
+        connection = MagicMock()
+
+        await ui_service_module._ws_get_translations(
+            hass, connection, {"id": 21, "locale": "fr"}
+        )
+
+        connection.send_error.assert_called_once_with(
+            21, "service_unavailable", "Eedomus UI service not initialized"
+        )

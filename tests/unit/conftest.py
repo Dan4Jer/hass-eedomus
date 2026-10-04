@@ -142,7 +142,9 @@ def _install_homeassistant_stubs():
     # None (no deregistration handle) and is called in the handler form
     # (async_register_command(hass, handler)), where it reads the
     # _ws_command/_ws_schema attributes set by the real decorators. The
-    # decorator stubs are identities so decorated handlers stay callable.
+    # decorator stubs keep the decorated handlers callable; the
+    # websocket_command stub additionally stashes the schema on the
+    # handler (mirroring real HA) so tests can pin the declared contract.
     ha_ws = module("homeassistant.components.websocket_api")
     ha_ws.async_register_command = MagicMock(return_value=None)
 
@@ -151,6 +153,12 @@ def _install_homeassistant_stubs():
 
     def _ws_websocket_command(schema):
         def decorate(func):
+            func._ws_schema = schema
+            func._ws_command = next(
+                value
+                for key, value in schema.items()
+                if getattr(key, "schema", None) == "type"
+            )
             return func
 
         return decorate
