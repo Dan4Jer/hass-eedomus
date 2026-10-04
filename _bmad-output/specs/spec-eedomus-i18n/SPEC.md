@@ -50,7 +50,4 @@ A user running Home Assistant in English sees zero French text on any surface of
 
 - The FR translation will be authored from the English source (EN is the source of truth, per AGENTS.md and the user's fallback decision).
 - The websocket strings command follows the existing `ui_service` dispatcher pattern (`require_admin`, `eedomus/<verb>`), like `get_coherence`.
-
-## Open Questions
-
-- Migration strategy for existing French logs/docstrings: one full pass, or English-for-new-code + migrate-on-touch? To be settled at epic inception (affects sizing, not the contract).
+- Existing French logs and docstrings migrate in **one full pass** inside the i18n epic (user decision, 2026-10-04) — no migrate-on-touch.

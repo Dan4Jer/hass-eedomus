@@ -46,6 +46,12 @@ sources: []
   - **intent:** Cliquer l'entité HA d'une ligne du tableau de cohérence ouvre la page de réglages standard de cette entité (fonctionnement standard Home Assistant, pas de page propriétaire) ; le lien est un lien texte inline, pas un bouton d'action.
   - **success:** Le clic ouvre les réglages standard de l'entité visée dans HA (web et mobile) ; aucune édition du registry depuis le panneau ; focus et retour de navigation corrects.
 
+- **CAP-9 — Onglet Supervision**
+  - **intent:** Un 5e onglet du panneau présente en une vue les informations de la box — temps de refresh, nombre de périphériques, sollicitations de l'API proxy — en graphiques (composants du frontend HA disponibles dans le contexte du panneau, repli SVG inline thémé), un lien vers l'onglet Cohérence (mécanisme de hash existant), et la vue de la file de récupération d'historique en cours (en attente, en cours, en erreur, ignorés, en pause) ; les données et les quatre actions de la file relèvent de `spec-eedomus-history` (CAP-5) — le panneau affiche, il ne réimplémente pas le moteur.
+  - **success:** L'onglet affiche les métriques en chart cards thémées avec équivalents textuels ; le lien Cohérence bascule d'onglet ; la file de backfill rendue depuis une commande websocket alimentée par le coordinator se pilote depuis cette vue, avec retour nominatif par action.
+
+Le libellé d'onglet « Historique » (CAP-5) devient « Historique config » — désambiguïsation avec la récupération des données historiques eedomus ; le libellé vit dans la spine UX, l'intent de CAP-5 est inchangé (décision 2026-10-04).
+
 ## Constraints
 
 - Enregistrement du panneau **exclusivement** via l'API supportée HA 2026.9.3 — `async_register_built_in_panel(component_name="custom", config={"_panel_custom": {"module_url": ...}})` + `StaticPathConfig` pour servir les assets depuis le répertoire de l'intégration. Jamais d'API inventée ; `panel.py` actuel et `frontend.yaml` sont remplacés.

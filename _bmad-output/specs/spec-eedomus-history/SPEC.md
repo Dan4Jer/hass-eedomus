@@ -30,6 +30,10 @@ sources: []
   - **intent:** L'utilisateur sait ce qui se passe à l'activation de l'option history, y compris la toute première fois.
   - **success:** La documentation de l'option décrit le comportement à l'activation, la durée attendue de la première activation, la reprise après redémarrage, et ce qui est visible dans HA (statistics/graphes long terme) vs ce qui ne l'est pas (panel History).
 
+- **CAP-5 — File de backfill exposée et pilotable**
+  - **intent:** L'état de la récupération est exposé — par périphérique : en attente (position dans la file), en cours, en erreur (message et `retry_after`), ignoré, en pause ; plus un état global du moteur (actif / en pause globale) — et quatre actions : Réessayer maintenant (relance immédiate hors cadence), Prioriser (remonte en tête de file, pris au prochain drain), Pause/Reprise par périphérique et un interrupteur global, Ignorer (persisté en `.storage`, destructeur, confirmé, réactivable). Les commandes websocket suivent le pattern `eedomus/<verb>` (`require_admin`) ; toutes les actions passent par le coordinator (AD-7).
+  - **success:** La vue de Supervision (spec-eedomus-mapping-panel, CAP-9) rend l'état complet de la file ; chaque action produit un retour nominatif et la file se re-rend ; l'ignorage survit à un redémarrage HA ; la pause globale stoppe le drain sans casser la reprise (CAP-3) ; le temps réel (CAP-2) n'est jamais bloqué par une action.
+
 ## Constraints
 
 - Import **exclusivement** via les APIs Python `recorder.statistics` (`async_import_statistics`) sur le `statistic_id` de l'entité réelle — jamais d'écriture d'états passés dans la state machine, aucune dépendance au service Spook (AD-1).
