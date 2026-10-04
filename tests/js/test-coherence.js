@@ -24,9 +24,31 @@ const PANEL_PATH = path.resolve(
   'eedomus-panel.js'
 );
 
+// CustomEvent stub: the vm has no DOM — the dispatch test only needs
+// type, detail, bubbles and composed to be observable.
+class StubCustomEvent {
+  constructor(type, opts) {
+    this.type = type;
+    this.detail = opts && opts.detail ? opts.detail : null;
+    this.bubbles = Boolean(opts && opts.bubbles);
+    this.composed = Boolean(opts && opts.composed);
+  }
+}
+
 const sandbox = {
-  HTMLElement: class {},
+  // attachShadow stub: the constructor calls it — the instances under
+  // test never touch a real shadowRoot beyond the guarded noops.
+  HTMLElement: class {
+    attachShadow() {
+      this.shadowRoot = {
+        addEventListener() {},
+        removeEventListener() {},
+      };
+      return this.shadowRoot;
+    }
+  },
   customElements: { get: () => true, define() {} },
+  CustomEvent: StubCustomEvent,
   window: {
     addEventListener() {},
     removeEventListener() {},
@@ -52,6 +74,10 @@ const hook = `
   coherenceRawPairs,
   coherencePopoverPosition,
   coherenceTriggerHtml,
+  coherenceEntityLinkHtml,
+  coherenceHasEntity,
+  coherenceRowHtml,
+  EedomusConfigPanel,
   coherenceDetailHtml,
   coherenceDetailAttempts,
   nextCoherenceExpanded,
@@ -75,6 +101,10 @@ const {
   coherenceRawPairs,
   coherencePopoverPosition,
   coherenceTriggerHtml,
+  coherenceEntityLinkHtml,
+  coherenceHasEntity,
+  coherenceRowHtml,
+  EedomusConfigPanel,
   coherenceDetailHtml,
   coherenceDetailAttempts,
   nextCoherenceExpanded,
@@ -514,13 +544,20 @@ assertEq(
   'detail: actions and collapsed raw section',
   [
     detail.includes('Créer une règle'),
-    detail.includes('Config HA — bientôt disponible'),
-    detail.includes('<button class="row-action" type="button" disabled'),
+    // CAP-8 : l'action « Config HA » désactivée est devenue le lien
+    // actif « Voir dans HA » — le libellé accessible porte l'entité.
+    detail.includes('Voir dans HA'),
+    detail.includes('data-entity-id="sensor.salon"'),
+    detail.includes(
+      'aria-label="Voir sensor.salon dans Home Assistant"'
+    ),
+    !detail.includes('bientôt disponible'),
+    !detail.includes('<button class="row-action" type="button" disabled'),
     detail.includes('<details class="popover-raw">'),
     detail.includes("Champs bruts de l'API eedomus"),
     detail.includes('data-usage-id="96:3"'),
   ],
-  [true, true, true, true, true, true]
+  [true, true, true, true, true, true, true, true, true]
 );
 assertEq(
   'detail: non-numeric attempts never pluralize as NaN',
@@ -540,8 +577,138 @@ assertEq(
     noEntityDetail.includes('inconnu'),
     noEntityDetail.includes('<span class="popover-name"></span>'),
     noEntityDetail.includes('<code class="popover-id">12</code>'),
+    // Sans entité, aucun lien ni action de navigation (CAP-8).
+    !noEntityDetail.includes('data-entity-id'),
+    !noEntityDetail.includes('Voir dans HA'),
   ],
-  [true, true, true, true]
+  [true, true, true, true, true, true]
+);
+
+// --- entity link (2.6, CAP-8): markup, hostile and null cases ---
+assertEq(
+  'entity link: null/undefined/empty stays inert « aucune entité »',
+  [
+    coherenceEntityLinkHtml(null),
+    coherenceEntityLinkHtml(undefined),
+    coherenceEntityLinkHtml(''),
+  ],
+  [
+    '<em>aucune entité</em>',
+    '<em>aucune entité</em>',
+    '<em>aucune entité</em>',
+  ]
+);
+const linkHtml = coherenceEntityLinkHtml('sensor.salon');
+assertEq(
+  'entity link: inline text link carrying the entity label',
+  [
+    linkHtml.includes('<a class="entity-link"'),
+    linkHtml.includes('href="#"'),
+    linkHtml.includes('data-entity-id="sensor.salon"'),
+    linkHtml.includes('>sensor.salon</a>'),
+    // Action-bearing accessible name, mirroring the detail's
+    // « Voir dans HA » — the visible text stays the entity id.
+    linkHtml.includes('aria-label="Voir sensor.salon dans Home Assistant"'),
+    !linkHtml.includes('<button'),
+  ],
+  [true, true, true, true, true, true]
+);
+const hostileLink = coherenceEntityLinkHtml('"><script>&');
+assertEq(
+  'entity link: hostile entity_id escapes in attribute and text',
+  [
+    hostileLink.includes('data-entity-id="&quot;&gt;&lt;script&gt;&amp;"'),
+    hostileLink.includes('>&quot;&gt;&lt;script&gt;&amp;</a>'),
+  ],
+  [true, true]
+);
+
+// --- predicate parity (2.6): one no-entity predicate, both surfaces ---
+assertEq(
+  'predicate: whitespace-only id is inert on both surfaces',
+  [
+    coherenceHasEntity('   '),
+    coherenceEntityLinkHtml('   '),
+    coherenceDetailHtml({ periph_id: '5', name: 'X', entity_id: '   ' })
+      .includes('data-entity-id'),
+  ],
+  [false, '<em>aucune entité</em>', false]
+);
+
+// --- composed row (2.6): the entity cell on both sides of the mapping ---
+const mappedRow = coherenceRowHtml(ROWS[0], null, false);
+const inertRow = coherenceRowHtml(ROWS[1], null, false);
+assertEq(
+  'row: mapped row carries the entity link, null-entity row stays inert',
+  [
+    mappedRow.includes('<td class="ha-entity" data-label="Entité HA">'),
+    mappedRow.includes('data-entity-id="sensor.salon"'),
+    mappedRow.includes(
+      'aria-label="Voir sensor.salon dans Home Assistant"'
+    ),
+    !mappedRow.includes('<em>aucune entité</em>'),
+    inertRow.includes('<em>aucune entité</em>'),
+    !inertRow.includes('data-entity-id'),
+  ],
+  [true, true, true, true, true, true]
+);
+
+// --- hostile entity_id on the detail button path (2.6, CAP-8) ---
+const hostileDetail = coherenceDetailHtml({
+  periph_id: '5',
+  name: 'X',
+  entity_id: '"><script>&',
+});
+assertEq(
+  'detail: hostile entity_id escapes in the action attribute and name',
+  [
+    hostileDetail.includes('data-entity-id="&quot;&gt;&lt;script&gt;&amp;"'),
+    hostileDetail.includes(
+      'aria-label="Voir &quot;&gt;&lt;script&gt;&amp; dans Home Assistant"'
+    ),
+  ],
+  [true, true]
+);
+
+// --- hass-more-info dispatch (2.6, CAP-8) ---
+const panel = new EedomusConfigPanel();
+const dispatched = [];
+panel.dispatchEvent = (ev) => {
+  dispatched.push(ev);
+  return true;
+};
+let prevented = 0;
+let stopped = 0;
+const entityLinkStub = { dataset: { entityId: 'sensor.salon' } };
+panel._onClick({
+  target: {
+    closest: (sel) => (sel === '[data-entity-id]' ? entityLinkStub : null),
+  },
+  preventDefault: () => {
+    prevented += 1;
+  },
+  stopPropagation: () => {
+    stopped += 1;
+  },
+});
+assertEq(
+  'dispatch: activating the entity link emits hass-more-info',
+  [
+    prevented,
+    stopped,
+    dispatched.length,
+    dispatched[0].type,
+    dispatched[0].detail,
+    dispatched[0].bubbles,
+    dispatched[0].composed,
+  ],
+  [1, 1, 1, 'hass-more-info', { entityId: 'sensor.salon' }, true, true]
+);
+panel._openEntityMoreInfo('   ');
+assertEq(
+  'dispatch: inert id never emits (predicate parity)',
+  dispatched.length,
+  1
 );
 
 // --- mobile expanded row (2.5): predicate + composed emission ---

@@ -286,6 +286,28 @@ function coherenceTriggerHtml(periphId, expanded, controlsId) {
     </button>`;
 }
 
+// No-entity predicate shared by both surfaces (2.6): a whitespace-only
+// entity_id is inert in the table AND the detail — one predicate, the
+// two markup helpers cannot drift apart.
+function coherenceHasEntity(entityId) {
+  return entityId != null && String(entityId).trim() !== '';
+}
+
+// Entity cell of the coherence table (ticket 2.6, CAP-8): an inline
+// text link — accent, underlined, no button chrome — whose visible
+// label is the entity itself. The accessible name carries the action
+// and the destination, mirroring the detail's « Voir dans HA ».
+// A row without an entity keeps its inert « aucune entité ».
+function coherenceEntityLinkHtml(entityId) {
+  if (!coherenceHasEntity(entityId)) {
+    return '<em>aucune entité</em>';
+  }
+  return `<a class="entity-link" href="#"
+            data-entity-id="${escapeHtml(entityId)}"
+            aria-label="Voir ${escapeHtml(entityId)} dans Home Assistant"
+           >${escapeHtml(entityId)}</a>`;
+}
+
 // Attempts detail of the error state: the plural only applies to a
 // finite count > 1 (a non-numeric value never renders NaN).
 function coherenceDetailAttempts(attempts) {
@@ -327,9 +349,13 @@ function coherenceDetailHtml(row) {
                 data-usage-id="${escapeHtml(row.usage_id || '')}">
           Créer une règle
         </button>
-        <button class="row-action" type="button" disabled aria-disabled="true">
-          Config HA — bientôt disponible
-        </button>
+        ${coherenceHasEntity(row.entity_id)
+          ? `<button class="row-action" type="button"
+                     data-entity-id="${escapeHtml(row.entity_id)}"
+                     aria-label="Voir ${escapeHtml(row.entity_id)} dans Home Assistant">
+               Voir dans HA
+             </button>`
+          : ''}
       </div>
       <details class="popover-raw">
         <summary>Champs bruts de l'API eedomus</summary>
@@ -477,6 +503,76 @@ function coherenceRowExpansionHtml(row, expandedId, narrow) {
     ),
     expansion: expanded ? coherenceExpandedRowHtml(row) : '',
   };
+}
+
+// Truncation of the error detail in the chip (visible + accessible
+// name, the full message lives in the title).
+function coherenceTruncateText(text, max) {
+  const value = String(text);
+  if (value.length <= max) {
+    return value;
+  }
+  return `${value.slice(0, max - 1)}…`;
+}
+
+// Chips of the Statut cell: one chip per signal, « cohérent » when
+// there is none; an unknown string keeps a neutral chip carrying
+// the raw value — never dropped, never "cohérent".
+function coherenceChipsHtml(row) {
+  const signals = (row && row.signals) || [];
+  if (signals.length === 0) {
+    return coherenceChipHtml('coherent', row);
+  }
+  return signals.map((signal) => coherenceChipHtml(signal, row)).join('');
+}
+
+function coherenceChipHtml(signal, row) {
+  const known = signal === 'coherent' || Boolean(COHERENCE_SIGNALS[signal]);
+  const def = signal === 'coherent'
+    ? COHERENCE_OK_SIGNAL
+    : COHERENCE_SIGNALS[signal] || { label: signal, icon: '' };
+  let label = def.label;
+  let title = '';
+  if (signal === 'en_erreur' && row && row.error_message) {
+    // The retry detail is visible (truncated), in the accessible name,
+    // and complete in the title — never color or title alone.
+    const detail = coherenceTruncateText(row.error_message, 40);
+    label = `en erreur : ${detail}`;
+    title = ` title="${escapeHtml(row.error_message)}"`;
+  }
+  return `
+      <span class="coherence-chip coherence-chip-${known ? signal : 'unknown'}"${title}
+            aria-label="${escapeHtml(label)}">
+        ${def.icon}
+        ${escapeHtml(label)}
+      </span>
+    `;
+}
+
+// Composed table row (2.6 extraction): the trigger, the entity link
+// (CAP-8), type and chips, plus the expansion carried by
+// coherenceRowExpansionHtml — pure over the payload + the volatile
+// state, like the rest of the composition.
+function coherenceRowHtml(row, expandedId, narrow) {
+  const type = coherenceType(row);
+  // CAP-8 : l'entité est un lien texte inline vers la surface
+  // standard HA — inerte « aucune entité » quand il n'y en a pas.
+  const entity = coherenceEntityLinkHtml(row.entity_id);
+  const detail = coherenceRowExpansionHtml(row, expandedId, narrow);
+  return `
+      <tr${detail.rowClass}>
+        <td class="coherence-id" data-label="Périphérique">
+          ${detail.trigger}
+        </td>
+        <td data-label="Nom">${escapeHtml(row.name || '')}</td>
+        <td class="ha-entity" data-label="Entité HA">${entity}</td>
+        <td data-label="Type / sous-type">${escapeHtml(type)}</td>
+        <td data-label="Statut">
+          <div class="coherence-chips">${coherenceChipsHtml(row)}</div>
+        </td>
+      </tr>
+      ${detail.expansion}
+    `;
 }
 
 class EedomusConfigPanel extends HTMLElement {
@@ -1070,6 +1166,18 @@ class EedomusConfigPanel extends HTMLElement {
           outline: 2px solid var(--primary-color); outline-offset: 2px;
         }
 
+        /* Lien entité (2.6, CAP-8) : lien texte inline — accent,
+           souligné, jamais un chrome de bouton ; distinct du
+           déclencheur popover (pointillé). */
+        .entity-link {
+          color: var(--primary-color);
+          text-decoration: underline;
+          text-underline-offset: 3px;
+        }
+        .entity-link:focus-visible {
+          outline: 2px solid var(--primary-color); outline-offset: 2px;
+        }
+
         /* Popover: the panel's single floating surface (DESIGN.md
            §Elevation & Depth) — card background, divider filet, theme
            card radius and shadow; no invented elevation. */
@@ -1196,6 +1304,10 @@ class EedomusConfigPanel extends HTMLElement {
             display: inline-flex; align-items: center;
             min-height: 44px;
           }
+          .entity-link {
+            display: inline-flex; align-items: center;
+            min-height: 44px;
+          }
           .coherence-table tr.coherence-row-expanded {
             padding-bottom: 0;
             border-bottom: none;
@@ -1229,6 +1341,7 @@ class EedomusConfigPanel extends HTMLElement {
     `;
 
     this.shadowRoot.addEventListener('click', (ev) => this._onClick(ev));
+    this.shadowRoot.addEventListener('auxclick', (ev) => this._onAuxClick(ev));
     this.shadowRoot.addEventListener('input', (ev) => this._onInput(ev));
     this.shadowRoot.addEventListener('keydown', (ev) => this._onKeyDown(ev));
     this.shadowRoot.addEventListener(
@@ -1298,6 +1411,16 @@ class EedomusConfigPanel extends HTMLElement {
       }
       return;
     }
+    const entityLink = ev.target.closest('[data-entity-id]');
+    if (entityLink) {
+      // CAP-8 : le lien entité navigue vers la surface standard HA —
+      // jamais le popover ni l'extension (stopPropagation), et le
+      // href="#" de repli ne touche jamais le hash du panneau.
+      ev.preventDefault();
+      ev.stopPropagation();
+      this._openEntityMoreInfo(entityLink.dataset.entityId);
+      return;
+    }
     const filterBtn = ev.target.closest('.filter-touches');
     if (filterBtn) {
       this._touchedOnly = !this._touchedOnly;
@@ -1318,6 +1441,16 @@ class EedomusConfigPanel extends HTMLElement {
       if (restoreBtn) {
         this._restoreVersion(parseInt(restoreBtn.dataset.restore, 10));
       }
+    }
+  }
+
+  _onAuxClick(ev) {
+    // Middle-click / « ouvrir dans un nouvel onglet » sur le href="#"
+    // de repli : le lien entité ne navigue jamais par lui-même —
+    // seule la surface standard HA (hass-more-info) s'ouvre, et le
+    // hash du panneau reste intact.
+    if (ev.target.closest && ev.target.closest('[data-entity-id]')) {
+      ev.preventDefault();
     }
   }
 
@@ -2025,6 +2158,91 @@ class EedomusConfigPanel extends HTMLElement {
     return null;
   }
 
+  // ---- Navigation vers l'entité HA (ticket 2.6, CAP-8) ----
+  // hass-more-info est le mécanisme standard des éléments custom HA
+  // (vérifié dans le bundle frontend live) : CustomEvent composed et
+  // bubbles vers le document, la boîte more-info ouvre la surface
+  // standard de l'entité — web et mobile. Une navigation, pas un
+  // contrôle d'édition : aucune écriture, aucun appel réseau.
+
+  _openEntityMoreInfo(entityId) {
+    if (!coherenceHasEntity(entityId)) {
+      return;
+    }
+    const id = String(entityId);
+    // Fermetures propres avant la navigation : la ligne étendue
+    // mobile et le popover ne survivent pas à l'ouverture de
+    // more-info — focus rendu au déclencheur, jamais de surface
+    // flottante orpheline.
+    if (this._coherenceExpandedId !== null) {
+      const expandedId = this._coherenceExpandedId;
+      const root = this.shadowRoot;
+      const expandedRow = root
+        ? root.getElementById(coherenceExpandedRowId(expandedId))
+        : null;
+      const active = root ? root.activeElement : null;
+      const inside = Boolean(
+        expandedRow && active && expandedRow.contains(active)
+      );
+      // The re-render destroys the activated link too (another row,
+      // or the collapsed part of the open row): remember it to
+      // restore focus to its re-rendered counterpart — the mirror
+      // of the toggle/sort paths.
+      const onLink = Boolean(
+        !inside && active && active.closest
+          ? active.closest('[data-entity-id]')
+          : null
+      );
+      this._coherenceExpandedId = null;
+      this._renderCoherenceTable();
+      if (inside) {
+        const btn = this._coherenceTriggerFor(expandedId);
+        if (btn) {
+          btn.focus();
+        }
+      } else if (onLink) {
+        const link = this._coherenceEntityLinkFor(id);
+        if (link) {
+          link.focus();
+        }
+      }
+    }
+    this._closeCoherencePopover();
+    this.dispatchEvent(
+      new CustomEvent('hass-more-info', {
+        detail: { entityId: id },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
+  _coherenceEntityLinkFor(entityId) {
+    const root = this.shadowRoot;
+    if (!root) {
+      return null;
+    }
+    const id = String(entityId);
+    // Same guarded lookup as _coherenceTriggerFor: CSS.escape when
+    // available, exact dataset comparison otherwise — a hostile id
+    // never builds a selector.
+    if (window.CSS && window.CSS.escape) {
+      const link = root.querySelector(
+        `[data-entity-id="${window.CSS.escape(id)}"]`
+      );
+      if (link) {
+        return link;
+      }
+    }
+    const links = root.querySelectorAll('[data-entity-id]');
+    for (const el of links) {
+      if (el.dataset.entityId === id) {
+        return el;
+      }
+    }
+    return null;
+  }
+
   // ---- Popover de détail périphérique (ticket 2.4) ----
   // Desktop floating surface of the Cohérence tab. The trigger stays
   // the periph_id cell (code font); nothing else in the row opens it.
@@ -2300,74 +2518,13 @@ class EedomusConfigPanel extends HTMLElement {
   }
 
   _renderCoherenceRow(row) {
-    // Mapping identity first: the coherence table shows what was mapped,
-    // the effective platform/class is only the fallback.
-    const type = coherenceType(row);
-    const entity = row.entity_id
-      ? this._escapeHtml(row.entity_id)
-      : '<em>aucune entité</em>';
-    // Expanded row: the pure composition carries the state — same
-    // 900 px query as the reflow, nothing emitted on the wide side.
-    const detail = coherenceRowExpansionHtml(
+    // Thin shell over the pure composition (2.6): the class only
+    // supplies the volatile state the helpers cannot reach.
+    return coherenceRowHtml(
       row,
       this._coherenceExpandedId,
       coherenceNarrowView()
     );
-    return `
-      <tr${detail.rowClass}>
-        <td class="coherence-id" data-label="Périphérique">
-          ${detail.trigger}
-        </td>
-        <td data-label="Nom">${this._escapeHtml(row.name || '')}</td>
-        <td class="ha-entity" data-label="Entité HA">${entity}</td>
-        <td data-label="Type / sous-type">${this._escapeHtml(type)}</td>
-        <td data-label="Statut">
-          <div class="coherence-chips">${this._renderCoherenceChips(row)}</div>
-        </td>
-      </tr>
-      ${detail.expansion}
-    `;
-  }
-
-  _renderCoherenceChips(row) {
-    const signals = (row && row.signals) || [];
-    if (signals.length === 0) {
-      return this._renderCoherenceChip('coherent', row);
-    }
-    // Known signals render their chip; an unknown string keeps a neutral
-    // chip carrying the raw value — never dropped, never "cohérent".
-    return signals.map((signal) => this._renderCoherenceChip(signal, row)).join('');
-  }
-
-  _renderCoherenceChip(signal, row) {
-    const known = signal === 'coherent' || Boolean(COHERENCE_SIGNALS[signal]);
-    const def = signal === 'coherent'
-      ? COHERENCE_OK_SIGNAL
-      : COHERENCE_SIGNALS[signal] || { label: signal, icon: '' };
-    let label = def.label;
-    let title = '';
-    if (signal === 'en_erreur' && row && row.error_message) {
-      // The retry detail is visible (truncated), in the accessible name,
-      // and complete in the title — never color or title alone.
-      const detail = this._truncateText(row.error_message, 40);
-      label = `en erreur : ${detail}`;
-      title = ` title="${this._escapeAttr(row.error_message)}"`;
-    }
-    return `
-      <span class="coherence-chip coherence-chip-${known ? signal : 'unknown'}"${title}
-            aria-label="${this._escapeAttr(label)}">
-        ${def.icon}
-        ${this._escapeHtml(label)}
-      </span>
-    `;
-  }
-
-  _truncateText(text, max) {
-    const value = String(text);
-    if (value.length <= max) {
-      return value;
-    }
-    return `${value.slice(0, max - 1)}…`;
   }
 
   _renderPeriphToolbar() {
