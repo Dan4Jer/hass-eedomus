@@ -65,7 +65,7 @@ jobs:
             scripts/tests/ \
             -v \
             --tb=short \
-            --junitxml \
+            --junitxml=pytest-results.xml \
             --cov=custom_components/eedomus \
             --cov-report=term-missing \
             --cov-report=xml \
