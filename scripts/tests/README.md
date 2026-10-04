@@ -15,11 +15,11 @@ The values below are updated automatically by the GitHub Actions
 `Run Tests` workflow after a successful test run.
 
 <!-- TEST-STATS-START -->
-- Tests: **442 passed**
+- Tests: **446 passed**
 - Statements: **4388**
-- Covered: **3928**
-- Missing: **460**
-- Coverage: **89.52%**
+- Covered: **3958**
+- Missing: **430**
+- Coverage: **90.20%**
 <!-- TEST-STATS-END -->
 
 The latest successful GitHub Actions run is the reference for the current
@@ -362,14 +362,14 @@ The following values correspond to the same successful local run mentioned
 above and are not intended to remain permanently current.
 
 <!-- COVERAGE-MODULES-START -->
-Last update: **2026-10-05 00:49:56 Europe/Paris**
+Last update: **2026-10-05 01:20:20 Europe/Paris**
 
 | Component | Statements | Missed | Coverage |
 |---|---:|---:|---:|
 | `__init__.py` | 258 | 3 | 98.84% |
 | `api_proxy.py` | 37 | 0 | 100.00% |
 | `binary_sensor.py` | 72 | 0 | 100.00% |
-| `climate.py` | 403 | 148 | 63.28% |
+| `climate.py` | 403 | 118 | 70.72% |
 | `config_flow.py` | 114 | 0 | 100.00% |
 | `const.py` | 49 | 0 | 100.00% |
 | `coordinator.py` | 595 | 114 | 80.84% |
@@ -391,7 +391,7 @@ Last update: **2026-10-05 00:49:56 Europe/Paris**
 | `switch.py` | 103 | 0 | 100.00% |
 | `text_sensor.py` | 95 | 0 | 100.00% |
 | `webhook.py` | 56 | 0 | 100.00% |
-| **TOTAL** | **4388** | **460** | **89.52%** |
+| **TOTAL** | **4388** | **430** | **90.20%** |
 <!-- COVERAGE-MODULES-END -->
 
 ---
@@ -544,17 +544,17 @@ The current suite includes tests for:
 A recent successful local run used:
 
 <!-- TEST-ENV-START -->
-    ```text
-    Python 3.14.7
-    pytest 9.0.3
-    pytest-cov 7.1.0
-    pytest-homeassistant-custom-component 0.13.367
-    442 tests collected
-    442 tests passed
-    89.52% total coverage
-    Last test run: 2026-10-05 00:49:56 Europe/Paris
-    ```
-    <!-- TEST-ENV-END -->
+```text
+Python 3.14.7
+pytest 9.0.3
+pytest-cov 7.1.0
+pytest-homeassistant-custom-component 0.13.367
+446 tests collected
+446 tests passed
+90.20% total coverage
+Last test run: 2026-10-05 01:20:20 Europe/Paris
+```
+<!-- TEST-ENV-END -->
 
 GitHub Actions may use newer compatible patch versions.
 
