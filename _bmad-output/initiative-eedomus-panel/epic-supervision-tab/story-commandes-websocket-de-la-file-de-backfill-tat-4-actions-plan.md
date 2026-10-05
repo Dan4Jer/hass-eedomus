@@ -145,3 +145,9 @@ Patches P1-P10 appliqués par impl-41-backfill (tour 2), re-vérifiés indépend
 **Contrats gelés :** rows get_coherence (10 clés) et get_peripherals intacts ; quota AD-2 inchangé (le slot vide se consomme) ; contrats d'enregistrement étendus 9→14 commandes + descriptions d'endpoints (churn prévu au plan).
 
 **Post-déploiement :** à consigner après validation live.
+
+**Post-déploiement (2026-10-05, 22:55-23:05 CEST) :**
+- Déployé via `deploy_hass_eedomus.sh` (git-only, unstable @ 2125461), restart HA, ~2 min d'attente
+- `python3 -m pytest tests/e2e/ -q` sur le Pi : **27 passed in 62.23s**
+- Logs post-restart : « Eedomus integration initialized successfully » ; le nouveau segment drain fonctionne (PARTIAL REFRESH avec History 5 periphs ce cycle, import statistics AD-11 normal) ; aucune erreur liée aux commandes CAP-5 ; motif préexistant de retry historique inchangé
+- Les commandes ne sont pas encore consommées (le panneau les rend en 4.3) ; les actions ne sont pas exercées sur l'instance réelle (non destructif, conforme au plan de la 4.5)
