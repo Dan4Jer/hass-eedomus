@@ -31,6 +31,19 @@ test and coverage status.
 
 ### Core integration
 
+- `test_init.py`
+  - Integration bootstrap
+  - `get_clean_box_name`
+  - `async_setup_entry`
+  - `async_update_listener`
+  - `async_migrate_entry`
+  - `async_unload_entry`
+  - `async_remove_entry`
+  - ConfigEntry migration and lifecycle
+  - API / Proxy setup modes
+  - History and service setup
+  - Entity cleanup on removal
+    
 - `test_integration.py`
   - Integration setup and unload
   - Config entry handling
@@ -229,6 +242,12 @@ PYTHONPATH=. python3 scripts/tests/test_all.py
 ---
 
 ## Run one test module
+
+Example for integration bootstrap:
+
+```bash
+PYTHONPATH=. python3 -m pytest scripts/tests/test_init.py -v
+
 
 Example for lights:
 
