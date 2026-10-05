@@ -118,8 +118,41 @@ class TestAsyncInit:
         validator = schema[locale_marker]
         assert validator(None) is None
         assert validator("fr") == "fr"
+        # A malformed non-string value stays a schema error.
         with pytest.raises(vol.Invalid):
             validator(123)
+
+
+class TestGetAvailableEndpoints:
+    """get_available_endpoints is DERIVED from WS_COMMANDS: a command
+    registered in WS_COMMANDS must appear in the list (in registration
+    order), and a command without an ENDPOINT_DESCRIPTIONS entry fails
+    loudly (KeyError) instead of silently missing from the list."""
+
+    @pytest.mark.asyncio
+    async def test_endpoint_list_derives_from_ws_commands(self):
+        service, _ = make_service()
+
+        endpoints = await service.get_available_endpoints()
+
+        assert [e["endpoint"] for e in endpoints] == [
+            command_type for command_type, _handler in ui_service_module.WS_COMMANDS
+        ]
+        for endpoint in endpoints:
+            assert set(endpoint) == {"name", "endpoint", "description"}
+            assert endpoint["name"]
+            assert endpoint["description"]
+
+    def test_every_ws_command_has_an_endpoint_description(self):
+        """The strict lookup behind the derivation stays green: a new
+        WS command registered without a description entry would crash
+        get_available_endpoints - this pin names the missing entry
+        before it ships."""
+        described = set(ui_service_module.ENDPOINT_DESCRIPTIONS)
+        registered = {
+            command_type for command_type, _handler in ui_service_module.WS_COMMANDS
+        }
+        assert described == registered
 
     @pytest.mark.asyncio
     async def test_registration_failure_leaves_service_uninitialized(self, monkeypatch):
@@ -1180,6 +1213,165 @@ class TestGetCoherenceHandler:
         )
         connection.send_result.assert_not_called()
 
+    @pytest.mark.asyncio
+    async def test_removed_mapping_no_longer_feeds_the_line(self, monkeypatch):
+        """Registry lifecycle (sweep): after the entry's registration wave
+        is pruned - what a reload does before re-registering the current
+        mappings - a deleted mapping must not resurrect as identity
+        fields on the coherence row."""
+        coordinator = self.make_coordinator()
+        hass = self.make_hass(coordinator)
+        service = EedomusUIService(hass)
+        connection = MagicMock()
+        self.patch_custom_mapping(monkeypatch)
+        monkeypatch.setattr(mapping_registry_module, "_MAPPING_REGISTRY", [])
+
+        mapping_registry_module.register_device_mapping(
+            {
+                "ha_entity": "sensor",
+                "ha_subtype": "power",
+                "justification": "compteur électrique",
+            },
+            "Énergie",
+            "555",
+            None,
+            entry_id="entry_1",
+        )
+        await service._handle_get_coherence(hass, connection, {"id": 11})
+        rows = {
+            row["periph_id"]: row
+            for row in connection.send_result.call_args.args[1]["peripherals"]
+        }
+        assert rows["555"]["ha_entity"] == "sensor"
+        assert rows["555"]["ha_subtype"] == "power"
+        assert rows["555"]["justification"] == "compteur électrique"
+
+        # A prune without entry_id is a no-op (legacy registrations).
+        mapping_registry_module.prune_mapping_registry(None)
+        await service._handle_get_coherence(hass, connection, {"id": 12})
+        rows = {
+            row["periph_id"]: row
+            for row in connection.send_result.call_args.args[1]["peripherals"]
+        }
+        assert rows["555"]["ha_entity"] == "sensor"
+
+        # The entry reloads without the rule: the wave is pruned, the
+        # peripheral is no longer mapped, nothing re-registers.
+        mapping_registry_module.prune_mapping_registry("entry_1")
+        await service._handle_get_coherence(hass, connection, {"id": 13})
+        rows = {
+            row["periph_id"]: row
+            for row in connection.send_result.call_args.args[1]["peripherals"]
+        }
+        assert rows["555"]["ha_entity"] is None
+        assert rows["555"]["ha_subtype"] is None
+        assert rows["555"]["parent_periph_id"] is None
+        assert rows["555"]["justification"] is None
+
+        # Another entry's registrations survive this entry's lifecycle.
+        mapping_registry_module.register_device_mapping(
+            {"ha_entity": "light", "ha_subtype": "switch"},
+            "RubanLED",
+            "333",
+            None,
+            entry_id="entry_2",
+        )
+        mapping_registry_module.prune_mapping_registry("entry_1")
+        entries = [
+            m["periph_id"]
+            for m in mapping_registry_module.get_mapping_registry()
+        ]
+        assert entries == ["333"]
+
+    @pytest.mark.asyncio
+    async def test_douteux_exempts_unitless_timestamp_and_date_sensors(
+        self, monkeypatch
+    ):
+        """A timestamp or date sensor legitimately carries no unit: the
+        douteux heuristic must not flag them (CAP-6 sweep fix)."""
+        coordinator = MagicMock()
+        coordinator.data = {
+            "888": {"periph_id": "888", "name": "Dernier allumage", "usage_id": "60"},
+            "889": {
+                "periph_id": "889",
+                "name": "Date de mise à jour",
+                "usage_id": "61",
+            },
+        }
+        coordinator._retry_queue = {}
+        coordinator._resolve_main_entity_id = MagicMock(
+            side_effect=lambda pid: {
+                "888": "sensor.dernier_allumage",
+                "889": "sensor.date_mise_a_jour",
+            }.get(pid)
+        )
+        hass = MagicMock()
+        hass.data = {"eedomus": {"entry_1": {COORDINATOR: coordinator}}}
+        hass.states.get = MagicMock(
+            side_effect=lambda entity_id: {
+                "sensor.dernier_allumage": SimpleNamespace(
+                    state="2026-10-02T08:30",
+                    last_updated=datetime(2026, 10, 2, 8, 30),
+                    attributes={"device_class": "timestamp"},
+                ),
+                "sensor.date_mise_a_jour": SimpleNamespace(
+                    state="2026-10-01",
+                    last_updated=datetime(2026, 10, 2, 8, 30),
+                    attributes={"device_class": "date"},
+                ),
+            }.get(entity_id)
+        )
+        service = EedomusUIService(hass)
+        connection = MagicMock()
+        monkeypatch.setattr(mapping_registry_module, "_MAPPING_REGISTRY", [])
+        self.patch_custom_mapping(monkeypatch)
+
+        await service._handle_get_coherence(hass, connection, {"id": 11})
+
+        rows = {
+            row["periph_id"]: row
+            for row in connection.send_result.call_args.args[1]["peripherals"]
+        }
+        assert SIGNAL_DOUTEUX not in rows["888"]["signals"]
+        assert SIGNAL_DOUTEUX not in rows["889"]["signals"]
+
+    @pytest.mark.asyncio
+    async def test_douteux_flags_empty_string_unit(self, monkeypatch):
+        """An empty-string unit is as unitless as a missing one: a living
+        sensor expected to carry a unit stays doubtful (CAP-6 sweep
+        fix - the old `is None` check let unit == \"\" through)."""
+        coordinator = MagicMock()
+        coordinator.data = {
+            "890": {"periph_id": "890", "name": "Puissance vide", "usage_id": "62"},
+        }
+        coordinator._retry_queue = {}
+        coordinator._resolve_main_entity_id = MagicMock(
+            side_effect=lambda pid: {"890": "sensor.puissance_vide"}.get(pid)
+        )
+        hass = MagicMock()
+        hass.data = {"eedomus": {"entry_1": {COORDINATOR: coordinator}}}
+        hass.states.get = MagicMock(
+            side_effect=lambda entity_id: {
+                "sensor.puissance_vide": SimpleNamespace(
+                    state="1.4",
+                    last_updated=datetime(2026, 10, 2, 8, 30),
+                    attributes={"device_class": "power", "unit_of_measurement": ""},
+                ),
+            }.get(entity_id)
+        )
+        service = EedomusUIService(hass)
+        connection = MagicMock()
+        monkeypatch.setattr(mapping_registry_module, "_MAPPING_REGISTRY", [])
+        self.patch_custom_mapping(monkeypatch)
+
+        await service._handle_get_coherence(hass, connection, {"id": 11})
+
+        rows = {
+            row["periph_id"]: row
+            for row in connection.send_result.call_args.args[1]["peripherals"]
+        }
+        assert SIGNAL_DOUTEUX in rows["890"]["signals"]
+
 
 class TestGetCoherenceDispatcher:
     """The module dispatcher resolves the service from hass.data at call
@@ -1377,30 +1569,61 @@ class TestGetMappingVersionsHandler:
 class TestCoherenceSignalContract:
     """The signal strings are a cross-language contract: the backend
     constants and the panel's COHERENCE_SIGNALS keys must match exactly,
-    or chips silently degrade to the neutral fallback (nothing fails)."""
+    or chips silently degrade to the neutral fallback (nothing fails).
 
-    def test_panel_js_keys_every_backend_signal(self):
+    The contract is bidirectional: a backend signal missing from the
+    panel degrades its chip, and a panel key without a backend signal
+    is a dead chip that can never render from real data. The regex is
+    scoped to the COHERENCE_SIGNALS block itself (top-level keys at
+    two-space indentation) - a same-shaped object anywhere else in
+    the 4k-line file must not satisfy the contract by accident."""
+
+    PANEL_JS = (
+        Path(__file__).resolve().parents[2]
+        / "custom_components"
+        / "eedomus"
+        / "www"
+        / "eedomus-panel.js"
+    ).read_text(encoding="utf-8")
+
+    @classmethod
+    def panel_signal_keys(cls):
         import re
 
-        panel_path = (
-            Path(__file__).resolve().parents[2]
-            / "custom_components"
-            / "eedomus"
-            / "www"
-            / "eedomus-panel.js"
-        )
-        panel_js = panel_path.read_text(encoding="utf-8")
+        start = cls.PANEL_JS.index("const COHERENCE_SIGNALS = {")
+        end = cls.PANEL_JS.index("\n};", start)
+        block = cls.PANEL_JS[start:end]
+        keys = set(re.findall(r"^  (\w+): \{", block, re.MULTILINE))
+        assert keys, "COHERENCE_SIGNALS block not found in the panel"
+        return keys
+
+    def test_backend_signals_exist_in_the_panel(self):
+        panel_keys = self.panel_signal_keys()
         for signal in (
             ui_service_module.SIGNAL_SANS_ENTITE,
             ui_service_module.SIGNAL_DOUTEUX,
             ui_service_module.SIGNAL_REGLE_ACTIVE,
             ui_service_module.SIGNAL_EN_ERREUR,
         ):
-            assert re.search(rf"{re.escape(signal)}:\s*\{{", panel_js), (
+            assert signal in panel_keys, (
                 f"signal {signal!r} missing from the panel's "
                 "COHERENCE_SIGNALS: the chip would degrade to the "
                 "neutral fallback with no test failure"
             )
+
+    def test_panel_keys_all_come_from_the_backend(self):
+        """Dead chip key detection: a COHERENCE_SIGNALS entry that no
+        backend code can ever emit renders nothing but dead markup."""
+        backend_signals = {
+            ui_service_module.SIGNAL_SANS_ENTITE,
+            ui_service_module.SIGNAL_DOUTEUX,
+            ui_service_module.SIGNAL_REGLE_ACTIVE,
+            ui_service_module.SIGNAL_EN_ERREUR,
+        }
+        assert self.panel_signal_keys() <= backend_signals, (
+            "the panel declares COHERENCE_SIGNALS keys the backend "
+            "never emits (dead chips)"
+        )
 
 
 class TestGetTranslationsHandler:
@@ -1539,8 +1762,10 @@ class TestGetTranslationsHandler:
 class TestPanelTranslationsCatalog:
     """Catalog invariants: the en/fr key trees are identical (a missing
     key in either language silently degrades the panel — the identity
-    test also guards the 3.4 backend-i18n trees), and every key is a
-    panel.* key from the i18n inventory."""
+    test also guards the 3.4 backend-i18n trees), every key is a
+    panel.* key, and the committed fixtures (panel-keys.json generated
+    from the i18n inventory, panel-catalog.json snapshotting the
+    catalog) stay pinned to the Python source of truth."""
 
     def test_en_and_fr_key_trees_are_identical(self):
         en = set(panel_translations_module.PANEL_TRANSLATIONS["en"])
@@ -1580,41 +1805,38 @@ class TestPanelTranslationsCatalog:
             assert locale == "fr"
             assert catalog == fr
 
-    def test_inventory_key_set_equals_the_catalog(self):
-        """The i18n inventory's Key column is the single source for the
-        panel.* family: expanding its '/' shorthand (a suffix replaces
-        the last segment of the base key), it must yield exactly the
-        catalog's key set."""
-        inventory_path = (
-            Path(__file__).resolve().parents[2]
-            / "_bmad-output"
-            / "specs"
-            / "spec-eedomus-i18n"
-            / "i18n-inventory.md"
+    def test_panel_keys_fixture_equals_the_catalog(self):
+        """Fixture ≡ catalog parity: the committed key list
+        (tests/fixtures/panel-keys.json, generated ONCE from the i18n
+        inventory's Key column by expanding its '/' shorthand — a
+        suffix replaces the last segment of the base key) must equal
+        the catalog's key set. The inventory remains the GENERATION
+        source only; this pin guards the fixture the tests actually
+        read, so an archived _bmad-output never breaks the suite."""
+        fixture_path = (
+            Path(__file__).resolve().parents[1] / "fixtures" / "panel-keys.json"
         )
-        text = inventory_path.read_text(encoding="utf-8")
-        section = text.split("## 1.", 1)[1].split("## 2.", 1)[0]
-
-        keys = set()
-        for line in section.splitlines():
-            if not line.startswith("|"):
-                continue
-            cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-            key_cell = cells[-1]
-            if not key_cell.startswith("panel."):
-                continue
-            tokens = [token.strip() for token in key_cell.split("/")]
-            base = tokens[0]
-            keys.add(base)
-            for suffix in tokens[1:]:
-                if suffix.startswith("."):
-                    keys.add(base.rsplit(".", 1)[0] + suffix)
-                else:
-                    keys.add(suffix)
+        keys = set(json.loads(fixture_path.read_text(encoding="utf-8")))
 
         assert keys == set(
             panel_translations_module.PANEL_TRANSLATIONS["en"]
-        ), "the catalog and the i18n inventory key column have diverged"
+        ), "the catalog and the panel key fixture have diverged"
+
+    def test_catalog_fixture_equals_the_python_catalog(self):
+        """Drift-check of the catalog fixture: the committed
+        panel-catalog.json must be exactly PANEL_TRANSLATIONS (both
+        locale trees, keys and values) — the JS harness reads the
+        fixture, the ws command serves the Python source; the two may
+        never disagree."""
+        fixture_path = (
+            Path(__file__).resolve().parents[1] / "fixtures" / "panel-catalog.json"
+        )
+        fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+
+        assert fixture == panel_translations_module.PANEL_TRANSLATIONS, (
+            "tests/fixtures/panel-catalog.json has drifted from "
+            "panel_translations.py - regenerate it"
+        )
 
 
 class TestGetTranslationsDispatcher:

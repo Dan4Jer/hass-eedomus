@@ -27,7 +27,7 @@ jobs:
     - name: Install linting tools
       run: |
         python -m pip install --upgrade pip
-        pip install black==23.12.1 flake8==6.1.0 isort==5.13.2
+        pip install black==23.12.1 flake8==7.4.1 isort==5.13.2 mypy==2.3.1
     
     - name: Run Black
       run: |
@@ -46,6 +46,12 @@ jobs:
         echo "Running flake8 check..."
         flake8 custom_components/eedomus/ --max-line-length=120 --extend-ignore=E203,F401,F821,E501,E713,E714,E721,F541,F841,E402,E266,F601 || echo "flake8 check failed"
         echo "flake8 check completed"
+    
+    - name: Run mypy
+      run: |
+        echo "Running mypy check..."
+        mypy custom_components/eedomus/ || echo "mypy check failed"
+        echo "mypy check completed"
     
     - name: Auto-fix formatting
       if: failure()

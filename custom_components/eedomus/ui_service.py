@@ -35,6 +35,11 @@ SIGNAL_EN_ERREUR = "en_erreur"
 # Placeholder entity states that mean "no living data" (CAP-6 douteux).
 NOT_LIVING_STATES = ("unavailable", "unknown")
 
+# Sensor device classes that legitimately carry no unit of measurement:
+# a timestamp or a date never has one, so their unitless sensors are not
+# a mapping smell (enum is checked alongside - same exemption class).
+NO_UNIT_SENSOR_DEVICE_CLASSES = frozenset({"enum", "timestamp", "date"})
+
 # The handlers are decorated at class-definition time, so the websocket_api
 # imports must happen at module level. When the component is unavailable the
 # module still imports (limited mode) with identity decorator fallbacks and
@@ -281,6 +286,50 @@ class _LocalConnection:
             "error": message,
             "error_type": code,
         }
+
+
+# Human-readable name and description per registered ws command: the
+# endpoint list served by get_available_endpoints is DERIVED from
+# WS_COMMANDS - a command registered without an entry here fails
+# loudly instead of being silently missing from the list.
+ENDPOINT_DESCRIPTIONS = {
+    WS_TYPE_EEDOMUS_VALIDATE: (
+        "Validate Configuration",
+        "Validate YAML configuration content",
+    ),
+    WS_TYPE_EEDOMUS_SUGGESTIONS: (
+        "Get Suggestions",
+        "Get autocompletion suggestions for fields",
+    ),
+    WS_TYPE_EEDOMUS_SCHEMA: (
+        "Get Schema",
+        "Get schema information and documentation",
+    ),
+    WS_TYPE_EEDOMUS_PERIPHERALS: (
+        "Get Peripherals",
+        "Get the peripherals of the configured eedomus boxes",
+    ),
+    WS_TYPE_EEDOMUS_GET_MAPPING: (
+        "Get Mapping",
+        "Get the custom mapping document",
+    ),
+    WS_TYPE_EEDOMUS_SAVE_MAPPING: (
+        "Save Mapping",
+        "Persist the custom mapping document",
+    ),
+    WS_TYPE_EEDOMUS_GET_VERSIONS: (
+        "Get Mapping Versions",
+        "Get the mapping configuration history",
+    ),
+    WS_TYPE_EEDOMUS_GET_COHERENCE: (
+        "Get Coherence",
+        "Get the mapping coherence view of the peripherals",
+    ),
+    WS_TYPE_EEDOMUS_GET_TRANSLATIONS: (
+        "Get Translations",
+        "Get the panel translation catalog for a locale",
+    ),
+}
 
 
 class EedomusUIService:
@@ -641,11 +690,12 @@ class EedomusUIService:
 
     @staticmethod
     def _registry_by_periph_id() -> Dict[str, Dict[str, Any]]:
-        """Index the global mapping registry by periph_id (last wins).
+        """Index the mapping registry by periph_id (last wins).
 
-        Devices re-register on every integration reload (the global
-        registry is never cleared), so the latest entry reflects the
-        current mapping - the first one would be stale.
+        Devices re-register on every integration reload (the registry
+        is pruned per entry at setup, then repopulated by the refresh),
+        so the latest entry reflects the current mapping - the first
+        one would be stale.
         """
         registry: Dict[str, Dict[str, Any]] = {}
         for entry in get_mapping_registry():
@@ -691,11 +741,13 @@ class EedomusUIService:
         elif (
             base["platform"] == "sensor"
             and base["device_class"]
-            and base["device_class"] != "enum"
-            and base["unit"] is None
+            and base["device_class"] not in NO_UNIT_SENSOR_DEVICE_CLASSES
+            and not base["unit"]
         ):
-            # A living sensor expected to carry a unit but lacking one is
-            # a mapping smell (CAP-6); enum sensors legitimately have none.
+            # A living sensor expected to carry a unit but lacking one
+            # is a mapping smell (CAP-6); enum, timestamp and date
+            # sensors legitimately have none, and an empty-string unit
+            # is as unitless as a missing one.
             signals.append(SIGNAL_DOUTEUX)
         if base["modified_by_rule"]:
             signals.append(SIGNAL_REGLE_ACTIVE)
@@ -1010,28 +1062,19 @@ class EedomusUIService:
             return False
 
     async def get_available_endpoints(self) -> List[Dict[str, str]]:
-        """Get list of available WebSocket endpoints."""
+        """Get the list of available WebSocket endpoints.
+
+        Derived from WS_COMMANDS - the registration order is the list
+        order, and a command registered without an ENDPOINT_DESCRIPTIONS
+        entry fails loudly (KeyError) instead of vanishing silently.
+        """
         return [
             {
-                "name": "Validate Configuration",
-                "endpoint": WS_TYPE_EEDOMUS_VALIDATE,
-                "description": "Validate YAML configuration content",
-            },
-            {
-                "name": "Get Suggestions",
-                "endpoint": WS_TYPE_EEDOMUS_SUGGESTIONS,
-                "description": "Get autocompletion suggestions for fields",
-            },
-            {
-                "name": "Get Schema",
-                "endpoint": WS_TYPE_EEDOMUS_SCHEMA,
-                "description": "Get schema information and documentation",
-            },
-            {
-                "name": "Get Translations",
-                "endpoint": WS_TYPE_EEDOMUS_GET_TRANSLATIONS,
-                "description": "Get the panel translation catalog for a locale",
-            },
+                "name": ENDPOINT_DESCRIPTIONS[command_type][0],
+                "endpoint": command_type,
+                "description": ENDPOINT_DESCRIPTIONS[command_type][1],
+            }
+            for command_type, _handler in WS_COMMANDS
         ]
 
     def is_initialized(self) -> bool:

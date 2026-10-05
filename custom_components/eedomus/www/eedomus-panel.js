@@ -61,6 +61,10 @@ const SEARCH_ANNOUNCE_DELAY_MS = 300;
 // Ceiling of a clipboard write: a permission prompt abandoned by the
 // user never settles — the race converts it into an announced failure.
 const COPY_WRITE_TIMEOUT_MS = 2000;
+// Ceiling of the get_translations call: a dropped websocket never
+// settles — the race frees the loading slot so the next set hass can
+// retry instead of waiting on a dead request forever.
+const STRINGS_LOAD_TIMEOUT_MS = 10000;
 // Sort direction indicator: the arrow carries the direction visually,
 // aria-sort on the header cell carries the state (EXPERIENCE.md).
 const SORT_ARROW_ASC =
@@ -216,10 +220,18 @@ function coherenceHeadHtml(sort, t) {
 // render path and the debounced announcement compute the exact same
 // message — the live region never disagrees with the table.
 function periphStatusText(total, shown, touchedOnly, t) {
+  // One/other splits (same convention as the attempts detail): a
+  // count of 1 takes the singular form in every locale — the plain
+  // total and the filter suffix alike.
   const filterLabel = touchedOnly
-    ? ` ${t('panel.peripheriques.status.filtered', { n: shown })}`
+    ? ` ${t(shown === 1
+        ? 'panel.peripheriques.status.filtered_one'
+        : 'panel.peripheriques.status.filtered_other', { n: shown })}`
     : '';
-  return t('panel.peripheriques.status.total', { n: total }) + filterLabel;
+  const totalKey = total === 1
+    ? 'panel.peripheriques.status.total_one'
+    : 'panel.peripheriques.status.total_other';
+  return t(totalKey, { n: total }) + filterLabel;
 }
 
 function coherenceStatusText(shown, search, view, t) {
@@ -229,10 +241,16 @@ function coherenceStatusText(shown, search, view, t) {
   if (shown === 0 && view === 'to_verify') {
     return t('panel.coherence.status.all_clear');
   }
+  // One/other splits (same convention as the attempts detail).
   const viewLabel = view === 'to_verify'
-    ? ` ${t('panel.coherence.status.filtered', { n: shown })}`
+    ? ` ${t(shown === 1
+        ? 'panel.coherence.status.filtered_one'
+        : 'panel.coherence.status.filtered_other', { n: shown })}`
     : '';
-  return t('panel.coherence.status.total', { n: shown }) + viewLabel;
+  const totalKey = shown === 1
+    ? 'panel.coherence.status.total_one'
+    : 'panel.coherence.status.total_other';
+  return t(totalKey, { n: shown }) + viewLabel;
 }
 
 // ---- Popover pure helpers (ticket 2.4) ----
@@ -733,6 +751,7 @@ class EedomusConfigPanel extends HTMLElement {
     // Regles tab state (P.1.4)
     this._mapping = null;
     this._mappingError = null;
+    this._mappingLoading = false; // in-flight guard (deep-link restarts)
     this._ruleForm = null;
     this._rulesStatus = '';
     this._saveState = null; // null | 'saving' | 'applying' | {applied:{...}} | {error}
@@ -749,6 +768,7 @@ class EedomusConfigPanel extends HTMLElement {
     this._versions = null;
     this._currentMapping = null;
     this._versionsError = null;
+    this._versionsLoading = false; // in-flight guard (deep-link restarts)
     this._confirmRestore = null;
     this._historyStatus = null; // null | {key, ts?} — resolved via t()
     // Coherence tab state (ticket 2.2)
@@ -761,6 +781,11 @@ class EedomusConfigPanel extends HTMLElement {
     this._coherenceSearch = '';
     this._coherenceView = 'all'; // 'all' | 'to_verify'
     this._coherenceSort = { key: null, dir: null }; // dir: 'asc' | 'desc'
+    // Cache generation (sweep): a load started before a write must not
+    // repopulate the cache the write invalidated — its resolution is
+    // discarded when the generation moved (same discard pattern as the
+    // stale-locale guard of _loadStrings).
+    this._coherenceGeneration = 0;
     // Coherence popover (ticket 2.4) — the panel's single floating
     // surface. One instance at most; its content renders from the
     // already-loaded row (no network call on open).
@@ -784,9 +809,18 @@ class EedomusConfigPanel extends HTMLElement {
     this._loadStrings();
     if (this._built) {
       this._loadPeripherals();
-      // Direct #coherence entry: the tab rendered before hass was assigned,
-      // so its lazy load bailed out — start it now.
-      if (this._tab === 'coherence' && this._coherence === null && !this._coherenceError) {
+      // Direct deep-link entry into a lazy tab: the tab rendered
+      // before hass was assigned, so its lazy load bailed out —
+      // start it now. One branch per lazy tab, same guards as
+      // _renderTabContent (closes #regles and bug 105 #historique).
+      if (this._tab === 'regles' && this._mapping === null
+          && !this._mappingError) {
+        this._loadMapping();
+      } else if (this._tab === 'historique' && this._versions === null
+          && !this._versionsError) {
+        this._loadVersions();
+      } else if (this._tab === 'coherence' && this._coherence === null
+          && !this._coherenceError) {
         this._loadCoherence();
       }
     }
@@ -830,14 +864,33 @@ class EedomusConfigPanel extends HTMLElement {
     }
     this._stringsLoadingLocale = locale;
     let translations = null;
+    let timeoutId = null;
     try {
-      const result = await hass.callWS({
+      // Race: a dropped websocket (connection lost mid-flight) never
+      // settles — the timeout resolves the race, the slot frees, and
+      // the next set hass retries naturally.
+      const wsCall = hass.callWS({
         type: 'eedomus/get_translations',
         locale,
       });
+      // A rejection arriving after the timeout has won the race must
+      // not surface as an unhandled rejection: the slot is already
+      // freed, the error is dead.
+      wsCall.catch(() => {});
+      const result = await Promise.race([
+        wsCall,
+        new Promise((resolve) => {
+          timeoutId = setTimeout(() => resolve(null),
+            STRINGS_LOAD_TIMEOUT_MS);
+        }),
+      ]);
       translations = (result && result.translations) || null;
     } catch (err) {
       translations = null;
+    } finally {
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
     }
     if (this._stringsLoadingLocale === locale) {
       this._stringsLoadingLocale = null;
@@ -1643,6 +1696,14 @@ class EedomusConfigPanel extends HTMLElement {
     if (coherenceShowAll) {
       this._coherenceView = 'all';
       this._renderCoherenceTable();
+      // Focus contract (mirror of _coherenceSortBy): the re-render
+      // replaces the coherence body, removing the "Show all" button
+      // with its empty state — the keyboard user lands on the view
+      // toggle, the control that owns the state.
+      const viewBtn = this.shadowRoot.querySelector('[data-coherence-view]');
+      if (viewBtn) {
+        viewBtn.focus();
+      }
       return;
     }
     const popoverTrigger = ev.target.closest('[data-coherence-popover]');
@@ -1960,9 +2021,12 @@ class EedomusConfigPanel extends HTMLElement {
   // ================= Historique (P.1.6) =================
 
   async _loadVersions() {
-    if (!this._hass) {
+    // In-flight guard (mirror of _loadCoherence): a hass reassignment
+    // during the await must not duplicate the ws call and the render.
+    if (!this._hass || this._versionsLoading) {
       return;
     }
+    this._versionsLoading = true;
     this._versionsError = null;
     try {
       const result = await this._hass.callWS({
@@ -1974,6 +2038,7 @@ class EedomusConfigPanel extends HTMLElement {
       this._versionsError = (err && (err.message || err.code)) ||
         'panel.common.command_refused';
     }
+    this._versionsLoading = false;
     if (this._tab === 'historique') {
       const content = this.shadowRoot.getElementById('tab-content');
       if (content) {
@@ -2280,6 +2345,10 @@ class EedomusConfigPanel extends HTMLElement {
     this._coherenceLoading = true;
     this._coherenceError = null;
     this._coherence = null;
+    // Generation captured at load start: a write that invalidates the
+    // cache while the request is in flight bumps the generation — this
+    // (stale) resolution is then discarded, never written back.
+    const generation = this._coherenceGeneration;
     if (this._tab === 'coherence') {
       const content = this.shadowRoot.getElementById('tab-content');
       if (content) {
@@ -2287,16 +2356,27 @@ class EedomusConfigPanel extends HTMLElement {
         content.innerHTML = this._renderCoherenceTab();
       }
     }
+    let rows = null;
     try {
       const result = await this._hass.callWS({
         type: 'eedomus/get_coherence',
       });
-      this._coherence = (result && result.peripherals) || [];
+      rows = (result && result.peripherals) || [];
     } catch (err) {
-      this._coherenceError = (err && (err.message || err.code)) ||
-        'panel.common.command_refused';
+      rows = null;
+      if (generation === this._coherenceGeneration) {
+        this._coherenceError = (err && (err.message || err.code)) ||
+          'panel.common.command_refused';
+      }
     }
     this._coherenceLoading = false;
+    if (generation !== this._coherenceGeneration) {
+      // The cache was invalidated while this request was in flight:
+      // the resolution predates the write — dropped, the next visit
+      // reloads.
+      return;
+    }
+    this._coherence = rows;
     if (this._tab === 'coherence') {
       const content = this.shadowRoot.getElementById('tab-content');
       if (content) {
@@ -2570,10 +2650,18 @@ class EedomusConfigPanel extends HTMLElement {
   }
 
   _onCoherenceBreakpoint(ev) {
+    if (ev.matches) {
+      // Narrow side entered (matchMedia fires without a resize of
+      // this surface): the popover is desktop-only — it closes, the
+      // expanded row is the single detail surface from here on. The
+      // expansion state itself survives the crossing.
+      this._closeCoherencePopover();
+      return;
+    }
     // Wide side: the expanded row does not exist there — the popover
     // of 2.4 is the only detail surface, the state does not survive
     // the crossing (the resize listener already closed any popover).
-    if (!ev.matches && this._coherenceExpandedId !== null) {
+    if (this._coherenceExpandedId !== null) {
       const id = this._coherenceExpandedId;
       const root = this.shadowRoot;
       const expandedRow = root
@@ -2749,12 +2837,24 @@ class EedomusConfigPanel extends HTMLElement {
       return;
     }
     this._cancelCoherenceHover();
+    // A new hover intent cancels the closing grace of the previous
+    // popover: sweeping from one trigger to another, the leave-timer
+    // of the first would otherwise close the popover whose teardown
+    // kills this pending intent — no popover would ever open.
+    this._cancelCoherenceLeave();
     // Hover intent ~250 ms: no popover storm when sweeping the mouse
     // across the table. Keyboard opens without delay (Enter).
     this._coherenceHoverTrigger = trigger;
     this._coherenceHoverTimer = setTimeout(() => {
       this._coherenceHoverTimer = null;
       this._coherenceHoverTrigger = null;
+      // The breakpoint may have been crossed since the intent was
+      // scheduled (viewport changed during the delay, no resize on
+      // this surface yet): the popover is a wide-only surface, the
+      // narrow side expands a row instead.
+      if (coherenceNarrowView()) {
+        return;
+      }
       this._openCoherencePopover(trigger, { focusPopover: false, byHover: true });
     }, 250);
   }
@@ -3258,9 +3358,12 @@ class EedomusConfigPanel extends HTMLElement {
   // ================= Rules (P.1.4) =================
 
   async _loadMapping() {
-    if (!this._hass) {
+    // In-flight guard (mirror of _loadCoherence): a hass reassignment
+    // during the await must not duplicate the ws call and the render.
+    if (!this._hass || this._mappingLoading) {
       return;
     }
+    this._mappingLoading = true;
     this._mappingError = null;
     try {
       const result = await this._hass.callWS({
@@ -3271,6 +3374,7 @@ class EedomusConfigPanel extends HTMLElement {
       this._mappingError = (err && (err.message || err.code)) ||
         'panel.common.command_refused';
     }
+    this._mappingLoading = false;
     if (this._tab === 'regles') {
       const content = this.shadowRoot.getElementById('tab-content');
       if (content) {
@@ -3422,6 +3526,18 @@ class EedomusConfigPanel extends HTMLElement {
     }
   }
 
+  // Coherence cache invalidation: every mapping write (rule save,
+  // delete, YAML save, restore) changes what the coherence view
+  // derives — the next visit to the tab reloads the signals instead
+  // of showing stale rows until a full panel reload. The generation
+  // bump also discards any load still in flight: its data predates
+  // the write and must not repopulate the cache.
+  _invalidateCoherenceCache() {
+    this._coherenceGeneration += 1;
+    this._coherence = null;
+    this._coherenceError = null;
+  }
+
   async _persistMapping(mapping) {
     // Shared save path: persist through eedomus/save_mapping, then the
     // reloaded peripherals power the nominative feedback.
@@ -3435,6 +3551,10 @@ class EedomusConfigPanel extends HTMLElement {
       });
       this._saveState = 'applying';
       this._mapping = mapping;
+      // Invalidated immediately after the write succeeds: a failure
+      // of the subsequent peripherals reload must not skip it (the
+      // mapping on the box already changed).
+      this._invalidateCoherenceCache();
       this._updateYamlState();
       this._updateRuleFormState();
       await this._loadPeripherals();
@@ -3509,6 +3629,10 @@ class EedomusConfigPanel extends HTMLElement {
     try {
       await this._hass.callWS({ type: 'eedomus/save_mapping', mapping });
       this._mapping = mapping;
+      // Invalidated immediately after the write succeeds: a failure
+      // of the subsequent peripherals reload must not skip it (the
+      // mapping on the box already changed).
+      this._invalidateCoherenceCache();
       this._saveState = {
         applied: {
           entity_id: {

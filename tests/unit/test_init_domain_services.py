@@ -211,6 +211,137 @@ class TestAsyncSetupEntryWiring:
         setup_panel.assert_awaited_once_with(hass)
         hass.config_entries.async_forward_entry_setups.assert_awaited_once()
 
+    def _make_api_entry(self):
+        """A version-4 entry in API Eedomus mode (the coordinator path)."""
+        entry = MagicMock()
+        entry.version = 4
+        entry.unique_id = "eedomus_192.168.1.10"
+        entry.entry_id = "test_entry"
+        entry.data = {
+            "api_host": "192.168.1.10",
+            "api_eedomus": True,
+            "enable_api_proxy": False,
+        }
+        entry.options = {}
+        entry.update_listeners = []
+        entry.add_update_listener = MagicMock(return_value=lambda: None)
+        entry.async_on_unload = MagicMock()
+        return entry
+
+    def _patch_api_mode_setup(self, monkeypatch, coordinator):
+        """Stub everything the API-mode setup touches except the wave."""
+        import custom_components.eedomus.config_manager as config_manager_module
+        import custom_components.eedomus.mapping_registry as mapping_registry_module
+
+        # AD-13: setup ingests the custom mapping before anything reads
+        # it - the lazy from-import resolves the attribute at call time.
+        monkeypatch.setattr(
+            config_manager_module, "async_ingest_custom_mapping", AsyncMock()
+        )
+        monkeypatch.setattr(eedomus_init, "EedomusClient", MagicMock())
+        monkeypatch.setattr(
+            eedomus_init,
+            "EedomusDataUpdateCoordinator",
+            MagicMock(return_value=coordinator),
+        )
+        monkeypatch.setattr(eedomus_init, "async_setup_services", AsyncMock())
+        monkeypatch.setattr(
+            eedomus_init, "_async_setup_domain_services", AsyncMock()
+        )
+        monkeypatch.setattr(eedomus_init, "async_setup_panel", AsyncMock())
+        monkeypatch.setattr(
+            eedomus_init.aiohttp_client,
+            "async_get_clientsession",
+            MagicMock(return_value=MagicMock()),
+        )
+        # The lazy from-imports resolve at call time, so the patches
+        # target the mapping_registry module itself.
+        wave = [{"periph_id": "111", "entry_id": "test_entry"}]
+        monkeypatch.setattr(
+            mapping_registry_module,
+            "get_mapping_registry",
+            MagicMock(return_value=list(wave)),
+        )
+        retire = MagicMock()
+        monkeypatch.setattr(
+            mapping_registry_module, "prune_mapping_registry_objects", retire
+        )
+        monkeypatch.setattr(
+            mapping_registry_module, "print_mapping_table", MagicMock()
+        )
+        return wave, retire
+
+    @pytest.mark.asyncio
+    async def test_setup_retires_previous_wave_after_refresh_succeeds(
+        self, monkeypatch
+    ):
+        """Registry lifecycle at setup: the entry's previous registration
+        wave is retired only AFTER the first refresh has re-registered
+        the current mappings — a deleted mapping stops feeding the
+        coherence identity join."""
+        hass = make_hass()
+        hass.config_entries.async_forward_entry_setups = AsyncMock()
+        entry = self._make_api_entry()
+
+        coordinator = MagicMock()
+        coordinator.async_config_entry_first_refresh = AsyncMock()
+        wave, retire = self._patch_api_mode_setup(monkeypatch, coordinator)
+
+        assert await eedomus_init.async_setup_entry(hass, entry) is True
+
+        retire.assert_called_once_with(wave)
+
+    @pytest.mark.asyncio
+    async def test_failed_first_refresh_keeps_previous_wave(self, monkeypatch):
+        """A failed first refresh (timeout -> ConfigEntryNotReady retry)
+        must keep the previous wave: the coherence join never loses
+        identity fields it still serves."""
+        import asyncio
+
+        hass = make_hass()
+        hass.config_entries.async_forward_entry_setups = AsyncMock()
+        entry = self._make_api_entry()
+
+        coordinator = MagicMock()
+        coordinator.async_config_entry_first_refresh = AsyncMock(
+            side_effect=asyncio.TimeoutError()
+        )
+        _, retire = self._patch_api_mode_setup(monkeypatch, coordinator)
+
+        assert await eedomus_init.async_setup_entry(hass, entry) is False
+
+        retire.assert_not_called()
+
+
+class TestMappingRegistryEntryTagging:
+    """The live registration path (coordinator refresh ->
+    map_device_to_ha_entity -> _create_mapping) tags every registry
+    entry with the coordinator's config_entry.entry_id: the per-entry
+    prune depends on it."""
+
+    def test_map_device_to_ha_entity_tags_registrations_with_entry_id(
+        self, monkeypatch
+    ):
+        import custom_components.eedomus.entity as entity_module
+        import custom_components.eedomus.mapping_registry as mapping_registry_module
+        from types import SimpleNamespace
+
+        monkeypatch.setattr(mapping_registry_module, "_MAPPING_REGISTRY", [])
+        coordinator = SimpleNamespace(
+            config_entry=SimpleNamespace(entry_id="entry_tag")
+        )
+        # usage_id 27 takes the specific-cases path, which registers.
+        device = {"periph_id": "55", "name": "Detecteur", "usage_id": "27"}
+
+        entity_module.map_device_to_ha_entity(
+            device, {}, coordinator=coordinator
+        )
+
+        registry = mapping_registry_module.get_mapping_registry()
+        assert len(registry) == 1
+        assert registry[0]["entry_id"] == "entry_tag"
+        assert registry[0]["periph_id"] == "55"
+
 
 class TestAsyncRemoveEntryTeardown:
     @pytest.mark.asyncio
@@ -222,11 +353,24 @@ class TestAsyncRemoveEntryTeardown:
         unload_panel = AsyncMock()
         monkeypatch.setattr(eedomus_init, "async_unload_panel", unload_panel)
 
+        import custom_components.eedomus.mapping_registry as mapping_registry_module
+
+        prune = MagicMock()
+        monkeypatch.setattr(mapping_registry_module, "prune_mapping_registry", prune)
+        clear = MagicMock()
+        monkeypatch.setattr(mapping_registry_module, "clear_mapping_registry", clear)
+
         entry = MagicMock()
+        entry.entry_id = "last_entry"
         entry.options = {}
         await eedomus_init.async_remove_entry(hass, entry)
 
         unload_panel.assert_awaited_once_with(hass)
+        # Registry lifecycle: the removed entry's registrations are
+        # dropped with it, and with no entry left the global registry
+        # is cleared entirely.
+        prune.assert_called_once_with("last_entry")
+        clear.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_remove_entry_with_sibling_keeps_panel(self, monkeypatch):
@@ -239,12 +383,44 @@ class TestAsyncRemoveEntryTeardown:
         unload_panel = AsyncMock()
         monkeypatch.setattr(eedomus_init, "async_unload_panel", unload_panel)
 
+        import custom_components.eedomus.mapping_registry as mapping_registry_module
+
+        prune = MagicMock()
+        monkeypatch.setattr(mapping_registry_module, "prune_mapping_registry", prune)
+        clear = MagicMock()
+        monkeypatch.setattr(mapping_registry_module, "clear_mapping_registry", clear)
+
         entry = MagicMock()
         entry.options = {}
         entry.entry_id = "last_entry"
         await eedomus_init.async_remove_entry(hass, entry)
 
         unload_panel.assert_not_awaited()
+        # The removed entry's registrations are dropped; the sibling's
+        # survive, so the global registry is NOT cleared.
+        prune.assert_called_once_with("last_entry")
+        clear.assert_not_called()
+
+
+class TestAsyncUnloadEntryWiring:
+    @pytest.mark.asyncio
+    async def test_unload_prunes_the_entry_registrations(self, monkeypatch):
+        """Registry lifecycle at unload: a successfully unloaded entry
+        no longer feeds the coherence identity join."""
+        import custom_components.eedomus.mapping_registry as mapping_registry_module
+
+        hass = make_hass()
+        hass.data[DOMAIN] = {"e1": {}}
+        hass.config_entries.async_unload_platforms = AsyncMock(return_value=True)
+        prune = MagicMock()
+        monkeypatch.setattr(mapping_registry_module, "prune_mapping_registry", prune)
+
+        entry = MagicMock()
+        entry.entry_id = "e1"
+
+        assert await eedomus_init.async_unload_entry(hass, entry) is True
+
+        prune.assert_called_once_with("e1")
 
 
 class TestPanelOptionGating:

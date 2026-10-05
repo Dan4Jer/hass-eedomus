@@ -1,6 +1,6 @@
 """Panel translation catalog served by eedomus/get_translations (CAP-3).
 
-EN is the source of truth (140 panel.* keys from the i18n inventory);
+EN is the source of truth (144 panel.* keys from the i18n inventory);
 FR is its full translation. Texts carry raw {placeholder} tokens — the
 panel performs the replacement client-side.
 """
@@ -33,8 +33,12 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "panel.peripheriques.search.aria": ("Search a peripheral by name or usage_id"),
         "panel.peripheriques.filter.label": "Touched peripherals",
         "panel.peripheriques.filter.count": "({n})",
-        "panel.peripheriques.status.total": "{n} peripherals",
-        "panel.peripheriques.status.filtered": (
+        "panel.peripheriques.status.total_one": "{n} peripheral",
+        "panel.peripheriques.status.total_other": "{n} peripherals",
+        "panel.peripheriques.status.filtered_one": (
+            "— “Touched peripherals” filter active: {n} result"
+        ),
+        "panel.peripheriques.status.filtered_other": (
             "— “Touched peripherals” filter active: {n} results"
         ),
         "panel.peripheriques.error.load": "Failed to load peripherals: {err}.",
@@ -130,8 +134,14 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "panel.coherence.search.aria": ("Search a peripheral by name or periph_id"),
         "panel.coherence.filter.label": "To verify",
         "panel.coherence.filter.count": "({n})",
-        "panel.coherence.status.total": "{n} peripherals",
-        "panel.coherence.status.filtered": ("— “To verify” view active: {n} results"),
+        "panel.coherence.status.total_one": "{n} peripheral",
+        "panel.coherence.status.total_other": "{n} peripherals",
+        "panel.coherence.status.filtered_one": (
+            "— “To verify” view active: {n} result"
+        ),
+        "panel.coherence.status.filtered_other": (
+            "— “To verify” view active: {n} results"
+        ),
         "panel.coherence.status.no_result": ("No peripheral matches “{q}”."),
         "panel.coherence.status.all_clear": (
             "Everything is consistent. No peripheral to check."
@@ -149,10 +159,10 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "panel.coherence.chips.sans_entite": "no HA entity",
         "panel.coherence.chips.douteux": "doubtful mapping",
         "panel.coherence.chips.regle_active": "active rule",
-        "panel.coherence.chips.en_erreur": "in error",
+        "panel.coherence.chips.en_erreur": "import retrying",
         "panel.coherence.chips.coherent": "consistent",
         "panel.coherence.chips.unknown": "{raw}",
-        "panel.coherence.chips.en_erreur_detail": "in error: {truncated}",
+        "panel.coherence.chips.en_erreur_detail": "import retrying: {truncated}",
         "panel.coherence.chips.error_title": "{msg}",
         "panel.coherence.entity_link.aria": ("View {entity_id} in Home Assistant"),
         "panel.coherence.trigger.aria": "Details of peripheral {periph_id}",
@@ -220,8 +230,12 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         ),
         "panel.peripheriques.filter.label": "Périphériques touchés",
         "panel.peripheriques.filter.count": "({n})",
-        "panel.peripheriques.status.total": "{n} périphériques",
-        "panel.peripheriques.status.filtered": (
+        "panel.peripheriques.status.total_one": "{n} périphérique",
+        "panel.peripheriques.status.total_other": "{n} périphériques",
+        "panel.peripheriques.status.filtered_one": (
+            "— filtre « Périphériques touchés » actif : {n} résultat"
+        ),
+        "panel.peripheriques.status.filtered_other": (
             "— filtre « Périphériques touchés » actif : {n} résultats"
         ),
         "panel.peripheriques.error.load": (
@@ -326,8 +340,12 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         ),
         "panel.coherence.filter.label": "À vérifier",
         "panel.coherence.filter.count": "({n})",
-        "panel.coherence.status.total": "{n} périphériques",
-        "panel.coherence.status.filtered": (
+        "panel.coherence.status.total_one": "{n} périphérique",
+        "panel.coherence.status.total_other": "{n} périphériques",
+        "panel.coherence.status.filtered_one": (
+            "— vue « À vérifier » active : {n} résultat"
+        ),
+        "panel.coherence.status.filtered_other": (
             "— vue « À vérifier » active : {n} résultats"
         ),
         "panel.coherence.status.no_result": (
@@ -351,10 +369,10 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "panel.coherence.chips.sans_entite": "sans entité HA",
         "panel.coherence.chips.douteux": "mapping douteux",
         "panel.coherence.chips.regle_active": "règle active",
-        "panel.coherence.chips.en_erreur": "en erreur",
+        "panel.coherence.chips.en_erreur": "import en reprise",
         "panel.coherence.chips.coherent": "cohérent",
         "panel.coherence.chips.unknown": "{raw}",
-        "panel.coherence.chips.en_erreur_detail": "en erreur : {truncated}",
+        "panel.coherence.chips.en_erreur_detail": "import en reprise : {truncated}",
         "panel.coherence.chips.error_title": "{msg}",
         "panel.coherence.entity_link.aria": ("Voir {entity_id} dans Home Assistant"),
         "panel.coherence.trigger.aria": ("Détails du périphérique {periph_id}"),

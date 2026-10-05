@@ -15,7 +15,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, COORDINATOR
-from .entity import EedomusEntity, map_device_to_ha_entity
+from .entity import EedomusEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,15 +28,6 @@ async def async_setup_entry(
     climates = []
 
     all_peripherals = coordinator.get_all_peripherals()
-
-    # First pass: ensure all peripherals have proper mapping
-    for periph_id, periph in all_peripherals.items():
-        if "ha_entity" not in coordinator.data[periph_id]:
-            eedomus_mapping = map_device_to_ha_entity(periph, coordinator.data, coordinator=coordinator)
-            coordinator.data[periph_id].update(eedomus_mapping)
-            # Make sure the mapping is registered in the global registry
-            from .entity import _register_device_mapping
-            _register_device_mapping(eedomus_mapping, periph["name"], periph_id, periph)
 
     # Second pass: create climate entities
     for periph_id, periph in all_peripherals.items():

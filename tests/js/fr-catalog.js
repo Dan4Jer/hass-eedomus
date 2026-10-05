@@ -1,15 +1,15 @@
 'use strict';
 
 /**
- * FR catalog loader for the node-run panel tests (CAP-3).
+ * Panel catalog fixtures for the node-run panel tests (CAP-3).
  *
- * Parses the frozen custom_components/eedomus/panel_translations.py —
- * the same 136 panel.* texts the eedomus/get_translations command
- * serves — so the JS harness and the i18n guard never drift from the
- * Python source of truth. No Python execution: the catalog is scanned
- * as the flat dict literal it is (double-quoted keys and values,
- * parenthesized implicit string concatenation — the only shapes the
- * frozen file uses); any other shape fails the test loudly.
+ * tests/fixtures/panel-catalog.json is the committed snapshot of
+ * custom_components/eedomus/panel_translations.py — both locale
+ * trees, exactly what the eedomus/get_translations command serves.
+ * The JS side never parses the Python source anymore: the fixture is
+ * the repo-owned input of the JS harness and the i18n guard, and the
+ * pytest drift-check pins fixture ≡ PANEL_TRANSLATIONS so the two can
+ * never drift apart.
  */
 
 const fs = require('fs');
@@ -18,103 +18,21 @@ const path = require('path');
 const CATALOG_PATH = path.resolve(
   __dirname,
   '..',
-  '..',
-  'custom_components',
-  'eedomus',
-  'panel_translations.py'
+  'fixtures',
+  'panel-catalog.json'
 );
 
-// One double-quoted Python string: standard escapes only.
-function readQuoted(src, i) {
-  let out = '';
-  i += 1; // past the opening quote
-  while (i < src.length) {
-    const c = src[i];
-    if (c === '\\') {
-      const n = src[i + 1];
-      out += n === 'n' ? '\n' : n === 't' ? '\t' : n;
-      i += 2;
-      continue;
-    }
-    if (c === '"') {
-      return [out, i + 1];
-    }
-    out += c;
-    i += 1;
-  }
-  throw new Error('unterminated string in panel_translations.py');
-}
-
-// Whitespace and # comments between dict entries.
-function skipSpaceAndComments(src, i) {
-  while (i < src.length) {
-    const c = src[i];
-    if (c === '#' ) {
-      while (i < src.length && src[i] !== '\n') {
-        i += 1;
-      }
-    } else if (c === ' ' || c === '\n' || c === '\r' || c === '\t') {
-      i += 1;
-    } else {
-      break;
-    }
-  }
-  return i;
-}
-
-// Flat {key: value} dict starting at src[start] === '{'. Values are a
-// double-quoted string or a parenthesized concatenation of them.
-function parseLocaleDict(src, start) {
-  const dict = {};
-  let i = skipSpaceAndComments(src, start + 1);
-  while (i < src.length && src[i] !== '}') {
-    if (src[i] !== '"') {
-      throw new Error(`unexpected catalog char: ${JSON.stringify(src[i])}`);
-    }
-    let key;
-    let value;
-    [key, i] = readQuoted(src, i);
-    i = skipSpaceAndComments(src, i);
-    if (src[i] !== ':') {
-      throw new Error(`expected ':' after catalog key ${key}`);
-    }
-    i = skipSpaceAndComments(src, i + 1);
-    if (src[i] === '(') {
-      i = skipSpaceAndComments(src, i + 1);
-      value = '';
-      while (src[i] !== ')') {
-        if (src[i] !== '"') {
-          throw new Error(`expected string in concatenation for ${key}`);
-        }
-        let part;
-        [part, i] = readQuoted(src, i);
-        value += part;
-        i = skipSpaceAndComments(src, i);
-      }
-      i += 1; // past ')'
-    } else {
-      [value, i] = readQuoted(src, i);
-    }
-    dict[key] = value;
-    i = skipSpaceAndComments(src, i);
-    if (src[i] === ',') {
-      i = skipSpaceAndComments(src, i + 1);
-    }
-  }
-  return dict;
-}
-
-function parseFrCatalog(source) {
-  const marker = '"fr": {';
-  const start = source.indexOf(marker);
-  if (start === -1) {
-    throw new Error('"fr" catalog not found in panel_translations.py');
-  }
-  return parseLocaleDict(source, start + marker.length - 1);
+// {en: {...}, fr: {...}} — the whole frozen catalog.
+function loadCatalogs() {
+  return JSON.parse(fs.readFileSync(CATALOG_PATH, 'utf8'));
 }
 
 function loadFrCatalog() {
-  return parseFrCatalog(fs.readFileSync(CATALOG_PATH, 'utf8'));
+  return loadCatalogs().fr;
+}
+
+function loadEnCatalog() {
+  return loadCatalogs().en;
 }
 
 // Translator mirroring the panel's t() over a plain catalog object —
@@ -135,7 +53,8 @@ function catalogTranslator(catalog) {
 
 module.exports = {
   CATALOG_PATH,
-  parseFrCatalog,
+  loadCatalogs,
   loadFrCatalog,
+  loadEnCatalog,
   catalogTranslator,
 };

@@ -145,6 +145,17 @@ except Exception as e:
     NAME_PATTERNS = []
 
 
+def get_coordinator_entry_id(coordinator):
+    """Return the config entry id tied to this coordinator, or None.
+
+    The single walk of coordinator.config_entry.entry_id: prefixes
+    (get_entry_prefix) and registry lifecycle tagging
+    (map_device_to_ha_entity) share it so the two can never drift.
+    """
+    entry = getattr(coordinator, "config_entry", None)
+    return getattr(entry, "entry_id", None)
+
+
 def get_entry_prefix(coordinator) -> str:
     """Return the config entry id tied to this coordinator's box.
 
@@ -154,9 +165,7 @@ def get_entry_prefix(coordinator) -> str:
     fixed string only if a coordinator without a config_entry is ever passed
     (should not happen in normal operation), to avoid a hard crash.
     """
-    entry = getattr(coordinator, "config_entry", None)
-    entry_id = getattr(entry, "entry_id", None)
-    return entry_id or "unknown_entry"
+    return get_coordinator_entry_id(coordinator) or "unknown_entry"
 
 
 class EedomusEntity(CoordinatorEntity):
@@ -397,6 +406,11 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     periph_id = device_data["periph_id"]
     periph_name = device_data["name"]
     usage_id = device_data.get("usage_id")
+    # Registry lifecycle: the coordinator belongs to one config entry -
+    # its id ties every registration below to that entry so a reload
+    # can prune the previous wave's registrations (get_coordinator_entry_id
+    # is the single shared walk of coordinator.config_entry).
+    registry_entry_id = get_coordinator_entry_id(coordinator)
     
     _LOGGER.debug("Mapping device: %s (%s, usage_id=%s)", periph_name, periph_id, usage_id)
     
@@ -528,7 +542,15 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                 _LOGGER.debug("✅ Mapping: %s:%s", 
                             rule_config["mapping"]["ha_entity"], rule_config["mapping"]["ha_subtype"])
             
-            return _create_mapping(rule_config["mapping"], periph_name, periph_id, rule_name, "🎯 Advanced rule", device_data)
+            return _create_mapping(
+                rule_config["mapping"],
+                periph_name,
+                periph_id,
+                rule_name,
+                "🎯 Advanced rule",
+                device_data,
+                registry_entry_id,
+            )
     
     # Priority 2: Critical specific cases (usage_id)
     specific_cases = {
@@ -540,7 +562,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         ha_entity, ha_subtype, log_msg, emoji = specific_cases[usage_id]
         return _create_mapping(
             {"ha_entity": ha_entity, "ha_subtype": ha_subtype, "justification": f"{log_msg}: usage_id={usage_id}"},
-            periph_name, periph_id, usage_id, emoji, device_data
+            periph_name, periph_id, usage_id, emoji, device_data, registry_entry_id
         )
     
     # Priority 2.5: Specific per-periph_id mapping (overrides usage_id mapping)
@@ -549,7 +571,13 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         _LOGGER.debug("🎯 Specific device mapping applied for %s (%s): %s:%s",
                      periph_name, periph_id, mapping["ha_entity"], mapping["ha_subtype"])
         return _create_mapping(
-            mapping, periph_name, periph_id, usage_id, f"🎯 Specific device mapping", device_data
+            mapping,
+            periph_name,
+            periph_id,
+            usage_id,
+            f"🎯 Specific device mapping",
+            device_data,
+            registry_entry_id,
         )
     
 
@@ -682,9 +710,9 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     # Legacy name detection (can be removed in future)
     if "message" in name_lower and "box" in name_lower:
         return _create_mapping(
-            {"ha_entity": "sensor", "ha_subtype": "text", 
+            {"ha_entity": "sensor", "ha_subtype": "text",
              "justification": f"Message box: {device_data['name']}"},
-            periph_name, periph_id, "message", "📝", device_data
+            periph_name, periph_id, "message", "📝", device_data, registry_entry_id
         )
     
     # Priority 5: Default mapping (YAML fallback)
@@ -762,7 +790,15 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
             )
             return None
 
-def _create_mapping(mapping_config, periph_name, periph_id, context, emoji="🎯", device_data=None):
+def _create_mapping(
+    mapping_config,
+    periph_name,
+    periph_id,
+    context,
+    emoji="🎯",
+    device_data=None,
+    entry_id=None,
+):
     """Create a standardized mapping with appropriate logging.
     
     Helper function that processes mapping configuration and generates consistent
@@ -775,6 +811,9 @@ def _create_mapping(mapping_config, periph_name, periph_id, context, emoji="🎯
         context: Context description for logging
         emoji: Log level indicator
         device_data: Optional device data for additional debugging
+        entry_id: Config entry id that produced the mapping - feeds the
+            registry lifecycle (prune_mapping_registry drops a reload's
+            stale registrations per entry)
         
     Returns:
         Dictionary with standardized mapping including justification
@@ -802,6 +841,6 @@ def _create_mapping(mapping_config, periph_name, periph_id, context, emoji="🎯
                   mapping["justification"])
     
     # Store the mapping in the global registry
-    register_device_mapping(mapping, periph_name, periph_id, device_data)
+    register_device_mapping(mapping, periph_name, periph_id, device_data, entry_id)
     
     return mapping

@@ -8,9 +8,10 @@
  * top-level pure functions exported by the module scope.
  *
  * Since CAP-3 the label-bearing helpers take a translator as their
- * last argument; the tests pass a fixture built from the frozen FR
- * catalog (tests/js/fr-catalog.js parses panel_translations.py), so
- * the expected texts below stay the real FR panel texts.
+ * last argument; the tests pass a fixture built from the committed FR
+ * catalog snapshot (tests/fixtures/panel-catalog.json, drift-checked
+ * against panel_translations.py by pytest), so the expected texts
+ * below stay the real FR panel texts.
  *
  * Run: node tests/js/test-coherence.js (exit 0 on success)
  */
@@ -107,6 +108,10 @@ const hook = `
   coherenceRowExpansionHtml,
   POPOVER_FOCUSABLE_SELECTOR,
   coherenceHeadHtml,
+  coherenceChipsHtml,
+  coherenceChipHtml,
+  COHERENCE_SIGNALS,
+  COHERENCE_OK_SIGNAL,
   periphStatusText,
   coherenceStatusText,
   COHERENCE_COLUMNS,
@@ -139,6 +144,10 @@ const {
   coherenceRowExpansionHtml,
   POPOVER_FOCUSABLE_SELECTOR,
   coherenceHeadHtml,
+  coherenceChipsHtml,
+  coherenceChipHtml,
+  COHERENCE_SIGNALS,
+  COHERENCE_OK_SIGNAL,
   periphStatusText,
   coherenceStatusText,
   COHERENCE_COLUMNS,
@@ -182,24 +191,24 @@ const ids = (rows) => rows.map((r) => r.periph_id);
 const state = (over) =>
   Object.assign({ search: '', view: 'all', sort: { key: null, dir: null } }, over);
 
-// --- sort cycle: croissant -> décroissant -> neutre (ordre de réponse) ---
+// --- sort cycle: ascending -> descending -> neutral (response order) ---
 assertEq(
-  'cycle: 1st click croissant',
+  'cycle: 1st click ascending',
   nextCoherenceSort({ key: null, dir: null }, 'name'),
   { key: 'name', dir: 'asc' }
 );
 assertEq(
-  'cycle: 2nd click décroissant',
+  'cycle: 2nd click descending',
   nextCoherenceSort({ key: 'name', dir: 'asc' }, 'name'),
   { key: 'name', dir: 'desc' }
 );
 assertEq(
-  'cycle: 3rd click neutre',
+  'cycle: 3rd click neutral',
   nextCoherenceSort({ key: 'name', dir: 'desc' }, 'name'),
   { key: null, dir: null }
 );
 assertEq(
-  'cycle: other column restarts croissant',
+  'cycle: other column restarts ascending',
   nextCoherenceSort({ key: 'name', dir: 'desc' }, 'periph_id'),
   { key: 'periph_id', dir: 'asc' }
 );
@@ -334,7 +343,7 @@ assertEq(
   'light / switch'
 );
 
-// --- popover: état vivant fields (ticket 2.4) ---
+// --- popover: living state fields (ticket 2.4) ---
 const LIVE_ROW = {
   periph_id: '101',
   entity_id: 'sensor.salon',
@@ -366,7 +375,7 @@ assertEq(
   ]
 );
 assertEq(
-  'live: row without entity shows « aucune entité » and no value',
+  'live: row without entity shows the no-entity text and no value',
   coherenceLiveFields({ entity_id: null, state: '21.5' }, t),
   [
     { label: 'Entité HA', value: 'aucune entité', mono: true },
@@ -578,8 +587,8 @@ assertEq(
   'detail: actions and collapsed raw section',
   [
     detail.includes('Créer une règle'),
-    // CAP-8 : l'action « Config HA » désactivée est devenue le lien
-    // actif « Voir dans HA » — le libellé accessible porte l'entité.
+    // CAP-8: the disabled "Config HA" action became the active
+    // "View in HA" link - the accessible name carries the entity.
     detail.includes('Voir dans HA'),
     detail.includes('data-entity-id="sensor.salon"'),
     detail.includes(
@@ -594,7 +603,9 @@ assertEq(
   [true, true, true, true, true, true, true, true, true]
 );
 assertEq(
-  'detail: non-numeric attempts never pluralize as NaN',
+  // 3.3 assumed the non-finite -> plural gap; the label now says
+  // what the assertion actually pins (never NaN, always plural).
+  'detail: non-numeric attempts take the plural form, never NaN',
   [
     detail.includes('(beaucoup tentatives)'),
     detail.includes('NaN'),
@@ -614,7 +625,7 @@ assertEq(
     noEntityDetail.includes('inconnu'),
     noEntityDetail.includes('<span class="popover-name"></span>'),
     noEntityDetail.includes('<code class="popover-id">12</code>'),
-    // Sans entité, aucun lien ni action de navigation (CAP-8).
+    // Without an entity: no link and no navigation action (CAP-8).
     !noEntityDetail.includes('data-entity-id'),
     !noEntityDetail.includes('Voir dans HA'),
   ],
@@ -686,7 +697,7 @@ assertEq(
 
 // --- entity link (2.6, CAP-8): markup, hostile and null cases ---
 assertEq(
-  'entity link: null/undefined/empty stays inert « aucune entité »',
+  'entity link: null/undefined/empty stays the inert no-entity text',
   [
     coherenceEntityLinkHtml(null, t),
     coherenceEntityLinkHtml(undefined, t),
@@ -960,6 +971,14 @@ assertEq(
   ]
 );
 assertEq(
+  'periph status: a count of 1 takes the singular form (one/other split)',
+  [periphStatusText(1, 1, false, t), periphStatusText(1, 1, true, t)],
+  [
+    '1 périphérique',
+    '1 périphérique — filtre « Périphériques touchés » actif : 1 résultat',
+  ]
+);
+assertEq(
   'coherence status: count, view label, no-result and positive empty',
   [
     coherenceStatusText(165, '', 'all', t),
@@ -973,6 +992,11 @@ assertEq(
     'Aucun périphérique ne correspond à “zzz”.',
     'Tout est cohérent. Aucun périphérique à vérifier.',
   ]
+);
+assertEq(
+  'coherence status: a count of 1 takes the singular form (one/other split)',
+  coherenceStatusText(1, '', 'all', t),
+  '1 périphérique'
 );
 
 // --- keystroke debounce wiring (sweep): one announcement per burst ---
@@ -1014,7 +1038,7 @@ assertEq(
     coherenceEls['coherence-status'].textContent,
     liveLog,
   ],
-  [1, 300, '1 périphériques', []]
+  [1, 300, '1 périphérique', []]
 );
 announcePanel._onInput({ target: { id: 'coherence-search', value: 'salon' } });
 assertEq(
@@ -1034,7 +1058,7 @@ assertEq(
     liveLog,
     announcePanel._statusAnnounceTimers['coherence-status-live'],
   ],
-  [['1 périphériques'], undefined]
+  [['1 périphérique'], undefined]
 );
 announcePanel._onInput({ target: { id: 'coherence-search', value: 'sal' } });
 announcePanel._coherenceSortBy('name');
@@ -1046,7 +1070,7 @@ assertEq(
     sandboxTimers.length,
     liveLog[liveLog.length - 1],
   ],
-  [undefined, 3, 3, '1 périphériques']
+  [undefined, 3, 3, '1 périphérique']
 );
 
 // --- skeleton (sweep): shared head, inert, derived colspan ---
@@ -1063,6 +1087,477 @@ assertEq(
   [true, 5, true, true, true]
 );
 
+// --- chips (verification hole, sweep): every signal, one chip -----
+// The composed row never asserted the chips themselves — the main
+// visible output of the tab could degrade with the suite green.
+const CHIP_LABELS = {
+  sans_entite: 'sans entité HA',
+  douteux: 'mapping douteux',
+  regle_active: 'règle active',
+  en_erreur: 'import en reprise',
+};
+for (const signal of Object.keys(COHERENCE_SIGNALS)) {
+  const chip = coherenceChipHtml(signal, { signals: [signal] }, t);
+  assertEq(
+    `chip: signal ${signal} renders its class, icon and catalog label`,
+    [
+      chip.includes(`class="coherence-chip coherence-chip-${signal}"`),
+      chip.includes('<svg'),
+      chip.includes(CHIP_LABELS[signal]),
+    ],
+    [true, true, true]
+  );
+}
+assertEq(
+  'chip: the label set matches the backend signal contract',
+  Object.keys(COHERENCE_SIGNALS),
+  ['sans_entite', 'douteux', 'regle_active', 'en_erreur']
+);
+const coherentChip = coherenceChipsHtml({ signals: [] }, t);
+assertEq(
+  'chip: a signal-less row renders the coherent fallback chip',
+  [
+    coherentChip.includes('coherence-chip-coherent'),
+    coherentChip.includes('cohérent'),
+    coherentChip.includes('<svg'),
+  ],
+  [true, true, true]
+);
+// Apostrophe-free message: escapeHtml turns ' into &#39;, and the
+// point here is the truncation and the title, not the escaping
+// (covered by the hostile-value tests above).
+const LONG_ERROR =
+  'Échec import historique : limite de débit API atteinte';
+const erroredChip = coherenceChipHtml(
+  'en_erreur',
+  { signals: ['en_erreur'], error_message: LONG_ERROR },
+  t
+);
+assertEq(
+  'chip: en_erreur with a message carries the retry label, truncated detail, full title',
+  [
+    erroredChip.includes('import en reprise : '),
+    erroredChip.includes(`${LONG_ERROR.slice(0, 39)}…`),
+    erroredChip.includes(`title="${LONG_ERROR}"`),
+  ],
+  [true, true, true]
+);
+const unknownChip = coherenceChipHtml('signal_inconnu', {}, t);
+assertEq(
+  'chip: an unknown signal string keeps a neutral chip with the raw value',
+  [
+    unknownChip.includes('coherence-chip-unknown'),
+    unknownChip.includes('signal_inconnu'),
+    !unknownChip.includes('<svg'),
+  ],
+  [true, true, true]
+);
+
+// --- tap dispatch (verification hole, sweep): narrow vs wide --------
+// matchMedia is stubbed: the same tap routes to the expanded row
+// under the breakpoint and to the popover on the wide side.
+const dispatchMedia = {
+  matches: false,
+  addEventListener() {},
+  removeEventListener() {},
+};
+sandbox.window.matchMedia = () => dispatchMedia;
+const dispatchPanel = new EedomusConfigPanel();
+const expandedCalls = [];
+const popoverCalls = [];
+dispatchPanel._toggleCoherenceExpanded = (id) => {
+  expandedCalls.push(id);
+};
+dispatchPanel._openCoherencePopover = (trigger, opts) => {
+  popoverCalls.push([trigger, opts]);
+};
+const dispatchTrigger = { dataset: { coherencePopover: '101' } };
+const dispatchClick = () => dispatchPanel._onClick({
+  target: {
+    closest: (sel) =>
+      sel === '[data-coherence-popover]' ? dispatchTrigger : null,
+  },
+});
+dispatchMedia.matches = true;
+dispatchClick();
+assertEq(
+  'dispatch: a tap under the breakpoint expands the row, never the popover',
+  [expandedCalls, popoverCalls],
+  [['101'], []]
+);
+dispatchMedia.matches = false;
+dispatchClick();
+assertEq(
+  'dispatch: a tap on the wide side opens the popover, focused',
+  [
+    expandedCalls,
+    popoverCalls.length,
+    popoverCalls[0][0] === dispatchTrigger,
+    popoverCalls[0][1],
+  ],
+  [['101'], 1, true, { focusPopover: true }]
+);
+dispatchMedia.matches = false;
+delete sandbox.window.matchMedia;
+
+// --- render teardown (verification hole, sweep): popover + expansion
+// The _closeCoherencePopover of every reshuffle and the eviction of
+// an expansion absent from the filtered rows had no witness.
+const teardownPanel = new EedomusConfigPanel();
+teardownPanel._strings = FR;
+teardownPanel._stringsLocale = 'fr';
+const teardownEls = {
+  'coherence-status': { id: 'coherence-status', textContent: '' },
+  'coherence-status-live': { id: 'coherence-status-live', textContent: '' },
+  'coherence-body': { id: 'coherence-body', innerHTML: '' },
+};
+const removedDoc = [];
+const removedRoot = [];
+teardownPanel.shadowRoot = {
+  getElementById: (id) => teardownEls[id] || null,
+  querySelector: () => null,
+  removeEventListener: (type, fn) => {
+    removedRoot.push([type, fn]);
+  },
+  activeElement: null,
+};
+let popRemoved = 0;
+const teardownPop = {
+  contains: () => false,
+  remove: () => {
+    popRemoved += 1;
+  },
+};
+const teardownTrigger = { dataset: {}, setAttribute() {}, removeAttribute() {} };
+const teardownDismiss = () => {};
+const teardownFocusOut = () => {};
+teardownPanel._coherencePopover = teardownPop;
+teardownPanel._coherencePopoverTrigger = teardownTrigger;
+teardownPanel._coherenceDismiss = teardownDismiss;
+teardownPanel._coherenceFocusOut = teardownFocusOut;
+teardownPanel._tab = 'coherence';
+teardownPanel._coherence = ROWS.slice();
+teardownPanel._coherenceExpandedId = '12'; // filtered out below
+teardownPanel._coherenceSearch = 'sal'; // matches only periph 101
+const savedTeardownDoc = sandbox.document;
+sandbox.document = {
+  removeEventListener: (type, fn) => {
+    removedDoc.push([type, fn]);
+  },
+};
+teardownPanel._renderCoherenceTable();
+if (savedTeardownDoc === undefined) {
+  delete sandbox.document;
+} else {
+  sandbox.document = savedTeardownDoc;
+}
+assertEq(
+  'teardown: any reshuffle closes the popover and removes its listeners',
+  [
+    popRemoved,
+    teardownPanel._coherencePopover,
+    removedDoc,
+    removedRoot,
+  ],
+  [
+    1,
+    null,
+    [
+      ['click', teardownDismiss],
+      ['scroll', teardownDismiss],
+    ],
+    [['focusout', teardownFocusOut]],
+  ]
+);
+assertEq(
+  'teardown: an expansion absent from the filtered rows is evicted',
+  [
+    teardownPanel._coherenceExpandedId,
+    teardownEls['coherence-status'].textContent,
+    teardownEls['coherence-body'].innerHTML.includes('data-coherence-popover="101"'),
+  ],
+  [null, '1 périphérique', true]
+);
+
+// --- periphs typing debounce (verification hole, sweep) ------------
+// Mirror of the coherence case: the visible count is immediate, only
+// the live-region announcement waits for the captured 300 ms timer.
+const periphDebouncePanel = new EedomusConfigPanel();
+periphDebouncePanel._strings = FR;
+periphDebouncePanel._stringsLocale = 'fr';
+const periphDebounceLive = [];
+const periphLiveEl = { id: 'periph-status-live' };
+Object.defineProperty(periphLiveEl, 'textContent', {
+  get: () =>
+    periphDebounceLive[periphDebounceLive.length - 1] || '',
+  set: (value) => {
+    periphDebounceLive.push(value);
+  },
+});
+const periphDebounceEls = {
+  'periph-list': { id: 'periph-list', innerHTML: '' },
+  'periph-status': { id: 'periph-status', textContent: '' },
+  'periph-status-live': periphLiveEl,
+};
+periphDebouncePanel.shadowRoot = {
+  getElementById: (id) => periphDebounceEls[id] || null,
+  querySelector: () => null,
+};
+periphDebouncePanel._tab = 'peripheriques';
+periphDebouncePanel._periphs = [
+  { periph_id: '101', name: 'Salon', usage_id: '1', entity_id: 'sensor.s' },
+  { periph_id: '12', name: 'Cave', usage_id: '2', entity_id: null },
+];
+const periphTimerBase = sandboxTimers.length;
+periphDebouncePanel._onInput({ target: { id: 'periph-search', value: 'sal' } });
+const periphFirstHandle =
+  periphDebouncePanel._statusAnnounceTimers['periph-status-live'];
+assertEq(
+  'periphs debounce: one 300ms timer scheduled, visible count immediate',
+  [
+    sandboxTimers.length - periphTimerBase,
+    sandboxTimers[sandboxTimers.length - 1].delay,
+    periphDebounceEls['periph-status'].textContent,
+    periphDebounceLive,
+  ],
+  [1, 300, '2 périphériques', []]
+);
+periphDebouncePanel._onInput({ target: { id: 'periph-search', value: 'salon' } });
+assertEq(
+  'periphs debounce: next keystroke replaces the pending timer, live quiet',
+  [
+    sandboxTimers.length - periphTimerBase,
+    periphDebouncePanel._statusAnnounceTimers['periph-status-live'],
+    periphDebounceLive,
+    sandboxCleared[sandboxCleared.length - 1] === periphFirstHandle,
+  ],
+  [2, periphFirstHandle + 1, [], true]
+);
+sandboxTimers[sandboxTimers.length - 1].fn();
+assertEq(
+  'periphs debounce: flush announces exactly once after the pause',
+  periphDebounceLive,
+  ['2 périphériques']
+);
+
+// --- hover intent races (sweep): sweep + narrow crossing ----------
+// The dispatch test cached the narrow media query on the module - the
+// same stub object drives both surfaces here.
+const hoverQuery = {
+  matches: true,
+  addEventListener() {},
+  removeEventListener() {},
+};
+sandbox.window.matchMedia = (query) =>
+  query.indexOf('hover') !== -1 ? hoverQuery : dispatchMedia;
+dispatchMedia.matches = false;
+const hoverPanel = new EedomusConfigPanel();
+hoverPanel._tab = 'coherence';
+hoverPanel._coherence = ROWS.slice();
+const hoverOpened = [];
+hoverPanel._openCoherencePopover = (trigger, opts) => {
+  hoverOpened.push([trigger, opts]);
+};
+const hoverTriggerA = {
+  dataset: { coherencePopover: '101' },
+  closest: (sel) =>
+    sel === '[data-coherence-popover]' ? hoverTriggerA : null,
+};
+const hoverTriggerB = {
+  dataset: { coherencePopover: '12' },
+  closest: (sel) =>
+    sel === '[data-coherence-popover]' ? hoverTriggerB : null,
+};
+// The sweep race: a pending leave-timer from the previous popover
+// must die with the new intent - its close would otherwise cancel
+// this very intent and no popover would ever open.
+hoverPanel._coherenceLeaveTimer = 77;
+hoverPanel._onCoherenceMouseOver({ target: hoverTriggerA });
+assertEq(
+  'hover: a new intent cancels the pending leave-timer',
+  [hoverPanel._coherenceLeaveTimer, sandboxTimers.length > 0],
+  [null, true]
+);
+const intentTimer =
+  sandboxTimers[sandboxTimers.length - 1];
+assertEq(
+  'hover: the intent waits ~250ms before opening',
+  intentTimer.delay,
+  250
+);
+intentTimer.fn();
+assertEq(
+  'hover: the intent opens the popover on the wide side, unfocused',
+  [hoverOpened.length, hoverOpened[0][0] === hoverTriggerA, hoverOpened[0][1]],
+  [1, true, { focusPopover: false, byHover: true }]
+);
+// Viewport crossed during the intent window: the popover is a
+// wide-only surface, the timer must not open it under the breakpoint.
+hoverPanel._onCoherenceMouseOver({ target: hoverTriggerB });
+dispatchMedia.matches = true;
+sandboxTimers[sandboxTimers.length - 1].fn();
+assertEq(
+  'hover: an intent that outlives the breakpoint crossing never opens',
+  [hoverOpened.length, hoverPanel._coherenceHoverTimer],
+  [1, null]
+);
+hoverQuery.matches = false;
+dispatchMedia.matches = false;
+delete sandbox.window.matchMedia;
+
+// --- breakpoint crossing (sweep): popover down, expansion up -------
+const narrowPanel = new EedomusConfigPanel();
+let narrowClosed = 0;
+narrowPanel._closeCoherencePopover = () => {
+  narrowClosed += 1;
+};
+narrowPanel._coherenceExpandedId = '101';
+narrowPanel._onCoherenceBreakpoint({ matches: true });
+assertEq(
+  'breakpoint: entering narrow closes the popover, expansion survives',
+  [narrowClosed, narrowPanel._coherenceExpandedId],
+  [1, '101']
+);
+const widePanel = new EedomusConfigPanel();
+const wideRenders = [];
+widePanel._closeCoherencePopover = () => {};
+widePanel._renderCoherenceTable = () => {
+  wideRenders.push(1);
+};
+widePanel._coherenceTriggerFor = () => null;
+widePanel._tab = 'coherence';
+widePanel.shadowRoot = {
+  getElementById: () => null,
+  activeElement: null,
+};
+widePanel._coherenceExpandedId = '101';
+widePanel._onCoherenceBreakpoint({ matches: false });
+assertEq(
+  'breakpoint: entering wide drops the expansion and re-renders',
+  [widePanel._coherenceExpandedId, wideRenders.length],
+  [null, 1]
+);
+
+// --- "Show all" focus restoration (sweep): the witness -----------
+// The re-render replaces the coherence body (the button lives in it) -
+// focus must land on the view toggle, the control that owns the state.
+const showAllPanel = new EedomusConfigPanel();
+showAllPanel._strings = FR;
+showAllPanel._stringsLocale = 'fr';
+const showAllFocusLog = [];
+const showAllViewBtn = {
+  setAttribute() {},
+  querySelector: () => null,
+  focus() {
+    showAllFocusLog.push(1);
+  },
+};
+const showAllEls = {
+  'coherence-status': { id: 'coherence-status', textContent: '' },
+  'coherence-status-live': { id: 'coherence-status-live', textContent: '' },
+  'coherence-body': { id: 'coherence-body', innerHTML: '' },
+};
+showAllPanel.shadowRoot = {
+  getElementById: (id) => showAllEls[id] || null,
+  querySelector: (sel) =>
+    sel === '[data-coherence-view]' ? showAllViewBtn : null,
+};
+showAllPanel._tab = 'coherence';
+showAllPanel._coherence = ROWS.slice();
+showAllPanel._coherenceView = 'to_verify';
+showAllPanel._coherenceExpandedId = null;
+showAllPanel._onClick({
+  target: {
+    closest: (sel) => (sel === '[data-coherence-show-all]' ? {} : null),
+  },
+});
+assertEq(
+  'show all: the re-render restores focus on the view toggle',
+  [showAllFocusLog.length, showAllPanel._coherenceView],
+  [1, 'all']
+);
+
+// --- status/banner instance rendering (3.3 review findings) ------
+// The stored statuses resolve through t() at display time, twice:
+// the stored key (or raw message) and the ts descriptor inside it.
+const statusPanel = new EedomusConfigPanel();
+statusPanel._strings = FR;
+statusPanel._stringsLocale = 'fr';
+statusPanel._historyStatus = { key: 'panel.historique.restore.progress' };
+assertEq(
+  'history status: a stored key resolves through t()',
+  statusPanel._historyStatusText(),
+  'Sauvegarde… puis Application…'
+);
+statusPanel._historyStatus = {
+  key: 'panel.historique.restore.success',
+  ts: '2026-10-03 09:19',
+};
+assertEq(
+  'history status: a raw ts passes through t() unchanged (key-or-message)',
+  statusPanel._historyStatusText(),
+  'Version du 2026-10-03 09:19 restaurée. Le mapping remplacé est archivé.'
+);
+statusPanel._historyStatus = {
+  key: 'panel.historique.restore.success',
+  ts: 'panel.common.unknown_date',
+};
+assertEq(
+  'history status: a stored ts key resolves too (double resolution)',
+  statusPanel._historyStatusText(),
+  'Version du date inconnue restaurée. Le mapping remplacé est archivé.'
+);
+statusPanel._historyStatus = null;
+assertEq(
+  'history status: no stored status renders the empty string',
+  statusPanel._historyStatusText(),
+  ''
+);
+const rulesStatusEl = { id: 'rules-status', textContent: '' };
+statusPanel.shadowRoot = {
+  getElementById: (id) => (id === 'rules-status' ? rulesStatusEl : null),
+};
+statusPanel._validation = { valid: false, message: '' };
+statusPanel._rulesStatus = '';
+statusPanel._saveState = { applied: true };
+statusPanel._updateRulesStatus();
+assertEq(
+  'rules status: the plain applied descriptor resolves',
+  rulesStatusEl.textContent,
+  'Configuration appliquée.'
+);
+statusPanel._saveState = {
+  applied: {
+    entity_id: {
+      key: 'panel.regles.status.rule_applied_entity_fallback',
+      params: { rule: '24' },
+    },
+    unit: { key: 'panel.regles.status.rule_applied_unit_fallback' },
+  },
+};
+statusPanel._updateRulesStatus();
+assertEq(
+  'rules status: fallback descriptors resolve through t() (resolveApplied)',
+  rulesStatusEl.textContent,
+  'Règle appliquée. usage_id 24 est maintenant en sa nouvelle valeur.'
+);
+statusPanel._saveState = { error: 'panel.common.unknown_error' };
+statusPanel._updateRulesStatus();
+assertEq(
+  'rules status: an error key resolves through t()',
+  rulesStatusEl.textContent,
+  'Échec de la sauvegarde : erreur inconnue. Le formulaire conserve vos ' +
+    'modifications.'
+);
+statusPanel._saveState = { error: 'Validation failed' };
+statusPanel._updateRulesStatus();
+assertEq(
+  'rules status: a raw error message passes through t() unchanged',
+  rulesStatusEl.textContent,
+  'Échec de la sauvegarde : Validation failed. Le formulaire conserve ' +
+    'vos modifications.'
+);
+
 // Sync suite boundary: a sync failure exits before the async block.
 if (failures) {
   console.log(`\n${failures} failure(s)`);
@@ -1072,7 +1567,7 @@ if (failures) {
 // ====================================================================
 // CAP-3 (ticket 3.3) — catalog consumption, below the sync suite: the
 // lifecycle tests drive set hass with a stubbed callWS and a stubbed
-// shadow root; the search test drives the Périphériques empty state.
+// shadow root; the search test drives the Peripherals-tab empty state.
 // ====================================================================
 
 // One macrotask: the async _loadStrings continuations settle before
@@ -1243,6 +1738,212 @@ async function runCatalogLifecycleTests() {
     'lifecycle: one dispatched click runs the delegation once',
     onClickRuns,
     1
+  );
+
+  // (8) direct lazy entry on every tab: the tab rendered before hass
+  // was assigned, its lazy load bailed out — set hass restarts it
+  // (closes #regles and bug 105 #historique alongside #coherence).
+  const lazyAnswers = {
+    'eedomus/get_translations': { locale: 'fr', translations: FR },
+    'eedomus/get_peripherals': { peripherals: [] },
+    'eedomus/get_mapping': { mapping: {} },
+    'eedomus/get_mapping_versions': { versions: [], current: {} },
+    'eedomus/get_coherence': { peripherals: [] },
+  };
+  const lazyIssued = [];
+  const lazyHass = {
+    locale: { language: 'fr' },
+    callWS: async (msg) => {
+      lazyIssued.push(`${msg.type}`);
+      return lazyAnswers[msg.type] || {};
+    },
+  };
+  for (const [lazyTab, lazyCommand] of [
+    ['regles', 'eedomus/get_mapping'],
+    ['historique', 'eedomus/get_mapping_versions'],
+    ['coherence', 'eedomus/get_coherence'],
+  ]) {
+    const panel = lifecyclePanel();
+    panel._tab = lazyTab;
+    panel._render();
+    panel.hass = lazyHass;
+    await tick();
+    assertEq(
+      `lifecycle: direct #${lazyTab} entry starts its lazy load once hass arrives`,
+      [
+        lazyIssued.includes(lazyCommand),
+        lazyIssued.filter((cmd) => cmd === lazyCommand).length,
+      ],
+      [true, 1]
+    );
+    lazyIssued.length = 0;
+  }
+
+  // (9) the Retry button of the coherence error state re-issues the
+  // load after clearing the error (never a stale error table).
+  const retryPanel = lifecyclePanel();
+  retryPanel._built = true;
+  retryPanel._tab = 'coherence';
+  retryPanel._coherenceError = 'panel.common.command_refused';
+  const retryLoads = [];
+  retryPanel._loadCoherence = () => {
+    retryLoads.push(1);
+  };
+  retryPanel._onClick({
+    target: {
+      closest: (sel) =>
+        sel === '.retry' ? { dataset: { retry: 'coherence' } } : null,
+    },
+  });
+  assertEq(
+    'lifecycle: the Retry button clears the error and re-issues the load',
+    [retryLoads.length, retryPanel._coherenceError],
+    [1, null]
+  );
+
+  // (10) a mapping write invalidates the coherence cache: the next
+  // visit to the tab reloads the signals instead of showing the
+  // pre-write rows until a full panel reload.
+  const writePanel = lifecyclePanel();
+  writePanel._strings = FR;
+  writePanel._stringsLocale = 'fr';
+  writePanel._coherence = [{ periph_id: '101', signals: ['regle_active'] }];
+  writePanel._coherenceError = null;
+  writePanel._mapping = { custom_usage_id_mappings: {} };
+  writePanel._hass = {
+    locale: { language: 'fr' },
+    callWS: async () => ({ peripherals: [] }),
+  };
+  const writeOk = await writePanel._persistMapping({
+    custom_usage_id_mappings: {},
+  });
+  assertEq(
+    'lifecycle: a successful mapping write invalidates the coherence cache',
+    [writeOk, writePanel._coherence, writePanel._coherenceError],
+    [true, null, null]
+  );
+  const reloadCalls = [];
+  writePanel._loadCoherence = () => {
+    reloadCalls.push(1);
+  };
+  // _renderTabContent renders into #tab-content before starting the
+  // lazy load - the stub must hand it a content element.
+  writePanel.shadowRoot = {
+    addEventListener() {},
+    removeEventListener() {},
+    getElementById: (id) =>
+      id === 'tab-content' ? { innerHTML: '' } : null,
+    querySelector: () => null,
+    querySelectorAll: () => [],
+  };
+  writePanel._tab = 'coherence';
+  writePanel._renderTabContent();
+  assertEq(
+    'lifecycle: returning to the coherence tab reloads the signals',
+    reloadCalls.length,
+    1
+  );
+
+  // (11) a get_translations call that never settles (dropped ws): the
+  // timeout race frees the loading slot, the next set hass re-issues.
+  const timeoutPanel = lifecyclePanel();
+  let timeoutCalls = 0;
+  const droppedHass = () => ({
+    locale: { language: 'fr' },
+    callWS: (msg) => {
+      if (msg.type === 'eedomus/get_translations') {
+        timeoutCalls += 1;
+        return new Promise(() => {}); // never settles
+      }
+      return Promise.resolve({ peripherals: [] });
+    },
+  });
+  timeoutPanel.hass = droppedHass();
+  await tick();
+  assertEq(
+    'lifecycle: a dropped get_translations keeps the slot busy mid-flight',
+    [timeoutPanel._stringsLoadingLocale, timeoutCalls],
+    ['fr', 1]
+  );
+  // The STRINGS_LOAD_TIMEOUT_MS timer is the last one scheduled.
+  const stringsTimer = sandboxTimers[sandboxTimers.length - 1];
+  assertEq(
+    'lifecycle: the timeout race is armed at STRINGS_LOAD_TIMEOUT_MS',
+    stringsTimer.delay,
+    10000
+  );
+  stringsTimer.fn();
+  await tick();
+  assertEq(
+    'lifecycle: the timeout wins the race and frees the loading slot',
+    [timeoutPanel._stringsLoadingLocale, timeoutPanel._strings],
+    [null, null]
+  );
+  timeoutPanel.hass = droppedHass();
+  await tick();
+  assertEq(
+    'lifecycle: the next set hass re-issues the dropped command',
+    timeoutCalls,
+    2
+  );
+
+  // (12) a successful rule delete invalidates the coherence cache too
+  // (the delete path has its own save_mapping call, outside
+  // _persistMapping).
+  const deletePanel = lifecyclePanel();
+  deletePanel._strings = FR;
+  deletePanel._stringsLocale = 'fr';
+  deletePanel._tab = 'regles';
+  deletePanel._mapping = {
+    custom_usage_id_mappings: { '7': { ha_entity: 'sensor' } },
+  };
+  deletePanel._coherence = [{ periph_id: '101', signals: ['regle_active'] }];
+  const deleteCalls = [];
+  deletePanel._hass = {
+    locale: { language: 'fr' },
+    callWS: async (msg) => {
+      deleteCalls.push(msg.type);
+      return { peripherals: [] };
+    },
+  };
+  // Two-gesture delete: the first call arms the confirmation only.
+  await deletePanel._deleteRule('7');
+  await deletePanel._deleteRule('7');
+  assertEq(
+    'lifecycle: a successful rule delete invalidates the coherence cache',
+    [deleteCalls.includes('eedomus/save_mapping'), deletePanel._coherence],
+    [true, null]
+  );
+
+  // (13) a coherence load still in flight when a write invalidates
+  // the cache must not repopulate it: the generation guard discards
+  // the stale resolution, the next visit reloads.
+  const staleCachePanel = lifecyclePanel();
+  staleCachePanel._strings = FR;
+  staleCachePanel._stringsLocale = 'fr';
+  staleCachePanel._coherence = [{ periph_id: '101', signals: ['regle_active'] }];
+  let resolveCoherence;
+  const coherenceInFlight = new Promise((resolve) => {
+    resolveCoherence = resolve;
+  });
+  staleCachePanel._hass = {
+    locale: { language: 'fr' },
+    callWS: (msg) =>
+      msg.type === 'eedomus/get_coherence'
+        ? coherenceInFlight
+        : Promise.resolve({ peripherals: [] }),
+  };
+  staleCachePanel._loadCoherence();
+  // A mapping write lands while the coherence request is in flight.
+  staleCachePanel._invalidateCoherenceCache();
+  resolveCoherence({
+    peripherals: [{ periph_id: '101', signals: ['regle_active'] }],
+  });
+  await tick();
+  assertEq(
+    'lifecycle: an in-flight load resolved after the invalidation is discarded',
+    [staleCachePanel._coherence, staleCachePanel._coherenceLoading],
+    [null, false]
   );
 }
 

@@ -31,8 +31,8 @@ Mechanisms: **ws-catalog** = panel string served by `eedomus/get_translations` (
 | Rechercher par nom ou usage_id | search placeholder | panel.peripheriques.search.placeholder |
 | Rechercher un périphérique par nom ou usage_id | search aria-label | panel.peripheriques.search.aria |
 | Périphériques touchés / ({n}) | filter button + count | panel.peripheriques.filter.label / .count |
-| {n} périphériques | status + live region | panel.peripheriques.status.total |
-| — filtre « Périphériques touchés » actif : {n} résultats | filtered status suffix | panel.peripheriques.status.filtered |
+| {n} périphérique / {n} périphériques | status + live region (one/other split, same convention as attempts) | panel.peripheriques.status.total_one / .total_other |
+| — filtre « Périphériques touchés » actif : {n} résultat / {n} résultats | filtered status suffix (one/other split, same convention as attempts) | panel.peripheriques.status.filtered_one / .filtered_other |
 | Impossible de charger les périphériques : {err}. | error state | panel.peripheriques.error.load |
 | Aucun périphérique détecté. Vérifiez que l'intégration eedomus est configurée. | empty state | panel.peripheriques.empty |
 | Aucun périphérique ne correspond à “{q}”. Effacez le filtre pour restituer la table. | filter-no-result state (spine row, to add in 3.3 with the migration) | panel.peripheriques.empty.search |
@@ -81,12 +81,12 @@ Mechanisms: **ws-catalog** = panel string served by `eedomus/get_translations` (
 |---|---|---|
 | Rechercher par nom ou periph_id / aria | search | panel.coherence.search.placeholder / .aria |
 | À vérifier / ({n}) | view filter + count | panel.coherence.filter.label / .count |
-| {n} périphériques / — vue « À vérifier » active : {n} résultats / Aucun périphérique ne correspond à “{q}”. / Tout est cohérent. Aucun périphérique à vérifier. | statuses + live region | panel.coherence.status.total / .filtered / .no_result / .all_clear |
+| {n} périphérique / {n} périphériques / — vue « À vérifier » active : {n} résultat / {n} résultats / Aucun périphérique ne correspond à “{q}”. / Tout est cohérent. Aucun périphérique à vérifier. | statuses + live region (total and filtered are one/other splits, same convention as attempts) | panel.coherence.status.total_one / .total_other / .filtered_one / .filtered_other / .no_result / .all_clear |
 | Cohérence du mapping des périphériques eedomus | sr-only caption | panel.coherence.table.caption |
 | periph_id / Nom / Entité HA / Type / sous-type / Statut | column labels (desktop + mobile data-labels) | panel.coherence.columns.periph_id / .name / .entity_id / .type / .status |
 | Périphérique (mobile data-label) | mobile reflow | panel.coherence.cell_labels.periph_id |
 | Trier par {label} (+ croissant/décroissant suffixes) | sort aria | panel.coherence.sort.aria / .aria_asc / .aria_desc |
-| sans entité HA / mapping douteux / règle active / en erreur / cohérent / {raw} / en erreur : {truncated} / title {msg} | chips | panel.coherence.chips.sans_entite / .douteux / .regle_active / .en_erreur / .coherent / .unknown / .en_erreur_detail / .error_title |
+| sans entité HA / mapping douteux / règle active / import en reprise / cohérent / {raw} / import en reprise : {truncated} / title {msg} | chips (en_erreur = history-import retry in progress, label clarified 2026-10-05 — the signal itself is unchanged) | panel.coherence.chips.sans_entite / .douteux / .regle_active / .en_erreur / .coherent / .unknown / .en_erreur_detail / .error_title |
 | Voir {entity_id} dans Home Assistant | entity-link aria (table + detail button) | panel.coherence.entity_link.aria |
 | Détails du périphérique {periph_id} / Détail du périphérique {name} ({periph_id}) | trigger + popover aria | panel.coherence.trigger.aria / .popover.aria |
 | État vivant / Identité de mapping | detail section headings | panel.coherence.detail.section_live / .section_identity |

@@ -344,6 +344,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         except Exception as e:
             _LOGGER.warning("Failed to create main eedomus box device: %s", e)
 
+        # Registry lifecycle: capture this entry's previous registration
+        # wave (identity, not value) before the refresh re-registers
+        # the current mappings — it is retired only once the refresh
+        # has SUCCEEDED, so a failed first refresh (ConfigEntryNotReady,
+        # timeout, client error) keeps the old registrations alive and
+        # the coherence join never loses identity fields it still
+        # serves. Identity capture: the fresh wave may register
+        # equal-valued entries that must stay.
+        from .mapping_registry import (
+            get_mapping_registry,
+            prune_mapping_registry_objects,
+        )
+
+        previous_wave = [
+            mapping
+            for mapping in get_mapping_registry()
+            if mapping.get("entry_id") == entry.entry_id
+        ]
+
         # Perform initial full refresh only for API Eedomus mode
         try:
             await coordinator.async_config_entry_first_refresh()
@@ -356,6 +375,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 print_mapping_table()
             except Exception as e:
                 _LOGGER.debug("Failed to display mapping table: %s", e)
+
+            # The refresh re-registered the current mappings: the
+            # previous wave is stale (deleted mappings would otherwise
+            # keep feeding the coherence join) — retire it now.
+            prune_mapping_registry_objects(previous_wave)
         except aiohttp.ClientError as err:
             _LOGGER.error("Failed to fetch data from eedomus: %s", err)
             return False
@@ -684,6 +708,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     the entry data from the Home Assistant data store.
     """
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
+        # Registry lifecycle: an unloaded entry no longer feeds the
+        # coherence identity join - its registrations are dropped.
+        from .mapping_registry import prune_mapping_registry
+
+        prune_mapping_registry(entry.entry_id)
         if entry.entry_id in hass.data[DOMAIN]:
             hass.data[DOMAIN].pop(entry.entry_id)
             _LOGGER.debug("eedomus integration unloaded")
@@ -725,6 +754,13 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     # Remove the config entry
     _LOGGER.info("Removing eedomus integration config entry")
 
+    # Registry lifecycle: the removed entry's registrations are
+    # dropped with it; once no entry remains, the global registry is
+    # cleared entirely - no mapping may outlive every config entry.
+    from .mapping_registry import clear_mapping_registry, prune_mapping_registry
+
+    prune_mapping_registry(entry.entry_id)
+
     # Tear down the domain-level panel when this was the last entry
     remaining_entries = [
         e
@@ -732,4 +768,5 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
         if e.entry_id != entry.entry_id
     ]
     if not remaining_entries:
+        clear_mapping_registry()
         await async_unload_panel(hass)
