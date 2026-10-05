@@ -3,7 +3,7 @@ title: 'Onglet Supervision : vue métriques + lien Cohérence'
 type: 'feature'
 ticket: 2
 created: '2026-10-05'
-status: 'built'
+status: done
 route: 'full'
 route_source: 'auto'
 baseline_revision: '3b5745c3ea46cdd3cba048fc9497913dd6e15ae5'
@@ -149,4 +149,4 @@ Patches P1-P6 appliqués par impl-42-supervision (tour 2), re-vérifiés indépe
 - Fichiers servis (HTTP 200) : `panel/supervision.js` (nouveau), `panel/shared.js` mis à jour
 - `python3 -m pytest tests/e2e/ -q` sur le Pi : **27 passed in 61.48s**
 - Logs post-restart : « Eedomus integration initialized successfully », drain normal (PARTIAL REFRESH, 5 periphs importés ce cycle) ; aucune erreur liée à la capture métriques ni à la commande get_box_metrics
-- Validation visuelle de l'onglet (5e onglet, chart cards, lien Cohérence) : demandée à l'utilisateur au HALT built — le tampon n'a que quelques cycles au premier affichage, les graphiques se remplissent au fil des refresh
+- Validation visuelle (utilisateur, 2026-10-06) : conforme — nav à 5 onglets, cartes et équivalents textuels, lien Cohérence ; ticket marqué done
