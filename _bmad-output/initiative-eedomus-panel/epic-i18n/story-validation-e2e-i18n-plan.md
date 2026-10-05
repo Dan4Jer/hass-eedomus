@@ -108,4 +108,13 @@ Status: built
 - Live run: phase post-déploiement (déploiement git-only sur le Pi autorisé par l'utilisateur, précédent 2.8) — résultats consignés ci-dessous après exécution.
 
 ### Post-deployment validation (Pi)
-(pending — rempli après le déploiement)
+
+Exécuté 2026-10-05, mode précédent 2.8 (déploiement git-only autorisé par l'utilisateur) :
+
+- **Déploiement** — `deploy_hass_eedomus.sh` : le Pi (`/homeassistant/custom_components/hass-eedomus`) est monté à `6a9f0d4` (toute la chaîne i18n : 3.1→3.7 + fixes), restart HA déclenché.
+- **Instance** — HA **2026.9.4**, état `RUNNING` après restart (API `/api/config`).
+- **E2E live** — `python3 -m pytest tests/e2e/ -v` → **27 passed in 62.31s**, dont les 7 tests i18n : arbres en/fr à égalité de valeurs avec la fixture (144 clés, non-vides), parité clés, parité placeholders par clé, repli `de`→EN, normalisation `fr-FR`→fr, `null`→EN ; plus toute la suite existante (connectivité, refresh, set_value roundtrip, options flow avec cycle de restart, panneau en sidebar, commandes ws, save identique).
+- **Logs post-restart** — activité coordinator saine (imports d'historique, PARTIAL REFRESH, « Error sensors created: 0 devices in retry queue ») ; zéro erreur websocket, zéro erreur eedomus (les seuls matches « error » du grep sont les lignes saines de création de capteurs d'erreur).
+- **Gardes CI** — vérifiées au build : garde i18n JS (union EN+FR, self-test 5/5) + garde Python no-french (self-test 3 sondes) toutes deux dans le chemin CI.
+
+Verdict de validation : l'épique i18n est **validé en live** — les deux gardes CI échouent sur toute régression, et l'instance déployée sert les catalogues conformes aux fixtures. Le passage de 3.7 à `done` reste le geste de l'utilisateur.
