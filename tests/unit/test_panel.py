@@ -65,8 +65,20 @@ class TestSetupPanel:
 
     @pytest.mark.asyncio
     async def test_static_path_serves_real_www_assets(self):
-        """The served path must be the integration's real www/ folder."""
+        """The served path must be the integration's real www/ folder.
+
+        The panel is real ES modules since the story 102 split: the
+        entry plus every ./panel/*.js module it imports lives under
+        the same static path."""
         assert (WWW_DIR / "eedomus-panel.js").is_file()
+        for module in (
+            "shared.js",
+            "coherence.js",
+            "peripheriques.js",
+            "regles.js",
+            "historique.js",
+        ):
+            assert (WWW_DIR / "panel" / module).is_file(), module
 
     @pytest.mark.asyncio
     async def test_idempotent_across_reloads(self, monkeypatch):

@@ -47,6 +47,24 @@ class TestPanelRegistration:
         )
         assert res.status_code == 200
         assert "eedomus-config-panel" in res.text
+        # The entry is a real ES module (story 102 split): EVERY tab
+        # module must be served by the same static path — a 404 on any
+        # one of them (shared.js included) kills the whole panel while
+        # the test would otherwise stay green.
+        for module, marker in (
+            ("shared.js", "applySharedMixin"),
+            ("coherence.js", "COHERENCE_SIGNALS"),
+            ("peripheriques.js", "applyPeripheriquesMixin"),
+            ("regles.js", "applyReglesMixin"),
+            ("historique.js", "applyHistoriqueMixin"),
+        ):
+            res_module = requests.get(
+                f"{HA_URL}/local/eedomus/panel/{module}",
+                headers=ha_headers,
+                timeout=30,
+            )
+            assert res_module.status_code == 200, module
+            assert marker in res_module.text, module
 
 
 class TestWebsocketCommands:

@@ -1576,14 +1576,18 @@ class TestCoherenceSignalContract:
     is a dead chip that can never render from real data. The regex is
     scoped to the COHERENCE_SIGNALS block itself (top-level keys at
     two-space indentation) - a same-shaped object anywhere else in
-    the 4k-line file must not satisfy the contract by accident."""
+    the coherence module must not satisfy the contract by accident.
+
+    The block lives in the coherence ES module since the story 102
+    split (the entry imports it); the file read follows the move."""
 
     PANEL_JS = (
         Path(__file__).resolve().parents[2]
         / "custom_components"
         / "eedomus"
         / "www"
-        / "eedomus-panel.js"
+        / "panel"
+        / "coherence.js"
     ).read_text(encoding="utf-8")
 
     @classmethod

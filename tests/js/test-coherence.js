@@ -3,9 +3,10 @@
 /**
  * Node-run tests for the coherence pure helpers (ticket 2.3).
  *
- * The panel is a plain browser script with no build toolchain, so this
- * loads it in a vm with stubbed browser globals and asserts on the
- * top-level pure functions exported by the module scope.
+ * The panel is a plain browser module set with no build toolchain
+ * (entry + ./panel/*.js ES modules), so this loads the whole graph
+ * in a vm with stubbed browser globals and asserts on the top-level
+ * pure functions shared by the module scopes.
  *
  * Since CAP-3 the label-bearing helpers take a translator as their
  * last argument; the tests pass a fixture built from the committed FR
@@ -116,7 +117,59 @@ const hook = `
   coherenceStatusText,
   COHERENCE_COLUMNS,
 };`;
-vm.runInContext(fs.readFileSync(PANEL_PATH, 'utf8') + hook, sandbox);
+
+// Mini module loader (story 102): the panel is real ES modules — the
+// entry eedomus-panel.js imports ./panel/*.js. The vm has no module
+// system, so the loader walks the import graph from the entry,
+// evaluates the dependencies first, strips the import/export syntax
+// and concatenates everything into the single script scope the hook
+// reads — the same scope the pre-split panel had. A missing module
+// fails loud here; a duplicated top-level name fails loud at
+// evaluation (const redeclaration). Only two forms are stripped —
+// "import ... from '...';" and a leading "^export ": any other ESM
+// form (side-effect import, namespace import, re-export, double
+// quotes) is REJECTED loudly instead of failing later as an
+// unrelated vm SyntaxError.
+function loadPanelSource() {
+  const loaded = [];
+  const seen = new Set();
+  function walk(file) {
+    if (seen.has(file)) {
+      return;
+    }
+    seen.add(file);
+    let src;
+    try {
+      src = fs.readFileSync(file, 'utf8');
+    } catch (err) {
+      throw new Error(`panel module missing or unreadable: ${file}`);
+    }
+    const importRe = /import\s[^;]*?from\s*'[^']+'\s*;/g;
+    const dir = path.dirname(file);
+    const deps = [];
+    let match;
+    while ((match = importRe.exec(src)) !== null) {
+      deps.push(path.resolve(dir, /'([^']+)'/.exec(match[0])[1]));
+    }
+    deps.forEach(walk);
+    const stripped = src
+      .replace(importRe, '')
+      .replace(/^export (const|function|class) /gm, '$1 ');
+    const leftover = stripped.match(/^[ \t]*(import|export)\b/m);
+    if (leftover) {
+      throw new Error(
+        `unrecognized ${leftover[1]} form in ${file} — the ` +
+          'mini-loader only strips "import ... from \'...\';" and ' +
+          '"^export const|function|class" forms'
+      );
+    }
+    loaded.push(stripped);
+  }
+  walk(PANEL_PATH);
+  return loaded.join('\n');
+}
+
+vm.runInContext(loadPanelSource() + hook, sandbox);
 const {
   coherenceToVerify,
   coherenceCompare,
@@ -1717,6 +1770,16 @@ async function runCatalogLifecycleTests() {
       gatePanel._stringsLocale,
     ],
     [true, true, 'fr']
+  );
+  assertEq(
+    'lifecycle: composed styles carry every tab chunk',
+    [
+      liveHtml.includes('.periph-list {'),
+      liveHtml.includes('.rule-form {'),
+      liveHtml.includes('.version-card {'),
+      liveHtml.includes('.coherence-table-wrap {'),
+    ],
+    [true, true, true, true]
   );
   assertEq(
     'lifecycle: delegation listeners attached exactly once',

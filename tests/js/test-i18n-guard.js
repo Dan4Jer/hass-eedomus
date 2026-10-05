@@ -7,10 +7,11 @@
  *
  * How it works:
  * 1. A small state-machine scanner extracts every string and template
- *    literal of custom_components/eedomus/www/eedomus-panel.js,
- *    skipping comments (the French code comments belong to 3.5) and
- *    regex bodies; ${...} interpolations of templates collapse to a
- *    {x} placeholder.
+ *    literal of EVERY JS file of custom_components/eedomus/www/ — the
+ *    entry eedomus-panel.js and the www/panel/*.js ES modules (the
+ *    panel's surface is the whole file set) — skipping comments (the
+ *    French code comments belong to 3.5) and regex bodies; ${...}
+ *    interpolations of templates collapse to a {x} placeholder.
  * 2. Each literal is prepared the same way — inline <svg>...</svg>
  *    markup and comment-shaped text (CSS /* *\/, HTML <!-- -->) inside
  *    templates are stripped (icons and comments are not user-facing
@@ -61,6 +62,37 @@ const PANEL_PATH = path.resolve(
   'www',
   'eedomus-panel.js'
 );
+// The panel's surface is the whole www/ tree: every .js file under it
+// (the entry, today's panel/ modules, any future subfolder) collected
+// by a recursive walk — a hardcoded list would let a new module
+// silently escape the scan. A missing/unreadable dir fails with the
+// path, not a raw ENOENT.
+const PANEL_DIR = path.dirname(PANEL_PATH);
+function collectPanelFiles(dir) {
+  let names;
+  try {
+    names = fs.readdirSync(dir);
+  } catch (err) {
+    throw new Error(`panel www dir missing or unreadable: ${dir}`);
+  }
+  const files = [];
+  for (const name of names.sort()) {
+    const full = path.join(dir, name);
+    let stats;
+    try {
+      stats = fs.statSync(full);
+    } catch (err) {
+      throw new Error(`panel www entry unreadable: ${full}`);
+    }
+    if (stats.isDirectory()) {
+      files.push(...collectPanelFiles(full));
+    } else if (name.endsWith('.js')) {
+      files.push(full);
+    }
+  }
+  return files;
+}
+const PANEL_FILES = collectPanelFiles(PANEL_DIR);
 const KEYS_PATH = path.resolve(
   __dirname,
   '..',
@@ -298,8 +330,6 @@ const STOPWORDS_FR = new Set([
 
 // ---- the guard --------------------------------------------------------
 
-const src = fs.readFileSync(PANEL_PATH, 'utf8');
-
 // Reference set: the UNION of the EN and FR catalog trees (fixture),
 // pinned to the committed key list first. Both trees are checked: a
 // key missing from either side silently degrades the panel.
@@ -505,24 +535,53 @@ console.log(
 );
 
 // ---- the scan --------------------------------------------------------
-const literals = extractLiterals(src);
-const { violations, checked, exempted, migratedKeys } =
-  checkLiterals(literals);
+// Every file of the panel surface, one extraction each (line numbers
+// stay per-file); the literal pipeline is shared, unchanged.
+// Import statements are stripped BEFORE extraction: a module
+// specifier ('./panel/shared.js') is wiring, not user-facing text —
+// the exemption is scoped by never reaching the checks, so a literal
+// that merely starts with "./" still gets checked like any other.
+const importRe = /import\s[^;]*?from\s*['"][^'"]+['"]\s*;|import\s*['"][^'"]+['"]\s*;/g;
+const fileResults = [];
+let literalsScanned = 0;
+for (const file of PANEL_FILES) {
+  // The match collapses to its own newlines: the statement text is
+  // gone for the scanner but every following line keeps its number.
+  const fileSrc = fs.readFileSync(file, 'utf8').replace(
+    importRe,
+    (match) => match.replace(/[^\n]/g, '')
+  );
+  const fileLiterals = extractLiterals(fileSrc);
+  literalsScanned += fileLiterals.length;
+  const result = checkLiterals(fileLiterals);
+  // Tagged at the source: checkLiterals returns fresh violation
+  // records, so the file label rides along instead of a lookup.
+  for (const v of result.violations) {
+    v.file = path.basename(file);
+  }
+  fileResults.push(result);
+}
 
-console.log(`i18n guard: ${literals.length} literals scanned, ` +
-  `${migratedKeys} migration keys, ${exempted} exempted, ${checked} ` +
-  `checked against ${reference.size} catalog texts ` +
-  `(${catalogKeys.size} keys, EN+FR union)`);
+const violations = [].concat(...fileResults.map((r) => r.violations));
+const checked = fileResults.reduce((sum, r) => sum + r.checked, 0);
+const exempted = fileResults.reduce((sum, r) => sum + r.exempted, 0);
+const migratedKeys = fileResults.reduce((sum, r) => sum + r.migratedKeys, 0);
+
+console.log(`i18n guard: ${literalsScanned} literals scanned across ` +
+  `${PANEL_FILES.length} files, ${migratedKeys} migration keys, ` +
+  `${exempted} exempted, ${checked} checked against ` +
+  `${reference.size} catalog texts (${catalogKeys.size} keys, EN+FR union)`);
 
 if (violations.length) {
   const seen = new Set();
   for (const v of violations) {
-    const key = `${v.line}:${v.matched}:${v.provenance}`;
+    const key = `${v.file}:${v.line}:${v.matched}:${v.provenance}`;
     if (seen.has(key)) {
       continue;
     }
     seen.add(key);
-    console.log(`FAIL  line ${v.line}: hardcoded catalog text`);
+    console.log(`FAIL  ${v.file} line ${v.line}: ` +
+      'hardcoded catalog text');
     console.log(`      literal: ${v.literal}`);
     console.log(`      matches: ${v.matched} (${v.provenance})`);
   }
