@@ -1,9 +1,9 @@
 ---
 title: 'Commandes websocket de la file de backfill (état + 4 actions)'
 type: 'feature'
-ticket: 'story-commandes-websocket-de-la-file-de-backfill-tat-4-actions'
+ticket: 1
 created: '2026-10-05'
-status: 'built'
+status: done
 route: 'full'
 route_source: 'auto'
 baseline_revision: '7357145be31456987cbe3d27a8762620ac97f26d'
