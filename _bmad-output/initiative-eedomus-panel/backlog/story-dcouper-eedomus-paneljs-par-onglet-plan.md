@@ -140,3 +140,10 @@ Patches appliqués par impl-102-split (tour 2), tous re-vérifiés indépendamme
 **Déviations ratifiées :** (1) styles par onglet dans les modules (contraintes « styles à l'entrée » + « entrée < 900 » incompatibles — composition byte-identique) ; (2) mixins via apply functions (TDZ ES) ; (3) placement helpers selon Code Map ; (4) exemption garde `^\./` supprimée (imports strippés en amont).
 
 **Post-déploiement :** à consigner après validation live (E2E sur le Pi + validation visuelle 4 onglets + logs).
+
+**Post-déploiement (2026-10-05, 21:36-21:41 CEST) :**
+- Déployé via `deploy_hass_eedomus.sh` (git-only, unstable @ 1cd0b16), restart HA, ~2 min d'attente
+- Fichiers servis (HTTP 200) : entrée + les 5 modules `panel/*.js`
+- `python3 -m pytest tests/e2e/ -v` sur le Pi : **27 passed in 62.67s** (dont `test_panel_asset_served` avec la boucle 5 modules)
+- Logs post-restart : `Eedomus configuration panel registered`, `websocket commands registered`, `Eedomus integration initialized successfully` ; aucune ERROR/traceback liée au panel — seules erreurs : motif préexistant de retry historique (periph 1235258, retry in 24 h)
+- Validation visuelle des 4 onglets : demandée à l'utilisateur au HALT built
