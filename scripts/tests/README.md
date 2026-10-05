@@ -533,6 +533,7 @@ When adding or modifying a feature:
 
 The current suite includes tests for:
 
+- Integration bootstrap and lifecycle (`__init__.py`: setup, update listener, migration, unload, remove)
 - Config flow and Options flow
 - API and Proxy connection modes
 - Eedomus API client
