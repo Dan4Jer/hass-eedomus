@@ -247,7 +247,7 @@ Example for integration bootstrap:
 
 ```bash
 PYTHONPATH=. python3 -m pytest scripts/tests/test_init.py -v
-
+```
 
 Example for lights:
 
