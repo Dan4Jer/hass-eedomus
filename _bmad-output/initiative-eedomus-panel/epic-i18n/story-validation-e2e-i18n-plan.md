@@ -3,7 +3,7 @@ title: 'Validation E2E i18n (live + gardes CI)'
 type: 'test'
 ticket: 7
 created: '2026-10-05'
-status: 'built'
+status: done
 route: 'full'
 route_source: 'auto'
 baseline_revision: '36aae166b3c54f3b718421025eb41dc6f3bb32b3'
