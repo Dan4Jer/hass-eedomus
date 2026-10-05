@@ -139,8 +139,22 @@
   "panel.regles.validation.unavailable",
   "panel.regles.yaml.aria",
   "panel.regles.yaml.error_line",
+  "panel.supervision.box.fallback",
+  "panel.supervision.box.title",
+  "panel.supervision.card.api_calls",
+  "panel.supervision.card.periphs",
+  "panel.supervision.card.refresh_time",
+  "panel.supervision.cycles",
+  "panel.supervision.empty",
+  "panel.supervision.error.load",
+  "panel.supervision.link.coherence",
+  "panel.supervision.skeleton.aria",
+  "panel.supervision.value.api_calls",
+  "panel.supervision.value.periphs",
+  "panel.supervision.value.refresh_time",
   "panel.tabs.coherence",
   "panel.tabs.historique",
   "panel.tabs.peripheriques",
-  "panel.tabs.regles"
+  "panel.tabs.regles",
+  "panel.tabs.supervision"
 ]

@@ -16,6 +16,7 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "panel.tabs.regles": "Rules",
         "panel.tabs.historique": "History",
         "panel.tabs.coherence": "Coherence",
+        "panel.tabs.supervision": "Supervision",
         "panel.common.unknown_tab": "Unknown tab.",
         # Common (shared across tabs)
         "panel.common.retry": "Retry",
@@ -202,6 +203,29 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         ),
         "panel.coherence.empty.show_all": "Show all",
         "panel.coherence.skeleton.aria": "Loading coherence…",
+        # Supervision
+        "panel.supervision.box.title": "Box {name}",
+        "panel.supervision.box.fallback": "Box #{n}",
+        "panel.supervision.cycles": "Over the last {n} refresh cycles.",
+        "panel.supervision.card.refresh_time": "Refresh time",
+        "panel.supervision.card.periphs": "Peripherals",
+        "panel.supervision.card.api_calls": "API calls",
+        "panel.supervision.value.refresh_time": (
+            "Last cycle: {n} s total, {api} s on the API."
+        ),
+        "panel.supervision.value.periphs": (
+            "{total} peripherals, {dynamic} dynamic."
+        ),
+        "panel.supervision.value.api_calls": (
+            "{n} calls to the eedomus API during the last cycle."
+        ),
+        "panel.supervision.link.coherence": "See the coherence table",
+        "panel.supervision.error.load": "Failed to load metrics: {err}.",
+        "panel.supervision.empty": (
+            "No refresh cycle recorded yet. The charts fill in after "
+            "the first refresh."
+        ),
+        "panel.supervision.skeleton.aria": "Loading supervision…",
     },
     "fr": {
         # Shell / navigation
@@ -211,6 +235,7 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "panel.tabs.regles": "Règles",
         "panel.tabs.historique": "Historique config",
         "panel.tabs.coherence": "Cohérence",
+        "panel.tabs.supervision": "Supervision",
         "panel.common.unknown_tab": "Onglet inconnu.",
         # Common (shared across tabs)
         "panel.common.retry": "Réessayer",
@@ -413,6 +438,31 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         ),
         "panel.coherence.empty.show_all": "Tout afficher",
         "panel.coherence.skeleton.aria": "Chargement de la cohérence…",
+        # Supervision
+        "panel.supervision.box.title": "Box {name}",
+        "panel.supervision.box.fallback": "Box #{n}",
+        "panel.supervision.cycles": "Sur les {n} derniers cycles de refresh.",
+        "panel.supervision.card.refresh_time": "Temps de refresh",
+        "panel.supervision.card.periphs": "Périphériques",
+        "panel.supervision.card.api_calls": "Appels API",
+        "panel.supervision.value.refresh_time": (
+            "Dernier cycle : {n} s au total, {api} s sur l'API."
+        ),
+        "panel.supervision.value.periphs": (
+            "{total} périphériques, dont {dynamic} dynamiques."
+        ),
+        "panel.supervision.value.api_calls": (
+            "{n} appels à l'API eedomus lors du dernier cycle."
+        ),
+        "panel.supervision.link.coherence": "Voir le tableau de cohérence",
+        "panel.supervision.error.load": (
+            "Impossible de charger les métriques : {err}."
+        ),
+        "panel.supervision.empty": (
+            "Aucun cycle de refresh enregistré pour l'instant. Les "
+            "graphiques se rempliront après le premier refresh."
+        ),
+        "panel.supervision.skeleton.aria": "Chargement de la supervision…",
     },
 }
 

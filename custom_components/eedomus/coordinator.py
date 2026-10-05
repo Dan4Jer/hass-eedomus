@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from collections import deque
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -48,6 +49,10 @@ _BACKFILL_MIGRATIONS: dict[int, Any] = {}
 # exception swallowed by the ui_service handlers.
 BACKFILL_ERROR_INVALID = "invalid_format"
 BACKFILL_ERROR_BUSY = "error"
+
+# CAP-9 (Supervision tab): number of refresh cycles kept in the box
+# metrics circular buffer - the panel's chart horizon.
+METRICS_BUFFER_SIZE = 30
 
 
 class EedomusBackfillError(Exception):
@@ -95,6 +100,14 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         self._last_processing_time = 0.0
         self._last_refresh_time = 0.0
         self._last_processed_devices = 0
+
+        # CAP-9 box metrics (Supervision tab): circular buffer of the
+        # last refresh cycles (durations, per-cycle API call delta,
+        # peripheral counts). The time series exists nowhere else - the
+        # sensors only expose the last cycle's scalars. Purely passive
+        # capture: never a dependency of the refresh flow (AD-2).
+        self._metrics_history: deque = deque(maxlen=METRICS_BUFFER_SIZE)
+        self._metrics_cycle_start_calls: int | None = None
 
         # History import timing metrics (partial refresh decomposition)
         self._last_history_time = 0.0
@@ -424,6 +437,19 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # Keep start_time (datetime): feeds _last_update_start_time and _scan_interval
         start_time = datetime.now()
 
+        # CAP-9: baseline of the cumulative API call counters for this
+        # cycle - the per-cycle metric is the delta against it (the
+        # counters are never reset, only ever incremented). The read is
+        # guarded like the capture itself: a metrics problem never
+        # breaks the refresh.
+        try:
+            self._metrics_cycle_start_calls = sum(
+                self._endpoint_call_counts.values()
+            )
+        except Exception as err:  # pragma: no cover
+            self._metrics_cycle_start_calls = None
+            _LOGGER.warning("Box metrics cycle baseline capture failed: %s", err)
+
         _LOGGER.debug("Update eedomus data")
         if (
             start_time - self._last_update_start_time
@@ -542,6 +568,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                         endpoint_log,
                     )
 
+                # CAP-9: the cycle completed - record it in the metrics
+                # buffer (passive, never blocks the return path).
+                self._capture_cycle_metrics(total_time, actual_api_time)
                 return aggregated_data
             else:
                 # 🚨 CHANGE: removed 'api_start = datetime.now()' which was dead code
@@ -614,6 +643,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     processing_time_log,
                     endpoint_log,
                 )
+                # CAP-9: the cycle completed - record it in the metrics
+                # buffer (passive, never blocks the return path).
+                self._capture_cycle_metrics(total_time, actual_api_time)
                 return ret
 
         except Exception as err:
@@ -1170,6 +1202,77 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
     def get_all_peripherals(self):
         """Return all peripherals (for entity setup)."""
         return self._all_peripherals
+
+    def _capture_cycle_metrics(self, refresh_time: float, api_time: float) -> None:
+        """Record one refresh cycle into the circular metrics buffer.
+
+        Purely passive (CAP-9, AD-2): any failure is logged as a warning
+        and swallowed - the refresh flow never depends on the metrics.
+        The cycle carries the total and API durations, the API call
+        delta against the cycle baseline (the cumulative endpoint
+        counters are never reset, only incremented), and the total and
+        dynamic peripheral counts. Only the success paths call this - a
+        timed-out cycle is not a completed cycle and records nothing.
+        """
+        try:
+            baseline = self._metrics_cycle_start_calls
+            current = sum(self._endpoint_call_counts.values())
+            if baseline is None or current < baseline:
+                # No usable baseline (guarded read failed, or the
+                # counters moved below it): record no call count at
+                # all - never the unbounded cumulative total.
+                api_calls = 0
+            else:
+                api_calls = current - baseline
+            self._metrics_history.append(
+                {
+                    "ts": dt_util.utcnow().isoformat(),
+                    "refresh_time": round(float(refresh_time), 3),
+                    "api_time": round(float(api_time), 3),
+                    "api_calls": api_calls,
+                    "periphs_total": len(self._all_peripherals or {}),
+                    "periphs_dynamic": len(self._dynamic_peripherals or {}),
+                }
+            )
+        except Exception as err:
+            _LOGGER.warning("Failed to capture the box metrics cycle: %s", err)
+
+    def get_box_metrics(self) -> dict[str, Any]:
+        """Return the buffered refresh cycles of this box (CAP-9).
+
+        Feeds eedomus/get_box_metrics (Supervision tab): the time series
+        lives nowhere else - the timing sensors only expose the last
+        cycle's scalars, and every value the panel's cards render comes
+        from the cycle records themselves, so the payload stops there.
+        One box = one coordinator: entry_id and display name ride along
+        so the panel can section multi-box setups. The websocket handler
+        runs the payload through _json_safe.
+        """
+        return {
+            "entry_id": self._backfill_entry_id(),
+            "name": self._box_display_name(),
+            "cycles": list(self._metrics_history),
+        }
+
+    def _box_display_name(self) -> str | None:
+        """Resolve a human-readable box name (best effort, CAP-9).
+
+        The config entry title first (the user-named box), then the
+        client api_host (the configured box address); None when
+        neither resolves - the panel then falls back to the entry_id.
+        """
+        for candidate in (
+            getattr(self, "config_entry", None),
+            getattr(self.client, "config_entry", None),
+        ):
+            title = getattr(candidate, "title", None)
+            if isinstance(title, str) and title:
+                return title
+        for host_attr in ("api_host", "host"):
+            host = getattr(self.client, host_attr, None)
+            if isinstance(host, str) and host:
+                return host
+        return None
 
     """
     async def request_full_refresh(self):

@@ -116,6 +116,14 @@ const hook = `
   periphStatusText,
   coherenceStatusText,
   COHERENCE_COLUMNS,
+  supervisionChartPoints,
+  supervisionLinePath,
+  supervisionBarRects,
+  supervisionLineChartHtml,
+  supervisionBarChartHtml,
+  supervisionMetricCardHtml,
+  supervisionFormatSeconds,
+  supervisionFormatCount,
 };`;
 
 // Mini module loader (story 102): the panel is real ES modules — the
@@ -204,6 +212,14 @@ const {
   periphStatusText,
   coherenceStatusText,
   COHERENCE_COLUMNS,
+  supervisionChartPoints,
+  supervisionLinePath,
+  supervisionBarRects,
+  supervisionLineChartHtml,
+  supervisionBarChartHtml,
+  supervisionMetricCardHtml,
+  supervisionFormatSeconds,
+  supervisionFormatCount,
 } = sandbox.__coherence;
 
 // Fixture translator (CAP-3): the frozen FR catalog, identical
@@ -1611,6 +1627,250 @@ assertEq(
     'vos modifications.'
 );
 
+// --- Supervision tab (CAP-9): chart math, render states, link -------
+// The pure chart helpers scale inside the fixed viewBox; the instance
+// renders drive the FR catalog through the real mixin methods.
+assertEq(
+  'supervision: an empty series yields no points',
+  supervisionChartPoints([]),
+  []
+);
+const supPoints = supervisionChartPoints([1, 2, 3]);
+assertEq(
+  'supervision: an increasing series climbs (x up, y down)',
+  [
+    supPoints.length,
+    supPoints[0][0] < supPoints[1][0],
+    supPoints[0][1] > supPoints[1][1],
+    supPoints[1][1] > supPoints[2][1],
+  ],
+  [3, true, true, true]
+);
+assertEq(
+  'supervision: points stay inside the viewBox',
+  supPoints.every(
+    (p) => p[0] >= 0 && p[0] <= 300 && p[1] >= 0 && p[1] <= 120
+  ),
+  true
+);
+assertEq(
+  'supervision: a flat series still draws (never a zero sliver)',
+  supervisionChartPoints([4, 4, 4]).length,
+  3
+);
+assertEq(
+  'supervision: the line path joins the points',
+  supervisionLinePath([[0, 0], [10, 10], [20, 5]]),
+  'M0,0 L10,10 L20,5'
+);
+const supBars = supervisionBarRects([1, 2, 3]);
+assertEq(
+  'supervision: bars scale against zero (last tallest, y smallest)',
+  [
+    supBars.length,
+    supBars[2].height > supBars[0].height,
+    supBars[2].y < supBars[0].y,
+  ],
+  [3, true, true]
+);
+assertEq(
+  'supervision: value formatting (bare, with unit, missing)',
+  [
+    supervisionFormatSeconds(1.5),
+    supervisionFormatSeconds(1.5, true),
+    supervisionFormatCount(12.4),
+    supervisionFormatSeconds(undefined),
+  ],
+  ['1.500', '1.500 s', '12', '—']
+);
+assertEq(
+  'supervision: the line chart emits a themed svg, nothing on empty',
+  [
+    supervisionLineChartHtml([1, 2]).includes('<svg'),
+    supervisionLineChartHtml([1, 2]).includes('var(--primary-color)'),
+    supervisionLineChartHtml([]),
+  ],
+  [true, true, '']
+);
+
+const supPanel = new EedomusConfigPanel();
+supPanel._strings = FR;
+supPanel._stringsLocale = 'fr';
+supPanel._tab = 'supervision';
+// First render of the tab: card-shaped skeletons, loading announced,
+// never a catalog key as text.
+const supSkeletonHtml = supPanel._renderSupervisionTab();
+assertEq(
+  'supervision: first render is card skeletons + loading status',
+  [
+    supSkeletonHtml.includes('metric-skeleton'),
+    (supSkeletonHtml.match(/metric-skeleton/g) || []).length,
+    supSkeletonHtml.includes('Chargement de la supervision…'),
+    supSkeletonHtml.includes('panel.'),
+  ],
+  [true, 3, true, false]
+);
+// Error state: alert + Retry, never a half-loaded card.
+supPanel._metricsError = 'panel.common.command_refused';
+const supErrorHtml = supPanel._renderSupervisionTab();
+assertEq(
+  'supervision: a ws error renders the alert + Retry button',
+  [
+    supErrorHtml.includes('role="alert"'),
+    supErrorHtml.includes('Impossible de charger les métriques'),
+    supErrorHtml.includes('data-retry="metrics"'),
+  ],
+  [true, true, true]
+);
+// Loaded state: cards with charts AND the textual equivalents — the
+// chart is never the sole carrier.
+supPanel._metricsError = null;
+supPanel._metrics = {
+  boxes: [
+    {
+      entry_id: 'E1',
+      name: 'Salon',
+      periphs_dynamic: 6,
+      cycles: [
+        {
+          ts: '2026-10-03T09:00:00',
+          refresh_time: 2.5,
+          api_time: 1.25,
+          api_calls: 3,
+          periphs_total: 164,
+          periphs_dynamic: 6,
+        },
+        {
+          ts: '2026-10-03T09:05:00',
+          refresh_time: 2.1,
+          api_time: 1.1,
+          api_calls: 2,
+          periphs_total: 165,
+          periphs_dynamic: 6,
+        },
+      ],
+    },
+  ],
+};
+const supCardsHtml = supPanel._renderSupervisionTab();
+assertEq(
+  'supervision: cards render with charts and textual equivalents',
+  [
+    supCardsHtml.includes('metric-card'),
+    supCardsHtml.includes('<svg'),
+    supCardsHtml.includes(
+      'Dernier cycle : 2.100 s au total, 1.100 s sur l&#39;API.'
+    ),
+    supCardsHtml.includes('165 périphériques, dont 6 dynamiques.'),
+    supCardsHtml.includes(
+      '2 appels à l&#39;API eedomus lors du dernier cycle.'
+    ),
+    supCardsHtml.includes('Box Salon'),
+    supCardsHtml.includes('Sur les 2 derniers cycles de refresh.'),
+  ],
+  [true, true, true, true, true, true, true]
+);
+// The coherence link renders and delegates through _setTab — the
+// internal-link precedent of the "create a rule" shortcut.
+assertEq(
+  'supervision: the coherence link renders',
+  supCardsHtml.includes('Voir le tableau de cohérence'),
+  true
+);
+const supSetTabCalls = [];
+supPanel._setTab = (tab) => {
+  supSetTabCalls.push(tab);
+};
+supPanel._onClick({
+  target: {
+    closest: (sel) => (sel === '[data-goto-coherence]' ? {} : null),
+  },
+});
+assertEq(
+  'supervision: the coherence link calls _setTab(coherence)',
+  supSetTabCalls,
+  ['coherence']
+);
+// A box without cycles renders the positive empty state, nominative.
+supPanel._metrics = { boxes: [{ entry_id: 'E1', name: 'Salon', cycles: [] }] };
+const supEmptyHtml = supPanel._renderSupervisionTab();
+assertEq(
+  'supervision: zero cycles render the positive empty state',
+  [
+    supEmptyHtml.includes('Aucun cycle de refresh enregistré'),
+    supEmptyHtml.includes('Box Salon'),
+  ],
+  [true, true]
+);
+// A box with neither name nor entry_id never renders an empty "Box ".
+supPanel._metrics = { boxes: [{ cycles: [] }] };
+assertEq(
+  'supervision: an anonymous box renders Box #1, never an empty title',
+  supPanel._renderSupervisionTab().includes('Box #1'),
+  true
+);
+// Multi-box payload: one section per box, each with its own name.
+supPanel._metrics = {
+  boxes: [
+    {
+      entry_id: 'E1',
+      name: 'Salon',
+      cycles: [
+        {
+          ts: '2026-10-03T09:05:00',
+          refresh_time: 2.1,
+          api_time: 1.1,
+          api_calls: 2,
+          periphs_total: 165,
+          periphs_dynamic: 6,
+        },
+      ],
+    },
+    { entry_id: 'E2', name: 'Cave', cycles: [] },
+  ],
+};
+const supMultiHtml = supPanel._renderSupervisionTab();
+assertEq(
+  'supervision: a multi-box payload renders one named section per box',
+  [
+    (supMultiHtml.match(/supervision-section/g) || []).length,
+    supMultiHtml.includes('Box Salon'),
+    supMultiHtml.includes('Box Cave'),
+  ],
+  [2, true, true]
+);
+// Deep link: the #supervision hash activates the tab from location,
+// an unknown hash falls back (the hash is the source of truth).
+sandbox.window.location.hash = '#supervision';
+assertEq(
+  'supervision: deep link #supervision resolves to the tab',
+  new EedomusConfigPanel()._tabFromLocation(),
+  'supervision'
+);
+sandbox.window.location.hash = '';
+assertEq(
+  'supervision: an absent hash falls back to peripheriques',
+  new EedomusConfigPanel()._tabFromLocation(),
+  'peripheriques'
+);
+// The Retry delegation clears the error and re-issues the load.
+supPanel._metricsError = 'panel.common.command_refused';
+const supReloads = [];
+supPanel._loadMetrics = () => {
+  supReloads.push(1);
+};
+supPanel._onClick({
+  target: {
+    closest: (sel) =>
+      sel === '.retry' ? { dataset: { retry: 'metrics' } } : null,
+  },
+});
+assertEq(
+  'supervision: the Retry button clears the error and re-issues the load',
+  [supReloads.length, supPanel._metricsError],
+  [1, null]
+);
+
 // Sync suite boundary: a sync failure exits before the async block.
 if (failures) {
   console.log(`\n${failures} failure(s)`);
@@ -1812,6 +2072,7 @@ async function runCatalogLifecycleTests() {
     'eedomus/get_mapping': { mapping: {} },
     'eedomus/get_mapping_versions': { versions: [], current: {} },
     'eedomus/get_coherence': { peripherals: [] },
+    'eedomus/get_box_metrics': { boxes: [] },
   };
   const lazyIssued = [];
   const lazyHass = {
@@ -1825,6 +2086,7 @@ async function runCatalogLifecycleTests() {
     ['regles', 'eedomus/get_mapping'],
     ['historique', 'eedomus/get_mapping_versions'],
     ['coherence', 'eedomus/get_coherence'],
+    ['supervision', 'eedomus/get_box_metrics'],
   ]) {
     const panel = lifecyclePanel();
     panel._tab = lazyTab;
@@ -2127,6 +2389,64 @@ async function runCatalogLifecycleTests() {
   );
 }
 
+// --- Supervision async lifecycle (4.2 review patches) --------------
+// Generation supersession of _loadMetrics, and the raw-error-detail
+// render path (escaped, untranslated) — both driven with stubbed
+// callWS answers, same model as the catalog lifecycle tests.
+async function runSupervisionAsyncTests() {
+  // A pending get_box_metrics superseded by a newer load writes
+  // nothing stale: the generation guard discards the resolution.
+  const metricsPanel = lifecyclePanel();
+  let resolveMetrics;
+  const pendingMetrics = new Promise((resolve) => {
+    resolveMetrics = resolve;
+  });
+  metricsPanel._hass = {
+    locale: { language: 'fr' },
+    callWS: (msg) =>
+      msg.type === 'eedomus/get_box_metrics'
+        ? pendingMetrics
+        : Promise.resolve({ locale: 'fr', translations: FR }),
+  };
+  const metricsLoad = metricsPanel._loadMetrics();
+  // A newer load supersedes while the request is in flight.
+  metricsPanel._metricsGeneration += 1;
+  resolveMetrics({ boxes: [{ entry_id: 'E1', cycles: [] }] });
+  await metricsLoad;
+  await tick();
+  assertEq(
+    'supervision: a superseded in-flight load writes nothing stale',
+    [metricsPanel._metrics, metricsPanel._metricsLoading],
+    [null, false]
+  );
+
+  // The raw backend error detail renders escaped and as-is - never a
+  // second pass through t() (FR users would read untranslated text,
+  // and {token}-shaped details would go through token replacement).
+  const rawPanel = lifecyclePanel();
+  rawPanel._strings = FR;
+  rawPanel._stringsLocale = 'fr';
+  rawPanel._tab = 'supervision';
+  rawPanel._hass = {
+    locale: { language: 'fr' },
+    callWS: (msg) =>
+      msg.type === 'eedomus/get_box_metrics'
+        ? Promise.reject(new Error('Service unreachable <script>'))
+        : Promise.resolve({ locale: 'fr', translations: FR }),
+  };
+  await rawPanel._loadMetrics();
+  const rawHtml = rawPanel._renderSupervisionTab();
+  assertEq(
+    'supervision: a raw error detail renders escaped, untranslated',
+    [
+      rawHtml.includes('Impossible de charger les métriques : '),
+      rawHtml.includes('Service unreachable &lt;script&gt;'),
+      rawHtml.includes('<script>'),
+    ],
+    [true, true, false]
+  );
+}
+
 // --- periphs search-no-result state (CAP-3 spine row, 3.3) ---
 function runPeriphSearchTests() {
   const searchPanel = new EedomusConfigPanel();
@@ -2347,6 +2667,7 @@ async function runCopyJsonTests() {
 }
 
 runCatalogLifecycleTests()
+  .then(runSupervisionAsyncTests)
   .then(runCopyJsonTests)
   .then(
   () => {

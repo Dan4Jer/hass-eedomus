@@ -68,7 +68,7 @@ class TestAsyncInit:
 
         await service.async_init()
 
-        assert register.call_count == 14
+        assert register.call_count == 15
         # Handler form: (hass, handler) on the module-level dispatchers -
         # HA calls websocket handlers as plain (hass, connection, msg)
         # functions, so bound methods cannot be dispatched directly
@@ -85,6 +85,7 @@ class TestAsyncInit:
             ui_service_module._ws_get_coherence,
             ui_service_module._ws_get_translations,
             ui_service_module._ws_get_backfill_state,
+            ui_service_module._ws_get_box_metrics,
             ui_service_module._ws_backfill_retry_now,
             ui_service_module._ws_backfill_prioritize,
             ui_service_module._ws_backfill_set_paused,
@@ -101,6 +102,7 @@ class TestAsyncInit:
             ui_service_module.WS_TYPE_EEDOMUS_GET_COHERENCE,
             ui_service_module.WS_TYPE_EEDOMUS_GET_TRANSLATIONS,
             ui_service_module.WS_TYPE_EEDOMUS_GET_BACKFILL_STATE,
+            ui_service_module.WS_TYPE_EEDOMUS_GET_BOX_METRICS,
             ui_service_module.WS_TYPE_EEDOMUS_BACKFILL_RETRY_NOW,
             ui_service_module.WS_TYPE_EEDOMUS_BACKFILL_PRIORITIZE,
             ui_service_module.WS_TYPE_EEDOMUS_BACKFILL_SET_PAUSED,
@@ -200,7 +202,7 @@ class TestGetAvailableEndpoints:
         await service.async_init()
 
         assert service._registered_commands == first
-        assert register.call_count == 28
+        assert register.call_count == 30
 
     @pytest.mark.asyncio
     async def test_shutdown_resets_state_without_unregistering(self):
@@ -1413,6 +1415,43 @@ class TestGetCoherenceDispatcher:
 
         connection.send_error.assert_called_once_with(
             21, "service_unavailable", "Eedomus UI service not initialized"
+        )
+
+
+class TestGetBoxMetricsDispatcher:
+    """The module dispatcher resolves the service from hass.data at call
+    time - a copy-paste error in its body would otherwise go unexercised
+    by the handler-level tests (test_box_metrics.py)."""
+
+    @pytest.mark.asyncio
+    async def test_dispatches_to_the_service_handler(self):
+        service = MagicMock()
+        service._handle_get_box_metrics = AsyncMock()
+        hass = MagicMock()
+        hass.data = {"eedomus": {"ui_service": service}}
+        connection = MagicMock()
+
+        await ui_service_module._ws_get_box_metrics(
+            hass, connection, {"id": 23}
+        )
+
+        service._handle_get_box_metrics.assert_awaited_once_with(
+            hass, connection, {"id": 23}
+        )
+        connection.send_error.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_no_service_sends_service_unavailable(self):
+        hass = MagicMock()
+        hass.data = {"eedomus": {}}
+        connection = MagicMock()
+
+        await ui_service_module._ws_get_box_metrics(
+            hass, connection, {"id": 23}
+        )
+
+        connection.send_error.assert_called_once_with(
+            23, "service_unavailable", "Eedomus UI service not initialized"
         )
 
 

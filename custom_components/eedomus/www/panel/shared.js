@@ -9,7 +9,13 @@
  * former single-file panel — the code moved as-is.
  */
 
-export const TABS = ['peripheriques', 'regles', 'historique', 'coherence'];
+export const TABS = [
+  'peripheriques',
+  'regles',
+  'historique',
+  'coherence',
+  'supervision',
+];
 
 // Debounce of the result-count announcement (sweep): a burst of typing
 // in either search field produces ONE screen-reader announcement, once

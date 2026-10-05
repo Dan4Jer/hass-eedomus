@@ -27,6 +27,7 @@ WS_TYPE_EEDOMUS_GET_VERSIONS = f"{DOMAIN}/get_mapping_versions"
 WS_TYPE_EEDOMUS_GET_COHERENCE = f"{DOMAIN}/get_coherence"
 WS_TYPE_EEDOMUS_GET_TRANSLATIONS = f"{DOMAIN}/get_translations"
 WS_TYPE_EEDOMUS_GET_BACKFILL_STATE = f"{DOMAIN}/get_backfill_state"
+WS_TYPE_EEDOMUS_GET_BOX_METRICS = f"{DOMAIN}/get_box_metrics"
 WS_TYPE_EEDOMUS_BACKFILL_RETRY_NOW = f"{DOMAIN}/backfill_retry_now"
 WS_TYPE_EEDOMUS_BACKFILL_PRIORITIZE = f"{DOMAIN}/backfill_prioritize"
 WS_TYPE_EEDOMUS_BACKFILL_SET_PAUSED = f"{DOMAIN}/backfill_set_paused"
@@ -272,6 +273,20 @@ async def _ws_get_backfill_state(hass: HomeAssistant, connection, msg: dict) -> 
 
 
 @require_admin
+@websocket_command({vol.Required("type"): WS_TYPE_EEDOMUS_GET_BOX_METRICS})
+@async_response
+async def _ws_get_box_metrics(hass: HomeAssistant, connection, msg: dict) -> None:
+    """Dispatch eedomus/get_box_metrics to the UI service."""
+    service = _get_ui_service(hass)
+    if service is None:
+        connection.send_error(
+            msg["id"], "service_unavailable", "Eedomus UI service not initialized"
+        )
+        return
+    await service._handle_get_box_metrics(hass, connection, msg)
+
+
+@require_admin
 @websocket_command(
     {
         vol.Required("type"): WS_TYPE_EEDOMUS_BACKFILL_RETRY_NOW,
@@ -362,6 +377,7 @@ WS_COMMANDS = (
     (WS_TYPE_EEDOMUS_GET_COHERENCE, _ws_get_coherence),
     (WS_TYPE_EEDOMUS_GET_TRANSLATIONS, _ws_get_translations),
     (WS_TYPE_EEDOMUS_GET_BACKFILL_STATE, _ws_get_backfill_state),
+    (WS_TYPE_EEDOMUS_GET_BOX_METRICS, _ws_get_box_metrics),
     (WS_TYPE_EEDOMUS_BACKFILL_RETRY_NOW, _ws_backfill_retry_now),
     (WS_TYPE_EEDOMUS_BACKFILL_PRIORITIZE, _ws_backfill_prioritize),
     (WS_TYPE_EEDOMUS_BACKFILL_SET_PAUSED, _ws_backfill_set_paused),
@@ -436,6 +452,10 @@ ENDPOINT_DESCRIPTIONS = {
     WS_TYPE_EEDOMUS_GET_BACKFILL_STATE: (
         "Get Backfill State",
         "Get the history backfill queue state of the eedomus boxes",
+    ),
+    WS_TYPE_EEDOMUS_GET_BOX_METRICS: (
+        "Get Box Metrics",
+        "Get the refresh metrics of the eedomus boxes",
     ),
     WS_TYPE_EEDOMUS_BACKFILL_RETRY_NOW: (
         "Backfill Retry Now",
@@ -1148,6 +1168,52 @@ class EedomusUIService:
             connection.send_result(msg.get("id"), _json_safe(state))
         except Exception as e:
             self._send_backfill_error(connection, msg, e)
+
+    async def _handle_get_box_metrics(
+        self,
+        hass: HomeAssistant,
+        connection,
+        msg: dict,
+    ) -> None:
+        """Handle the get box metrics command (Supervision tab, CAP-9).
+
+        One section per box (multi-box walk of _collect_coordinators):
+        each coordinator contributes its buffered refresh cycles,
+        entry_id included. A coordinator whose get_box_metrics raises
+        is skipped with a warning - one broken box never costs the
+        healthy boxes their metrics. No coordinator at all is a nominal
+        service_unavailable refusal. The panel never subscribes - one
+        call per tab visit.
+        """
+        try:
+            boxes: List[Dict[str, Any]] = []
+            for coordinator in self._collect_coordinators(hass):
+                get_metrics = getattr(coordinator, "get_box_metrics", None)
+                if get_metrics is None:
+                    continue
+                try:
+                    boxes.append(get_metrics())
+                except Exception as e:
+                    _LOGGER.warning(
+                        "Skipping the box metrics of one coordinator: %s",
+                        e,
+                        exc_info=True,
+                    )
+            if not boxes:
+                connection.send_error(
+                    msg.get("id"),
+                    "service_unavailable",
+                    "No eedomus coordinator available",
+                )
+                return
+            connection.send_result(msg.get("id"), _json_safe({"boxes": boxes}))
+        except Exception as e:
+            _LOGGER.error("Box metrics error: %s", e, exc_info=True)
+            connection.send_error(
+                msg.get("id"),
+                "internal_error",
+                "Failed to build the box metrics view",
+            )
 
     async def _handle_backfill_retry_now(
         self,

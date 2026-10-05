@@ -15,6 +15,7 @@
  *   ./panel/peripheriques.js — peripheriques mixin and styles
  *   ./panel/regles.js        — rules form/YAML mixin and styles
  *   ./panel/historique.js    — mapping versions mixin and styles
+ *   ./panel/supervision.js    — box metrics mixin and styles
  *
  * Theming: HA CSS variables only (no hard-coded style). The panel is
  * keyboard-operable and announces state changes through aria-live.
@@ -36,6 +37,7 @@ import {
 import { applyPeripheriquesMixin, PERIPH_STYLES } from './panel/peripheriques.js';
 import { applyReglesMixin, RULES_STYLES } from './panel/regles.js';
 import { applyHistoriqueMixin, HISTORY_STYLES } from './panel/historique.js';
+import { applySupervisionMixin, SUPERVISION_STYLES } from './panel/supervision.js';
 
 class EedomusConfigPanel extends HTMLElement {
   constructor() {
@@ -119,6 +121,14 @@ class EedomusConfigPanel extends HTMLElement {
     // the popover, same trigger. One line expanded at most; the key
     // survives tbody re-renders as long as the row stays visible.
     this._coherenceExpandedId = null;
+    // Supervision tab state (ticket 4.2) — one callWS per tab visit,
+    // no subscription, no polling (same contract as the other lazy
+    // tabs). Generation discards superseded in-flight resolutions.
+    this._metrics = null;
+    this._metricsError = null;
+    this._metricsErrorDetail = null;
+    this._metricsLoading = false;
+    this._metricsGeneration = 0;
     this._boundCoherenceBreakpoint = (ev) => this._onCoherenceBreakpoint(ev);
   }
 
@@ -140,6 +150,9 @@ class EedomusConfigPanel extends HTMLElement {
       } else if (this._tab === 'coherence' && this._coherence === null
           && !this._coherenceError) {
         this._loadCoherence();
+      } else if (this._tab === 'supervision' && this._metrics === null
+          && !this._metricsError) {
+        this._loadMetrics();
       }
     }
   }
@@ -366,7 +379,7 @@ class EedomusConfigPanel extends HTMLElement {
         }
         .panel-header h1 { font-size: 20px; font-weight: 400; margin: 0; }
 
-        .tabs { display: flex; gap: 8px; padding: 12px 0 20px; }
+        .tabs { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 0 20px; }
         .tab {
           min-height: 44px; padding: 10px 20px; cursor: pointer;
           font: inherit; text-decoration: none;
@@ -467,6 +480,7 @@ ${PERIPH_STYLES}
 ${RULES_STYLES}
 ${HISTORY_STYLES}
 ${COHERENCE_STYLES}
+${SUPERVISION_STYLES}
       </style>
 
       <div class="panel">
@@ -485,6 +499,8 @@ ${COHERENCE_STYLES}
                   aria-selected="false">${this.t('panel.tabs.historique')}</button>
           <button class="tab" role="tab" data-tab="coherence"
                   aria-selected="false">${this.t('panel.tabs.coherence')}</button>
+          <button class="tab" role="tab" data-tab="supervision"
+                  aria-selected="false">${this.t('panel.tabs.supervision')}</button>
         </nav>
 
         <main id="tab-content" aria-live="polite"></main>
@@ -508,9 +524,21 @@ ${COHERENCE_STYLES}
       } else if (retry.dataset.retry === 'coherence') {
         this._coherenceError = null;
         this._loadCoherence();
+      } else if (retry.dataset.retry === 'metrics') {
+        this._metricsError = null;
+        this._metricsErrorDetail = null;
+        this._loadMetrics();
       } else {
         this._loadPeripherals();
       }
+      return;
+    }
+    const gotoCoherence = ev.target.closest('[data-goto-coherence]');
+    if (gotoCoherence) {
+      // Supervision's internal link: same mechanism as the "create a
+      // rule" shortcut — the tab switch flows through _setTab so the
+      // hash and back/forward keep working.
+      this._setTab('coherence');
       return;
     }
     const coherenceViewBtn = ev.target.closest('[data-coherence-view]');
@@ -842,6 +870,11 @@ ${COHERENCE_STYLES}
       if (this._coherence === null && !this._coherenceError) {
         this._loadCoherence();
       }
+    } else if (this._tab === 'supervision') {
+      content.innerHTML = this._renderSupervisionTab();
+      if (this._metrics === null && !this._metricsError) {
+        this._loadMetrics();
+      }
     } else {
       content.innerHTML = `
         <p class="placeholder">
@@ -859,6 +892,7 @@ applyCoherenceMixin(EedomusConfigPanel);
 applyPeripheriquesMixin(EedomusConfigPanel);
 applyReglesMixin(EedomusConfigPanel);
 applyHistoriqueMixin(EedomusConfigPanel);
+applySupervisionMixin(EedomusConfigPanel);
 
 if (!customElements.get('eedomus-config-panel')) {
   customElements.define('eedomus-config-panel', EedomusConfigPanel);
