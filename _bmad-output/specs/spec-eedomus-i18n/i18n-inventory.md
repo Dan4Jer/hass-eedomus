@@ -142,6 +142,8 @@ Hardcoded English today: `entity.py` (`Unknown Device ({periph_id})`, `Unknown P
 
 ## 5. Logs / docstrings / comments — plain-EN (full pass in 3.5)
 
+> Status: migrated in ticket 3.5 (2026-10-05); the sites and line numbers below are the pre-migration record.
+
 Scope correction (review-verified, line-level): the debt is larger than the first pass reported.
 - **Logs**: 7 French log calls — `coordinator.py` (5: lines 115, 1196, 1199, 1250, 1289) and `__init__.py` (2: lines 221, 262). All other log calls are English.
 - **Docstrings**: 26 French blocks across 8 files — `coordinator.py` (9), `ui_service.py` (4), `light.py` (3), `mapping_registry.py` (3), `mapping_rules.py` (3), `eedomus_client.py` (2), `sensor.py` (1), `config_flow.py` (1 FR section header).
@@ -150,6 +152,8 @@ Scope correction (review-verified, line-level): the debt is larger than the firs
 3.5 migrates these files file-by-file with the unit suite green at each step; the log migration preserves message semantics (only the language changes).
 
 ## 6. Backend strings surfaced to the panel — plain-EN (migrate with 3.5)
+
+> Status: migrated in ticket 3.5 (2026-10-05); the sites and line numbers below are the pre-migration record.
 
 - `coordinator.py` French `ValueError`s visible to service callers (:1816, :1822, :1825 — « Aucune valeur disponible… », « La valeur cible… n'est pas un nombre valide. », « Aucune valeur numérique valide trouvée… ») — plain-EN; without this, an English user still sees French after the full migration.
 - `ui_service.py` hardcoded French served through websocket data: `f"mapping personnalisé {key}"` (:849) and `f"règle {key}"` (:858) flow into the panel badge (« Modifié par la règle {nom} ») and coherence rows — plain-EN (the rule NAME stays user data; the label prefix migrates).

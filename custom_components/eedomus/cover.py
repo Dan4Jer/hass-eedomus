@@ -34,7 +34,7 @@ async def async_setup_entry(
         if not "ha_entity" in coordinator.data[periph_id]:
             eedomus_mapping = map_device_to_ha_entity(periph, coordinator.data, coordinator=coordinator)
             coordinator.data[periph_id].update(eedomus_mapping)
-            # S'assurer que le mapping est enregistré dans le registre global
+            # Make sure the mapping is registered in the global registry
             from .entity import _register_device_mapping
             _register_device_mapping(eedomus_mapping, periph["name"], periph_id, periph)
 
@@ -53,7 +53,7 @@ async def async_setup_entry(
                     "ha_subtype": "energy",
                     "justification": "Parent is a cover - energy consumption meter",
                 }
-                # Log pour confirmer que le device a été mappé
+                # Log to confirm the device was mapped
                 _LOGGER.debug("✅ Device mapped: %s (%s) → %s:%s", 
                             periph["name"], periph_id, eedomus_mapping["ha_entity"], eedomus_mapping["ha_subtype"])
             if periph.get("usage_id") == "48":  # Slats

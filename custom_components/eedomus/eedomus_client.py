@@ -28,7 +28,7 @@ from .entity import _get_config_value
 
 _LOGGER = logging.getLogger(__name__)
 
-# Dictionnaire des codes d'erreur eedomus connus
+# Dictionary of known eedomus error codes
 EEDOMUS_ERROR_CODES = {
     "1": "Invalid API credentials",
     "2": "Invalid action",
@@ -133,10 +133,10 @@ class EedomusClient:
             try:
                 async with async_timeout(self.http_request_timeout):
                     async with self.session.get(url, params=params) as resp:
-                        # Lire les données brutes
+                        # Read the raw data
                         raw_data = await resp.read()
 
-                        # Gestion des statuts HTTP
+                        # Handle HTTP statuses
                         if resp.status != 200:
                             try:
                                 error_text = raw_data.decode("utf-8", errors="replace")
@@ -152,20 +152,20 @@ class EedomusClient:
                                 f"HTTP {resp.status} error", error_text, resp.status
                             )
 
-                        # Essayer plusieurs encodages pour la réponse
+                        # Try several encodings for the response
                         response_text = self._decode_response(raw_data)
 
-                        # Parsing de la réponse
+                        # Parse the response
                         try:
                             response_data = json.loads(response_text)
 
-                            # Normalisation de la structure de réponse
+                            # Normalize the response structure
                             if not isinstance(response_data, dict):
                                 return self._format_error_response(
                                     "Invalid response format", response_text
                                 )
 
-                            # Gestion des réponses d'erreur eedomus
+                            # Handle eedomus error responses
                             success = response_data.get("success")
                             if success == "0" or success == 0:
                                 return self._handle_eedomus_error(response_data)
@@ -209,7 +209,7 @@ class EedomusClient:
             except UnicodeDecodeError:
                 continue
 
-        # Si tout échoue, utiliser un remplacement de caractères
+        # If everything fails, fall back to character replacement
         return raw_data.decode("utf-8", errors="replace")
 
     def _get_safe_url_for_logging(self) -> str:
@@ -300,7 +300,7 @@ class EedomusClient:
                 )
                 return result
 
-            # Normalisation de la réponse pour les commandes réussies
+            # Normalize the response for successful commands
             if "body" in result and "result" in result["body"]:
                 result["success"] = 1
                 result["message"] = result["body"]["result"]
@@ -437,12 +437,12 @@ class EedomusClient:
     async def get_periph_list(self) -> Dict:
         """Get list of all peripherals."""
         result = await self.fetch_data("periph.list")
-        # Normalisation de la réponse
+        # Normalize the response
         if not isinstance(result, dict):
             return self._format_error_response("Invalid response format", str(result))
         if result.get("success") == 0:
             return result
-        # Assure que body est une liste
+        # Make sure body is a list
         if "body" not in result or not isinstance(result["body"], list):
             result["body"] = []
         return result
@@ -525,13 +525,13 @@ class EedomusClient:
 
     async def get_device_history_count(self, periph_id: str) -> int:
         """
-        Estime le nombre total de points d'historique disponibles pour un périphérique.
-        
+        Estimate the total number of history points available for a peripheral.
+
         Args:
-            periph_id (str): ID du périphérique.
-            
+            periph_id (str): The peripheral ID.
+
         Returns:
-            int: Estimation du nombre total de points d'historique.
+            int: Estimate of the total number of history points.
         """
         # Use a simple default estimation since we can't reliably get device info
         # The API doesn't provide a method to get individual device info
@@ -549,15 +549,15 @@ class EedomusClient:
         end_timestamp: Optional[int] = None,
     ) -> Optional[list]:
         """
-        Récupère l'historique d'un périphérique depuis api.eedomus.com.
+        Retrieve a peripheral's history from api.eedomus.com.
 
         Args:
-            periph_id (str): ID du périphérique.
-            start_timestamp (int): Timestamp de début (0 = depuis le début).
-            end_timestamp (int): Timestamp de fin (None = maintenant).
+            periph_id (str): The peripheral ID.
+            start_timestamp (int): Start timestamp (0 = from the beginning).
+            end_timestamp (int): End timestamp (None = now).
 
         Returns:
-            list: Liste de dictionnaires {"value": str, "timestamp": str}.
+            list: List of {"value": str, "timestamp": str} dictionaries.
         """
         base_url = f"{HISTORY_API_URL}/get"
         params = {

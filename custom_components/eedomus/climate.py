@@ -34,7 +34,7 @@ async def async_setup_entry(
         if "ha_entity" not in coordinator.data[periph_id]:
             eedomus_mapping = map_device_to_ha_entity(periph, coordinator.data, coordinator=coordinator)
             coordinator.data[periph_id].update(eedomus_mapping)
-            # S'assurer que le mapping est enregistré dans le registre global
+            # Make sure the mapping is registered in the global registry
             from .entity import _register_device_mapping
             _register_device_mapping(eedomus_mapping, periph["name"], periph_id, periph)
 
@@ -277,7 +277,7 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
 
         # For temperature setpoints (usage_id=15), the value is typically the temperature
         if usage_id == "15":
-            # For consignes de température, last_value is usually the target temperature
+            # For temperature setpoints, last_value is usually the target temperature
             if current_value.replace(".", "").isdigit():
                 self._attr_hvac_mode = HVACMode.HEAT
             else:
@@ -415,7 +415,7 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
             usage_id = periph_data.get("usage_id", "")
 
             if usage_id == "15":
-                # For consignes de température, send the temperature directly
+                # For temperature setpoints, send the temperature directly
                 # Round to nearest 0.5 as that's the typical step for eedomus
                 rounded_temp = round(temperature * 2) / 2
                 eedomus_value = str(rounded_temp)

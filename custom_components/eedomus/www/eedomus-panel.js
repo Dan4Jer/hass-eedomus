@@ -1,11 +1,11 @@
 /**
  * Eedomus Config panel — webcomponent served at /local/eedomus/eedomus-panel.js
  *
- * P.1.3 implements the Périphériques tab (mock-01): list of peripherals from
+ * P.1.3 implements the Peripherals tab (mock-01): list of peripherals from
  * coordinator.data via the eedomus/get_peripherals websocket command, search
- * by name or usage_id, "Périphériques touchés" filter, accessible modified
- * badge, and the "Créer une règle" shortcut that pre-fills the usage_id for
- * the Règles tab. Règles and Historique are placeholders until P.1.4-P.1.6.
+ * by name or usage_id, "Touched peripherals" filter, accessible modified
+ * badge, and the "Create a rule" shortcut that pre-fills the usage_id for
+ * the Rules tab. Rules and History are placeholders until P.1.4-P.1.6.
  *
  * Theming: HA CSS variables only (no hard-coded style). The panel is
  * keyboard-operable and announces state changes through aria-live.
@@ -72,7 +72,7 @@ const SORT_ARROW_DESC =
 // Top-level and this-free: pure functions over the payload + tab state,
 // exercised directly by tests/js/test-coherence.js.
 
-// « À vérifier » predicate: any signal counts, including unknown strings.
+// "To verify" predicate: any signal counts, including unknown strings.
 function coherenceToVerify(row) {
   return (row.signals || []).length > 0;
 }
@@ -163,7 +163,7 @@ function filterCoherenceRows(rows, state) {
   return out;
 }
 
-// Sort cycle: croissant -> décroissant -> neutre (ordre de réponse).
+// Sort cycle: ascending -> descending -> neutral (response order).
 function nextCoherenceSort(sort, key) {
   if (sort.key !== key) {
     return { key, dir: 'asc' };
@@ -241,14 +241,14 @@ function coherenceStatusText(shown, search, view, t) {
 // everything renders from the already-loaded coherence row.
 
 // Shared value normalizer of the detail fields: null/undefined/empty
-// stays null (the renderer shows « inconnu ») — a missing field is
-// information, never a silent hole.
+// stays null (the renderer shows the catalog's unknown-value text) —
+// a missing field is information, never a silent hole.
 function coherenceFieldValue(value) {
   return value == null || value === '' ? null : String(value);
 }
 
-// « État vivant » fields. A row without an entity shows
-// « aucune entité » and no current value (edge-case matrix).
+// "Live state" fields. A row without an entity shows
+// "no entity" and no current value (edge-case matrix).
 function coherenceLiveFields(row, t) {
   const hasEntity = Boolean(row.entity_id);
   return [
@@ -379,8 +379,8 @@ function coherenceHasEntity(entityId) {
 // Entity cell of the coherence table (ticket 2.6, CAP-8): an inline
 // text link — accent, underlined, no button chrome — whose visible
 // label is the entity itself. The accessible name carries the action
-// and the destination, mirroring the detail's « Voir dans HA ».
-// A row without an entity keeps its inert « aucune entité ».
+// and the destination, mirroring the detail's "View in HA".
+// A row without an entity keeps its inert "no entity".
 function coherenceEntityLinkHtml(entityId, t) {
   if (!coherenceHasEntity(entityId)) {
     return `<em>${t('panel.common.no_entity')}</em>`;
@@ -629,9 +629,9 @@ function coherenceTruncateText(text, max) {
   return `${value.slice(0, max - 1)}…`;
 }
 
-// Chips of the Statut cell: one chip per signal, « cohérent » when
+// Chips of the Status cell: one chip per signal, "consistent" when
 // there is none; an unknown string keeps a neutral chip carrying
-// the raw value — never dropped, never "cohérent".
+// the raw value — never dropped, never "consistent".
 function coherenceChipsHtml(row, t) {
   const signals = (row && row.signals) || [];
   if (signals.length === 0) {
@@ -678,8 +678,8 @@ function coherenceChipHtml(signal, row, t) {
 // state, like the rest of the composition.
 function coherenceRowHtml(row, expandedId, narrow, t) {
   const type = coherenceType(row);
-  // CAP-8 : l'entité est un lien texte inline vers la surface
-  // standard HA — inerte « aucune entité » quand il n'y en a pas.
+  // CAP-8: the entity is an inline text link to the standard
+  // HA surface — inert "no entity" when there is none.
   const entity = coherenceEntityLinkHtml(row.entity_id, t);
   const detail = coherenceRowExpansionHtml(row, expandedId, narrow, t);
   return `
@@ -1412,9 +1412,9 @@ class EedomusConfigPanel extends HTMLElement {
           outline: 2px solid var(--primary-color); outline-offset: 2px;
         }
 
-        /* Lien entité (2.6, CAP-8) : lien texte inline — accent,
-           souligné, jamais un chrome de bouton ; distinct du
-           déclencheur popover (pointillé). */
+        /* Entity link (2.6, CAP-8): inline text link — accent,
+           underlined, never button chrome; distinct from
+           the popover trigger (dotted). */
         .entity-link {
           color: var(--primary-color);
           text-decoration: underline;
@@ -1520,8 +1520,8 @@ class EedomusConfigPanel extends HTMLElement {
           .row-action { width: 100%; }
 
           /* The sort headers stay operable on mobile: the thead becomes a
-             sticky wrapping bar of sort buttons, still collant au
-             défilement. */
+             sticky wrapping bar of sort buttons, still sticky while
+             scrolling. */
           .coherence-table thead {
             display: flex; flex-wrap: wrap; gap: 8px;
             position: sticky; top: 0; z-index: 1;
@@ -1555,10 +1555,10 @@ class EedomusConfigPanel extends HTMLElement {
             font-size: 12px;
           }
 
-          /* Ligne étendue (2.5) : parité de contenu avec le popover,
-             surface différente — la paire ligne + extension lit comme
-             une seule unité au doigt, l'extension vit dans le reflow
-             bloc (jamais de scroll horizontal silencieux). */
+          /* Expanded row (2.5): content parity with the popover,
+             different surface — the row + extension pair reads as
+             one unit under the finger, the extension lives in the
+             block reflow (never a silent horizontal scroll). */
           .coherence-id-trigger {
             display: inline-flex; align-items: center;
             min-height: 44px;
@@ -1649,14 +1649,14 @@ class EedomusConfigPanel extends HTMLElement {
     if (popoverTrigger) {
       this._cancelCoherenceHover();
       if (coherenceNarrowView()) {
-        // Sous 900 px (2.5) : le tap étend la ligne — le popover de
-        // 2.4 reste une surface desktop, le hover gating est intact.
+        // Under 900 px (2.5): a tap expands the row — the 2.4
+        // popover stays a desktop surface, the hover gating is intact.
         this._toggleCoherenceExpanded(
           popoverTrigger.dataset.coherencePopover
         );
         return;
       }
-      // Entrée/click on the periph_id cell: open without the hover
+      // Enter/click on the periph_id cell: open without the hover
       // delay; clicking the open trigger toggles it closed.
       if (this._coherencePopoverTrigger === popoverTrigger) {
         this._closeCoherencePopover();
@@ -1667,9 +1667,9 @@ class EedomusConfigPanel extends HTMLElement {
     }
     const entityLink = ev.target.closest('[data-entity-id]');
     if (entityLink) {
-      // CAP-8 : le lien entité navigue vers la surface standard HA —
-      // jamais le popover ni l'extension (stopPropagation), et le
-      // href="#" de repli ne touche jamais le hash du panneau.
+      // CAP-8: the entity link navigates to the standard HA surface —
+      // never the popover or the extension (stopPropagation), and the
+      // fallback href="#" never touches the panel hash.
       ev.preventDefault();
       ev.stopPropagation();
       this._openEntityMoreInfo(entityLink.dataset.entityId);
@@ -1706,10 +1706,10 @@ class EedomusConfigPanel extends HTMLElement {
   }
 
   _onAuxClick(ev) {
-    // Middle-click / « ouvrir dans un nouvel onglet » sur le href="#"
-    // de repli : le lien entité ne navigue jamais par lui-même —
-    // seule la surface standard HA (hass-more-info) s'ouvre, et le
-    // hash du panneau reste intact.
+    // Middle-click / "open in a new tab" on the fallback
+    // href="#": the entity link never navigates by itself —
+    // only the standard HA surface (hass-more-info) opens, and the
+    // panel hash stays intact.
     if (ev.target.closest && ev.target.closest('[data-entity-id]')) {
       ev.preventDefault();
     }
@@ -1832,11 +1832,11 @@ class EedomusConfigPanel extends HTMLElement {
   _onKeyDown(ev) {
     if (ev.key === 'Escape') {
       if (this._coherencePopover) {
-        // Échap referme le popover (le popover intercepte déjà l'Échap
-        // quand il détient le focus — cette branche est le filet pour
-        // un popover ouvert au survol, jamais focalisé). Sans le focus
-        // dedans, l'Échap poursuit vers le champ actif : vider la
-        // recherche doit continuer de fonctionner.
+        // Escape closes the popover (the popover already intercepts
+        // Escape when it holds the focus — this branch is the net for
+        // a popover opened on hover, never focused). Without the
+        // focus inside, Escape continues to the active field: clearing
+        // the search must keep working.
         const pop = this._coherencePopover;
         const active = this.shadowRoot.activeElement;
         this._closeCoherencePopover();
@@ -1845,10 +1845,11 @@ class EedomusConfigPanel extends HTMLElement {
         }
       }
       if (this._coherenceExpandedId !== null) {
-        // Échap referme aussi la ligne étendue mobile (même geste que
-        // le popover, 2.5) : le focus revient au déclencheur quand il
-        // opérait l'extension ; sinon l'Échap poursuit vers le champ
-        // actif — vider la recherche reste fonctionnel (contrat 2.4).
+        // Escape also closes the mobile expanded row (same gesture as
+        // the popover, 2.5): the focus returns to the trigger when it
+        // operated the extension; otherwise Escape continues to the
+        // active field — clearing the search stays functional (2.4
+        // contract).
         const id = this._coherenceExpandedId;
         const root = this.shadowRoot;
         const expandedRow = root
@@ -1900,7 +1901,7 @@ class EedomusConfigPanel extends HTMLElement {
   }
 
   _createRuleFor(periphId, usageId) {
-    // Shortcut: switch to Règles with the usage_id pre-filled (P.1.4
+    // Shortcut: switch to Rules with the usage_id pre-filled (P.1.4
     // consumes it in the rule form).
     this._pendingRuleUsageId = usageId;
     this._setTab('regles');
@@ -2270,7 +2271,7 @@ class EedomusConfigPanel extends HTMLElement {
     }
   }
 
-  // ================= Cohérence (ticket 2.2) =================
+  // ================= Coherence (ticket 2.2) =================
 
   async _loadCoherence() {
     if (!this._hass || this._coherenceLoading) {
@@ -2385,7 +2386,7 @@ class EedomusConfigPanel extends HTMLElement {
   }
 
   _announceStatusNow(live, text) {
-    // An immediate announce (sort, bascule, Échap) cancels any pending
+    // An immediate announce (sort, toggle, Escape) cancels any pending
     // debounced one so the two paths never double-fire.
     this._cancelStatusAnnounce(live.id);
     live.textContent = text;
@@ -2401,10 +2402,10 @@ class EedomusConfigPanel extends HTMLElement {
     // (announceStatus, sweep) — the announce paths below stay
     // immediate for every other caller.
     const announceStatus = !(opts && opts.announceStatus === false);
-    // Any reshuffle (sort, filtre, recherche, bascule) can remove the
+    // Any reshuffle (sort, filter, search, toggle) can remove the
     // anchor row: the popover closes, never floats orphaned.
     this._closeCoherencePopover();
-    // Keep the view toggle in sync (mirror of the Périphériques filter).
+    // Keep the view toggle in sync (mirror of the Peripherals filter).
     const viewBtn = root.querySelector('[data-coherence-view]');
     if (viewBtn) {
       viewBtn.setAttribute(
@@ -2431,8 +2432,8 @@ class EedomusConfigPanel extends HTMLElement {
       view: this._coherenceView,
       sort: this._coherenceSort,
     });
-    // Jamais d'extension orpheline : la ligne étendue absente du
-    // résultat filtré referme l'état mobile avec le reste du corps.
+    // Never an orphaned extension: the expanded row absent from the
+    // filtered result closes the mobile state along with the body.
     if (
       this._coherenceExpandedId !== null &&
       !rows.some((r) => String(r.periph_id) === this._coherenceExpandedId)
@@ -2529,9 +2530,9 @@ class EedomusConfigPanel extends HTMLElement {
     }
   }
 
-  // ---- Ligne étendue mobile (ticket 2.5) ----
-  // Sous 900 px, la contrepartie tactile du popover : le même
-  // déclencheur, le même contenu, une surface inline dans la table.
+  // ---- Mobile expanded row (ticket 2.5) ----
+  // Under 900 px, the touch counterpart of the popover: the same
+  // trigger, the same content, an inline surface in the table.
 
   _toggleCoherenceExpanded(periphId) {
     // Never two detail surfaces at once: a popover opened before the
@@ -2549,12 +2550,12 @@ class EedomusConfigPanel extends HTMLElement {
     }
     const id = String(row.periph_id);
     // Focus contract (mirror of _coherenceSortBy): the re-render
-    // replaces the trigger — Entrée at narrow width keeps operating
+    // replaces the trigger — Enter at narrow width keeps operating
     // the same line, a tap never had the focus anyway.
     const restoreFocus =
       this.shadowRoot.activeElement === this._coherenceTriggerFor(id);
-    // Une seule ligne étendue à la fois : re-tap referme, tap sur
-    // une autre ligne déplace l'extension (nextCoherenceExpanded).
+    // A single expanded row at a time: a re-tap closes it, a tap on
+    // another row moves the extension (nextCoherenceExpanded).
     this._coherenceExpandedId = nextCoherenceExpanded(
       this._coherenceExpandedId,
       id
@@ -2624,22 +2625,22 @@ class EedomusConfigPanel extends HTMLElement {
     return null;
   }
 
-  // ---- Navigation vers l'entité HA (ticket 2.6, CAP-8) ----
-  // hass-more-info est le mécanisme standard des éléments custom HA
-  // (vérifié dans le bundle frontend live) : CustomEvent composed et
-  // bubbles vers le document, la boîte more-info ouvre la surface
-  // standard de l'entité — web et mobile. Une navigation, pas un
-  // contrôle d'édition : aucune écriture, aucun appel réseau.
+  // ---- Navigation to the HA entity (ticket 2.6, CAP-8) ----
+  // hass-more-info is the standard mechanism for HA custom elements
+  // (verified in the live frontend bundle): a composed CustomEvent
+  // that bubbles to the document, the more-info box opens the
+  // entity's standard surface — web and mobile. A navigation, not
+  // an editing control: no writes, no network calls.
 
   _openEntityMoreInfo(entityId) {
     if (!coherenceHasEntity(entityId)) {
       return;
     }
     const id = String(entityId);
-    // Fermetures propres avant la navigation : la ligne étendue
-    // mobile et le popover ne survivent pas à l'ouverture de
-    // more-info — focus rendu au déclencheur, jamais de surface
-    // flottante orpheline.
+    // Clean closes before the navigation: the mobile expanded row
+    // and the popover do not survive the more-info opening — focus
+    // returned to the trigger, never an orphaned floating
+    // surface.
     if (this._coherenceExpandedId !== null) {
       const expandedId = this._coherenceExpandedId;
       const root = this.shadowRoot;
@@ -2709,8 +2710,8 @@ class EedomusConfigPanel extends HTMLElement {
     return null;
   }
 
-  // ---- Popover de détail périphérique (ticket 2.4) ----
-  // Desktop floating surface of the Cohérence tab. The trigger stays
+  // ---- Peripheral detail popover (ticket 2.4) ----
+  // Desktop floating surface of the Coherence tab. The trigger stays
   // the periph_id cell (code font); nothing else in the row opens it.
 
   _onCoherenceMouseOver(ev) {
@@ -2736,9 +2737,9 @@ class EedomusConfigPanel extends HTMLElement {
       return;
     }
     if (coherenceNarrowView()) {
-      // Sous 900 px (2.5), la surface est la ligne étendue : le
-      // hover n'ouvre jamais le popover à côté d'elle — une seule
-      // surface de détail à la fois, même fenêtre étroite + souris.
+      // Under 900 px (2.5), the surface is the expanded row: the
+      // hover never opens the popover next to it — a single
+      // detail surface at a time, even a narrow window + mouse.
       return;
     }
     const trigger = ev.target.closest
@@ -2749,7 +2750,7 @@ class EedomusConfigPanel extends HTMLElement {
     }
     this._cancelCoherenceHover();
     // Hover intent ~250 ms: no popover storm when sweeping the mouse
-    // across the table. Keyboard opens without delay (Entrée).
+    // across the table. Keyboard opens without delay (Enter).
     this._coherenceHoverTrigger = trigger;
     this._coherenceHoverTimer = setTimeout(() => {
       this._coherenceHoverTimer = null;
@@ -2906,8 +2907,8 @@ class EedomusConfigPanel extends HTMLElement {
     window.addEventListener('resize', this._coherenceDismiss);
     window.addEventListener('orientationchange', this._coherenceDismiss);
     // A hover-opened popover that never held focus closes as soon as
-    // the focus lands outside the trigger and the popover (ex. Tab
-    // depuis le déclencheur).
+    // the focus lands outside the trigger and the popover (e.g. Tab
+    // away from the trigger).
     this._coherenceFocusOut = (ev) => {
       if (!this._coherencePopoverByHover) {
         return;
@@ -2925,7 +2926,7 @@ class EedomusConfigPanel extends HTMLElement {
       this._coherencePopoverByHover = false;
     });
     // Keyboard contract: Tab loops inside the popover (focus trap),
-    // Échap closes and returns the focus to the trigger.
+    // Escape closes and returns the focus to the trigger.
     pop.addEventListener('keydown', (ev) => {
       if (ev.key === 'Escape') {
         ev.preventDefault();
@@ -3254,7 +3255,7 @@ class EedomusConfigPanel extends HTMLElement {
     return this._escapeHtml(value);
   }
 
-  // ================= Règles (P.1.4) =================
+  // ================= Rules (P.1.4) =================
 
   async _loadMapping() {
     if (!this._hass) {
@@ -3832,7 +3833,8 @@ class EedomusConfigPanel extends HTMLElement {
     const status = this.shadowRoot.getElementById('rules-status');
     if (status) {
       // The refused extra composes inside {mode} so the announced text
-      // matches the pre-i18n rendering: « Mode YAML — bascule… . »
+      // matches the pre-i18n rendering: the mode name and the refusal
+      // suffix are announced as one sentence.
       status.textContent = this.t('panel.regles.mode.announce', {
         mode: extra ? `${mode} — ${extra}` : mode,
       });

@@ -400,7 +400,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     
     _LOGGER.debug("Mapping device: %s (%s, usage_id=%s)", periph_name, periph_id, usage_id)
     
-    # Debug spécifique pour le device 1269454 (RGBW connu)
+    # Specific debug for device 1269454 (known RGBW)
     if periph_id == "1269454":
         _LOGGER.debug("🔍 SPECIAL DEBUG: Starting advanced rules evaluation for RGBW device 1269454")
     
@@ -409,7 +409,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         _LOGGER.warning("⚠️  all_devices is None or empty, creating empty dict to allow advanced rules evaluation")
         all_devices = {}
     
-    # Priorité 1: Règles avancées (nécessite all_devices)
+    # Priority 1: Advanced rules (requires all_devices)
     # Use the pre-converted dict format from device_mapping.py
     if periph_id == "1269454":
         _LOGGER.debug("SPECIAL DEBUG (v%s): Device 1269454 - advanced_rules type: %s", 
@@ -504,7 +504,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                            if child.get("parent_periph_id") == periph_id]
 
         if condition_result:
-            # Log spécifique pour le débogage RGBW
+            # Specific log for RGBW debugging
             if rule_name == "rgbw_lamp_by_children":
                 rgbw_children = [
                     child for child_id, child in all_devices.items()
@@ -530,7 +530,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
             
             return _create_mapping(rule_config["mapping"], periph_name, periph_id, rule_name, "🎯 Advanced rule", device_data)
     
-    # Priorité 2: Cas spécifiques critiques (usage_id)
+    # Priority 2: Critical specific cases (usage_id)
     specific_cases = {
         "27": ("binary_sensor", "smoke", "🔥 Smoke detector", "fire"),
         "37": ("binary_sensor", "motion", "🚶 Motion sensor", "walking"),
@@ -543,7 +543,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
             periph_name, periph_id, usage_id, emoji, device_data
         )
     
-    # Priorité 2.5: Mapping spécifique par periph_id (override usage_id mapping)
+    # Priority 2.5: Specific per-periph_id mapping (overrides usage_id mapping)
     if periph_id and DEVICE_MAPPINGS and 'specific_device_mappings' in DEVICE_MAPPINGS and periph_id in DEVICE_MAPPINGS['specific_device_mappings']:
         mapping = DEVICE_MAPPINGS['specific_device_mappings'][periph_id].copy()
         _LOGGER.debug("🎯 Specific device mapping applied for %s (%s): %s:%s",
@@ -554,7 +554,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     
 
     
-    # Priorité 3: Mapping basé sur usage_id
+    # Priority 3: usage_id-based mapping
     if usage_id and DEVICE_MAPPINGS and usage_id in DEVICE_MAPPINGS['usage_id_mappings']:
         mapping = DEVICE_MAPPINGS['usage_id_mappings'][usage_id].copy()
         
@@ -629,7 +629,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
                 _LOGGER.debug("🔍 Parent mapping: %s:%s", 
                             parent_mapping["ha_entity"], parent_mapping["ha_subtype"])
         
-        # Appliquer les règles avancées si définies
+        # Apply the advanced rules when defined
         if "advanced_rules" in mapping:
             for rule_name in mapping["advanced_rules"]:
                 if DEVICE_MAPPINGS and rule_name in DEVICE_MAPPINGS['advanced_rules']:
@@ -662,7 +662,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
         
         return mapping
     
-    # Priorité 4: Détection par nom (YAML patterns)
+    # Priority 4: Name-based detection (YAML patterns)
     name_lower = device_data["name"].lower()
     
     # Check YAML name patterns first
@@ -687,7 +687,7 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
             periph_name, periph_id, "message", "📝", device_data
         )
     
-    # Priorité 5: Mapping par défaut (YAML fallback)
+    # Priority 5: Default mapping (YAML fallback)
     try:
         # Try to get YAML config via coordinator if available (uses cached async-loaded config)
         if coordinator is not None and hasattr(coordinator, 'get_yaml_config_sync'):
@@ -779,7 +779,7 @@ def _create_mapping(mapping_config, periph_name, periph_id, context, emoji="🎯
     Returns:
         Dictionary with standardized mapping including justification
     """
-    # mapping_config peut être soit la section 'mapping' directement, soit la règle complète
+    # mapping_config can be either the 'mapping' section directly or the full rule
     if isinstance(mapping_config, dict) and "mapping" in mapping_config:
         mapping = mapping_config["mapping"]
         justification = mapping_config.get("justification", "No justification provided")
@@ -787,7 +787,7 @@ def _create_mapping(mapping_config, periph_name, periph_id, context, emoji="🎯
         mapping = mapping_config
         justification = "No justification provided"
     
-    # Ajouter la justification au mapping
+    # Add the justification to the mapping
     if "justification" not in mapping:
         mapping["justification"] = justification
     
@@ -796,12 +796,12 @@ def _create_mapping(mapping_config, periph_name, periph_id, context, emoji="🎯
     log_method("%s %s mapping: %s (%s) → %s:%s", 
                emoji, context, periph_name, periph_id, mapping["ha_entity"], mapping["ha_subtype"])
     
-    # Debug logging pour le suivi du processus de mapping
+    # Debug logging to track the mapping process
     _LOGGER.debug("Mapping decision details for %s (%s): method=%s, result=%s:%s, justification=%s",
                   periph_name, periph_id, context, mapping["ha_entity"], mapping["ha_subtype"],
                   mapping["justification"])
     
-    # Stocker le mapping dans le registre global
+    # Store the mapping in the global registry
     register_device_mapping(mapping, periph_name, periph_id, device_data)
     
     return mapping

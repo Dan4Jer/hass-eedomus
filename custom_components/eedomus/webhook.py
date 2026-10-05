@@ -32,7 +32,7 @@ class EedomusWebhookView(HomeAssistantView):
         client_ip = request.remote
         _LOGGER.debug(f"Request from {client_ip}")
 
-        # Vérification de l'IP (unless security is disabled for debugging)
+        # IP check (unless security is disabled for debugging)
         if not self.disable_security and client_ip not in self.allowed_ips:
             _LOGGER.warning(f"Unauthorized IP: {client_ip}")
             return web.Response(text="Unauthorized", status=403)

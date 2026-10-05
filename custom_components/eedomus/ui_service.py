@@ -479,7 +479,7 @@ class EedomusUIService:
         connection,
         msg: dict,
     ) -> None:
-        """Handle the get peripherals WebSocket command (Périphériques tab)."""
+        """Handle the get peripherals WebSocket command (Peripherals tab)."""
         try:
             custom_config = await self._load_custom_mapping(hass)
             peripherals = self._collect_peripherals(hass, custom_config)
@@ -595,7 +595,7 @@ class EedomusUIService:
         connection,
         msg: dict,
     ) -> None:
-        """Handle the coherence WebSocket command (Cohérence tab, CAP-6)."""
+        """Handle the coherence WebSocket command (Coherence tab, CAP-6)."""
         try:
             custom_config = await self._load_custom_mapping(hass)
             peripherals = self._collect_coherence(hass, custom_config)
@@ -610,7 +610,7 @@ class EedomusUIService:
             connection.send_error(
                 msg.get("id"),
                 "internal_error",
-                "Échec de la construction de la vue de cohérence",
+                "Failed to build the coherence view",
             )
 
     def _collect_coherence(
@@ -747,7 +747,7 @@ class EedomusUIService:
         connection,
         msg: dict,
     ) -> None:
-        """Handle the get mapping WebSocket command (Règles tab)."""
+        """Handle the get mapping WebSocket command (Rules tab)."""
         try:
             config_manager = self._get_config_manager()
             if not config_manager:
@@ -891,13 +891,13 @@ class EedomusUIService:
     ) -> Optional[str]:
         """Name of the custom rule or mapping currently applied to a usage_id.
 
-        Powers the accessible "modifié par la règle {nom}, {date}" badge.
+        Powers the accessible "modified by rule {name}, {date}" badge.
         """
         if usage_id is None or usage_id == "":
             return None
         key = str(usage_id)
         if key in usage_id_mappings:
-            return f"mapping personnalisé {key}"
+            return f"custom mapping {key}"
         for rule in custom_rules:
             if not isinstance(rule, dict):
                 continue
@@ -906,7 +906,7 @@ class EedomusUIService:
                 condition.get("usage_id") if isinstance(condition, dict) else None
             )
             if rule_usage_id is not None and str(rule_usage_id) == key:
-                return rule.get("name") or f"règle {key}"
+                return rule.get("name") or f"rule {key}"
         return None
 
     def _get_schema_service(self):

@@ -1,18 +1,18 @@
-"""Gestion du registre de mapping global."""
+"""Global mapping registry management."""
 
 from __future__ import annotations
 import logging
 
 _LOGGER = logging.getLogger(__name__)
 
-# Liste globale pour stocker tous les mappings
+# Global list to store all the mappings
 _MAPPING_REGISTRY = []
 
 
 def register_device_mapping(
     mapping: dict, periph_name: str, periph_id: str, device_data: dict = None
 ) -> None:
-    """Enregistre un mapping dans le registre global."""
+    """Register a mapping in the global registry."""
     parent_periph_id = device_data.get("parent_periph_id") if device_data else None
     _MAPPING_REGISTRY.append(
         {
@@ -34,21 +34,21 @@ def register_device_mapping(
 
 
 def clear_mapping_registry() -> None:
-    """Réinitialise le registre de mapping."""
+    """Reset the mapping registry."""
     _MAPPING_REGISTRY.clear()
 
 
 def get_mapping_registry() -> list:
-    """Retourne le registre de mapping."""
+    """Return the mapping registry."""
     return _MAPPING_REGISTRY.copy()
 
 
 def print_mapping_table() -> None:
-    """Affiche un tableau récapitulatif de tous les mappings.
+    """Print a summary table of all the mappings.
 
-    La table complète est en DEBUG : une ligne par périphérique inonde
-    les logs au boot ("logging too frequently"). Seul le décompte reste
-    en INFO.
+    The full table is at DEBUG: one line per peripheral floods the
+    logs at boot ("logging too frequently"). Only the count stays
+    at INFO.
     """
     if not _MAPPING_REGISTRY:
         _LOGGER.warning("⚠️  Mapping registry is empty - no devices were mapped!")
@@ -87,18 +87,18 @@ def print_mapping_table() -> None:
 
 
 def print_mapping_summary() -> None:
-    """Affiche un résumé condensé des mappings."""
+    """Print a condensed mapping summary."""
     if not _MAPPING_REGISTRY:
         _LOGGER.warning("⚠️  Mapping registry is empty - no devices were mapped!")
         return
 
-    # Compter par type pour le résumé condensé
+    # Count by type for the condensed summary
     entity_counts = {}
     for mapping in _MAPPING_REGISTRY:
         entity_type = f"{mapping['ha_entity']}:{mapping['ha_subtype']}"
         entity_counts[entity_type] = entity_counts.get(entity_type, 0) + 1
 
-    # Créer un résumé condensé sur une seule ligne
+    # Build a condensed one-line summary
     type_summary = ", ".join(
         f"{count} {entity_type}"
         for entity_type, count in sorted(
@@ -112,7 +112,7 @@ def print_mapping_summary() -> None:
         len(set(m["periph_id"] for m in _MAPPING_REGISTRY)),
     )
 
-    # Détails en DEBUG pour ceux qui en ont besoin
+    # Details at DEBUG for those who need them
     _LOGGER.debug(
         "Total unique periph_ids: %d",
         len(set(m["periph_id"] for m in _MAPPING_REGISTRY)),

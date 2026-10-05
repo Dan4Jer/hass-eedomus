@@ -373,7 +373,11 @@ class TestGetPeripheralsHandler:
                 "name": "Unité température salon",
                 "condition": {"usage_id": "7", "state": "any"},
                 "actions": [{"type": "override", "attributes": {}}],
-            }
+            },
+            {
+                "condition": {"usage_id": "42", "state": "any"},
+                "actions": [{"type": "override", "attributes": {}}],
+            },
         ],
         "metadata": {"last_modified": "2026-09-26 21:04"},
     }
@@ -395,6 +399,11 @@ class TestGetPeripheralsHandler:
                 "periph_id": "333",
                 "name": "RubanLED Salon",
                 "usage_id": "133",
+            },
+            "444": {
+                "periph_id": "444",
+                "name": "Prise Salon",
+                "usage_id": "42",
             },
         }
         coordinator._resolve_main_entity_id = MagicMock(
@@ -446,7 +455,7 @@ class TestGetPeripheralsHandler:
         await service._handle_get_peripherals(hass, connection, {"id": 5})
 
         result = connection.send_result.call_args.args[1]
-        assert result["total"] == 3
+        assert result["total"] == 4
         row = result["peripherals"][0]
         assert row == {
             "periph_id": "111",
@@ -477,7 +486,10 @@ class TestGetPeripheralsHandler:
         }
         # usage_id 24 -> direct usage_id mapping (no named rule)
         assert rows["222"]["modified"] is True
-        assert rows["222"]["modified_by_rule"] == "mapping personnalisé 24"
+        assert rows["222"]["modified_by_rule"] == "custom mapping 24"
+        # usage_id 42 -> named rule with no name falls back to "rule {key}"
+        assert rows["444"]["modified"] is True
+        assert rows["444"]["modified_by_rule"] == "rule 42"
         # usage_id 133 -> untouched
         assert rows["333"]["modified"] is False
         assert rows["333"]["modified_by_rule"] is None
@@ -1163,7 +1175,9 @@ class TestGetCoherenceHandler:
 
         await service._handle_get_coherence(hass, connection, {"id": 11})
 
-        connection.send_error.assert_called_once()
+        connection.send_error.assert_called_once_with(
+            11, "internal_error", "Failed to build the coherence view"
+        )
         connection.send_result.assert_not_called()
 
 

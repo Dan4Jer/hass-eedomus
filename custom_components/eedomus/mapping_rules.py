@@ -1,4 +1,4 @@
-"""Règles de mapping avancées pour les devices."""
+"""Advanced mapping rules for devices."""
 
 from __future__ import annotations
 import logging
@@ -8,14 +8,14 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def evaluate_advanced_rules(device_data: dict, all_devices: dict, advanced_rules_dict: dict) -> dict | None:
-    """Évalue les règles avancées pour un device."""
+    """Evaluate the advanced rules for a device."""
     periph_id = device_data["periph_id"]
     periph_name = device_data["name"]
 
     for rule_name, rule_config in advanced_rules_dict.items():
         _LOGGER.debug("🔍 Evaluating rule '%s' for device %s (%s)", rule_name, periph_name, periph_id)
 
-        # Évaluer les conditions
+        # Evaluate the conditions
         if "condition" in rule_config:
             condition_result = rule_config["condition"](device_data, all_devices)
         elif "conditions" in rule_config:
@@ -34,7 +34,7 @@ def evaluate_advanced_rules(device_data: dict, all_devices: dict, advanced_rules
 
 
 def evaluate_conditions(conditions: list, device_data: dict, all_devices: dict, periph_id: str, rule_name: str, parent_child_relations=None) -> bool:
-    """Évalue une liste de conditions avec gestion optimisée des dépendances."""
+    """Evaluate a list of conditions with optimized dependency handling."""
     condition_result = True
 
     for condition in conditions:
@@ -47,15 +47,15 @@ def evaluate_conditions(conditions: list, device_data: dict, all_devices: dict, 
                 if not all_devices:
                     condition_result = False
                     break
-                # Utiliser les relations pré-calculées si disponibles pour éviter les scans coûteux
+                # Use the pre-computed relations when available to avoid costly scans
                 if parent_child_relations and periph_id in parent_child_relations:
-                    # Compter directement depuis les relations sans dépendre de all_devices
-                    # Cela résout le problème de timing où all_devices peut être incomplet
+                    # Count directly from the relations without depending on all_devices
+                    # This solves the timing issue where all_devices can be incomplete
                     children_count = len(parent_child_relations[periph_id])
                     _LOGGER.debug("🔍 Using parent_child_relations for min_children check: %d children found for %s",
                                  children_count, periph_id)
                 else:
-                    # Fallback à l'ancienne méthode si les relations ne sont pas disponibles
+                    # Fall back to the old method when the relations are not available
                     children = [
                         child for child_id, child in all_devices.items()
                         if child.get("parent_periph_id") == periph_id
@@ -109,14 +109,14 @@ def evaluate_conditions(conditions: list, device_data: dict, all_devices: dict, 
                     condition_result = False
                     break
                 parent_id = device_data.get("parent_periph_id")
-                # Utiliser les relations pré-calculées si disponibles
+                # Use the pre-computed relations when available
                 if parent_child_relations and parent_id in parent_child_relations:
-                    # Compter directement depuis les relations sans dépendre de all_devices
+                    # Count directly from the relations without depending on all_devices
                     parent_children_count = len(parent_child_relations[parent_id])
                     _LOGGER.debug("🔍 Using parent_child_relations for parent_has_min_children check: parent %s has %d children",
                                  parent_id, parent_children_count)
                 else:
-                    # Fallback à l'ancienne méthode
+                    # Fall back to the old method
                     parent_children = [
                         child for child_id, child in all_devices.items()
                         if child.get("parent_periph_id") == parent_id

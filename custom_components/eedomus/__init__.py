@@ -61,10 +61,10 @@ except Exception as e:
     _LOGGER.warning("Failed to read version from manifest.json: %s", e)
 
 
-# --- AJOUT: Fonction d'extraction du nom de la box ---
+# --- ADDED: box name extraction helper ---
 def get_clean_box_name(entry: ConfigEntry) -> str:
-    """Extraire proprement l'IP pour formater le nom de la Box.
-    Utilisee pour unifier le nommage de l'appareil eedomus.
+    """Extract the IP cleanly to format the Box name.
+    Used to unify the naming of the eedomus device.
     """
     host = entry.data.get("host") or entry.data.get("api_host") or entry.title
     if "Eedomus (" in host:
@@ -191,26 +191,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER.error("Migration failed: %s", e)
             return False
     # =====================================================================
-    # 🛠️ AUTO-RÉPARATION DU UNIQUE_ID (SANS CHANGEMENT DE VERSION)
+    # 🛠️ UNIQUE_ID AUTO-REPAIR (WITHOUT VERSION CHANGE)
     # =====================================================================
     if entry.unique_id is None or entry.unique_id == "":
         api_host = entry.data.get("api_host")
         if api_host:
-            # On recrée le format d'unique_id cible utilisé par ton config_flow
+            # Recreate the target unique_id format used by the config flow
             calculated_unique_id = f"eedomus_{api_host}"
             _LOGGER.info(
                 "Fixing missing unique_id for entry %s. Setting to: %s",
                 entry.entry_id,
                 calculated_unique_id,
             )
-            # Cette ligne met à jour la mémoire ET écrit directement dans core.config_entries
+            # This line updates memory AND writes directly to core.config_entries
             hass.config_entries.async_update_entry(
                 entry, unique_id=calculated_unique_id
             )
     # =====================================================================
 
     # =====================================================================
-    # 🛠️ AUTO-MIGRATION DES CLÉS À CHAUD (SANS CHANGEMENT DE VERSION)
+    # 🛠️ HOT AUTO-MIGRATION OF KEYS (WITHOUT VERSION CHANGE)
     # =====================================================================
     if (
         "api_eedomus" in entry.data
@@ -219,7 +219,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         or "api_proxy" in entry.options
     ):
         _LOGGER.info(
-            "Modernisation automatique des clés pour l'entrée %s", entry.entry_id
+            "Automatically modernizing keys for entry %s", entry.entry_id
         )
 
         new_data = {**entry.data}
@@ -237,13 +237,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if "api_proxy" in new_options:
             new_options[CONF_ENABLE_API_PROXY] = new_options.pop("api_proxy")
 
-        # CETTE LIGNE FORCE LA SAUVEGARDE IMMÉDIATE DANS LE FICHIER JSON
+        # THIS LINE FORCES THE IMMEDIATE SAVE INTO THE JSON FILE
         hass.config_entries.async_update_entry(
             entry, data=new_data, options=new_options
         )
 
     # =====================================================================
-    # 🔄 SYNCHRONISATION DES CLÉS DE CONNEXION MODIFIÉES (OPTIONS -> DATA)
+    # 🔄 SYNC OF MODIFIED CONNECTION KEYS (OPTIONS -> DATA)
     # =====================================================================
     if (
         CONF_API_HOST in entry.options
@@ -260,7 +260,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         if changes_detected:
             _LOGGER.info(
-                "🔄 Synchronisation des nouveaux identifiants modifiés vers entry.data pour %s",
+                "🔄 Syncing the new modified credentials into entry.data for %s",
                 entry.entry_id,
             )
             hass.config_entries.async_update_entry(entry, data=new_data)
@@ -327,12 +327,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
             device_registry = async_get_device_registry(hass)
 
-            # --- MODIFICATION: Utilisation de get_clean_box_name pour un nommage unifié ---
+            # --- CHANGE: use get_clean_box_name for unified naming ---
             box_name = get_clean_box_name(entry)
             box_device = device_registry.async_get_or_create(
                 config_entry_id=entry.entry_id,
                 identifiers={(DOMAIN, f"eedomus_box_{entry.entry_id}")},
-                name=box_name,  # Utilise le nom extrait (ex: Box eedomus (192.168.1.10))
+                name=box_name,  # Extracted name (e.g. Box eedomus (192.168.1.10))
                 manufacturer="Eedomus",
                 model="Eedomus Box",
                 sw_version="Unknown",
@@ -489,7 +489,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if coordinator and "timing_sensors" in locals():
         coordinator._timing_sensors = timing_sensors
 
-    # Stockage sécurisé
+    # Safe storage
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
 
@@ -522,7 +522,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # A disabled option must also remove a previously registered panel
         await async_unload_panel(hass)
 
-    # Enregistrement du webhook et service (always register webhooks)
+    # Webhook and service registration (always register webhooks)
     disable_security = entry.options.get(
         CONF_API_PROXY_DISABLE_SECURITY,
         entry.data.get(

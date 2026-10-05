@@ -20,8 +20,8 @@ try:
         DEFAULT_API_USER,
     )
 except ImportError:
-    # Valeurs par défaut pour les configurations non définies dans private_const.py
-    # Ces valeurs seront utilisées si le fichier private_const.py n'existe pas
+    # Default values for configurations not defined in private_const.py
+    # These values are used if the private_const.py file does not exist
     DEFAULT_API_HOST = "xxx.XXX.xxx.XXX"
     DEFAULT_API_USER = ""
     DEFAULT_API_SECRET = ""
@@ -141,7 +141,7 @@ STEP_USER_DATA_SCHEMA = {
 }
 
 
-# Table de correspondance entre les classes eedomus et les entités Home Assistant
+# Mapping table between eedomus classes and Home Assistant entities
 CLASS_MAPPING: Dict[str, Dict[str, Any]] = {
     "39:1": {"ha_entity": "light", "attributes": {"color_mode": "brightness"}},
     "96:3": {"ha_entity": "light", "attributes": {"color_mode": "rgbw"}},
@@ -159,7 +159,7 @@ CLASS_MAPPING: Dict[str, Dict[str, Any]] = {
     "48:1": {"ha_entity": "binary_sensor", "attributes": {"device_class": "motion"}},
     "32:1": {"ha_entity": "switch", "attributes": {}},
     "142:2": {"ha_entity": "cover", "attributes": {}},
-    # ... (ajoute les autres classes ici)
+    # ... (add the other classes here)
 }
 
 # YAML Mapping Configuration Constants

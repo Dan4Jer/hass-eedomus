@@ -31,7 +31,7 @@ async def async_setup_entry(
             if not "ha_entity" in coordinator.data[periph_id]:
                 eedomus_mapping = map_device_to_ha_entity(periph, coordinator.data, coordinator=coordinator)
                 coordinator.data[periph_id].update(eedomus_mapping)
-                # S'assurer que le mapping est enregistré dans le registre global
+                # Make sure the mapping is registered in the global registry
                 from .entity import _register_device_mapping
                 _register_device_mapping(eedomus_mapping, periph["name"], periph_id, periph)
     for periph_id, periph in all_peripherals.items():
@@ -41,7 +41,7 @@ async def async_setup_entry(
 
         parent_id = periph.get("parent_periph_id", None)
         if parent_id and coordinator.data[parent_id]["ha_entity"] == "light":
-            # les enfants sont gérés par le parent... est-ce une bonne idée ?
+            # children are managed by the parent... is this a good idea?
             eedomus_mapping = None
             if periph.get("usage_id") == "26":
                 eedomus_mapping = {
@@ -51,7 +51,7 @@ async def async_setup_entry(
                 }
             if not eedomus_mapping is None:
                 coordinator.data[periph_id].update(eedomus_mapping)
-                # Log pour confirmer que le device a été mappé
+                # Log to confirm the device was mapped
                 _LOGGER.debug("✅ Device mapped: %s (%s) → %s:%s", 
                             periph["name"], periph_id, eedomus_mapping["ha_entity"], eedomus_mapping["ha_subtype"])
 
@@ -74,7 +74,7 @@ async def async_setup_entry(
             has_control_children = False
 
             for child in parent_to_children[periph_id]:
-                if child.get("usage_id") == "26":  # Consomètre
+                if child.get("usage_id") == "26":  # Consumption meter
                     # Check if this is a pure consumption device by looking at the device name and type
                     continue
                 elif child.get("usage_id") in [

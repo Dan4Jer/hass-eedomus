@@ -394,7 +394,7 @@ custom_devices:
 
     # async_step_ui method removed - using YAML editor only
 
-# Fonctions utilitaires pour charger/sauvegarder les mappings
+# Utility functions to load/save the mappings
 async def async_load_mapping(hass, config_dir):
     """Load custom mapping from file."""
     mapping_path = os.path.join(

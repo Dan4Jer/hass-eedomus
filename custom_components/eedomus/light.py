@@ -46,9 +46,9 @@ async def async_setup_entry(
         if not "ha_entity" in coordinator.data[periph_id]:
             eedomus_mapping = map_device_to_ha_entity(periph, coordinator.data, coordinator=coordinator)
             coordinator.data[periph_id].update(eedomus_mapping)
-            # S'assurer que le mapping est enregistré dans le registre global
+            # Make sure the mapping is registered in the global registry
             _register_device_mapping(eedomus_mapping, periph["name"], periph_id, periph)
-            # Log pour confirmer que le device a été mappé
+            # Log to confirm the device was mapped
             _LOGGER.debug("✅ Light device mapped: %s (%s) → %s:%s", 
                         periph["name"], periph_id, eedomus_mapping["ha_entity"], eedomus_mapping["ha_subtype"])
 
@@ -59,7 +59,7 @@ async def async_setup_entry(
 
         parent_id = periph.get("parent_periph_id", None)
         if parent_id and coordinator.data[parent_id]["ha_entity"] == "light":
-            # les enfants sont gérés par le parent... est-ce une bonne idée ?
+            # children are managed by the parent... is this a good idea?
             eedomus_mapping = None
             if periph.get("usage_id") == "1":
                 eedomus_mapping = {
@@ -95,10 +95,10 @@ async def async_setup_entry(
         )
         if "light" in coordinator.data[periph_id].get("ha_entity", None):
             if "rgbw" in coordinator.data[periph_id].get("ha_subtype", None):
-                # Vérifier si le périphérique a suffisamment d'enfants pour être RGBW
+                # Check whether the peripheral has enough children to be RGBW
                 children = parent_to_children.get(periph_id, [])
                 if len(children) >= 4:
-                    # Créer une entité RGBW agrégée
+                    # Create an aggregated RGBW entity
                     entities.append(
                         EedomusRGBWLight(
                             coordinator,
@@ -113,8 +113,9 @@ async def async_setup_entry(
                         periph_id,
                         len(children)
                     )
-                    # Créer une lumière régulière à la place
-                    # Note: Le mode de couleur sera déterminé par ha_subtype dans EedomusLight.__init__
+                    # Create a regular light instead
+                    # Note: the color mode will be determined by
+                    # ha_subtype in EedomusLight.__init__
                     entities.append(EedomusLight(coordinator, periph_id))
             else:
                 _LOGGER.debug(
@@ -299,13 +300,13 @@ class EedomusLight(EedomusEntity, LightEntity):
             raise
 
     def percent_to_octal(self, percent: float) -> int:
-        """Convertit un pourcentage (0-100) en valeur 0-255."""
+        """Convert a percentage (0-100) to a 0-255 value."""
         return round(percent * 255 / 100)
 
     def octal_to_percent(self, brightness: int) -> int:
-        """Convertit une valeur 0-255 en pourcentage (0-100).
-        
-        Conversion directe sans arrondi pour une précision maximale.
+        """Convert a 0-255 value to a percentage (0-100).
+
+        Direct conversion without rounding for maximum precision.
         """
         return int(brightness * 100 / 255)
 
@@ -323,7 +324,7 @@ class EedomusRGBWLight(EedomusLight):
         self._supported_color_modes = {
             # ColorMode.ONOFF,
             ColorMode.RGBW
-            #           ColorMode.XY,  # Ajoute le support du mode XY
+            #           ColorMode.XY,  # Adds XY color mode support
             #           ColorMode.COLOR_TEMP
         }
         _LOGGER.debug("Using supported_color_modes for RGBW light: %s", self._supported_color_modes)
@@ -376,7 +377,7 @@ class EedomusRGBWLight(EedomusLight):
     @property
     def rgbw_color(self):
         """Return the RGBW color value."""
-        # Vérifier qu'il y a bien 4 enfants (R, G, B, W)
+        # Check that there really are 4 children (R, G, B, W)
         if len(self._child_devices) < 4:
             _LOGGER.error(
                 "RGBW light '%s' does not have 4 child devices (has %d)",
@@ -385,8 +386,8 @@ class EedomusRGBWLight(EedomusLight):
             )
             return None
 
-        # Trier les enfants par periph_id pour garantir l'ordre numérique
-        # Les périphériques eedomus ont toujours leurs enfants dans l'ordre numérique
+        # Sort the children by periph_id to guarantee numeric order
+        # Eedomus peripherals always have their children in numeric order
         child_list = sorted(self._child_devices.keys(), key=lambda x: int(x))
         red_child = child_list[0]
         green_child = child_list[1]
@@ -399,31 +400,31 @@ class EedomusRGBWLight(EedomusLight):
             child_list
         )
 
-        # Extraire les valeurs avec gestion des différents formats
+        # Extract the values, handling the various formats
         def safe_extract_value(value):
-            """Extraire une valeur numérique à partir de différents formats."""
+            """Extract a numeric value from the various formats."""
             if not value or value == "0" or value == "off":
                 return 0
             
-            # Gestion du format "r,g,b,w" (ex: "15,40,30,100")
+            # Handle the "r,g,b,w" format (e.g. "15,40,30,100")
             if isinstance(value, str) and "," in value:
                 parts = value.split(",")
                 if len(parts) == 4:
-                    # C'est probablement un format RGBW complet
-                    # Nous devons déterminer quel canal correspond
-                    # Pour l'instant, retournons la moyenne
+                    # This is probably a full RGBW format
+                    # We need to determine which channel it corresponds to
+                    # For now, return the average
                     try:
                         return sum(int(p.strip()) for p in parts) // 4
                     except (ValueError, AttributeError):
                         return 0
                 else:
-                    # Format inattendu, essayer de prendre la première valeur
+                    # Unexpected format, try taking the first value
                     try:
                         return int(parts[0].strip())
                     except (ValueError, IndexError, AttributeError):
                         return 0
             
-            # Gestion des valeurs normales (pourcentage 0-100)
+            # Handle normal values (percentage 0-100)
             try:
                 if isinstance(value, str) and value.endswith('%'):
                     return int(value[:-1])
@@ -465,7 +466,7 @@ class EedomusRGBWLight(EedomusLight):
 
     @property
     def xy_color(self):
-        """Retourne les coordonnées xy de la couleur actuelle."""
+        """Return the xy coordinates of the current color."""
         return self._attr_xy_color
 
     async def async_turn_on(self, **kwargs):
@@ -493,7 +494,7 @@ class EedomusRGBWLight(EedomusLight):
             if not self._global_brightness_percent > 0:
                 self._global_brightness_percent = 100
 
-        # Vérifier qu'il y a bien 4 enfants (R, G, B, W)
+        # Check that there really are 4 children (R, G, B, W)
         if len(self._child_devices) < 4:
             _LOGGER.error(
                 "RGBW light '%s' does not have 4 child devices (has %d)",
@@ -502,8 +503,8 @@ class EedomusRGBWLight(EedomusLight):
             )
             return
 
-        # Trier les enfants par periph_id pour garantir l'ordre numérique
-        # Les périphériques eedomus ont toujours leurs enfants dans l'ordre numérique
+        # Sort the children by periph_id to guarantee numeric order
+        # Eedomus peripherals always have their children in numeric order
         child_list = sorted(self._child_devices.keys(), key=lambda x: int(x))
         red_periph_id = child_list[0]
         green_periph_id = child_list[1]
@@ -559,7 +560,7 @@ class EedomusRGBWLight(EedomusLight):
         await self.coordinator.async_set_periph_value(
             self._parent_id, self._global_brightness_percent
         )
-        # Éteindre tous les canaux enfants pour une extinction complète
+        # Turn off all child channels for a complete shutdown
         if self._child_devices:
             for child_id in self._child_devices:
                 await self.coordinator.async_set_periph_value(child_id, "0")

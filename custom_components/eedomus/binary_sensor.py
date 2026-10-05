@@ -17,7 +17,7 @@ from .entity import EedomusEntity
 
 _LOGGER = logging.getLogger(__name__)
 
-# Mapping des types eedomus vers les device_class de Home Assistant
+# Mapping of eedomus types to Home Assistant device classes
 EEDOMUS_TO_HA_DEVICE_CLASS = {
     "motion": BinarySensorDeviceClass.MOTION,
     "door": BinarySensorDeviceClass.DOOR,
@@ -49,9 +49,9 @@ async def async_setup_entry(
         if "ha_entity" not in coordinator.data[periph_id]:
             eedomus_mapping = map_device_to_ha_entity(periph, coordinator.data, coordinator=coordinator)
             coordinator.data[periph_id].update(eedomus_mapping)
-            # S'assurer que le mapping est enregistré dans le registre global
+            # Make sure the mapping is registered in the global registry
             from .entity import _register_device_mapping
-            # Log pour confirmer que le device a été mappé
+            # Log to confirm the device was mapped
             _LOGGER.debug("✅ Device mapped: %s (%s) → %s:%s", 
                         periph["name"], periph_id, eedomus_mapping["ha_entity"], eedomus_mapping["ha_subtype"])
             _register_device_mapping(eedomus_mapping, periph["name"], periph_id, periph)
@@ -141,7 +141,7 @@ class EedomusBinarySensor(EedomusEntity, BinarySensorEntity):
         value = periph_data.get("last_value")
         _LOGGER.debug("Binary sensor %s is_on: %s", self._periph_id, value)
 
-        # Gestion des valeurs vides ou invalides
+        # Handle empty or invalid values
         if value is None or value == "":
             return None
 
@@ -159,11 +159,11 @@ class EedomusBinarySensor(EedomusEntity, BinarySensorEntity):
         ha_subtype = periph_info.get("ha_subtype", "")
         usage_name = periph_info.get("usage_name", "").lower()
 
-        # D'abord utiliser le ha_subtype si disponible ==> à simplifier
+        # First use the ha_subtype when available ==> to simplify
         if ha_subtype:
             return EEDOMUS_TO_HA_DEVICE_CLASS.get(ha_subtype, None)
 
-        # Ensuite utiliser le nom et l'usage_name ==> à revoir
+        # Then use the name and usage_name ==> to revisit
         if "mouvement" in usage_name:
             return BinarySensorDeviceClass.MOTION
         elif "porte" in usage_name or "fenêtre" in usage_name:
@@ -181,7 +181,7 @@ class EedomusBinarySensor(EedomusEntity, BinarySensorEntity):
         elif "mouvement" in usage_name or "motion" in usage_name:
             return BinarySensorDeviceClass.MOTION
 
-        # Utiliser le mapping par type si disponible
+        # Use the type-based mapping when available
         periph_type = periph_info.get("type", "").lower()
         return EEDOMUS_TO_HA_DEVICE_CLASS.get(periph_type, None)
 

@@ -57,7 +57,7 @@ async def async_setup_entry(
         if not "ha_entity" in coordinator.data[periph_id]:
             eedomus_mapping = map_device_to_ha_entity(periph, coordinator.data, coordinator=coordinator)
             coordinator.data[periph_id].update(eedomus_mapping)
-            # S'assurer que le mapping est enregistré dans le registre global
+            # Make sure the mapping is registered in the global registry
             from .entity import _register_device_mapping
             _register_device_mapping(eedomus_mapping, periph["name"], periph_id, periph)
 
@@ -189,15 +189,16 @@ async def async_setup_entry(
 
 def is_system_sensor(periph, mapping=None):
     """Check if a peripheral is a system sensor that should be attached to eedomus box."""
-    periph_id = periph.get("periph_id")  # Correction: periph_id au lieu de usage_id
+    periph_id = periph.get("periph_id")  # Fix: periph_id instead of usage_id
     name = periph.get("name", "").lower()
     
     # First check if mapping explicitly marks this as internal box sensor
     if mapping and mapping.get("internal_box_eedomus", False):
         return True
     
-    # System sensors by periph_id (d'après les logs)
-    system_periph_ids = {"1061603", "1061604", "1061606"}  # CPU, Espace libre, Messages
+    # System sensors by periph_id (per the logs)
+    # CPU, free space, messages — the box reports these system periphs in French
+    system_periph_ids = {"1061603", "1061604", "1061606"}
     
     # Check by periph_id
     if periph_id in system_periph_ids:
@@ -499,7 +500,7 @@ class EedomusAggregatedSensor(EedomusSensor):
 
 # In sensor.py
 class EedomusHistoryProgressSensor(EedomusEntity, SensorEntity):
-    """Capteur pour afficher la progression de l'import de l'historique."""
+    """Sensor displaying the history import progress."""
 
     def __init__(self, coordinator, device_data):
         super().__init__(
@@ -513,7 +514,7 @@ class EedomusHistoryProgressSensor(EedomusEntity, SensorEntity):
 
     @property
     def native_value(self):
-        """Retourne le pourcentage de progression."""
+        """Return the progress percentage."""
         progress = self.coordinator._history_progress.get(self._device_id, {})
         if progress.get("completed"):
             return 100
@@ -521,7 +522,7 @@ class EedomusHistoryProgressSensor(EedomusEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self):
-        """Retourne des détails sur la progression."""
+        """Return details about the progress."""
         progress = self.coordinator._history_progress.get(self._device_id, {})
         return {
             "last_timestamp": progress.get("last_timestamp", 0),

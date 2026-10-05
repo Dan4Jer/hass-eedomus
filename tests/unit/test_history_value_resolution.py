@@ -337,3 +337,47 @@ async def test_statistics_failure_targets_real_entity_but_skips(monkeypatch):
     _hass, metadata, _stats = rec_stats.async_import_statistics.call_args.args
     assert metadata["statistic_id"] == "light.rubanled_salon_2"
     coordinator.hass.states.async_set.assert_not_called()
+
+
+class TestNextBestValue:
+    """next_best_value raises the plain-EN setpoint errors (ticket 3.5)."""
+
+    def make_coordinator(self, values):
+        coordinator = EedomusDataUpdateCoordinator(
+            hass=MagicMock(), client=MagicMock()
+        )
+        coordinator.data = {
+            PERIPH_ID: {
+                "periph_id": PERIPH_ID,
+                "name": "Thermostat Salon",
+                "values": values,
+            }
+        }
+        return coordinator
+
+    def test_no_value_list_raises_no_value_available(self):
+        coordinator = self.make_coordinator(values=[])
+
+        with pytest.raises(
+            ValueError, match=f"No value available for peripheral {PERIPH_ID}"
+        ):
+            coordinator.next_best_value(PERIPH_ID, "50")
+
+    def test_non_numeric_target_raises_not_a_valid_number(self):
+        coordinator = self.make_coordinator(values=VALUES)
+
+        with pytest.raises(
+            ValueError, match="The target value 'doux' is not a valid number."
+        ):
+            coordinator.next_best_value(PERIPH_ID, "doux")
+
+    def test_no_numeric_entries_raises_no_valid_numeric_value(self):
+        coordinator = self.make_coordinator(
+            values=[{"value": "high", "description": "Élevé"}]
+        )
+
+        with pytest.raises(
+            ValueError,
+            match=f"No valid numeric value found for peripheral {PERIPH_ID}",
+        ):
+            coordinator.next_best_value(PERIPH_ID, "50")
