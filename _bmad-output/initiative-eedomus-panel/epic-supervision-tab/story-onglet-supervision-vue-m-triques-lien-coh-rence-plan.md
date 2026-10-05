@@ -143,3 +143,10 @@ Patches P1-P6 appliqués par impl-42-supervision (tour 2), re-vérifiés indépe
 **Contrats gelés :** rows coherence/peripherals intacts ; 15 commandes enregistrées (churn prévu 14→15 + compteur endpoints 28→30) ; translations/en.json+fr.json intacts ; catalogue EN+FR+fixtures synchronisés (158 clés).
 
 **Post-déploiement :** à consigner après validation live.
+
+**Post-déploiement (2026-10-06, 00:17-00:22 CEST) :**
+- Déployé via `deploy_hass_eedomus.sh` (git-only, unstable @ 9b5e619), restart HA, ~2 min d'attente
+- Fichiers servis (HTTP 200) : `panel/supervision.js` (nouveau), `panel/shared.js` mis à jour
+- `python3 -m pytest tests/e2e/ -q` sur le Pi : **27 passed in 61.48s**
+- Logs post-restart : « Eedomus integration initialized successfully », drain normal (PARTIAL REFRESH, 5 periphs importés ce cycle) ; aucune erreur liée à la capture métriques ni à la commande get_box_metrics
+- Validation visuelle de l'onglet (5e onglet, chart cards, lien Cohérence) : demandée à l'utilisateur au HALT built — le tampon n'a que quelques cycles au premier affichage, les graphiques se remplissent au fil des refresh
