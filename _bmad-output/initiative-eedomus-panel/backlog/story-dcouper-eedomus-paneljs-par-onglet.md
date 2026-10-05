@@ -25,3 +25,7 @@ Le panel fonctionne à l'identique (E2E 19 verts + validation visuelle) ; chaque
 
 - _bmad-output/initiative-eedomus-panel/epic-mapping-panel-editor/epic-mapping-panel-editor-retrospective.md (finding taille/structure)
 - _bmad-output/specs/spec-eedomus-mapping-panel/SPEC.md (Non-goals : pas de toolchain de build)
+
+## Notes
+
+- Decision: le découpage s'exécute AVANT l'épique 4 (Supervision) — le 5e onglet atterrit sur des fichiers sains, le god-file (4 187 lignes, mesuré en rétro cohérence) cesse de croître (user, 2026-10-05).

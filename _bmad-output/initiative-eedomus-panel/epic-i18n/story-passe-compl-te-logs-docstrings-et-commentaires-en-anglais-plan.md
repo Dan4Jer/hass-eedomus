@@ -3,7 +3,7 @@ title: 'Passe complète : logs, docstrings et commentaires en anglais'
 type: 'refactor'
 ticket: 5
 created: '2026-10-04'
-status: 'built'
+status: done
 route: 'full'
 route_source: 'auto'
 baseline_revision: '017a18b6590f4279db1a5617ab4e9a6bbf46c455'

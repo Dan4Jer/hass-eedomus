@@ -3,7 +3,7 @@ title: 'Inventaire i18n'
 type: 'chore'
 ticket: 1
 created: '2026-10-04'
-status: 'built'
+status: done
 route: 'oneshot'
 route_source: 'auto'
 review: ''

@@ -3,7 +3,7 @@ title: 'Cohérence : JSON brut du payload sous « Champs bruts de l''API eedomus
 type: 'feature'
 ticket: 'story-json-brut-du-payload-dans-le-detail-coherence'
 created: '2026-10-04'
-status: 'built'
+status: done
 route: 'full'
 route_source: 'auto'
 baseline_revision: 'd8392566dde5292a553e572e9f0f107a809c0747'

@@ -120,3 +120,9 @@ Le verdict machine est **accepted-with-open-items** ; la décision humaine (le p
 ## Assumptions
 
 (Omis — run interactif ; les choix de l'utilisateur sont consignés dans les sections ci-dessus.)
+
+## Open questions — réponses (2026-10-05)
+
+- `en_erreur` : décision utilisateur — clarification du libellé uniquement (pas de nouveau signal), livrée par le 3.6 (« import en reprise » / "import retrying").
+- Multibox : **mono-box** — le ticket dédié collisions periph_id reste latent en backlog, pas de priorité avant la release.
+- Découpage du panel (story 102) : **avant l'épique 4** — le 5e onglet Supervision ne grossit pas le monolithe.

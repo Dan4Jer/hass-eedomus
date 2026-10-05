@@ -3,7 +3,7 @@ title: 'Refactor sweep (i18n + rétro cohérence)'
 type: 'refactor'
 ticket: 6
 created: '2026-10-05'
-status: 'built'
+status: done
 route: 'full'
 route_source: 'auto'
 baseline_revision: 'de628ddb747754624ae4205085c9e54b524a707b'
