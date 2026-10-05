@@ -55,7 +55,7 @@ def make_service(domain_data=None):
 
 class TestAsyncInit:
     @pytest.mark.asyncio
-    async def test_registers_all_four_commands_once(self, monkeypatch):
+    async def test_registers_all_commands_once(self, monkeypatch):
         """async_register_command is called once per command, no handle kept.
 
         Registration uses the handler form: the command type and schema are
@@ -68,7 +68,7 @@ class TestAsyncInit:
 
         await service.async_init()
 
-        assert register.call_count == 9
+        assert register.call_count == 14
         # Handler form: (hass, handler) on the module-level dispatchers -
         # HA calls websocket handlers as plain (hass, connection, msg)
         # functions, so bound methods cannot be dispatched directly
@@ -84,6 +84,11 @@ class TestAsyncInit:
             ui_service_module._ws_get_mapping_versions,
             ui_service_module._ws_get_coherence,
             ui_service_module._ws_get_translations,
+            ui_service_module._ws_get_backfill_state,
+            ui_service_module._ws_backfill_retry_now,
+            ui_service_module._ws_backfill_prioritize,
+            ui_service_module._ws_backfill_set_paused,
+            ui_service_module._ws_backfill_set_ignored,
         ]
         assert service._registered_commands == [
             WS_TYPE_EEDOMUS_VALIDATE,
@@ -95,6 +100,11 @@ class TestAsyncInit:
             ui_service_module.WS_TYPE_EEDOMUS_GET_VERSIONS,
             ui_service_module.WS_TYPE_EEDOMUS_GET_COHERENCE,
             ui_service_module.WS_TYPE_EEDOMUS_GET_TRANSLATIONS,
+            ui_service_module.WS_TYPE_EEDOMUS_GET_BACKFILL_STATE,
+            ui_service_module.WS_TYPE_EEDOMUS_BACKFILL_RETRY_NOW,
+            ui_service_module.WS_TYPE_EEDOMUS_BACKFILL_PRIORITIZE,
+            ui_service_module.WS_TYPE_EEDOMUS_BACKFILL_SET_PAUSED,
+            ui_service_module.WS_TYPE_EEDOMUS_BACKFILL_SET_IGNORED,
         ]
         assert service.is_initialized() is True
 
@@ -190,7 +200,7 @@ class TestGetAvailableEndpoints:
         await service.async_init()
 
         assert service._registered_commands == first
-        assert register.call_count == 18
+        assert register.call_count == 28
 
     @pytest.mark.asyncio
     async def test_shutdown_resets_state_without_unregistering(self):

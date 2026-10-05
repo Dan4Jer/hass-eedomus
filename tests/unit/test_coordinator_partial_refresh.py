@@ -176,3 +176,120 @@ async def test_partial_refresh_history_quota_limits_per_scan():
     all_calls = coordinator.async_fetch_history_chunk.call_args_list
     fetched_second = [call.args[0] for call in all_calls][len(fetched_first) :]
     assert set(fetched_second) == {"111", "333"}
+
+
+@pytest.mark.asyncio
+async def test_partial_refresh_busy_lock_skips_history_segment():
+    """CAP-5 mono-importer lock, drain side: a busy lock (retry_now in
+    flight) skips the history segment this cycle instead of blocking the
+    real-time refresh - and the quota is left intact.
+    """
+    periph_ids = ["111", "222"]
+    client = MagicMock()
+    client.config_entry = SimpleNamespace(
+        options={"history": True, "history_peripherals_per_scan": 2},
+        data={},
+    )
+    coordinator = EedomusDataUpdateCoordinator(hass=MagicMock(), client=client)
+    coordinator.data = {p: {"periph_id": p, "value": 1} for p in periph_ids}
+    coordinator._dynamic_peripherals = {p: {"periph_id": p} for p in periph_ids}
+    coordinator._history_progress = {}
+    coordinator.client.get_periph_caract = AsyncMock(
+        return_value={
+            "body": [{"periph_id": p, "value": 42} for p in periph_ids],
+            "_raw_data_size_bytes": 128,
+        }
+    )
+    coordinator._create_error_sensors = AsyncMock()
+    coordinator.async_fetch_history_chunk = AsyncMock(return_value=[{"value": 1}])
+    coordinator.async_import_history_chunk = AsyncMock(return_value=1)
+
+    async with coordinator._backfill_import_lock:
+        await coordinator._async_partial_refresh()
+
+    # Busy lock: no history import this cycle, quota untouched.
+    coordinator.async_fetch_history_chunk.assert_not_awaited()
+    assert coordinator._last_history_periphs == 0
+
+    # Lock released: the next cycle drains with its full quota.
+    await coordinator._async_partial_refresh()
+    assert coordinator.async_fetch_history_chunk.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_partial_refresh_global_pause_skips_history_segment():
+    """CAP-5 global pause: no history import runs and the quota is not
+    consumed; resuming restores the drain with the quota intact.
+    """
+    periph_ids = ["111", "222"]
+    client = MagicMock()
+    client.config_entry = SimpleNamespace(
+        options={"history": True, "history_peripherals_per_scan": 1},
+        data={},
+    )
+    coordinator = EedomusDataUpdateCoordinator(hass=MagicMock(), client=client)
+    coordinator.data = {p: {"periph_id": p, "value": 1} for p in periph_ids}
+    coordinator._dynamic_peripherals = {p: {"periph_id": p} for p in periph_ids}
+    coordinator._history_progress = {}
+    coordinator.client.get_periph_caract = AsyncMock(
+        return_value={
+            "body": [{"periph_id": p, "value": 42} for p in periph_ids],
+            "_raw_data_size_bytes": 128,
+        }
+    )
+    coordinator._create_error_sensors = AsyncMock()
+    coordinator.async_fetch_history_chunk = AsyncMock(return_value=[])
+    coordinator.async_import_history_chunk = AsyncMock(return_value=0)
+
+    coordinator._backfill_global_paused = True
+    await coordinator._async_partial_refresh()
+
+    # Global pause: the history segment is skipped entirely, quota intact.
+    coordinator.async_fetch_history_chunk.assert_not_awaited()
+    assert coordinator._last_history_periphs == 0
+
+    # Resume: the drain picks up with its full quota.
+    coordinator._backfill_global_paused = False
+    await coordinator._async_partial_refresh()
+
+    fetched = [
+        call.args[0] for call in coordinator.async_fetch_history_chunk.call_args_list
+    ]
+    assert len(fetched) == 1, "quota of 1 applies again after the resume"
+
+
+@pytest.mark.asyncio
+async def test_partial_refresh_priority_jumps_the_natural_order():
+    """CAP-5 priority: the prioritized periph is taken first at the next
+    drain, before the natural order, and the jump is consumed.
+    """
+    periph_ids = ["111", "222"]
+    client = MagicMock()
+    client.config_entry = SimpleNamespace(
+        options={"history": True, "history_peripherals_per_scan": 1},
+        data={},
+    )
+    coordinator = EedomusDataUpdateCoordinator(hass=MagicMock(), client=client)
+    coordinator.data = {p: {"periph_id": p, "value": 1} for p in periph_ids}
+    coordinator._dynamic_peripherals = {p: {"periph_id": p} for p in periph_ids}
+    coordinator._history_progress = {}
+    coordinator.client.get_periph_caract = AsyncMock(
+        return_value={
+            "body": [{"periph_id": p, "value": 42} for p in periph_ids],
+            "_raw_data_size_bytes": 128,
+        }
+    )
+    coordinator._create_error_sensors = AsyncMock()
+    coordinator.async_fetch_history_chunk = AsyncMock(return_value=[{"value": 1}])
+    coordinator.async_import_history_chunk = AsyncMock(return_value=1)
+
+    coordinator._backfill_priority = ["222"]
+    await coordinator._async_partial_refresh()
+
+    # Quota 1: the prioritized periph (natural second) got the slot.
+    coordinator.async_fetch_history_chunk.assert_awaited_once_with("222")
+    assert coordinator._backfill_priority == [], "the jump is consumed by the drain"
+
+    # Next drain: the natural order drains the remaining periph.
+    await coordinator._async_partial_refresh()
+    coordinator.async_fetch_history_chunk.assert_any_await("111")

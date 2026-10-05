@@ -10,6 +10,7 @@ import voluptuous as vol
 from homeassistant.core import HomeAssistant
 
 from .const import COORDINATOR, DOMAIN
+from .coordinator import EedomusBackfillError
 from .mapping_registry import get_mapping_registry
 from .panel_translations import get_panel_translations
 
@@ -25,6 +26,11 @@ WS_TYPE_EEDOMUS_SAVE_MAPPING = f"{DOMAIN}/save_mapping"
 WS_TYPE_EEDOMUS_GET_VERSIONS = f"{DOMAIN}/get_mapping_versions"
 WS_TYPE_EEDOMUS_GET_COHERENCE = f"{DOMAIN}/get_coherence"
 WS_TYPE_EEDOMUS_GET_TRANSLATIONS = f"{DOMAIN}/get_translations"
+WS_TYPE_EEDOMUS_GET_BACKFILL_STATE = f"{DOMAIN}/get_backfill_state"
+WS_TYPE_EEDOMUS_BACKFILL_RETRY_NOW = f"{DOMAIN}/backfill_retry_now"
+WS_TYPE_EEDOMUS_BACKFILL_PRIORITIZE = f"{DOMAIN}/backfill_prioritize"
+WS_TYPE_EEDOMUS_BACKFILL_SET_PAUSED = f"{DOMAIN}/backfill_set_paused"
+WS_TYPE_EEDOMUS_BACKFILL_SET_IGNORED = f"{DOMAIN}/backfill_set_ignored"
 
 # Coherence signals (CAP-6): cumulable strings, one chip per signal.
 SIGNAL_SANS_ENTITE = "sans_entite"
@@ -251,6 +257,99 @@ async def _ws_get_translations(hass: HomeAssistant, connection, msg: dict) -> No
     await service._handle_get_translations(hass, connection, msg)
 
 
+@require_admin
+@websocket_command({vol.Required("type"): WS_TYPE_EEDOMUS_GET_BACKFILL_STATE})
+@async_response
+async def _ws_get_backfill_state(hass: HomeAssistant, connection, msg: dict) -> None:
+    """Dispatch eedomus/get_backfill_state to the UI service."""
+    service = _get_ui_service(hass)
+    if service is None:
+        connection.send_error(
+            msg["id"], "service_unavailable", "Eedomus UI service not initialized"
+        )
+        return
+    await service._handle_get_backfill_state(hass, connection, msg)
+
+
+@require_admin
+@websocket_command(
+    {
+        vol.Required("type"): WS_TYPE_EEDOMUS_BACKFILL_RETRY_NOW,
+        vol.Required("periph_id"): str,
+    }
+)
+@async_response
+async def _ws_backfill_retry_now(hass: HomeAssistant, connection, msg: dict) -> None:
+    """Dispatch eedomus/backfill_retry_now to the UI service."""
+    service = _get_ui_service(hass)
+    if service is None:
+        connection.send_error(
+            msg["id"], "service_unavailable", "Eedomus UI service not initialized"
+        )
+        return
+    await service._handle_backfill_retry_now(hass, connection, msg)
+
+
+@require_admin
+@websocket_command(
+    {
+        vol.Required("type"): WS_TYPE_EEDOMUS_BACKFILL_PRIORITIZE,
+        vol.Required("periph_id"): str,
+    }
+)
+@async_response
+async def _ws_backfill_prioritize(hass: HomeAssistant, connection, msg: dict) -> None:
+    """Dispatch eedomus/backfill_prioritize to the UI service."""
+    service = _get_ui_service(hass)
+    if service is None:
+        connection.send_error(
+            msg["id"], "service_unavailable", "Eedomus UI service not initialized"
+        )
+        return
+    await service._handle_backfill_prioritize(hass, connection, msg)
+
+
+@require_admin
+@websocket_command(
+    {
+        vol.Required("type"): WS_TYPE_EEDOMUS_BACKFILL_SET_PAUSED,
+        vol.Optional("periph_id"): str,
+        vol.Optional("global"): bool,
+        vol.Required("paused"): bool,
+    }
+)
+@async_response
+async def _ws_backfill_set_paused(hass: HomeAssistant, connection, msg: dict) -> None:
+    """Dispatch eedomus/backfill_set_paused to the UI service."""
+    service = _get_ui_service(hass)
+    if service is None:
+        connection.send_error(
+            msg["id"], "service_unavailable", "Eedomus UI service not initialized"
+        )
+        return
+    await service._handle_backfill_set_paused(hass, connection, msg)
+
+
+@require_admin
+@websocket_command(
+    {
+        vol.Required("type"): WS_TYPE_EEDOMUS_BACKFILL_SET_IGNORED,
+        vol.Required("periph_id"): str,
+        vol.Required("ignored"): bool,
+    }
+)
+@async_response
+async def _ws_backfill_set_ignored(hass: HomeAssistant, connection, msg: dict) -> None:
+    """Dispatch eedomus/backfill_set_ignored to the UI service."""
+    service = _get_ui_service(hass)
+    if service is None:
+        connection.send_error(
+            msg["id"], "service_unavailable", "Eedomus UI service not initialized"
+        )
+        return
+    await service._handle_backfill_set_ignored(hass, connection, msg)
+
+
 # The commands in registration order: (command type, module dispatcher).
 WS_COMMANDS = (
     (WS_TYPE_EEDOMUS_VALIDATE, _ws_validate_config),
@@ -262,6 +361,11 @@ WS_COMMANDS = (
     (WS_TYPE_EEDOMUS_GET_VERSIONS, _ws_get_mapping_versions),
     (WS_TYPE_EEDOMUS_GET_COHERENCE, _ws_get_coherence),
     (WS_TYPE_EEDOMUS_GET_TRANSLATIONS, _ws_get_translations),
+    (WS_TYPE_EEDOMUS_GET_BACKFILL_STATE, _ws_get_backfill_state),
+    (WS_TYPE_EEDOMUS_BACKFILL_RETRY_NOW, _ws_backfill_retry_now),
+    (WS_TYPE_EEDOMUS_BACKFILL_PRIORITIZE, _ws_backfill_prioritize),
+    (WS_TYPE_EEDOMUS_BACKFILL_SET_PAUSED, _ws_backfill_set_paused),
+    (WS_TYPE_EEDOMUS_BACKFILL_SET_IGNORED, _ws_backfill_set_ignored),
 )
 
 
@@ -328,6 +432,26 @@ ENDPOINT_DESCRIPTIONS = {
     WS_TYPE_EEDOMUS_GET_TRANSLATIONS: (
         "Get Translations",
         "Get the panel translation catalog for a locale",
+    ),
+    WS_TYPE_EEDOMUS_GET_BACKFILL_STATE: (
+        "Get Backfill State",
+        "Get the history backfill queue state of the eedomus boxes",
+    ),
+    WS_TYPE_EEDOMUS_BACKFILL_RETRY_NOW: (
+        "Backfill Retry Now",
+        "Retry the history import of a peripheral immediately",
+    ),
+    WS_TYPE_EEDOMUS_BACKFILL_PRIORITIZE: (
+        "Backfill Prioritize",
+        "Move a peripheral to the head of the backfill queue",
+    ),
+    WS_TYPE_EEDOMUS_BACKFILL_SET_PAUSED: (
+        "Backfill Set Paused",
+        "Pause or resume one peripheral or the whole backfill engine",
+    ),
+    WS_TYPE_EEDOMUS_BACKFILL_SET_IGNORED: (
+        "Backfill Set Ignored",
+        "Ignore or re-activate a peripheral in the backfill queue",
     ),
 }
 
@@ -936,6 +1060,256 @@ class EedomusUIService:
                 "internal_error",
                 "Failed to build the translations catalog",
             )
+
+    def _collect_coordinators(self, hass: HomeAssistant) -> list:
+        """Collect the config entry coordinators (multi-box walk).
+
+        Same walk as _collect_peripherals: hass.data[DOMAIN] mixes
+        domain-level services and per-entry dicts holding COORDINATOR.
+        """
+        coordinators = []
+        for value in hass.data.get(DOMAIN, {}).values():
+            if isinstance(value, dict) and COORDINATOR in value:
+                coordinators.append(value[COORDINATOR])
+        return coordinators
+
+    def _aggregate_backfill_state(self, hass: HomeAssistant) -> Dict[str, Any]:
+        """Merge every coordinator's backfill state into one view.
+
+        One box = one config entry = one coordinator: the queues are
+        concatenated (positions stay per box), and the global flags are
+        OR-ed. A coordinator variant without the CAP-5 API is skipped.
+        """
+        queue: List[Dict[str, Any]] = []
+        ignored: List[Dict[str, Any]] = []
+        global_paused = False
+        engine_active = False
+        for coordinator in self._collect_coordinators(hass):
+            get_state = getattr(coordinator, "get_backfill_state", None)
+            if get_state is None:
+                continue
+            state = get_state()
+            queue.extend(state.get("queue") or [])
+            ignored.extend(state.get("ignored") or [])
+            global_paused = global_paused or bool(state.get("global_paused"))
+            engine_active = engine_active or bool(state.get("engine_active"))
+        return {
+            "queue": queue,
+            "ignored": ignored,
+            "global_paused": global_paused,
+            "engine_active": engine_active,
+        }
+
+    def _coordinator_for_periph(self, hass: HomeAssistant, periph_id):
+        """Find the coordinator owning a peripheral (multi-box)."""
+        for coordinator in self._collect_coordinators(hass):
+            if periph_id in (coordinator.data or {}):
+                return coordinator
+        return None
+
+    def _send_backfill_error(self, connection, msg: dict, error: Exception) -> None:
+        """Send a refused action with its stable websocket code.
+
+        EedomusBackfillError carries a branchable code and a
+        client-safe message. Any other exception gets a generic message:
+        the internal detail (paths, upstream messages) stays in the
+        server-side log only.
+        """
+        if isinstance(error, EedomusBackfillError):
+            connection.send_error(msg.get("id"), error.error_type, str(error))
+            return
+        _LOGGER.error("Backfill command error: %s", error, exc_info=True)
+        connection.send_error(
+            msg.get("id"),
+            "error",
+            "Unexpected error while steering the backfill queue",
+        )
+
+    async def _handle_get_backfill_state(
+        self,
+        hass: HomeAssistant,
+        connection,
+        msg: dict,
+    ) -> None:
+        """Handle the get backfill state command (Supervision tab, CAP-5).
+
+        The state is derived by the coordinator (queue x statuses x
+        positions); the panel renders it, the engine stays untouched.
+        """
+        try:
+            if not self._collect_coordinators(hass):
+                connection.send_error(
+                    msg.get("id"),
+                    "service_unavailable",
+                    "No eedomus coordinator available",
+                )
+                return
+            state = self._aggregate_backfill_state(hass)
+            connection.send_result(msg.get("id"), _json_safe(state))
+        except Exception as e:
+            self._send_backfill_error(connection, msg, e)
+
+    async def _handle_backfill_retry_now(
+        self,
+        hass: HomeAssistant,
+        connection,
+        msg: dict,
+    ) -> None:
+        """Handle the backfill retry now command (CAP-5).
+
+        AD-7: the action goes through the coordinator only - the ui_service
+        never calls the eedomus API. A busy mono-importer lock is a
+        nominal refusal, never a wait.
+        """
+        try:
+            periph_id = msg.get("periph_id")
+            coordinator = self._coordinator_for_periph(hass, periph_id)
+            if coordinator is None:
+                connection.send_error(
+                    msg.get("id"),
+                    "invalid_format",
+                    f"Unknown peripheral {periph_id}",
+                )
+                return
+            result = await coordinator.async_backfill_retry_now(periph_id)
+            # Every action response carries the aggregated state so the
+            # panel re-renders the queue in one round trip.
+            state = self._aggregate_backfill_state(hass)
+            connection.send_result(
+                msg.get("id"), _json_safe({**result, "state": state})
+            )
+        except Exception as e:
+            self._send_backfill_error(connection, msg, e)
+
+    async def _handle_backfill_prioritize(
+        self,
+        hass: HomeAssistant,
+        connection,
+        msg: dict,
+    ) -> None:
+        """Handle the backfill prioritize command (CAP-5)."""
+        try:
+            periph_id = msg.get("periph_id")
+            coordinator = self._coordinator_for_periph(hass, periph_id)
+            if coordinator is None:
+                connection.send_error(
+                    msg.get("id"),
+                    "invalid_format",
+                    f"Unknown peripheral {periph_id}",
+                )
+                return
+            result = await coordinator.async_backfill_prioritize(periph_id)
+            state = self._aggregate_backfill_state(hass)
+            connection.send_result(
+                msg.get("id"), _json_safe({**result, "state": state})
+            )
+        except Exception as e:
+            self._send_backfill_error(connection, msg, e)
+
+    async def _handle_backfill_set_paused(
+        self,
+        hass: HomeAssistant,
+        connection,
+        msg: dict,
+    ) -> None:
+        """Handle the backfill set paused command (CAP-5).
+
+        Exactly one target: periph_id or global. The response carries the
+        nominal result and the aggregated state so the panel can re-render
+        the queue in one round trip.
+        """
+        try:
+            periph_id = msg.get("periph_id")
+            global_target = msg.get("global")
+            paused = msg.get("paused")
+            # The global switch is targeted by a truthy global flag: a
+            # falsy global without periph_id is a no-target payload, and
+            # a truthy global next to a periph_id is incoherent.
+            use_global = bool(global_target)
+            if use_global == (periph_id is not None):
+                connection.send_error(
+                    msg.get("id"),
+                    "invalid_format",
+                    "Provide exactly one of periph_id or global",
+                )
+                return
+            if use_global:
+                coordinators = self._collect_coordinators(hass)
+                if not coordinators:
+                    connection.send_error(
+                        msg.get("id"),
+                        "service_unavailable",
+                        "No eedomus coordinator available",
+                    )
+                    return
+                for coordinator in coordinators:
+                    # One box = one coordinator: the global switch is
+                    # per config entry, applied to each here. A
+                    # coordinator variant without the API is skipped
+                    # instead of failing the fan-out mid-way.
+                    set_paused = getattr(coordinator, "async_backfill_set_paused", None)
+                    if set_paused is None:
+                        continue
+                    await set_paused(global_pause=True, paused=paused)
+            else:
+                coordinator = self._coordinator_for_periph(hass, periph_id)
+                if coordinator is None:
+                    connection.send_error(
+                        msg.get("id"),
+                        "invalid_format",
+                        f"Unknown peripheral {periph_id}",
+                    )
+                    return
+                await coordinator.async_backfill_set_paused(
+                    periph_id=periph_id, paused=paused
+                )
+            state = self._aggregate_backfill_state(hass)
+            connection.send_result(
+                msg.get("id"),
+                _json_safe(
+                    {
+                        "success": True,
+                        "periph_id": periph_id,
+                        "global": bool(global_target),
+                        "paused": bool(paused),
+                        "state": state,
+                    }
+                ),
+            )
+        except Exception as e:
+            self._send_backfill_error(connection, msg, e)
+
+    async def _handle_backfill_set_ignored(
+        self,
+        hass: HomeAssistant,
+        connection,
+        msg: dict,
+    ) -> None:
+        """Handle the backfill set ignored command (CAP-5).
+
+        Ignoring persists in .storage and survives a restart; the action
+        is reversible (ignored=False re-activates the peripheral without
+        losing its history progress).
+        """
+        try:
+            periph_id = msg.get("periph_id")
+            coordinator = self._coordinator_for_periph(hass, periph_id)
+            if coordinator is None:
+                connection.send_error(
+                    msg.get("id"),
+                    "invalid_format",
+                    f"Unknown peripheral {periph_id}",
+                )
+                return
+            result = await coordinator.async_backfill_set_ignored(
+                periph_id, msg.get("ignored")
+            )
+            state = self._aggregate_backfill_state(hass)
+            connection.send_result(
+                msg.get("id"), _json_safe({**result, "state": state})
+            )
+        except Exception as e:
+            self._send_backfill_error(connection, msg, e)
 
     @staticmethod
     def _matching_rule_name(
