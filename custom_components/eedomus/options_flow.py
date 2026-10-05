@@ -219,10 +219,15 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
         else:
             preview_status = ""
         return {
-            "description": translations.get(
-                "description",
-                yaml_editor.get("description_fallback", "Edit YAML configuration"),
-            ),
+            # The {description} slot of the options.step.yaml_editor
+            # template carries the dedicated editor intro
+            # (options.step.yaml_editor.editor_intro), NOT the top-level
+            # integration description rendered by the first form. A tree
+            # mapping the key to JSON null falls through the or-chain
+            # instead of rendering null.
+            "description": yaml_editor.get("editor_intro")
+            or yaml_editor.get("description_fallback")
+            or "Edit YAML configuration",
             "helper": yaml_editor.get(
                 "helper",
                 "Modify the YAML below. Click 'Preview' to validate before saving.",

@@ -12,7 +12,7 @@
     "api_proxy_disable_security": "Disable API proxy security (debug only)",
     "step": {
       "user": {
-        "title": "Connexion Eedomus",
+        "title": "Eedomus connection",
         "description": "Configure access to your eedomus box\n\n🔄 CONNECTION MODES EXPLANATION 🔄\n\n📋 API Eedomus Mode (Direct Connection - Pull):\n   • Home Assistant pulls data from Eedomus API\n   • Requires API credentials (user/secret)\n   • Enables full functionality including history\n   • Recommended for most users\n\n🔄 API Proxy Mode (Webhook - Push):\n   • Eedomus pushes data to Home Assistant via webhooks\n   • Only requires API host for webhook registration\n   • No credentials needed for basic functionality\n   • Limited functionality (no history)\n   • Useful for real-time updates\n\n💡 You can enable both modes for redundancy and optimal performance!\n\n⚠️ SECURITY NOTE: API Proxy mode includes IP validation by default.\n   Disable only for debugging (NOT recommended for production).\n\n🔒 IMPORTANT: All communications are in PLAIN TEXT.\n   Never expose your Eedomus box or Home Assistant to the internet!\n\n📖 FOR MORE INFORMATION: Check the documentation in your language:\n   - English: https://github.com/Dan4Jer/hass-eedomus/blob/main/docs/configuration_documentation.md\n   - Français: https://github.com/Dan4Jer/hass-eedomus/blob/main/docs/configuration_documentation_fr.md",
         "data": {
           "api_host": "Eedomus box IP address",
@@ -48,15 +48,15 @@
       "connection_timeout": "Connection to eedomus timed out",
       "api_error": "Eedomus API returned an error",
       "invalid_response": "Received invalid response from eedomus",
-      "unknown": "Unexpected error"
-    },
-    "options": {
-      "php_fallback_enabled": "PHP Fallback",
-      "php_fallback_script": "PHP script name",
-      "php_fallback_timeout": "PHP fallback timeout (seconds)",
-      "scan_interval": "Refresh interval",
-      "enable_history": "History retrieval",
-      "enable_api_proxy": "API Proxy mode"
+      "unknown": "Unexpected error",
+      "empty_api_host": "API host cannot be empty",
+      "invalid_scan_interval": "Scan interval must be at least 30 seconds",
+      "invalid_http_timeout": "HTTP request timeout must be between 5 and 120 seconds",
+      "invalid_max_concurrent_requests": "Maximum concurrent requests must be between 1 and 20",
+      "invalid_min_request_delay": "Minimum delay between requests must be between 0.1 and 5.0 seconds",
+      "missing_api_user": "API user is required when API Eedomus mode is enabled",
+      "missing_api_secret": "API secret is required when API Eedomus mode is enabled",
+      "no_mode_enabled": "At least one connection mode (API Eedomus or API Proxy) must be enabled"
     }
   },
   "errors": {
@@ -128,14 +128,34 @@
       "yaml_editor": {
         "title": "Eedomus",
         "description": "{description}\n\n{helper}\n\n### YAML Preview\n\n{preview_content}\n\n{preview_status}",
+        "editor_intro": "Edit the eedomus integration configuration directly in YAML.",
         "description_fallback": "Edit YAML configuration",
         "helper": "Modify the YAML below. Click 'Preview' to validate before saving.",
         "status_valid": "✅ YAML is valid",
-        "status_invalid": "❌ Error: {error}"
+        "status_invalid": "❌ Error: {error}",
+        "data": {
+          "yaml_content": "YAML configuration",
+          "preview_mode": "Preview mode"
+        }
       },
       "init": {
         "title": "Eedomus",
-        "description": "Configure the Eedomus integration settings. Use the YAML editor for advanced configuration."
+        "description": "Configure the Eedomus integration settings. Use the YAML editor for advanced configuration.",
+        "data": {
+          "api_eedomus": "Enable API Eedomus mode (direct connection)",
+          "enable_api_proxy": "Enable API proxy mode",
+          "enable_panel": "Enable the configuration panel",
+          "history_peripherals_per_scan": "Peripherals imported per scan (history)",
+          "scan_interval": "Data refresh interval (seconds)",
+          "history": "Enable history retrieval from the cloud",
+          "enable_set_value_retry": "Enable retry of refused values",
+          "enable_webhook": "Enable webhook",
+          "api_proxy_disable_security": "Disable API proxy security (debug only)",
+          "php_fallback_enabled": "Enable PHP fallback for rejected values",
+          "php_fallback_script_name": "PHP fallback script name",
+          "php_fallback_timeout": "PHP fallback timeout (seconds)",
+          "http_request_timeout": "HTTP request timeout (seconds)"
+        }
       }
     },
     "error": {

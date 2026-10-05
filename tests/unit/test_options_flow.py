@@ -223,3 +223,36 @@ class TestAsyncStepYamlEditor:
         assert placeholders["error"]
         assert placeholders["preview_content"]
         assert "preview_status" in placeholders
+
+
+class TestFrRegionNormalization:
+    """fr-FR (a region subtag) resolves the fr tree, not the en fallback.
+
+    async_get_translations strips the region before looking for the
+    language file: a regression would silently render the YAML editor
+    in English for every fr-FR/fr-CA user.
+    """
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("language", ["fr-FR", "fr-CA"])
+    async def test_fr_language_yields_french_placeholders(self, language):
+        """Same flow as the EN tests, only the language changes."""
+        flow = make_yaml_flow()
+        flow.hass.config.language = language
+        form_result, show_form = capture_show_form(flow)
+
+        result = await flow.async_step_yaml_editor(
+            user_input={"action": "preview", "yaml_content": "custom_rules: []"}
+        )
+
+        assert result is form_result
+        placeholders = show_form.call_args.kwargs["description_placeholders"]
+        assert placeholders["preview_status"] == "✅ YAML valide"
+        assert placeholders["helper"] == (
+            "Modifiez le YAML ci-dessous. Cliquez sur « Prévisualiser » "
+            "pour valider avant d'enregistrer."
+        )
+        assert placeholders["description"] == (
+            "Modifiez la configuration de l'intégration eedomus "
+            "directement en YAML."
+        )

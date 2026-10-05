@@ -472,8 +472,15 @@ const SELFTEST_PROBES = [
     expect: (v) => v.matched === 'French marker (accented letters or guillemets)',
   },
   {
-    rule: 'unknown panel.* key',
-    source: "t('panel.coherence.status.total');",
+    // Canary probe: the key below exists in NO catalog on purpose —
+    // it is the self-test's synthetic probe, not a real panel key. If
+    // this rule ever fails, the guard's own pipeline broke; a real
+    // unknown-key regression surfaces in the scan above, which reads
+    // the panel source, never this probe. Previously keyed on the
+    // dead panel.coherence.status.total, a self-test failure could be
+    // misread as a coherence-catalog regression.
+    rule: 'unknown panel.* key (canary probe)',
+    source: "t('panel.canary.selftest.unknown_key');",
     expect: (v) => v.provenance === 'unknown panel.* key (not in the catalog)',
   },
 ];

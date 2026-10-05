@@ -1945,6 +1945,123 @@ async function runCatalogLifecycleTests() {
     [staleCachePanel._coherence, staleCachePanel._coherenceLoading],
     [null, false]
   );
+
+  // (14) the post-timeout duplicate-call race: call 1 drops, the
+  // locale flips (call 2 loads), flips BACK (call 3 in flight, same
+  // locale VALUE as call 1) — firing call 1's still-armed timeout is
+  // then a late continuation. Value-identical locales must not let
+  // it erase call 3's loading marker: the next set hass stays
+  // deduplicated, and call 3's own timeout is what frees the slot.
+  const racePanel = lifecyclePanel();
+  let raceFrCalls = 0;
+  const raceHass = (lang) => ({
+    locale: { language: lang },
+    callWS: (msg) => {
+      if (msg.type !== 'eedomus/get_translations') {
+        return Promise.resolve({ peripherals: [] });
+      }
+      if (msg.locale === 'fr') {
+        raceFrCalls += 1;
+        return new Promise(() => {}); // dropped: never settles
+      }
+      return Promise.resolve({
+        locale: 'en',
+        translations: { 'panel.common.title': 'EN' },
+      });
+    },
+  });
+  // Timer identity, not delay or array position: the strings timeout is
+  // the last timer scheduled by each set hass (armed synchronously
+  // inside _loadStrings), so each call's handle is captured right at
+  // stub time — a STRINGS_LOAD_TIMEOUT_MS change cannot degrade the
+  // race assertions below.
+  racePanel.hass = raceHass('fr'); // call 1: dropped, timeout armed
+  const call1Timer = sandboxTimers[sandboxTimers.length - 1];
+  await tick();
+  racePanel.hass = raceHass('en'); // call 2: resolves, EN catalog stored
+  const call2Timer = sandboxTimers[sandboxTimers.length - 1];
+  await tick();
+  racePanel.hass = raceHass('fr'); // call 3: dropped, in flight
+  const call3Timer = sandboxTimers[sandboxTimers.length - 1];
+  await tick();
+  assertEq(
+    'lifecycle: race setup armed three distinct strings timeouts',
+    [call1Timer, call2Timer, call3Timer].every(
+      (timer, idx, all) => all.indexOf(timer) === idx
+    ),
+    true
+  );
+  // Call 1's timeout fires long after call 3 took over the locale.
+  call1Timer.fn();
+  await tick();
+  assertEq(
+    'lifecycle: a late continuation does not erase the in-flight marker',
+    [racePanel._stringsLoadingLocale, raceFrCalls],
+    ['fr', 2]
+  );
+  // The marker surviving means the next set hass stays deduplicated.
+  racePanel.hass = raceHass('fr');
+  await tick();
+  assertEq(
+    'lifecycle: no duplicate get_translations while the retry is in flight',
+    raceFrCalls,
+    2
+  );
+  // Call 3's own timeout frees the slot, and only then does a new
+  // set hass re-issue the dropped command.
+  call3Timer.fn();
+  await tick();
+  assertEq(
+    'lifecycle: the in-flight call keeps ownership of the slot until its own timeout',
+    racePanel._stringsLoadingLocale,
+    null
+  );
+  racePanel.hass = raceHass('fr');
+  await tick();
+  assertEq(
+    'lifecycle: after the in-flight call times out the next set hass re-issues',
+    raceFrCalls,
+    3
+  );
+
+  // (15) the generation guard's SUCCESS path: a superseded call that
+  // RESOLVES successfully (no timeout involved) after a newer call
+  // started writes no catalog and leaves the newer call's loading
+  // marker alone — only the timeout path was covered above.
+  const supersedePanel = lifecyclePanel();
+  let resolveSupersededCatalog;
+  const supersedeHass = (lang) => ({
+    locale: { language: lang },
+    callWS: (msg) => {
+      if (msg.type !== 'eedomus/get_translations') {
+        return Promise.resolve({ peripherals: [] });
+      }
+      if (msg.locale === 'fr') {
+        // Call 1: succeeds, but only after the newer call took over.
+        return new Promise((resolve) => {
+          resolveSupersededCatalog = resolve;
+        });
+      }
+      // Call 2 (en): stays in flight, owning the loading slot.
+      return new Promise(() => {});
+    },
+  });
+  supersedePanel.hass = supersedeHass('fr'); // call 1
+  await tick();
+  supersedePanel.hass = supersedeHass('en'); // call 2: supersedes call 1
+  await tick();
+  // Call 1's late success would write the FR catalog and clear the
+  // marker: the generation guard must discard both.
+  resolveSupersededCatalog({
+    locale: 'fr',
+    translations: { 'panel.common.title': 'FR' },
+  });
+  await tick();
+  assertEq(
+    'lifecycle: a superseded success writes no catalog and keeps the newer marker',
+    [supersedePanel._strings, supersedePanel._stringsLoadingLocale],
+    [null, 'en']
+  );
 }
 
 // --- periphs search-no-result state (CAP-3 spine row, 3.3) ---

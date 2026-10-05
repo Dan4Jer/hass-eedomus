@@ -48,15 +48,15 @@
       "connection_timeout": "Délai de connexion à eedomus dépassé",
       "api_error": "L'API eedomus a renvoyé une erreur",
       "invalid_response": "Réponse invalide de l'API eedomus",
-      "unknown": "Erreur inattendue"
-    },
-    "options": {
-      "php_fallback_enabled": "Repli PHP",
-      "php_fallback_script": "Nom du script PHP",
-      "php_fallback_timeout": "Délai du repli PHP (secondes)",
-      "scan_interval": "Intervalle de rafraîchissement",
-      "enable_history": "Récupération de l'historique",
-      "enable_api_proxy": "Mode proxy API"
+      "unknown": "Erreur inattendue",
+      "empty_api_host": "L'adresse de l'API ne peut pas être vide",
+      "invalid_scan_interval": "L'intervalle de scan doit être d'au moins 30 secondes",
+      "invalid_http_timeout": "Le délai d'attente des requêtes HTTP doit être compris entre 5 et 120 secondes",
+      "invalid_max_concurrent_requests": "Le nombre de requêtes simultanées doit être compris entre 1 et 20",
+      "invalid_min_request_delay": "Le délai minimal entre les requêtes doit être compris entre 0,1 et 5,0 secondes",
+      "missing_api_user": "L'utilisateur API est requis quand le mode API Eedomus est activé",
+      "missing_api_secret": "La clé secrète API est requise quand le mode API Eedomus est activé",
+      "no_mode_enabled": "Au moins un mode de connexion (API Eedomus ou API Proxy) doit être activé"
     }
   },
   "errors": {
@@ -128,14 +128,34 @@
       "yaml_editor": {
         "title": "Eedomus",
         "description": "{description}\n\n{helper}\n\n### Aperçu YAML\n\n{preview_content}\n\n{preview_status}",
+        "editor_intro": "Modifiez la configuration de l'intégration eedomus directement en YAML.",
         "description_fallback": "Modifier la configuration YAML",
         "helper": "Modifiez le YAML ci-dessous. Cliquez sur « Prévisualiser » pour valider avant d'enregistrer.",
         "status_valid": "✅ YAML valide",
-        "status_invalid": "❌ Erreur : {error}"
+        "status_invalid": "❌ Erreur : {error}",
+        "data": {
+          "yaml_content": "Configuration YAML",
+          "preview_mode": "Mode aperçu"
+        }
       },
       "init": {
         "title": "Eedomus",
-        "description": "Configurez les paramètres de l'intégration Eedomus. Utilisez l'éditeur YAML pour une configuration avancée."
+        "description": "Configurez les paramètres de l'intégration Eedomus. Utilisez l'éditeur YAML pour une configuration avancée.",
+        "data": {
+          "api_eedomus": "Activer le mode API Eedomus (connexion directe)",
+          "enable_api_proxy": "Activer le mode proxy API",
+          "enable_panel": "Activer le panneau de configuration",
+          "history_peripherals_per_scan": "Périphériques importés par scan (historique)",
+          "scan_interval": "Intervalle de rafraîchissement des données (secondes)",
+          "history": "Activer la récupération de l'historique depuis le cloud",
+          "enable_set_value_retry": "Activer la nouvelle tentative des valeurs refusées",
+          "enable_webhook": "Activer le webhook",
+          "api_proxy_disable_security": "Désactiver la sécurité de l'API proxy (débogage uniquement)",
+          "php_fallback_enabled": "Activer le repli PHP pour les valeurs refusées",
+          "php_fallback_script_name": "Nom du script de repli PHP",
+          "php_fallback_timeout": "Délai du repli PHP (secondes)",
+          "http_request_timeout": "Délai d'attente des requêtes HTTP (secondes)"
+        }
       }
     },
     "error": {

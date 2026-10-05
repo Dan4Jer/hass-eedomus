@@ -71,6 +71,28 @@ CONF_SCAN_INTERVAL = "scan_interval"
 class EedomusConnectionTestError(Exception):
     """API Eedomus connection test failed (config.error.cannot_connect)."""
 
+
+class EedomusValidationError(Exception):
+    """Validation failure carrying its config.error.* translation key.
+
+    Deliberately NOT a vol.Invalid subclass: a voluptuous except
+    clause reordered above the dedicated handler would silently
+    degrade every keyed error to the generic "unknown".
+
+    The raw English message stays in the logs; the form only ever
+    shows the error_key, resolved against the config.error section of
+    the translation trees (strings.json + translations/) and rendered
+    on error_field ("base" when the error is not field-specific).
+    """
+
+    def __init__(
+        self, message: str, error_key: str, error_field: str = "base"
+    ) -> None:
+        """Keep the raw message for logs; the key and field for the form."""
+        super().__init__(message)
+        self.error_key = error_key
+        self.error_field = error_field
+
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_API_HOST, default=DEFAULT_API_HOST): str,
@@ -84,8 +106,12 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Optional(CONF_API_SECRET, default=DEFAULT_API_SECRET or ""): str,
         vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int,
         vol.Optional(CONF_ENABLE_HISTORY, default=DEFAULT_CONF_ENABLE_HISTORY): bool,
-        vol.Optional(CONF_HTTP_REQUEST_TIMEOUT, default=DEFAULT_HTTP_REQUEST_TIMEOUT): int,
-        vol.Optional(CONF_MAX_CONCURRENT_REQUESTS, default=DEFAULT_MAX_CONCURRENT_REQUESTS): int,
+        vol.Optional(
+            CONF_HTTP_REQUEST_TIMEOUT, default=DEFAULT_HTTP_REQUEST_TIMEOUT
+        ): int,
+        vol.Optional(
+            CONF_MAX_CONCURRENT_REQUESTS, default=DEFAULT_MAX_CONCURRENT_REQUESTS
+        ): int,
         vol.Optional(CONF_MIN_REQUEST_DELAY, default=DEFAULT_MIN_REQUEST_DELAY): float,
         vol.Optional(
             CONF_ENABLE_SET_VALUE_RETRY, default=DEFAULT_ENABLE_SET_VALUE_RETRY
@@ -154,8 +180,17 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         except EedomusConnectionTestError:
             # Translated error key: config.error.cannot_connect
             errors = {"base": "cannot_connect"}
+        except EedomusValidationError as err:
+            # Keyed, field-scoped error: config.error.<error_key> is
+            # rendered on <error_field> ("base" for form-level errors).
+            errors = {err.error_field: err.error_key}
+            _LOGGER.error("Validation error: %s", str(err))
         except vol.Invalid as err:
-            errors = {"base": str(err)}
+            # Defensive fallback: a voluptuous failure raised inside
+            # validate_input (STEP_USER_DATA_SCHEMA is never applied to
+            # user_input here) renders the generic translated key
+            # (config.error.unknown); the raw message stays in the logs.
+            errors = {"base": "unknown"}
             _LOGGER.error("Validation error: %s", str(err))
         except Exception:  # pylint: disable=broad-except
             _LOGGER.exception("Unexpected exception during validation")
@@ -177,26 +212,52 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         # Basic validation - API host is always required
         if not data[CONF_API_HOST] or not data[CONF_API_HOST].strip():
             _LOGGER.error("Validation failed: API host is empty")
-            raise vol.Invalid("API host cannot be empty")
+            raise EedomusValidationError(
+                "API host cannot be empty",
+                error_key="empty_api_host",
+                error_field=CONF_API_HOST,
+            )
 
-        # Validate scan interval (only relevant for API Eedomus mode, but validate anyway)
+        # Validate scan interval (validate even outside API Eedomus mode)
         scan_interval = data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
         if scan_interval < 30:
-            raise vol.Invalid("Scan interval must be at least 30 seconds")
+            raise EedomusValidationError(
+                "Scan interval must be at least 30 seconds",
+                error_key="invalid_scan_interval",
+                error_field=CONF_SCAN_INTERVAL,
+            )
 
         # Validate HTTP request timeout
-        http_request_timeout = data.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)
+        http_request_timeout = data.get(
+            CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT
+        )
         if http_request_timeout < 5 or http_request_timeout > 120:
-            raise vol.Invalid("HTTP request timeout must be between 5 and 120 seconds")
+            raise EedomusValidationError(
+                "HTTP request timeout must be between 5 and 120 seconds",
+                error_key="invalid_http_timeout",
+                error_field=CONF_HTTP_REQUEST_TIMEOUT,
+            )
 
         # Validate rate limiting settings
-        max_concurrent_requests = data.get(CONF_MAX_CONCURRENT_REQUESTS, DEFAULT_MAX_CONCURRENT_REQUESTS)
+        max_concurrent_requests = data.get(
+            CONF_MAX_CONCURRENT_REQUESTS, DEFAULT_MAX_CONCURRENT_REQUESTS
+        )
         if max_concurrent_requests < 1 or max_concurrent_requests > 20:
-            raise vol.Invalid("Max concurrent requests must be between 1 and 20")
-        
-        min_request_delay = data.get(CONF_MIN_REQUEST_DELAY, DEFAULT_MIN_REQUEST_DELAY)
+            raise EedomusValidationError(
+                "Max concurrent requests must be between 1 and 20",
+                error_key="invalid_max_concurrent_requests",
+                error_field=CONF_MAX_CONCURRENT_REQUESTS,
+            )
+
+        min_request_delay = data.get(
+            CONF_MIN_REQUEST_DELAY, DEFAULT_MIN_REQUEST_DELAY
+        )
         if min_request_delay < 0.1 or min_request_delay > 5.0:
-            raise vol.Invalid("Minimum request delay must be between 0.1 and 5.0 seconds")
+            raise EedomusValidationError(
+                "Minimum request delay must be between 0.1 and 5.0 seconds",
+                error_key="invalid_min_request_delay",
+                error_field=CONF_MIN_REQUEST_DELAY,
+            )
 
         # Check which modes are enabled
         api_eedomus_enabled = data.get(
@@ -216,18 +277,18 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if api_eedomus_enabled:
             # API Eedomus mode requires credentials
             if not data.get(CONF_API_USER) or not data[CONF_API_USER].strip():
-                raise vol.Invalid(
-                    "API user is required when API Eedomus mode is enabled"
+                raise EedomusValidationError(
+                    "API user is required when API Eedomus mode is enabled",
+                    error_key="missing_api_user",
+                    error_field=CONF_API_USER,
                 )
 
             if not data.get(CONF_API_SECRET) or not data[CONF_API_SECRET].strip():
-                raise vol.Invalid(
-                    "API secret is required when API Eedomus mode is enabled"
+                raise EedomusValidationError(
+                    "API secret is required when API Eedomus mode is enabled",
+                    error_key="missing_api_secret",
+                    error_field=CONF_API_SECRET,
                 )
-
-            # History option is only available with API Eedomus mode
-            if data.get(CONF_ENABLE_HISTORY) and not api_eedomus_enabled:
-                raise vol.Invalid("History can only be enabled with API Eedomus mode")
 
             # Test the connection for API Eedomus mode
             session = async_get_clientsession(self.hass)
@@ -299,8 +360,9 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         # Check if at least one mode is enabled
         if not api_eedomus_enabled and not api_proxy_enabled:
-            raise vol.Invalid(
-                "At least one connection mode (API Eedomus or API Proxy) must be enabled"
+            raise EedomusValidationError(
+                "At least one connection mode (API Eedomus or API Proxy) "
+                "must be enabled", error_key="no_mode_enabled"
             )
 
         # Generate appropriate title based on enabled modes

@@ -735,6 +735,11 @@ class EedomusConfigPanel extends HTMLElement {
     this._strings = null;
     this._stringsLocale = null;
     this._stringsLoadingLocale = null;
+    // Generation token (i18n retro fix-now): each _loadStrings call
+    // bumps it; a continuation whose generation was superseded neither
+    // frees the slot nor writes the catalog — value-identical locales
+    // (fr, flip away, flip back) would otherwise collide.
+    this._stringsLoadGeneration = 0;
     // Translator handed to the pure helpers (they stay this-free).
     this._t = (key, params) => this.t(key, params);
     this._config = {};
@@ -863,6 +868,7 @@ class EedomusConfigPanel extends HTMLElement {
       return;
     }
     this._stringsLoadingLocale = locale;
+    const generation = ++this._stringsLoadGeneration;
     let translations = null;
     let timeoutId = null;
     try {
@@ -892,9 +898,14 @@ class EedomusConfigPanel extends HTMLElement {
         clearTimeout(timeoutId);
       }
     }
-    if (this._stringsLoadingLocale === locale) {
-      this._stringsLoadingLocale = null;
+    if (generation !== this._stringsLoadGeneration) {
+      // A newer call superseded this one (locale flip and back, or a
+      // retry after this call's timeout freed the slot): the loading
+      // marker and the catalog belong to the newer call — a late
+      // continuation must not erase an in-flight marker.
+      return;
     }
+    this._stringsLoadingLocale = null;
     const current = (this._hass && this._hass.locale &&
       this._hass.locale.language) || 'en';
     if (!translations || locale !== current) {

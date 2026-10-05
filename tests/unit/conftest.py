@@ -106,7 +106,17 @@ def _install_homeassistant_stubs():
     # homeassistant.config_entries
     ha_ce = module("homeassistant.config_entries")
     ha_ce.ConfigEntry = MagicMock
-    ha_ce.ConfigFlow = MagicMock
+    # ConfigFlow stub: the real class accepts the domain= keyword of the
+    # flow-handler metaclass, so the placeholder must too — subclassing a
+    # MagicMock (the old placeholder) rejects it at import time.
+    class _StubConfigFlowMeta(type):
+        def __new__(mcs, name, bases, namespace, **kwargs):
+            return super().__new__(mcs, name, bases, namespace)
+
+    class _StubConfigFlow(metaclass=_StubConfigFlowMeta):
+        VERSION = 1
+
+    ha_ce.ConfigFlow = _StubConfigFlow
     ha_ce.OptionsFlow = object  # real base class hierarchy is irrelevant here
     ha_ce.STATE_LOADED = "loaded"
 

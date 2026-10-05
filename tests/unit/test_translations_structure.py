@@ -32,6 +32,9 @@ EN_PATH = COMPONENT_DIR / "translations" / "en.json"
 FR_PATH = COMPONENT_DIR / "translations" / "fr.json"
 SERVICES_YAML_PATH = COMPONENT_DIR / "services.yaml"
 SERVICES_PY_PATH = COMPONENT_DIR / "services.py"
+CONFIG_FLOW_PATH = COMPONENT_DIR / "config_flow.py"
+OPTIONS_FLOW_PATH = COMPONENT_DIR / "options_flow.py"
+CONST_PATH = COMPONENT_DIR / "const.py"
 
 
 def _declared_services():
@@ -71,6 +74,97 @@ def _leaves(tree, prefix=""):
 
 def _placeholders(value):
     return set(re.findall(r"{([a-zA-Z_][a-zA-Z0-9_]*)}", str(value)))
+
+
+def _trees():
+    """The three trees, labeled, as (label, loaded json) tuples."""
+    return (
+        ("strings.json", _load(STRINGS_PATH)),
+        ("en.json", _load(EN_PATH)),
+        ("fr.json", _load(FR_PATH)),
+    )
+
+
+def _source(path):
+    return path.read_text(encoding="utf-8")
+
+
+def _conf_token_map():
+    """Map the flow CONF_* identifiers to their option/field id strings.
+
+    Parsed from the source instead of imported: the structure tests
+    stay dependency-free (json/yaml/re only, no Home Assistant).
+    """
+    values = {}
+    for path in (CONST_PATH, CONFIG_FLOW_PATH):
+        for match in re.finditer(
+            r'^(CONF_[A-Z0-9_]+) = "([^"]+)"', _source(path), re.MULTILINE
+        ):
+            values[match.group(1)] = match.group(2)
+    return values
+
+
+def _vol_marker_args(source):
+    """First arguments of every vol.Required/vol.Optional marker.
+
+    Fails loudly when a marker's first argument is neither a quoted
+    field id nor a CONF_* token: anything else would be silently
+    skipped here, letting a real field ship without its pinned label.
+    """
+    tokens = _conf_token_map()
+    fields = []
+    for match in re.finditer(
+        r"vol\.(?:Required|Optional)\(\s*([^\s,()]+)", source
+    ):
+        arg = match.group(1)
+        if arg[:1] in ('"', "'"):
+            assert len(arg) >= 2 and arg[-1] == arg[0], (
+                f"unterminated string argument in a flow schema: {arg!r}"
+            )
+            fields.append(arg[1:-1])
+        elif re.fullmatch(r"CONF_[A-Z0-9_]+", arg):
+            assert arg in tokens, f"unknown CONF token in a flow schema: {arg}"
+            fields.append(tokens[arg])
+        else:
+            raise AssertionError(
+                f"unsupported first argument {arg!r} in a "
+                f"vol.Required/vol.Optional marker: expected a quoted "
+                f"field id or a CONF_* token, or the fields pin "
+                f"silently skips a real field"
+            )
+    return fields
+
+
+def _config_flow_schema_fields():
+    """The field ids of the module-level STEP_USER_DATA_SCHEMA."""
+    source = _source(CONFIG_FLOW_PATH)
+    start = source.index("STEP_USER_DATA_SCHEMA = vol.Schema(")
+    end = source.index("\n)\n", start)
+    return _vol_marker_args(source[start:end])
+
+
+def _options_init_schema_fields():
+    """The field ids rendered by the options init form."""
+    source = _source(OPTIONS_FLOW_PATH)
+    start = source.index("async def async_step_init")
+    end = source.index("async def _async_yaml_editor_placeholders", start)
+    return _vol_marker_args(source[start:end])
+
+
+def _options_yaml_editor_schema_fields():
+    """The field ids rendered by the yaml_editor forms (deduplicated)."""
+    source = _source(OPTIONS_FLOW_PATH)
+    start = source.index("async def async_step_yaml_editor")
+    end = source.index("async def async_load_mapping", start)
+    return _vol_marker_args(source[start:end])
+
+
+def _config_uninstall_schema_fields():
+    """The field ids rendered by the uninstall form."""
+    source = _source(CONFIG_FLOW_PATH)
+    start = source.index("async def async_step_uninstall")
+    end = source.index("async def async_step_remove", start)
+    return _vol_marker_args(source[start:end])
 
 
 def _assert_same_keys(reference, candidate, ref_label, cand_label):
@@ -301,3 +395,174 @@ class TestFlowStepsPresent:
             for dotted in self.REQUIRED_KEYS:
                 value = self._dig(tree, dotted)
                 assert value, f"{label} '{dotted}' is empty"
+
+
+class TestEnTreeLanguage:
+    """No EN-tree value may carry French.
+
+    The committed guards cannot see this hole: they compare the trees
+    with each other, never the language of the values, so a French
+    value in strings.json/en.json (the title regression found by the
+    epic retrospective) ships to English users unnoticed. Two signal
+    channels, because the motivating regression (« Connexion Eedomus »)
+    carries neither an accent nor a guillemet:
+    - markers: accented Latin letters, guillemets, Œ/œ and the
+      typographic apostrophe;
+    - FR lexicon: accent-free French words that never appear in an
+      English value (checked case-insensitively).
+    Named exemption: the language token 'Français' of the
+    documentation links in config.step.user.description.
+    """
+
+    MARKER_RE = re.compile("[À-ÖØ-öø-ÿŒœ«»’]")
+    EXEMPT_TOKENS = ("Français",)
+    FR_LEXICON = (
+        "connexion",
+        "activer",
+        "parametres",
+        "peripherique",
+        "sauvegarde",
+        "veuillez",
+        "echec",
+        "reessayer",
+    )
+
+    def test_en_values_carry_no_french_marker(self):
+        for label, path in (("strings.json", STRINGS_PATH), ("en.json", EN_PATH)):
+            for key, value in _leaves(_load(path)).items():
+                text = str(value)
+                for token in self.EXEMPT_TOKENS:
+                    text = text.replace(token, "")
+                marker = self.MARKER_RE.search(text)
+                assert marker is None, (
+                    f"{label} value of '{key}' carries the French "
+                    f"marker {marker.group(0)!r} in "
+                    f"{str(value)[:60]!r}: EN-tree values are English"
+                )
+                word = next(
+                    (w for w in self.FR_LEXICON if w in text.lower()), None
+                )
+                assert word is None, (
+                    f"{label} value of '{key}' carries the French word "
+                    f"'{word}' in {str(value)[:60]!r}: "
+                    f"EN-tree values are English"
+                )
+
+
+class TestConfigFlowSection:
+    """The config-flow contract is pinned to the translation trees.
+
+    - STEP_USER_DATA_SCHEMA field ids == config.step.user.data keys on
+      the three trees: a field added or renamed without its label
+      fails here;
+    - every error key the flow can set (errors = {"base": ...} or a
+      keyed EedomusValidationError) exists in config.error on the
+      three trees: the form never renders a raw voluptuous message.
+    """
+
+    BASE_ERROR_RE = re.compile(
+        r'errors\s*=\s*\{\s*["\']base["\']\s*:\s*["\']([a-z_]+)["\']\s*\}'
+    )
+    ERROR_KEY_RE = re.compile(r'error_key=["\']([a-z_]+)["\']')
+
+    def test_step_user_fields_match_data_labels(self):
+        fields = _config_flow_schema_fields()
+        assert fields, "STEP_USER_DATA_SCHEMA not found in config_flow.py"
+        assert len(fields) == len(set(fields)), (
+            f"duplicated field in STEP_USER_DATA_SCHEMA: {fields}"
+        )
+        for label, tree in _trees():
+            data = tree["config"]["step"]["user"]["data"]
+            missing = sorted(set(fields) - set(data))
+            extra = sorted(set(data) - set(fields))
+            assert not missing and not extra, (
+                f"{label}: config.step.user.data diverges from "
+                f"STEP_USER_DATA_SCHEMA — fields without a label: "
+                f"{missing}, labels without a field: {extra}"
+            )
+
+    def test_error_keys_set_by_the_flow_exist(self):
+        source = _source(CONFIG_FLOW_PATH)
+        keys = set(self.BASE_ERROR_RE.findall(source)) | set(
+            self.ERROR_KEY_RE.findall(source)
+        )
+        assert keys, "no error key found in the config_flow.py source"
+        for label, tree in _trees():
+            errors = tree["config"]["error"]
+            for key in sorted(keys):
+                assert key in errors, (
+                    f"error key '{key}' set by config_flow.py is missing "
+                    f"from the config.error section of {label}"
+                )
+
+    def test_step_uninstall_fields_match_data_labels(self):
+        fields = _config_uninstall_schema_fields()
+        assert fields == ["remove_entities"], (
+            f"the uninstall form renders unexpected fields: {fields}"
+        )
+        for label, tree in _trees():
+            data = tree["config"]["step"]["uninstall"].get("data") or {}
+            missing = sorted(set(fields) - set(data))
+            extra = sorted(set(data) - set(fields))
+            assert not missing and not extra, (
+                f"{label}: config.step.uninstall.data diverges from "
+                f"the uninstall form schema — fields without a label: "
+                f"{missing}, labels without a field: {extra}"
+            )
+
+
+class TestOptionsFlowSection:
+    """The options form fields are pinned to options.step.*.data.
+
+    Every field rendered by the options init form carries a label in
+    the options.step.init.data section of the three trees, every
+    field rendered by the yaml_editor forms one in
+    options.step.yaml_editor.data, and every error key the options
+    flow sets exists in options.error.
+    """
+
+    BASE_ERROR_RE = re.compile(
+        r'errors\[\s*["\']base["\']\s*\]\s*=\s*["\']([a-z_]+)["\']'
+    )
+
+    def test_init_fields_match_data_labels(self):
+        fields = _options_init_schema_fields()
+        assert fields, "options init schema not found in options_flow.py"
+        assert len(fields) == len(set(fields)), (
+            f"duplicated field in the options init schema: {fields}"
+        )
+        for label, tree in _trees():
+            data = tree["options"]["step"]["init"].get("data") or {}
+            missing = sorted(set(fields) - set(data))
+            extra = sorted(set(data) - set(fields))
+            assert not missing and not extra, (
+                f"{label}: options.step.init.data diverges from the "
+                f"options form schema — fields without a label: "
+                f"{missing}, labels without a field: {extra}"
+            )
+
+    def test_yaml_editor_fields_match_data_labels(self):
+        fields = _options_yaml_editor_schema_fields()
+        assert fields, "options yaml_editor schema not found in options_flow.py"
+        fields = set(fields)
+        for label, tree in _trees():
+            data = tree["options"]["step"]["yaml_editor"].get("data") or {}
+            missing = sorted(fields - set(data))
+            extra = sorted(set(data) - fields)
+            assert not missing and not extra, (
+                f"{label}: options.step.yaml_editor.data diverges from "
+                f"the yaml_editor form schema — fields without a "
+                f"label: {missing}, labels without a field: {extra}"
+            )
+
+    def test_error_keys_set_by_the_flow_exist(self):
+        source = _source(OPTIONS_FLOW_PATH)
+        keys = set(self.BASE_ERROR_RE.findall(source))
+        assert keys, "no errors[base] assignment found in options_flow.py"
+        for label, tree in _trees():
+            errors = tree["options"]["error"]
+            for key in sorted(keys):
+                assert key in errors, (
+                    f"error key '{key}' set by options_flow.py is missing "
+                    f"from the options.error section of {label}"
+                )
