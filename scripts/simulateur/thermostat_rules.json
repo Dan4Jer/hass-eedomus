@@ -1,0 +1,10 @@
+[
+  {
+    "name": "Thermostat Salle à manger",
+    "setpoint_id": "thermostat",
+    "sensor_id": "thermostat_temp",
+    "switch_id": "thermostat_switch",
+    "on_value": "100",
+    "off_value": "0"
+  }
+]

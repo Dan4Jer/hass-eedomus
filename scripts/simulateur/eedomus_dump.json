@@ -1,0 +1,5277 @@
+{
+  "periph_list": [
+    {
+      "periph_id": "motion_sensor-2",
+      "parent_periph_id": "motion_sensor-1",
+      "name": "FIBARO MOTION SENSOR FGMS-001 2",
+      "value_type": "float",
+      "unit": "°C",
+      "room_id": "14566",
+      "room_name": "BUREAU",
+      "usage_id": "7",
+      "icon": "/img/mdm/01/thermometer.png",
+      "usage_name": "Température [ambiante]",
+      "creation_date": "2014-12-26 17:06:41",
+      "battery": "100"
+    },
+    {
+      "periph_id": "motion_sensor-1",
+      "parent_periph_id": "",
+      "name": "FIBARO MOTION SENSOR FGMS-001 1",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "14566",
+      "room_name": "BUREAU",
+      "usage_id": "37",
+      "icon": "",
+      "usage_name": "Mouvement",
+      "creation_date": "2014-12-26 17:06:41",
+      "battery": "100"
+    },
+    {
+      "periph_id": "motion_sensor-3",
+      "parent_periph_id": "motion_sensor-1",
+      "name": "FIBARO MOTION SENSOR FGMS-001 3",
+      "value_type": "float",
+      "unit": "Lux",
+      "room_id": "14566",
+      "room_name": "BUREAU",
+      "usage_id": "24",
+      "icon": "/img/mdm/01/luminosite.png",
+      "usage_name": "Luminosité",
+      "creation_date": "2014-12-26 17:06:41",
+      "battery": "100"
+    },
+    {
+      "periph_id": "thermostat_temp",
+      "parent_periph_id": "thermostat",
+      "name": "Thermostat (HRT4-ZW / SRT321) température",
+      "value_type": "float",
+      "unit": "°C",
+      "room_id": "15225",
+      "room_name": "Salle a manger",
+      "usage_id": "7",
+      "icon": "/img/mdm/01/thermometer.png",
+      "usage_name": "Température [ambiante]",
+      "creation_date": "2025-08-11 23:20:26",
+      "battery": "67"
+    },
+    {
+      "periph_id": "sys_5",
+      "parent_periph_id": "",
+      "name": "Etat du jour",
+      "value_type": "list",
+      "unit": " ",
+      "room_id": "1",
+      "room_name": "[Invisible]",
+      "usage_id": "35",
+      "icon": "/img/mdm/01/http_capteur.png",
+      "usage_name": "Autre indicateur",
+      "creation_date": "2014-09-29 22:01:50",
+      "battery": ""
+    },
+    {
+      "periph_id": "door_bell",
+      "parent_periph_id": "",
+      "name": "Carillon (TSE03)",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "12615",
+      "room_name": "Porte entrée",
+      "usage_id": "0",
+      "icon": "/img/mdm/01/lecteur_musique.png",
+      "usage_name": "Carillon",
+      "creation_date": "2014-09-22 23:16:02",
+      "battery": "10"
+    },
+    {
+      "periph_id": "sys_4",
+      "parent_periph_id": "",
+      "name": "phase de la journée",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "1",
+      "room_name": "[Invisible]",
+      "usage_id": "34",
+      "icon": "/img/mdm/01/default.png",
+      "usage_name": "Phase",
+      "creation_date": "2014-09-22 21:46:50",
+      "battery": ""
+    },
+    {
+      "periph_id": "sys_3",
+      "parent_periph_id": "",
+      "name": "journée demain",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "1",
+      "room_name": "[Invisible]",
+      "usage_id": "84",
+      "icon": "/img/mdm/01/default.png",
+      "usage_name": "Demain",
+      "creation_date": "2014-09-22 21:46:50",
+      "battery": ""
+    },
+    {
+      "periph_id": "sys_2",
+      "parent_periph_id": "",
+      "name": "journée en cours",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "1",
+      "room_name": "[Invisible]",
+      "usage_id": "18",
+      "icon": "/img/mdm/01/default.png",
+      "usage_name": "Aujourd'hui",
+      "creation_date": "2014-09-22 21:46:50",
+      "battery": ""
+    },
+    {
+      "periph_id": "sun",
+      "parent_periph_id": "",
+      "name": "Lever/Coucher du soleil",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "12611",
+      "room_name": "Extérieur",
+      "usage_id": "0",
+      "icon": "",
+      "usage_name": "Lever/Coucher du soleil",
+      "creation_date": "2014-12-13 18:16:58",
+      "battery": ""
+    },
+    {
+      "periph_id": "weather-1",
+      "parent_periph_id": "",
+      "name": "Température exterieur",
+      "value_type": "float",
+      "unit": "°C",
+      "room_id": "12611",
+      "room_name": "Extérieur",
+      "usage_id": "7",
+      "icon": "/img/mdm/01/thermometer.png",
+      "usage_name": "Température [ambiante]",
+      "creation_date": "2014-09-22 21:46:50",
+      "battery": ""
+    },
+    {
+      "periph_id": "gps",
+      "parent_periph_id": "",
+      "name": "GPS",
+      "value_type": "string",
+      "unit": "",
+      "room_id": "1",
+      "room_name": "[Invisible]",
+      "usage_id": "0",
+      "icon": "/img/mdm/01/maps.png",
+      "usage_name": "Traceur GPS",
+      "creation_date": "2015-04-22 12:04:34",
+      "battery": ""
+    },
+    {
+      "periph_id": "atmo-5",
+      "parent_periph_id": "atmo-1",
+      "name": "Station Netatmo station CO2",
+      "value_type": "float",
+      "unit": "ppm",
+      "room_id": "15225",
+      "room_name": "Salle a manger",
+      "usage_id": "35",
+      "icon": "/img/mdm/01/co2bis.png",
+      "usage_name": "Autre indicateur",
+      "creation_date": "2016-11-28 21:36:15",
+      "battery": ""
+    },
+    {
+      "periph_id": "atmo-3",
+      "parent_periph_id": "atmo-1",
+      "name": "Station Netatmo station humidité",
+      "value_type": "float",
+      "unit": "%",
+      "room_id": "15225",
+      "room_name": "Salle a manger",
+      "usage_id": "22",
+      "icon": "/img/mdm/01/humidite.png",
+      "usage_name": "Humidité",
+      "creation_date": "2016-11-28 21:36:16",
+      "battery": ""
+    },
+    {
+      "periph_id": "atmo-2",
+      "parent_periph_id": "atmo-1",
+      "name": "Station Netatmo station niveau sonore",
+      "value_type": "float",
+      "unit": "dB",
+      "room_id": "15225",
+      "room_name": "Salle a manger",
+      "usage_id": "7",
+      "icon": "/img/mdm/01/lecteur_musique.png",
+      "usage_name": "Température",
+      "creation_date": "2016-11-28 21:36:16",
+      "battery": ""
+    },
+    {
+      "periph_id": "atmo-4",
+      "parent_periph_id": "atmo-1",
+      "name": "Station Netatmo station pression",
+      "value_type": "float",
+      "unit": "hPa",
+      "room_id": "15225",
+      "room_name": "Salle a manger",
+      "usage_id": "32",
+      "icon": "/img/mdm/01/pression.png",
+      "usage_name": "Pression",
+      "creation_date": "2016-11-28 21:36:16",
+      "battery": ""
+    },
+    {
+      "periph_id": "atmo-1",
+      "parent_periph_id": "",
+      "name": "Station Netatmo station température",
+      "value_type": "float",
+      "unit": "°C",
+      "room_id": "15225",
+      "room_name": "Salle a manger",
+      "usage_id": "7",
+      "icon": "/img/mdm/01/thermometer.png",
+      "usage_name": "Température",
+      "creation_date": "2016-11-28 21:36:15",
+      "battery": ""
+    },
+    {
+      "periph_id": "atmo-6",
+      "parent_periph_id": "atmo-1",
+      "name": "Station Netatmo extérieur température",
+      "value_type": "float",
+      "unit": "°C",
+      "room_id": "12611",
+      "room_name": "Extérieur",
+      "usage_id": "7",
+      "icon": "/img/mdm/01/thermometer.png",
+      "usage_name": "Température",
+      "creation_date": "2016-11-28 21:36:16",
+      "battery": ""
+    },
+    {
+      "periph_id": "atmo-7",
+      "parent_periph_id": "atmo-1",
+      "name": "Station Netatmo extérieur humidité",
+      "value_type": "float",
+      "unit": "%",
+      "room_id": "12611",
+      "room_name": "Extérieur",
+      "usage_id": "22",
+      "icon": "/img/mdm/01/humidite.png",
+      "usage_name": "Humidité",
+      "creation_date": "2016-11-28 21:36:17",
+      "battery": ""
+    },
+    {
+      "periph_id": "switch_4",
+      "parent_periph_id": "",
+      "name": "Light Switch 1 buttons (NEO-LS1)",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "14566",
+      "room_name": "BUREAU",
+      "usage_id": "1",
+      "icon": "",
+      "usage_name": "Lampe",
+      "creation_date": "2022-11-29 21:46:54",
+      "battery": ""
+    },
+    {
+      "periph_id": "prg_1",
+      "parent_periph_id": "",
+      "name": "programmation",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "1",
+      "room_name": "[Invisible]",
+      "usage_id": "16",
+      "icon": "/img/mdm/01/people_alert_mail_sms.png",
+      "usage_name": "Armement alarme",
+      "creation_date": "2017-03-16 06:58:31",
+      "battery": ""
+    },
+    {
+      "periph_id": "door_switch",
+      "parent_periph_id": "",
+      "name": "Bouton sonnette (TAC06)",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "12615",
+      "room_name": "Porte entrée",
+      "usage_id": "0",
+      "icon": "/img/mdm/01/lecteur_musique.png",
+      "usage_name": "Contrôleur Z-Wave",
+      "creation_date": "2017-12-03 16:23:13",
+      "battery": ""
+    },
+    {
+      "periph_id": "sys_6",
+      "parent_periph_id": "",
+      "name": "Saisons",
+      "value_type": "list",
+      "unit": " ",
+      "room_id": "12798",
+      "room_name": "Appartement",
+      "usage_id": "35",
+      "icon": "/img/mdm/01/user/3028/seasons.png",
+      "usage_name": "Autre indicateur",
+      "creation_date": "2017-09-05 21:14:51",
+      "battery": ""
+    },
+    {
+      "periph_id": "switch_1",
+      "parent_periph_id": "",
+      "name": "Interrupteur simple (FGS211)",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "15252",
+      "room_name": "Atelier",
+      "usage_id": "1",
+      "icon": "",
+      "usage_name": "Lampe",
+      "creation_date": "2017-10-16 17:59:36",
+      "battery": ""
+    },
+    {
+      "periph_id": "message",
+      "parent_periph_id": "",
+      "name": "Messages Box",
+      "value_type": "string",
+      "unit": "Erreur(s)",
+      "room_id": "0",
+      "room_name": "N/R",
+      "usage_id": "23",
+      "icon": "/img/mdm/01/default.png",
+      "usage_name": "Messages",
+      "creation_date": "2017-09-13 13:13:36",
+      "battery": ""
+    },
+    {
+      "periph_id": "sound_level",
+      "parent_periph_id": "",
+      "name": "Volume sonore",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "12798",
+      "room_name": "Appartement",
+      "usage_id": "0",
+      "icon": "/img/mdm/01/volume.png",
+      "usage_name": "Volume",
+      "creation_date": "2017-10-14 12:28:15",
+      "battery": ""
+    },
+    {
+      "periph_id": "cpu",
+      "parent_periph_id": "",
+      "name": "CPU Box",
+      "value_type": "float",
+      "unit": "%",
+      "room_id": "0",
+      "room_name": "N/R",
+      "usage_id": "23",
+      "icon": "/img/mdm/01/graphe.png",
+      "usage_name": "Indicateur interne centrale",
+      "creation_date": "2017-09-13 13:13:35",
+      "battery": ""
+    },
+    {
+      "periph_id": "dhcp_sniffer",
+      "parent_periph_id": "",
+      "name": "Détection réseau",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "0",
+      "room_name": "N/R",
+      "usage_id": "114",
+      "icon": "/img/mdm/01/heartbeat_c1.png",
+      "usage_name": "Détection réseau",
+      "creation_date": "2017-10-14 12:38:31",
+      "battery": ""
+    },
+    {
+      "periph_id": "noise_level",
+      "parent_periph_id": "",
+      "name": "Niveau bruit",
+      "value_type": "float",
+      "unit": "dB",
+      "room_id": "12631",
+      "room_name": "Entrée",
+      "usage_id": "0",
+      "icon": "/img/mdm/01/record.png",
+      "usage_name": "Niveau de bruit",
+      "creation_date": "2017-10-14 12:30:21",
+      "battery": ""
+    },
+    {
+      "periph_id": "space",
+      "parent_periph_id": "",
+      "name": "Espace libre Box",
+      "value_type": "float",
+      "unit": "Ko",
+      "room_id": "0",
+      "room_name": "N/R",
+      "usage_id": "23",
+      "icon": "/img/mdm/01/harddisk.png",
+      "usage_name": "Indicateur interne centrale",
+      "creation_date": "2017-09-13 13:13:35",
+      "battery": ""
+    },
+    {
+      "periph_id": "plug_1-2",
+      "parent_periph_id": "plug_1-1",
+      "name": "Wall Plug (FGWP011) consommation",
+      "value_type": "float",
+      "unit": "W",
+      "room_id": "15225",
+      "room_name": "Salle a manger",
+      "usage_id": "26",
+      "icon": "/img/mdm/01/compteurelec64b.png",
+      "usage_name": "Consomètre",
+      "creation_date": "2017-10-14 16:12:31",
+      "battery": ""
+    },
+    {
+      "periph_id": "plug_1-1",
+      "parent_periph_id": "",
+      "name": "Wall Plug (FGWP011)",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "15225",
+      "room_name": "Salle a manger",
+      "usage_id": "1",
+      "icon": "",
+      "usage_name": "Lampe",
+      "creation_date": "2017-10-14 16:12:30",
+      "battery": ""
+    },
+    {
+      "periph_id": "thermostat_switch",
+      "parent_periph_id": "",
+      "name": "Thermostat Receiver (ASR-ZW)",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "13316",
+      "room_name": "Cuisine",
+      "usage_id": "4",
+      "icon": "",
+      "usage_name": "Chauffage",
+      "creation_date": "2017-11-07 21:30:23",
+      "battery": ""
+    },
+    {
+      "periph_id": "switch_6",
+      "parent_periph_id": "",
+      "name": "Commande parrot on/off",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "15225",
+      "room_name": "Salle a manger",
+      "usage_id": "109",
+      "icon": "",
+      "usage_name": "Volets",
+      "creation_date": "2017-11-23 18:29:58",
+      "battery": ""
+    },
+    {
+      "periph_id": "switch_7",
+      "parent_periph_id": "",
+      "name": "Commande parrot stop",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "14566",
+      "room_name": "BUREAU",
+      "usage_id": "109",
+      "icon": "",
+      "usage_name": "Volets",
+      "creation_date": "2017-11-24 23:03:11",
+      "battery": ""
+    },
+    {
+      "periph_id": "switch_2",
+      "parent_periph_id": "",
+      "name": "Light Switch 1 button (NEO-LS1)",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "15222",
+      "room_name": "Chambre Florian",
+      "usage_id": "1",
+      "icon": "",
+      "usage_name": "Lampe",
+      "creation_date": "2017-11-24 19:28:49",
+      "battery": ""
+    },
+    {
+      "periph_id": "switch_dbl_1-1",
+      "parent_periph_id": "",
+      "name": "Light Switch 2 buttons (NEO-LS2) 1",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "15225",
+      "room_name": "Salle a manger",
+      "usage_id": "1",
+      "icon": "",
+      "usage_name": "Lampe",
+      "creation_date": "2017-11-26 16:47:55",
+      "battery": ""
+    },
+    {
+      "periph_id": "switch_dbl_1-2",
+      "parent_periph_id": "switch_dbl_1-1",
+      "name": "Light Switch 2 buttons (NEO-LS2) 2",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "15225",
+      "room_name": "Salle a manger",
+      "usage_id": "1",
+      "icon": "",
+      "usage_name": "Lampe",
+      "creation_date": "2017-11-26 16:47:55",
+      "battery": ""
+    },
+    {
+      "periph_id": "smoke_detector-1",
+      "parent_periph_id": "",
+      "name": "Smoke Sensor (FGSS001) 1",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "15252",
+      "room_name": "Atelier",
+      "usage_id": "27",
+      "icon": "",
+      "usage_name": "Fumée",
+      "creation_date": "2018-10-18 15:32:44",
+      "battery": "100"
+    },
+    {
+      "periph_id": "smoke_detector-2",
+      "parent_periph_id": "smoke_detector-1",
+      "name": "Smoke Sensor (FGSS001) 1 température",
+      "value_type": "float",
+      "unit": "°C",
+      "room_id": "15252",
+      "room_name": "Atelier",
+      "usage_id": "7",
+      "icon": "/img/mdm/01/thermometer.png",
+      "usage_name": "Température [ambiante]",
+      "creation_date": "2018-10-18 15:32:44",
+      "battery": "100"
+    },
+    {
+      "periph_id": "bedside_1-2",
+      "parent_periph_id": "bedside_1-1",
+      "name": "Bedside lampe couleur",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "15222",
+      "room_name": "Chambre Florian",
+      "usage_id": "43",
+      "icon": "/img/mdm/01/lamp_off.png",
+      "usage_name": "Autre",
+      "creation_date": "2019-03-10 21:16:28",
+      "battery": ""
+    },
+    {
+      "periph_id": "bedside_1-1",
+      "parent_periph_id": "",
+      "name": "Bedside lampe",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "15222",
+      "room_name": "Chambre Florian",
+      "usage_id": "1",
+      "icon": "/img/mdm/01/lamp_off.png",
+      "usage_name": "Lampe",
+      "creation_date": "2019-03-10 21:16:25",
+      "battery": ""
+    },
+    {
+      "periph_id": "bedside_1-3",
+      "parent_periph_id": "bedside_1-1",
+      "name": "Bedside lampe blanc",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "15222",
+      "room_name": "Chambre Florian",
+      "usage_id": "43",
+      "icon": "/img/mdm/01/lamp_off.png",
+      "usage_name": "Autre",
+      "creation_date": "2019-03-10 21:16:31",
+      "battery": ""
+    },
+    {
+      "periph_id": "weather-2",
+      "parent_periph_id": "",
+      "name": "Précipitation exterieur",
+      "value_type": "float",
+      "unit": "mm/j",
+      "room_id": "12611",
+      "room_name": "Extérieur",
+      "usage_id": "41",
+      "icon": "/img/mdm/01/rain.png",
+      "usage_name": "Précipitations",
+      "creation_date": "2019-10-08 06:58:24",
+      "battery": ""
+    },
+    {
+      "periph_id": "jamming",
+      "parent_periph_id": "",
+      "name": "Brouillage",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "0",
+      "room_name": "N/R",
+      "usage_id": "119",
+      "icon": "/img/mdm/01/siren_on.png",
+      "usage_name": "Brouillage",
+      "creation_date": "2019-11-12 06:49:30",
+      "battery": ""
+    },
+    {
+      "periph_id": "linky_1-1",
+      "parent_periph_id": "",
+      "name": "Linky puissance souscrite",
+      "value_type": "float",
+      "unit": "kVA",
+      "room_id": "12798",
+      "room_name": "Appartement",
+      "usage_id": "7",
+      "icon": "/img/mdm/01/consoelec.png",
+      "usage_name": "Température",
+      "creation_date": "2020-03-10 21:05:24",
+      "battery": ""
+    },
+    {
+      "periph_id": "linky_1-3",
+      "parent_periph_id": "linky_1-1",
+      "name": "Linky conso",
+      "value_type": "float",
+      "unit": "W",
+      "room_id": "12798",
+      "room_name": "Appartement",
+      "usage_id": "7",
+      "icon": "/img/mdm/01/consoelec.png",
+      "usage_name": "Température",
+      "creation_date": "2020-03-10 21:05:25",
+      "battery": ""
+    },
+    {
+      "periph_id": "linky_1-2",
+      "parent_periph_id": "linky_1-1",
+      "name": "Linky conso veille",
+      "value_type": "float",
+      "unit": "Wh",
+      "room_id": "12798",
+      "room_name": "Appartement",
+      "usage_id": "7",
+      "icon": "/img/mdm/01/consoelec.png",
+      "usage_name": "Température",
+      "creation_date": "2020-03-10 21:05:25",
+      "battery": ""
+    },
+    {
+      "periph_id": "atmo-9",
+      "parent_periph_id": "atmo-1",
+      "name": "Station Netatmo module interieur température",
+      "value_type": "float",
+      "unit": "°C",
+      "room_id": "15223",
+      "room_name": "Chambre parents",
+      "usage_id": "7",
+      "icon": "/img/mdm/01/thermometer.png",
+      "usage_name": "Température",
+      "creation_date": "2021-01-21 20:20:43",
+      "battery": ""
+    },
+    {
+      "periph_id": "atmo-10",
+      "parent_periph_id": "atmo-1",
+      "name": "Station Netatmo module interieur humidité",
+      "value_type": "float",
+      "unit": "%",
+      "room_id": "15223",
+      "room_name": "Chambre parents",
+      "usage_id": "22",
+      "icon": "/img/mdm/01/humidite.png",
+      "usage_name": "Humidité",
+      "creation_date": "2021-01-21 20:19:52",
+      "battery": ""
+    },
+    {
+      "periph_id": "atmo-12",
+      "parent_periph_id": "atmo-1",
+      "name": "Station Netatmo module interieur batterie",
+      "value_type": "float",
+      "unit": "%",
+      "room_id": "15223",
+      "room_name": "Chambre parents",
+      "usage_id": "7",
+      "icon": "/img/mdm/01/battery.png",
+      "usage_name": "Température",
+      "creation_date": "2021-01-21 20:30:55",
+      "battery": ""
+    },
+    {
+      "periph_id": "atmo-8",
+      "parent_periph_id": "atmo-1",
+      "name": "Station Netatmo extérieur batterie",
+      "value_type": "float",
+      "unit": "%",
+      "room_id": "12611",
+      "room_name": "Extérieur",
+      "usage_id": "7",
+      "icon": "/img/mdm/01/battery.png",
+      "usage_name": "Température",
+      "creation_date": "2021-01-21 20:28:36",
+      "battery": ""
+    },
+    {
+      "periph_id": "atmo-11",
+      "parent_periph_id": "atmo-1",
+      "name": "Station Netatmo module interieur CO2",
+      "value_type": "float",
+      "unit": "ppm",
+      "room_id": "15223",
+      "room_name": "Chambre parents",
+      "usage_id": "35",
+      "icon": "/img/mdm/01/co2bis.png",
+      "usage_name": "Autre indicateur",
+      "creation_date": "2021-01-21 20:15:39",
+      "battery": ""
+    },
+    {
+      "periph_id": "sys_1",
+      "parent_periph_id": "",
+      "name": "reboot",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "12798",
+      "room_name": "Appartement",
+      "usage_id": "43",
+      "icon": "/img/mdm/01/http_request.png",
+      "usage_name": "Autre",
+      "creation_date": "2022-01-11 21:02:37",
+      "battery": ""
+    },
+    {
+      "periph_id": "switch_3-1",
+      "parent_periph_id": "",
+      "name": "Aqara Smart Wall Switch H1 EU (Zigbee)",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "75225",
+      "room_name": "salle de bain",
+      "usage_id": "1",
+      "icon": "/img/mdm/01/badge.png",
+      "usage_name": "Lampe",
+      "creation_date": "2022-08-30 16:56:00",
+      "battery": ""
+    },
+    {
+      "periph_id": "switch_3-4",
+      "parent_periph_id": "switch_3-1",
+      "name": "Aqara Smart Wall Switch H1 EU (Zigbee)",
+      "value_type": "float",
+      "unit": " ",
+      "room_id": "75225",
+      "room_name": "salle de bain",
+      "usage_id": "52",
+      "icon": "/img/mdm/01/remote.png",
+      "usage_name": "Interrupteur/Télécommande",
+      "creation_date": "2022-08-30 21:54:26",
+      "battery": ""
+    },
+    {
+      "periph_id": "switch_3-2",
+      "parent_periph_id": "switch_3-1",
+      "name": "Aqara Smart Wall Switch H1 EU (Zigbee) conso W",
+      "value_type": "float",
+      "unit": "W",
+      "room_id": "75225",
+      "room_name": "salle de bain",
+      "usage_id": "26",
+      "icon": "/img/mdm/01/compteurelec64b.png",
+      "usage_name": "Consommation",
+      "creation_date": "2022-08-30 16:57:32",
+      "battery": ""
+    },
+    {
+      "periph_id": "switch_3-3",
+      "parent_periph_id": "switch_3-1",
+      "name": "Aqara Smart Wall Switch H1 EU (Zigbee)",
+      "value_type": "list",
+      "unit": " ",
+      "room_id": "75225",
+      "room_name": "salle de bain",
+      "usage_id": "26",
+      "icon": "/img/mdm/01/door_open.png",
+      "usage_name": "Consommation",
+      "creation_date": "2022-08-30 16:58:17",
+      "battery": ""
+    },
+    {
+      "periph_id": "switch_5-1",
+      "parent_periph_id": "",
+      "name": "Aqara WS-EUK04 (Zigbee) 1",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "165857",
+      "room_name": "wc",
+      "usage_id": "2",
+      "icon": "/img/mdm/01/badge.png",
+      "usage_name": "Appareil électrique",
+      "creation_date": "2023-02-05 16:25:16",
+      "battery": ""
+    },
+    {
+      "periph_id": "switch_5-3",
+      "parent_periph_id": "switch_5-1",
+      "name": "Aqara WS-EUK04 (Zigbee) 3",
+      "value_type": "float",
+      "unit": "W",
+      "room_id": "165857",
+      "room_name": "wc",
+      "usage_id": "26",
+      "icon": "/img/mdm/01/remote.png",
+      "usage_name": "Consommation",
+      "creation_date": "2023-02-05 16:28:31",
+      "battery": ""
+    },
+    {
+      "periph_id": "switch_5-2",
+      "parent_periph_id": "switch_5-1",
+      "name": "Aqara WS-EUK04 (Zigbee) 2",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "165857",
+      "room_name": "wc",
+      "usage_id": "1",
+      "icon": "/img/mdm/01/badge.png",
+      "usage_name": "Lampe",
+      "creation_date": "2023-02-05 16:29:57",
+      "battery": ""
+    },
+    {
+      "periph_id": "switch_5-4",
+      "parent_periph_id": "switch_5-1",
+      "name": "Aqara WS-EUK04 (Zigbee) 4",
+      "value_type": "float",
+      "unit": " ",
+      "room_id": "165857",
+      "room_name": "wc",
+      "usage_id": "52",
+      "icon": "/img/mdm/01/remote.png",
+      "usage_name": "Interrupteur/Télécommande",
+      "creation_date": "2023-02-06 17:26:58",
+      "battery": ""
+    },
+    {
+      "periph_id": "switch_5-5",
+      "parent_periph_id": "switch_5-1",
+      "name": "Aqara WS-EUK04 (Zigbee) 5",
+      "value_type": "float",
+      "unit": " ",
+      "room_id": "165857",
+      "room_name": "wc",
+      "usage_id": "52",
+      "icon": "/img/mdm/01/remote.png",
+      "usage_name": "Interrupteur/Télécommande",
+      "creation_date": "2023-02-06 17:27:49",
+      "battery": ""
+    },
+    {
+      "periph_id": "switch_5-6",
+      "parent_periph_id": "switch_5-1",
+      "name": "Aqara WS-EUK04 (Zigbee) 6",
+      "value_type": "float",
+      "unit": " ",
+      "room_id": "165857",
+      "room_name": "wc",
+      "usage_id": "52",
+      "icon": "/img/mdm/01/remote.png",
+      "usage_name": "Interrupteur/Télécommande",
+      "creation_date": "2023-02-09 19:32:30",
+      "battery": ""
+    },
+    {
+      "periph_id": "ping",
+      "parent_periph_id": "",
+      "name": "Ping host",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "0",
+      "room_name": "N/R",
+      "usage_id": "0",
+      "icon": "/img/mdm/01/heartbeat.png",
+      "usage_name": "Détecteur réseau",
+      "creation_date": "2023-06-22 19:40:57",
+      "battery": ""
+    },
+    {
+      "periph_id": "battery_status",
+      "parent_periph_id": "",
+      "name": "Etat des batteries",
+      "value_type": "",
+      "unit": "",
+      "room_id": "12798",
+      "room_name": "Appartement",
+      "usage_id": "0",
+      "icon": "/img/mdm/01/user/3028/wbattery.png",
+      "usage_name": "Contenu HTML",
+      "creation_date": "2024-12-19 19:25:25",
+      "battery": ""
+    },
+    {
+      "periph_id": "thermostat",
+      "parent_periph_id": "",
+      "name": "Thermostat (HRT4-ZW / SRT321)",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "15225",
+      "room_name": "Salle a manger",
+      "usage_id": "0",
+      "icon": "/img/mdm/01/consigne64.png",
+      "usage_name": "Thermostat",
+      "creation_date": "2025-08-11 23:20:26",
+      "battery": "67"
+    },
+    {
+      "periph_id": "remote?",
+      "parent_periph_id": "",
+      "name": "IKEA RODRET wireless dimmer",
+      "value_type": "list",
+      "unit": " ",
+      "room_id": "13316",
+      "room_name": "Cuisine",
+      "usage_id": "52",
+      "icon": "/img/mdm/01/white_ring.png",
+      "usage_name": "Interrupteur/Télécommande",
+      "creation_date": "2026-03-27 22:14:44",
+      "battery": ""
+    },
+    {
+      "periph_id": "light_1",
+      "parent_periph_id": "",
+      "name": "IKEA TRADFRI Driver 10W",
+      "value_type": "list",
+      "unit": "",
+      "room_id": "13316",
+      "room_name": "Cuisine",
+      "usage_id": "1",
+      "icon": "/img/mdm/01/lamp_on.png",
+      "usage_name": "Lampe",
+      "creation_date": "2026-03-27 22:07:37",
+      "battery": ""
+    }
+  ],
+  "caract": [
+    {
+      "periph_id": "motion_sensor-2",
+      "name": "FIBARO MOTION SENSOR FGMS-001 2",
+      "last_value": "24.7",
+      "last_value_text": "",
+      "unit": "°C",
+      "battery": "100",
+      "last_value_change": "2026-09-27 12:15:28",
+      "AUTO_OPTIMIZE": "0",
+      "BASIC": "",
+      "CHANNEL_COUNT": "",
+      "DELTA": "0",
+      "GENERIC": "",
+      "HIDE_HEADER": "1",
+      "MANUFACTURER_ID": "",
+      "NODE": "0",
+      "PRODUCT_ID": "",
+      "PRODUCT_TYPE_ID": "",
+      "REJECT_VALUE_GREATER": "",
+      "REJECT_VALUE_SMALLER": "",
+      "ROLE": "",
+      "SECURE": "0",
+      "SPECIFIC": "",
+      "SUPPORTED_CLASSES": "",
+      "TRUNCATE": "0",
+      "chart_anchor_radius": "1",
+      "dots_only": "",
+      "forced_max": "",
+      "forced_min": "",
+      "homekit_hide": "0"
+    },
+    {
+      "periph_id": "motion_sensor-1",
+      "name": "FIBARO MOTION SENSOR FGMS-001 1",
+      "last_value": "0",
+      "last_value_text": "Aucun mouvement",
+      "unit": "",
+      "battery": "100",
+      "last_value_change": "2026-09-27 11:35:18",
+      "AUTO_OPTIMIZE": "0",
+      "BASIC": "4",
+      "CHANNEL_COUNT": "",
+      "DEFAULT": "0",
+      "GENERIC": "20",
+      "INSTR_ICON": "",
+      "MANUFACTURER_ID": "271",
+      "NODE": "32",
+      "NODE_TYPE": "",
+      "PRODUCT_ID": "4097",
+      "PRODUCT_TYPE_ID": "2048",
+      "ROLE": "",
+      "SECURE": "0",
+      "SPECIFIC": "1",
+      "SUPPORTED_CLASSES": "48,132,133,128,143,86,114,134,112,142,49,156,239,48,49,156",
+      "TRUNCATE": "0",
+      "ZWPLUS_VER": "",
+      "homekit_hide": "0"
+    },
+    {
+      "periph_id": "motion_sensor-3",
+      "name": "FIBARO MOTION SENSOR FGMS-001 3",
+      "last_value": "82",
+      "last_value_text": "",
+      "unit": "Lux",
+      "battery": "100",
+      "last_value_change": "2026-09-27 12:05:35",
+      "AUTO_OPTIMIZE": "0",
+      "BASIC": "",
+      "CHANNEL_COUNT": "",
+      "GENERIC": "",
+      "INSTR_ICON": "",
+      "MANUFACTURER_ID": "",
+      "NODE": "0",
+      "NODE_TYPE": "",
+      "PRODUCT_ID": "",
+      "PRODUCT_TYPE_ID": "",
+      "REJECT_VALUE_GREATER": "",
+      "REJECT_VALUE_SMALLER": "",
+      "ROLE": "",
+      "SECURE": "0",
+      "SPECIFIC": "",
+      "SUPPORTED_CLASSES": "",
+      "TRUNCATE": "0",
+      "ZWPLUS_VER": ""
+    },
+    {
+      "periph_id": "thermostat_temp",
+      "name": "Thermostat (HRT4-ZW / SRT321) température",
+      "last_value": "23.8",
+      "last_value_text": "",
+      "unit": "°C",
+      "battery": "67",
+      "last_value_change": "2026-09-27 11:59:12"
+    },
+    {
+      "periph_id": "sys_5",
+      "name": "Etat du jour",
+      "last_value": "0",
+      "last_value_text": "Jour Normal",
+      "unit": " ",
+      "battery": "",
+      "last_value_change": "2026-08-16 00:03:29",
+      "POLLING": "60",
+      "RAW_URL": "http://localhost/script/?exec=Jours_feries.php",
+      "RAW_XPATH": "/root/ferie",
+      "URL": "http://localhost/script/?exec=Jours_feries.php",
+      "VAR1": "",
+      "VAR2": "",
+      "VAR3": "",
+      "XPATH": "/root/ferie",
+      "convert": "0",
+      "debug": "0",
+      "hidden_data": "",
+      "ignore_errors": "0",
+      "value_type": "list"
+    },
+    {
+      "periph_id": "door_bell",
+      "name": "Carillon (TSE03)",
+      "last_value": "0",
+      "last_value_text": "Stoppé",
+      "unit": "",
+      "battery": "10",
+      "last_value_change": "2026-08-29 21:08:11",
+      "AUTO_OPTIMIZE": "0",
+      "BASIC": "4",
+      "CHANNEL_COUNT": "",
+      "GENERIC": "3",
+      "MANUFACTURER_ID": "96",
+      "NODE": "5",
+      "PRODUCT_ID": "1",
+      "PRODUCT_TYPE_ID": "9",
+      "ROLE": "",
+      "SECURE": "0",
+      "SPECIFIC": "12",
+      "SUPPORTED_CLASSES": "37,134,128,114,32,48,133",
+      "TRUNCATE": "0"
+    },
+    {
+      "periph_id": "sys_4",
+      "name": "phase de la journée",
+      "last_value": "1",
+      "last_value_text": "Journée",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "2026-09-27 08:45:00"
+    },
+    {
+      "periph_id": "sys_3",
+      "name": "journée demain",
+      "last_value": "8",
+      "last_value_text": "TéléTravail",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "2026-09-27 00:00:00"
+    },
+    {
+      "periph_id": "sys_2",
+      "name": "journée en cours",
+      "last_value": "2",
+      "last_value_text": "Journée à la maison",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "2026-09-26 00:00:00"
+    },
+    {
+      "periph_id": "sun",
+      "name": "Lever/Coucher du soleil",
+      "last_value": "100",
+      "last_value_text": "Levé",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "2026-09-27 08:03:00",
+      "CITY": "0",
+      "CITY_CODE": "/q/zmw:00000.31.07156",
+      "LATITUDE": "48.858525",
+      "LONGITUDE": "2.294470",
+      "SLEEPING_TIME": "-20",
+      "TRUNCATE": "0",
+      "WAKEUP_TIME": "20"
+    },
+    {
+      "periph_id": "weather-1",
+      "name": "Température exterieur",
+      "last_value": "22.2",
+      "last_value_text": "",
+      "unit": "°C",
+      "battery": "",
+      "last_value_change": "2026-09-27 12:01:08",
+      "CITY": "0",
+      "CITY_CODE": "/q/zmw:00000.1.07157",
+      "LATITUDE": "48.858525",
+      "LONGITUDE": "2.294470",
+      "TRUNCATE": "0",
+      "adder": "0",
+      "homekit_hide": "0",
+      "multiplier": "1"
+    },
+    {
+      "periph_id": "gps",
+      "name": "GPS",
+      "last_value": "48.858525,2.294470",
+      "last_value_text": "",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "2017-10-03 06:51:58",
+      "GPS_SERIAL": "",
+      "PHONE_NUMBER": "",
+      "SEND_MAIL_API": "0"
+    },
+    {
+      "periph_id": "atmo-5",
+      "name": "Station Netatmo station CO2",
+      "last_value": "509",
+      "last_value_text": "",
+      "unit": "ppm",
+      "battery": "",
+      "last_value_change": "2026-09-27 12:28:40",
+      "POLLING": "15",
+      "RAW_URL": "http://localhost/script/?exec=netatmo_oauth.php&oauth_code=[VAR1]",
+      "RAW_XPATH": "/netatmo/internal/co2",
+      "TIMEOUT": "30",
+      "TRUNCATE": "0",
+      "URL": "http://localhost/script/?exec=netatmo_oauth.php&oauth_code=123456789abcdef123456789",
+      "VAR1": "123456789abcdef123456789",
+      "VAR2": "",
+      "VAR3": "",
+      "XPATH": "/netatmo/internal/co2",
+      "convert": "0",
+      "debug": "0",
+      "hidden_data": "",
+      "ignore_errors": "3",
+      "script_origin": "netatmo",
+      "value_type": "float"
+    },
+    {
+      "periph_id": "atmo-3",
+      "name": "Station Netatmo station humidité",
+      "last_value": "67",
+      "last_value_text": "",
+      "unit": "%",
+      "battery": "",
+      "last_value_change": "2026-09-27 08:39:18",
+      "POLLING": "15",
+      "RAW_URL": "http://localhost/script/?exec=netatmo_oauth.php&oauth_code=[VAR1]",
+      "RAW_XPATH": "/netatmo/internal/humidity",
+      "TIMEOUT": "30",
+      "TRUNCATE": "0",
+      "URL": "http://localhost/script/?exec=netatmo_oauth.php&oauth_code=123456789abcdef123456789",
+      "VAR1": "123456789abcdef123456789",
+      "VAR2": "",
+      "VAR3": "",
+      "XPATH": "/netatmo/internal/humidity",
+      "convert": "0",
+      "debug": "0",
+      "hidden_data": "",
+      "homekit_hide": "0",
+      "ignore_errors": "3",
+      "script_origin": "netatmo",
+      "value_type": "float"
+    },
+    {
+      "periph_id": "atmo-2",
+      "name": "Station Netatmo station niveau sonore",
+      "last_value": "33",
+      "last_value_text": "",
+      "unit": "dB",
+      "battery": "",
+      "last_value_change": "2026-09-27 11:38:18",
+      "POLLING": "15",
+      "RAW_URL": "http://localhost/script/?exec=netatmo_oauth.php&oauth_code=[VAR1]",
+      "RAW_XPATH": "/netatmo/internal/soundlevel",
+      "TIMEOUT": "30",
+      "TRUNCATE": "0",
+      "URL": "http://localhost/script/?exec=netatmo_oauth.php&oauth_code=123456789abcdef123456789",
+      "VAR1": "123456789abcdef123456789",
+      "VAR2": "",
+      "VAR3": "",
+      "XPATH": "/netatmo/internal/soundlevel",
+      "convert": "0",
+      "debug": "0",
+      "hidden_data": "",
+      "ignore_errors": "3",
+      "script_origin": "netatmo",
+      "value_type": "float"
+    },
+    {
+      "periph_id": "atmo-4",
+      "name": "Station Netatmo station pression",
+      "last_value": "1004.6",
+      "last_value_text": "",
+      "unit": "hPa",
+      "battery": "",
+      "last_value_change": "2026-09-27 12:24:34",
+      "POLLING": "15",
+      "RAW_URL": "http://localhost/script/?exec=netatmo_oauth.php&oauth_code=[VAR1]",
+      "RAW_XPATH": "/netatmo/internal/pressure",
+      "TIMEOUT": "30",
+      "TRUNCATE": "0",
+      "URL": "http://localhost/script/?exec=netatmo_oauth.php&oauth_code=123456789abcdef123456789",
+      "VAR1": "123456789abcdef123456789",
+      "VAR2": "",
+      "VAR3": "",
+      "XPATH": "/netatmo/internal/pressure",
+      "convert": "0",
+      "debug": "0",
+      "hidden_data": "",
+      "ignore_errors": "3",
+      "script_origin": "netatmo",
+      "value_type": "float"
+    },
+    {
+      "periph_id": "atmo-1",
+      "name": "Station Netatmo station température",
+      "last_value": "23.8",
+      "last_value_text": "",
+      "unit": "°C",
+      "battery": "",
+      "last_value_change": "2026-09-27 12:09:33",
+      "POLLING": "15",
+      "RAW_URL": "http://localhost/script/?exec=netatmo_oauth.php&oauth_code=[VAR1]",
+      "RAW_XPATH": "/netatmo/internal/temperature",
+      "TIMEOUT": "30",
+      "TRUNCATE": "0",
+      "URL": "http://localhost/script/?exec=netatmo_oauth.php&oauth_code=123456789abcdef123456789",
+      "VAR1": "123456789abcdef123456789",
+      "VAR2": "",
+      "VAR3": "",
+      "XPATH": "/netatmo/internal/temperature",
+      "convert": "0",
+      "debug": "0",
+      "hidden_data": "",
+      "homekit_hide": "0",
+      "ignore_errors": "3",
+      "script_origin": "netatmo",
+      "value_type": "float"
+    },
+    {
+      "periph_id": "atmo-6",
+      "name": "Station Netatmo extérieur température",
+      "last_value": "24.2",
+      "last_value_text": "",
+      "unit": "°C",
+      "battery": "",
+      "last_value_change": "2026-09-27 12:24:34",
+      "POLLING": "15",
+      "RAW_URL": "http://localhost/script/?exec=netatmo_oauth.php&oauth_code=[VAR1]",
+      "RAW_XPATH": "/netatmo/extension_1/temperature",
+      "TIMEOUT": "30",
+      "TRUNCATE": "0",
+      "URL": "http://localhost/script/?exec=netatmo_oauth.php&oauth_code=123456789abcdef123456789",
+      "VAR1": "123456789abcdef123456789",
+      "VAR2": "",
+      "VAR3": "",
+      "XPATH": "/netatmo/extension_1/temperature",
+      "convert": "0",
+      "debug": "0",
+      "hidden_data": "",
+      "homekit_hide": "0",
+      "ignore_errors": "3",
+      "script_origin": "netatmo",
+      "value_type": "float"
+    },
+    {
+      "periph_id": "atmo-7",
+      "name": "Station Netatmo extérieur humidité",
+      "last_value": "61",
+      "last_value_text": "",
+      "unit": "%",
+      "battery": "",
+      "last_value_change": "2026-09-27 12:23:21",
+      "POLLING": "15",
+      "RAW_URL": "http://localhost/script/?exec=netatmo_oauth.php&oauth_code=[VAR1]",
+      "RAW_XPATH": "/netatmo/extension_1/humidity",
+      "TIMEOUT": "30",
+      "TRUNCATE": "0",
+      "URL": "http://localhost/script/?exec=netatmo_oauth.php&oauth_code=123456789abcdef123456789",
+      "VAR1": "123456789abcdef123456789",
+      "VAR2": "",
+      "VAR3": "",
+      "XPATH": "/netatmo/extension_1/humidity",
+      "convert": "0",
+      "debug": "0",
+      "hidden_data": "",
+      "homekit_hide": "0",
+      "ignore_errors": "3",
+      "script_origin": "netatmo",
+      "value_type": "float"
+    },
+    {
+      "periph_id": "switch_4",
+      "name": "Light Switch 1 buttons (NEO-LS1)",
+      "last_value": "0",
+      "last_value_text": "Off",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "2026-09-26 18:34:39",
+      "AUTO_OPTIMIZE": "0",
+      "BASIC": "4",
+      "CHANNEL_COUNT": "1",
+      "GENERIC": "10",
+      "INSTR_ICON": "",
+      "LIMIT10": "1",
+      "MANUFACTURER_ID": "600",
+      "NODE": "11",
+      "NODE_TYPE": "",
+      "PRODUCT_ID": "4236",
+      "PRODUCT_TYPE_ID": "3",
+      "ROLE": "5",
+      "SECURE": "0",
+      "SPECIFIC": "1",
+      "SUPPORTED_CLASSES": "94:2,133:2,89:1,134:2,114:2,90:1,115:1,37:1,39:1,112:1",
+      "TRUNCATE": "0",
+      "ZWPLUS_VER": "",
+      "ghome_hide": "0",
+      "ghome_name": "Lampe Bureau",
+      "homekit_hide": "0"
+    },
+    {
+      "periph_id": "prg_1",
+      "name": "programmation",
+      "last_value": "0",
+      "last_value_text": "Désactivée",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "2026-09-27 07:50:00",
+      "allow_change": "1",
+      "ghome_hide|0": "0",
+      "ghome_hide|12": "0",
+      "value_type": "list"
+    },
+    {
+      "periph_id": "door_switch",
+      "name": "Bouton sonnette (TAC06)",
+      "last_value": "0",
+      "last_value_text": "",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "2025-05-24 22:47:42",
+      "AUTO_OPTIMIZE": "0",
+      "BASIC": "1",
+      "CHANNEL_COUNT": "1",
+      "GENERIC": "1",
+      "MANUFACTURER_ID": "96",
+      "NODE": "2",
+      "PRODUCT_ID": "1",
+      "PRODUCT_TYPE_ID": "10",
+      "ROLE": "-1",
+      "SECURE": "0",
+      "SPECIFIC": "1",
+      "SUPPORTED_CLASSES": "134:1,114:1",
+      "TRUNCATE": "0"
+    },
+    {
+      "periph_id": "sys_6",
+      "name": "Saisons",
+      "last_value": "2",
+      "last_value_text": "Automne",
+      "unit": " ",
+      "battery": "",
+      "last_value_change": "2026-09-21 00:18:23",
+      "POLLING": "60",
+      "RAW_URL": "http://localhost/script/?exec=seasons.php",
+      "RAW_XPATH": "/root/season_id",
+      "TRUNCATE": "0",
+      "URL": "http://localhost/script/?exec=seasons.php",
+      "VAR1": "",
+      "VAR2": "",
+      "VAR3": "",
+      "XPATH": "/root/season_id",
+      "convert": "0",
+      "debug": "0",
+      "hidden_data": "",
+      "ignore_errors": "3",
+      "script_origin": "seasons",
+      "value_type": "list"
+    },
+    {
+      "periph_id": "switch_1",
+      "name": "Interrupteur simple (FGS211)",
+      "last_value": "0",
+      "last_value_text": "Off",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "2026-09-26 18:10:32",
+      "AUTO_OPTIMIZE": "0",
+      "BASIC": "4",
+      "CHANNEL_COUNT": "2",
+      "GENERIC": "10",
+      "INSTR_ICON": "",
+      "LIMIT10": "1",
+      "MANUFACTURER_ID": "271",
+      "NODE": "33",
+      "NODE_TYPE": "",
+      "PRODUCT_ID": "4106",
+      "PRODUCT_TYPE_ID": "1024",
+      "ROLE": "-1",
+      "SECURE": "0",
+      "SPECIFIC": "1",
+      "SUPPORTED_CLASSES": "114:1,134:1,112:1,133:2,142:1,96:2,37:0,39:1,122:1,115:1",
+      "TRUNCATE": "0",
+      "ZWPLUS_VER": "",
+      "ghome_hide": "0",
+      "ghome_name": "Lampe Atelier",
+      "homekit_hide": "0",
+      "sms_allow": "1"
+    },
+    {
+      "periph_id": "message",
+      "name": "Messages Box",
+      "last_value": "",
+      "last_value_text": "",
+      "unit": "Erreur(s)",
+      "battery": "",
+      "last_value_change": "",
+      "NUM_LIGNES": "5",
+      "SHOW_MAIL": "1",
+      "SHOW_SMS": "1",
+      "SHOW_WEB": "1",
+      "TRUNCATE": "0"
+    },
+    {
+      "periph_id": "sound_level",
+      "name": "Volume sonore",
+      "last_value": "0",
+      "last_value_text": "Muet",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "2018-06-15 19:21:08",
+      "TRUNCATE": "0"
+    },
+    {
+      "periph_id": "cpu",
+      "name": "CPU Box",
+      "last_value": "39.4",
+      "last_value_text": "",
+      "unit": "%",
+      "battery": "",
+      "last_value_change": "2026-08-20 03:00:11",
+      "AUTO_OPTIMIZE": "0",
+      "BASIC": "",
+      "CHANNEL_COUNT": "",
+      "GENERIC": "",
+      "HIDE_HEADER": "1",
+      "MANUFACTURER_ID": "",
+      "NODE": "",
+      "PRODUCT_ID": "",
+      "PRODUCT_TYPE_ID": "",
+      "REJECT_VALUE_GREATER": "",
+      "REJECT_VALUE_SMALLER": "",
+      "ROLE": "",
+      "SECURE": "0",
+      "SPECIFIC": "",
+      "SUPPORTED_CLASSES": "",
+      "TRUNCATE": "0",
+      "chart_anchor_radius": "1",
+      "dots_only": "",
+      "forced_max": "",
+      "forced_min": ""
+    },
+    {
+      "periph_id": "dhcp_sniffer",
+      "name": "Détection réseau",
+      "last_value": "70:EE:50:1D:EB:A6",
+      "last_value_text": "",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "2026-09-27 12:27:40",
+      "GenericPluginDriverName": "dhcp_sniffer",
+      "TRUNCATE": "30"
+    },
+    {
+      "periph_id": "noise_level",
+      "name": "Niveau bruit",
+      "last_value": "41.35",
+      "last_value_text": "",
+      "unit": "dB",
+      "battery": "",
+      "last_value_change": "2026-09-27 12:30:09",
+      "Measure0": "32,-65",
+      "Measure1": "35,-50",
+      "Measure2": "40,-45",
+      "Measure3": "45,-41",
+      "Measure4": "50,-38",
+      "Measure5": "55,-34",
+      "Measure6": "70,-22",
+      "Offset": "0",
+      "TRUNCATE": "0"
+    },
+    {
+      "periph_id": "space",
+      "name": "Espace libre Box",
+      "last_value": "2264820",
+      "last_value_text": "",
+      "unit": "Ko",
+      "battery": "",
+      "last_value_change": "2026-09-27 12:21:33",
+      "AUTO_OPTIMIZE": "0",
+      "BASIC": "",
+      "CHANNEL_COUNT": "",
+      "GENERIC": "",
+      "HIDE_HEADER": "1",
+      "MANUFACTURER_ID": "",
+      "NODE": "",
+      "PRODUCT_ID": "",
+      "PRODUCT_TYPE_ID": "",
+      "REJECT_VALUE_GREATER": "",
+      "REJECT_VALUE_SMALLER": "",
+      "ROLE": "",
+      "SECURE": "0",
+      "SPECIFIC": "",
+      "SUPPORTED_CLASSES": "",
+      "TRUNCATE": "0",
+      "chart_anchor_radius": "1",
+      "dots_only": "",
+      "forced_max": "",
+      "forced_min": ""
+    },
+    {
+      "periph_id": "plug_1-2",
+      "name": "Wall Plug (FGWP011) consommation",
+      "last_value": "0",
+      "last_value_text": "",
+      "unit": "W",
+      "battery": "",
+      "last_value_change": "2025-07-28 14:23:52"
+    },
+    {
+      "periph_id": "plug_1-1",
+      "name": "Wall Plug (FGWP011)",
+      "last_value": "0",
+      "last_value_text": "Off",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "2026-07-16 04:53:52",
+      "AUTO_OPTIMIZE": "0",
+      "BASIC": "4",
+      "CHANNEL_COUNT": "1",
+      "GENERIC": "10",
+      "LIMIT10": "1",
+      "MANUFACTURER_ID": "271",
+      "NODE": "3",
+      "PRODUCT_ID": "4096",
+      "PRODUCT_TYPE_ID": "1536",
+      "ROLE": "-1",
+      "SECURE": "0",
+      "SPECIFIC": "0",
+      "SUPPORTED_CLASSES": "114:1,134:1,112:1,133:2,142:2,37:1,115:1,50:2,49:2,122:1",
+      "TRUNCATE": "0",
+      "ghome_hide": "0",
+      "homekit_hide": "0"
+    },
+    {
+      "periph_id": "thermostat_switch",
+      "name": "Thermostat Receiver (ASR-ZW)",
+      "last_value": "0",
+      "last_value_text": "Off",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "2026-09-27 11:13:59",
+      "BASIC": "4",
+      "CHANNEL_COUNT": "1",
+      "GENERIC": "8",
+      "MANUFACTURER_ID": "89",
+      "NODE": "26",
+      "PRODUCT_ID": "1",
+      "PRODUCT_TYPE_ID": "3",
+      "ROLE": "-1",
+      "SECURE": "0",
+      "SPECIFIC": "0",
+      "SUPPORTED_CLASSES": "114:1,134:1,64:1,37:1",
+      "TRUNCATE": "0",
+      "homekit_hide": "0"
+    },
+    {
+      "periph_id": "switch_6",
+      "name": "Commande parrot on/off",
+      "last_value": "100",
+      "last_value_text": "Ouvert",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "2026-09-27 08:15:01",
+      "Address": "A1",
+      "Protocol": "PARROT",
+      "ghome_hide": "0",
+      "homekit_hide": "0",
+      "sms_allow": "1"
+    },
+    {
+      "periph_id": "switch_7",
+      "name": "Commande parrot stop",
+      "last_value": "100",
+      "last_value_text": "Stop",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "2026-04-12 09:47:45",
+      "Address": "B2",
+      "Protocol": "PARROT",
+      "homekit_hide": "0"
+    },
+    {
+      "periph_id": "switch_2",
+      "name": "Light Switch 1 button (NEO-LS1)",
+      "last_value": "0",
+      "last_value_text": "Off",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "2026-09-25 19:13:08",
+      "AUTO_OPTIMIZE": "0",
+      "BASIC": "4",
+      "CHANNEL_COUNT": "1",
+      "GENERIC": "10",
+      "INSTR_ICON": "",
+      "LIMIT10": "1",
+      "MANUFACTURER_ID": "600",
+      "NODE": "6",
+      "NODE_TYPE": "",
+      "PRODUCT_ID": "4236",
+      "PRODUCT_TYPE_ID": "3",
+      "ROLE": "5",
+      "SECURE": "0",
+      "SPECIFIC": "1",
+      "SUPPORTED_CLASSES": "94:2,133:2,89:1,134:2,114:2,90:1,115:1,37:1,39:1,112:1",
+      "TRUNCATE": "0",
+      "ZWPLUS_VER": "",
+      "ghome_hide": "0",
+      "homekit_hide": "0",
+      "sms_allow": "1"
+    },
+    {
+      "periph_id": "switch_dbl_1-1",
+      "name": "Light Switch 2 buttons (NEO-LS2) 1",
+      "last_value": "0",
+      "last_value_text": "Off",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "2026-09-27 00:19:15",
+      "AUTO_OPTIMIZE": "0",
+      "BASIC": "4",
+      "CHANNEL_COUNT": "2",
+      "GENERIC": "10",
+      "INSTR_ICON": "",
+      "LIMIT10": "1",
+      "MANUFACTURER_ID": "600",
+      "NODE": "7",
+      "NODE_TYPE": "",
+      "PRODUCT_ID": "4235",
+      "PRODUCT_TYPE_ID": "3",
+      "ROLE": "5",
+      "SECURE": "0",
+      "SPECIFIC": "1",
+      "SUPPORTED_CLASSES": "94:2,134:2,114:2,90:1,115:1,133:2,89:1,142:3,96:4,39:1,37:1,112:1",
+      "TRUNCATE": "0",
+      "ZWPLUS_VER": "",
+      "ghome_hide": "0",
+      "homekit_hide": "0"
+    },
+    {
+      "periph_id": "switch_dbl_1-2",
+      "name": "Light Switch 2 buttons (NEO-LS2) 2",
+      "last_value": "0",
+      "last_value_text": "Off",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "2026-09-25 19:53:49",
+      "AUTO_OPTIMIZE": "0",
+      "BASIC": "",
+      "CHANNEL_COUNT": "",
+      "GENERIC": "",
+      "LIMIT10": "1",
+      "MANUFACTURER_ID": "",
+      "NODE": "0",
+      "PRODUCT_ID": "",
+      "PRODUCT_TYPE_ID": "",
+      "ROLE": "",
+      "SECURE": "0",
+      "SPECIFIC": "",
+      "SUPPORTED_CLASSES": "",
+      "TRUNCATE": "0",
+      "ghome_hide": "0",
+      "homekit_hide": "0"
+    },
+    {
+      "periph_id": "smoke_detector-1",
+      "name": "Smoke Sensor (FGSS001) 1",
+      "last_value": "0",
+      "last_value_text": "OK",
+      "unit": "",
+      "battery": "100",
+      "last_value_change": "2025-05-19 18:13:15",
+      "AUTO_OPTIMIZE": "0",
+      "BASIC": "4",
+      "CHANNEL_COUNT": "1",
+      "GENERIC": "A1",
+      "INSTR_ICON": "",
+      "MANUFACTURER_ID": "271",
+      "NODE": "8",
+      "NODE_TYPE": "",
+      "PRODUCT_ID": "4096",
+      "PRODUCT_TYPE_ID": "3072",
+      "ROLE": "-1",
+      "SECURE": "0",
+      "SPECIFIC": "2",
+      "SUPPORTED_CLASSES": "156:1,49:1,134:2,114:1,112:1,133:2,142:2,122:1,115:1,139:1,145:1,86:1,132:1,128:1",
+      "TRUNCATE": "0",
+      "ZWPLUS_VER": "",
+      "homekit_hide": "0"
+    },
+    {
+      "periph_id": "smoke_detector-2",
+      "name": "Smoke Sensor (FGSS001) 1 température",
+      "last_value": "22.3",
+      "last_value_text": "",
+      "unit": "°C",
+      "battery": "100",
+      "last_value_change": "2026-09-27 11:32:10",
+      "AUTO_OPTIMIZE": "0",
+      "BASIC": "",
+      "CHANNEL_COUNT": "",
+      "DELTA": "0",
+      "GENERIC": "",
+      "HIDE_HEADER": "1",
+      "INSTR_ICON": "",
+      "MANUFACTURER_ID": "",
+      "NODE": "0",
+      "NODE_TYPE": "",
+      "PRODUCT_ID": "",
+      "PRODUCT_TYPE_ID": "",
+      "REJECT_VALUE_GREATER": "",
+      "REJECT_VALUE_SMALLER": "",
+      "ROLE": "",
+      "SECURE": "0",
+      "SPECIFIC": "",
+      "SUPPORTED_CLASSES": "",
+      "TRUNCATE": "0",
+      "ZWPLUS_VER": "",
+      "chart_anchor_radius": "1",
+      "dots_only": "",
+      "forced_max": "",
+      "forced_min": "",
+      "homekit_hide": "0"
+    },
+    {
+      "periph_id": "bedside_1-2",
+      "name": "Bedside lampe couleur",
+      "last_value": "unreachable",
+      "last_value_text": "Non joignable",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "2023-10-19 19:38:54",
+      "POLLING": "1",
+      "RAW_URL": "",
+      "RAW_XPATH": "",
+      "TIMEOUT": "30",
+      "TRUNCATE": "0",
+      "URL": "",
+      "VAR1": "192.168.0.14",
+      "VAR2": "F9:9A:96:A5:5A:A5 5A:A5:5A:A5:5A:A5",
+      "VAR3": "",
+      "XPATH": "",
+      "convert": "0",
+      "debug": "0",
+      "hidden_data": "",
+      "ignore_errors": "3"
+    },
+    {
+      "periph_id": "bedside_1-1",
+      "name": "Bedside lampe",
+      "last_value": "unreachable",
+      "last_value_text": "Non joignable",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "2026-07-02 01:25:21",
+      "POLLING": "1",
+      "RAW_URL": "http://localhost/script/?exec=yeelight.php&ip_or_mac=[VAR1]",
+      "RAW_XPATH": "/yeelight/bright",
+      "TIMEOUT": "30",
+      "TRUNCATE": "0",
+      "URL": "http://localhost/script/?exec=yeelight.php&ip_or_mac=192.168.0.14",
+      "VAR1": "192.168.0.14",
+      "VAR2": "F9:9A:96:A5:5A:A5 5A:A5:5A:A5:5A:A5",
+      "VAR3": "",
+      "XPATH": "/yeelight/bright",
+      "convert": "0",
+      "debug": "0",
+      "hidden_data": "",
+      "homekit_hide": "0",
+      "ignore_errors": "3",
+      "script_origin": "yeelight"
+    },
+    {
+      "periph_id": "bedside_1-3",
+      "name": "Bedside lampe blanc",
+      "last_value": "unreachable",
+      "last_value_text": "Non joignable",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "2023-10-19 19:38:54",
+      "POLLING": "1",
+      "RAW_URL": "",
+      "RAW_XPATH": "",
+      "TIMEOUT": "30",
+      "TRUNCATE": "0",
+      "URL": "",
+      "VAR1": "192.168.0.14",
+      "VAR2": "F9:9A:96:A5:5A:A5 5A:A5:5A:A5:5A:A5",
+      "VAR3": "",
+      "XPATH": "",
+      "convert": "0",
+      "debug": "0",
+      "hidden_data": "",
+      "ignore_errors": "3"
+    },
+    {
+      "periph_id": "weather-2",
+      "name": "Précipitation exterieur",
+      "last_value": "0",
+      "last_value_text": "",
+      "unit": "mm/j",
+      "battery": "",
+      "last_value_change": "2026-09-20 21:13:43",
+      "CITY": "0",
+      "CITY_CODE": "/q/zmw:00000.1.07157",
+      "LATITUDE": "48.858525",
+      "LONGITUDE": "2.294470",
+      "TRUNCATE": "0",
+      "adder": "0",
+      "multiplier": "1"
+    },
+    {
+      "periph_id": "jamming",
+      "name": "Brouillage",
+      "last_value": "0",
+      "last_value_text": "OK",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "2026-07-04 15:36:25",
+      "Address": "0",
+      "Protocol": "JAMMING"
+    },
+    {
+      "periph_id": "linky_1-1",
+      "name": "Linky puissance souscrite",
+      "last_value": "6",
+      "last_value_text": "",
+      "unit": "kVA",
+      "battery": "",
+      "last_value_change": "2020-03-10 22:06:02",
+      "POLLING": "60",
+      "RAW_URL": "http://localhost/script/?exec=enedis_oauth.php&&usage_point_id=[VAR1]",
+      "RAW_XPATH": "//subscribed_power change(' kVA', '')",
+      "TIMEOUT": "30",
+      "TRUNCATE": "0",
+      "URL": "http://localhost/script/?exec=enedis_oauth.php&&usage_point_id=123456789123456789",
+      "VAR1": "123456789123456789",
+      "VAR2": "",
+      "VAR3": "",
+      "XPATH": "//subscribed_power change(' kVA', '')",
+      "convert": "0",
+      "debug": "0",
+      "hidden_data": "plugin=enedis_app",
+      "homekit_hide": "1",
+      "ignore_errors": "3",
+      "script_origin": "enedis_app",
+      "value_type": "float"
+    },
+    {
+      "periph_id": "linky_1-3",
+      "name": "Linky conso",
+      "last_value": "334",
+      "last_value_text": "",
+      "unit": "W",
+      "battery": "",
+      "last_value_change": "2020-08-18 00:00:00",
+      "POLLING": "60",
+      "RAW_URL": "http://localhost/script/?exec=enedis_oauth.php&usage_point_id=[VAR1]",
+      "RAW_XPATH": "/NULL",
+      "TIMEOUT": "30",
+      "TRUNCATE": "0",
+      "URL": "http://localhost/script/?exec=enedis_oauth.php&usage_point_id=123456789123456789",
+      "VAR1": "123456789123456789",
+      "VAR2": "",
+      "VAR3": "",
+      "XPATH": "/NULL",
+      "convert": "0",
+      "debug": "0",
+      "hidden_data": "plugin=enedis_app",
+      "homekit_hide": "1",
+      "ignore_errors": "3",
+      "value_type": "float"
+    },
+    {
+      "periph_id": "linky_1-2",
+      "name": "Linky conso veille",
+      "last_value": "16621",
+      "last_value_text": "",
+      "unit": "Wh",
+      "battery": "",
+      "last_value_change": "2021-05-26 00:00:00",
+      "POLLING": "60",
+      "RAW_URL": "http://localhost/script/?exec=enedis_oauth.php&usage_point_id=[VAR1]",
+      "RAW_XPATH": "/NULL",
+      "TIMEOUT": "30",
+      "TRUNCATE": "0",
+      "URL": "http://localhost/script/?exec=enedis_oauth.php&usage_point_id=123456789123456789",
+      "VAR1": "123456789123456789",
+      "VAR2": "",
+      "VAR3": "",
+      "XPATH": "/NULL",
+      "convert": "0",
+      "debug": "0",
+      "hidden_data": "plugin=enedis_app",
+      "homekit_hide": "1",
+      "ignore_errors": "3",
+      "value_type": "float"
+    },
+    {
+      "periph_id": "atmo-9",
+      "name": "Station Netatmo module interieur température",
+      "last_value": "23",
+      "last_value_text": "",
+      "unit": "°C",
+      "battery": "",
+      "last_value_change": "2026-09-27 12:24:34",
+      "POLLING": "15",
+      "RAW_URL": "http://localhost/script/?exec=netatmo_oauth.php&oauth_code=[VAR1]",
+      "RAW_XPATH": "/netatmo/external/temperature",
+      "TIMEOUT": "30",
+      "TRUNCATE": "0",
+      "URL": "http://localhost/script/?exec=netatmo_oauth.php&oauth_code=123456789abcdef123456789",
+      "VAR1": "123456789abcdef123456789",
+      "VAR2": "",
+      "VAR3": "",
+      "XPATH": "/netatmo/external/temperature",
+      "convert": "0",
+      "debug": "0",
+      "hidden_data": "",
+      "homekit_hide": "0",
+      "ignore_errors": "3",
+      "script_origin": "netatmo",
+      "value_type": "float"
+    },
+    {
+      "periph_id": "atmo-10",
+      "name": "Station Netatmo module interieur humidité",
+      "last_value": "64",
+      "last_value_text": "",
+      "unit": "%",
+      "battery": "",
+      "last_value_change": "2026-09-27 11:54:32",
+      "POLLING": "15",
+      "RAW_URL": "http://localhost/script/?exec=netatmo_oauth.php&oauth_code=[VAR1]",
+      "RAW_XPATH": "/netatmo/external/humidity",
+      "TIMEOUT": "30",
+      "TRUNCATE": "0",
+      "URL": "http://localhost/script/?exec=netatmo_oauth.php&oauth_code=123456789abcdef123456789",
+      "VAR1": "123456789abcdef123456789",
+      "VAR2": "",
+      "VAR3": "",
+      "XPATH": "/netatmo/external/humidity",
+      "convert": "0",
+      "debug": "0",
+      "hidden_data": "",
+      "homekit_hide": "0",
+      "ignore_errors": "3",
+      "script_origin": "netatmo",
+      "value_type": "float"
+    },
+    {
+      "periph_id": "atmo-12",
+      "name": "Station Netatmo module interieur batterie",
+      "last_value": "23",
+      "last_value_text": "",
+      "unit": "%",
+      "battery": "",
+      "last_value_change": "2026-09-27 11:53:19",
+      "POLLING": "15",
+      "RAW_URL": "http://localhost/script/?exec=netatmo_oauth.php&oauth_code=[VAR1]",
+      "RAW_XPATH": "/netatmo/external/battery_percent",
+      "TIMEOUT": "30",
+      "TRUNCATE": "0",
+      "URL": "http://localhost/script/?exec=netatmo_oauth.php&oauth_code=123456789abcdef123456789",
+      "VAR1": "123456789abcdef123456789",
+      "VAR2": "",
+      "VAR3": "",
+      "XPATH": "/netatmo/external/battery_percent",
+      "convert": "0",
+      "debug": "0",
+      "hidden_data": "",
+      "homekit_hide": "0",
+      "ignore_errors": "3",
+      "script_origin": "netatmo",
+      "value_type": "float"
+    },
+    {
+      "periph_id": "atmo-8",
+      "name": "Station Netatmo extérieur batterie",
+      "last_value": "58",
+      "last_value_text": "",
+      "unit": "%",
+      "battery": "",
+      "last_value_change": "2026-09-18 12:54:00",
+      "POLLING": "15",
+      "RAW_URL": "http://localhost/script/?exec=netatmo_oauth.php&oauth_code=[VAR1]",
+      "RAW_XPATH": "/netatmo/extension_1/battery_percent",
+      "TIMEOUT": "30",
+      "TRUNCATE": "0",
+      "URL": "http://localhost/script/?exec=netatmo_oauth.php&oauth_code=123456789abcdef123456789",
+      "VAR1": "123456789abcdef123456789",
+      "VAR2": "",
+      "VAR3": "",
+      "XPATH": "/netatmo/extension_1/battery_percent",
+      "convert": "0",
+      "debug": "0",
+      "hidden_data": "",
+      "homekit_hide": "0",
+      "ignore_errors": "3",
+      "script_origin": "netatmo",
+      "value_type": "float"
+    },
+    {
+      "periph_id": "atmo-11",
+      "name": "Station Netatmo module interieur CO2",
+      "last_value": "566",
+      "last_value_text": "",
+      "unit": "ppm",
+      "battery": "",
+      "last_value_change": "2026-09-27 12:23:20",
+      "POLLING": "15",
+      "RAW_URL": "http://localhost/script/?exec=netatmo_oauth.php&oauth_code=[VAR1]",
+      "RAW_XPATH": "/netatmo/external/co2",
+      "TIMEOUT": "30",
+      "TRUNCATE": "0",
+      "URL": "http://localhost/script/?exec=netatmo_oauth.php&oauth_code=123456789abcdef123456789",
+      "VAR1": "123456789abcdef123456789",
+      "VAR2": "",
+      "VAR3": "",
+      "XPATH": "/netatmo/external/co2",
+      "convert": "0",
+      "debug": "0",
+      "hidden_data": "",
+      "ignore_errors": "3",
+      "script_origin": "netatmo",
+      "value_type": "float"
+    },
+    {
+      "periph_id": "sys_1",
+      "name": "reboot",
+      "last_value": "0",
+      "last_value_text": "reboot",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "2023-08-30 19:49:45",
+      "POLLING": "0",
+      "RAW_URL": "",
+      "RAW_XPATH": "",
+      "TIMEOUT": "30",
+      "TRUNCATE": "0",
+      "URL": "",
+      "VAR1": "http://192.168.0.22/tools/?action=reboot",
+      "VAR2": "",
+      "VAR3": "",
+      "XPATH": "",
+      "convert": "0",
+      "debug": "0",
+      "hidden_data": "",
+      "ignore_errors": "3"
+    },
+    {
+      "periph_id": "switch_3-1",
+      "name": "Aqara Smart Wall Switch H1 EU (Zigbee)",
+      "last_value": "0",
+      "last_value_text": "Off",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "2026-09-27 11:21:52",
+      "Address": "3D46:01:0006:0000",
+      "POLLING": "0",
+      "bit_fields": "4001",
+      "date_code": "01-29-2021",
+      "device_id": "0100",
+      "endpoint": "01",
+      "ext_addr": "54EF4410001CD5CD",
+      "ghome_hide": "0",
+      "ghome_name": "Salle de bain",
+      "hardware_version": "1",
+      "homekit_hide": "0",
+      "input_clusters": "0000,0002,0003,0004,0005,0006,0012,FCC0",
+      "mac_flags": "8E",
+      "manufacturer_code": "115F",
+      "manufacturer_name": "LUMI",
+      "model_identifier": "lumi.switch.n1aeu1",
+      "output_clusters": "000A,0019",
+      "power_source": "1",
+      "profile": "0104"
+    },
+    {
+      "periph_id": "switch_3-4",
+      "name": "Aqara Smart Wall Switch H1 EU (Zigbee)",
+      "last_value": "1",
+      "last_value_text": "Double appui",
+      "unit": " ",
+      "battery": "",
+      "last_value_change": "2026-09-27 11:21:52",
+      "Address": "3D46:29:0012:0055",
+      "POLLING": "0",
+      "adder": "0",
+      "bit_fields": "4001",
+      "date_code": "01-29-2021",
+      "device_id": "",
+      "endpoint": "",
+      "ext_addr": "54EF4410001CD5CD",
+      "hardware_version": "1",
+      "input_clusters": "",
+      "mac_flags": "8E",
+      "manufacturer_code": "115F",
+      "manufacturer_name": "LUMI",
+      "model_identifier": "lumi.switch.n1aeu1",
+      "multiplier": "1",
+      "output_clusters": "",
+      "power_source": "1",
+      "profile": "",
+      "value_type": "float"
+    },
+    {
+      "periph_id": "switch_3-2",
+      "name": "Aqara Smart Wall Switch H1 EU (Zigbee) conso W",
+      "last_value": "0",
+      "last_value_text": "",
+      "unit": "W",
+      "battery": "",
+      "last_value_change": "2026-09-27 11:13:23",
+      "Address": "3D46:15:000C:0055",
+      "POLLING": "0",
+      "adder": "0",
+      "bit_fields": "4001",
+      "date_code": "01-29-2021",
+      "device_id": "",
+      "endpoint": "",
+      "ext_addr": "54EF4410001CD5CD",
+      "hardware_version": "1",
+      "input_clusters": "",
+      "mac_flags": "8E",
+      "manufacturer_code": "115F",
+      "manufacturer_name": "LUMI",
+      "model_identifier": "lumi.switch.n1aeu1",
+      "multiplier": "1",
+      "output_clusters": "",
+      "power_source": "1",
+      "profile": "",
+      "value_type": "float"
+    },
+    {
+      "periph_id": "switch_3-3",
+      "name": "Aqara Smart Wall Switch H1 EU (Zigbee)",
+      "last_value": "5434726400",
+      "last_value_text": "",
+      "unit": " ",
+      "battery": "",
+      "last_value_change": "2022-12-14 17:20:04",
+      "Address": "3D46:01:1000:00F5",
+      "POLLING": "0",
+      "adder": "0",
+      "bit_fields": "4001",
+      "date_code": "01-29-2021",
+      "device_id": "0100",
+      "endpoint": "01",
+      "ext_addr": "54EF4410001CD5CD",
+      "hardware_version": "1",
+      "input_clusters": "0000,0002,0003,0004,0005,0006,0012,FCC0",
+      "mac_flags": "8E",
+      "manufacturer_code": "115F",
+      "manufacturer_name": "LUMI",
+      "model_identifier": "lumi.switch.n1aeu1",
+      "multiplier": "1",
+      "output_clusters": "000A,0019",
+      "power_source": "1",
+      "profile": "0104",
+      "value_type": "list"
+    },
+    {
+      "periph_id": "switch_5-1",
+      "name": "Aqara WS-EUK04 (Zigbee) 1",
+      "last_value": "0",
+      "last_value_text": "Off",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "2026-09-27 11:25:47",
+      "Address": "55F0:02:0006:0000",
+      "POLLING": "0",
+      "bit_fields": "",
+      "date_code": "01-29-2021",
+      "device_id": "",
+      "endpoint": "",
+      "ext_addr": "54EF44100028477C",
+      "ghome_hide": "0",
+      "hardware_version": "1",
+      "homekit_hide": "0",
+      "input_clusters": "",
+      "mac_flags": "8E",
+      "manufacturer_code": "",
+      "manufacturer_name": "LUMI",
+      "model_identifier": "lumi.switch.n2aeu1",
+      "output_clusters": "",
+      "power_source": "1",
+      "profile": ""
+    },
+    {
+      "periph_id": "switch_5-3",
+      "name": "Aqara WS-EUK04 (Zigbee) 3",
+      "last_value": "0",
+      "last_value_text": "",
+      "unit": "W",
+      "battery": "",
+      "last_value_change": "2026-09-27 11:26:39",
+      "Address": "55F0:15:000C:0055",
+      "POLLING": "0",
+      "adder": "0",
+      "bit_fields": "4001",
+      "date_code": "01-29-2021",
+      "device_id": "",
+      "endpoint": "",
+      "ext_addr": "54EF44100028477C",
+      "hardware_version": "1",
+      "input_clusters": "",
+      "mac_flags": "8E",
+      "manufacturer_code": "115F",
+      "manufacturer_name": "LUMI",
+      "model_identifier": "lumi.switch.n2aeu1",
+      "multiplier": "1",
+      "output_clusters": "",
+      "power_source": "1",
+      "profile": "",
+      "value_type": "float"
+    },
+    {
+      "periph_id": "switch_5-2",
+      "name": "Aqara WS-EUK04 (Zigbee) 2",
+      "last_value": "0",
+      "last_value_text": "Off",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "2026-09-27 11:26:16",
+      "Address": "55F0:01:0006:0000",
+      "POLLING": "30",
+      "bit_fields": "",
+      "date_code": "01-29-2021",
+      "device_id": "",
+      "endpoint": "",
+      "ext_addr": "54EF44100028477C",
+      "ghome_hide": "0",
+      "ghome_name": "Lampe WC",
+      "hardware_version": "1",
+      "homekit_hide": "0",
+      "input_clusters": "",
+      "mac_flags": "8E",
+      "manufacturer_code": "",
+      "manufacturer_name": "LUMI",
+      "model_identifier": "lumi.switch.n2aeu1",
+      "output_clusters": "",
+      "power_source": "1",
+      "profile": ""
+    },
+    {
+      "periph_id": "switch_5-4",
+      "name": "Aqara WS-EUK04 (Zigbee) 4",
+      "last_value": "1",
+      "last_value_text": "Double appui",
+      "unit": " ",
+      "battery": "",
+      "last_value_change": "2026-09-27 11:26:16",
+      "Address": "55F0:29:0012:0055",
+      "POLLING": "0",
+      "adder": "0",
+      "bit_fields": "4001",
+      "date_code": "01-29-2021",
+      "device_id": "",
+      "endpoint": "",
+      "ext_addr": "54EF44100028477C",
+      "hardware_version": "1",
+      "input_clusters": "",
+      "mac_flags": "8E",
+      "manufacturer_code": "115F",
+      "manufacturer_name": "LUMI",
+      "model_identifier": "lumi.switch.n2aeu1",
+      "multiplier": "1",
+      "output_clusters": "",
+      "power_source": "1",
+      "profile": "",
+      "value_type": "float"
+    },
+    {
+      "periph_id": "switch_5-5",
+      "name": "Aqara WS-EUK04 (Zigbee) 5",
+      "last_value": "1",
+      "last_value_text": "Double appui",
+      "unit": " ",
+      "battery": "",
+      "last_value_change": "2026-09-27 11:25:48",
+      "Address": "55F0:2A:0012:0055",
+      "POLLING": "0",
+      "adder": "0",
+      "bit_fields": "4001",
+      "date_code": "01-29-2021",
+      "device_id": "",
+      "endpoint": "",
+      "ext_addr": "54EF44100028477C",
+      "hardware_version": "1",
+      "input_clusters": "",
+      "mac_flags": "8E",
+      "manufacturer_code": "115F",
+      "manufacturer_name": "LUMI",
+      "model_identifier": "lumi.switch.n2aeu1",
+      "multiplier": "1",
+      "output_clusters": "",
+      "power_source": "1",
+      "profile": "",
+      "value_type": "float"
+    },
+    {
+      "periph_id": "switch_5-6",
+      "name": "Aqara WS-EUK04 (Zigbee) 6",
+      "last_value": "1",
+      "last_value_text": "Double appui",
+      "unit": " ",
+      "battery": "",
+      "last_value_change": "2026-09-27 11:25:46",
+      "Address": "55F0:33:0012:0055",
+      "POLLING": "0",
+      "adder": "0",
+      "bit_fields": "4001",
+      "date_code": "01-29-2021",
+      "device_id": "",
+      "endpoint": "",
+      "ext_addr": "54EF44100028477C",
+      "hardware_version": "1",
+      "input_clusters": "",
+      "mac_flags": "8E",
+      "manufacturer_code": "115F",
+      "manufacturer_name": "LUMI",
+      "model_identifier": "lumi.switch.n2aeu1",
+      "multiplier": "1",
+      "output_clusters": "",
+      "power_source": "1",
+      "profile": "",
+      "value_type": "float"
+    },
+    {
+      "periph_id": "ping",
+      "name": "Ping host",
+      "last_value": "100",
+      "last_value_text": "Présent",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "2026-08-25 19:02:19",
+      "DISAPPEAR_DELAY_MIN": "5",
+      "IP_OR_DOMAIN": "192.168.0.1",
+      "MAC": "",
+      "description": "0",
+      "link": "0"
+    },
+    {
+      "periph_id": "battery_status",
+      "name": "Etat des batteries",
+      "last_value": "",
+      "last_value_text": "",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "",
+      "CONTENT_HEIGHT": "74",
+      "CONTENT_HTML": "",
+      "CONTENT_NOSCROLL": "1",
+      "CONTENT_URL": "/script/?exec=2bw_battery.php&id=3380100&max=[VAR1]",
+      "SMARTPHONE_HEIGHT": "2",
+      "TRUNCATE": "0",
+      "URL": "/script/?exec=2bw_battery.php&id=3380100&max=100",
+      "USE_PROXY": "",
+      "VAR1": "100",
+      "VAR2": "",
+      "VAR3": "",
+      "script_origin": "bbwbattery"
+    },
+    {
+      "periph_id": "thermostat",
+      "name": "Thermostat (HRT4-ZW / SRT321)",
+      "last_value": "19",
+      "last_value_text": "19°C",
+      "unit": "",
+      "battery": "67",
+      "last_value_change": "2026-09-27 11:23:24",
+      "AUTO_OPTIMIZE": "0",
+      "BASIC": "1",
+      "CHANNEL_COUNT": "1",
+      "GENERIC": "8",
+      "INSTR_ICON": "",
+      "MANUFACTURER_ID": "89",
+      "NODE": "31",
+      "NODE_TYPE": "",
+      "PRODUCT_ID": "3",
+      "PRODUCT_TYPE_ID": "1",
+      "ROLE": "-1",
+      "SECURE": "0",
+      "SPECIFIC": "0",
+      "SUPPORTED_CLASSES": "114:1,134:1,128:1,132:2,49:1,67:1,133:1,112:1",
+      "TRUNCATE": "0",
+      "ZWPLUS_VER": ""
+    },
+    {
+      "periph_id": "remote?",
+      "name": "IKEA RODRET wireless dimmer",
+      "last_value": "0",
+      "last_value_text": "Off",
+      "unit": " ",
+      "battery": "",
+      "last_value_change": "2026-09-19 20:55:43",
+      "Address": "C21A:01:0006:0000",
+      "POLLING": "0",
+      "adder": "0",
+      "bit_fields": "",
+      "date_code": "20240220",
+      "device_id": "0820",
+      "endpoint": "01",
+      "ext_addr": "08FD52FFFE5EB6A6",
+      "hardware_version": "1",
+      "input_clusters": "0000,0001,0003,0004,0020,1000,FC7C",
+      "mac_flags": "80",
+      "manufacturer_code": "",
+      "manufacturer_name": "IKEA of Sweden",
+      "model_identifier": "RODRET wireless dimmer",
+      "multiplier": "1",
+      "output_clusters": "0003,0004,0006,0008,0019,1000",
+      "power_source": "3",
+      "profile": "0104",
+      "value_type": "list"
+    },
+    {
+      "periph_id": "light_1",
+      "name": "IKEA TRADFRI Driver 10W",
+      "last_value": "0",
+      "last_value_text": "Off",
+      "unit": "",
+      "battery": "",
+      "last_value_change": "2026-09-19 20:55:43",
+      "Address": "4246:01:0008:0000",
+      "POLLING": "0",
+      "bit_fields": "4001",
+      "date_code": "20181203",
+      "device_id": "0101",
+      "endpoint": "01",
+      "ext_addr": "F0FD45FFFEF86F9F",
+      "hardware_version": "1",
+      "input_clusters": "0000,0003,0004,0005,0006,0008,1000,FC57",
+      "mac_flags": "8E",
+      "manufacturer_code": "117C",
+      "manufacturer_name": "IKEA of Sweden",
+      "model_identifier": "TRADFRI Driver 10W",
+      "output_clusters": "0019",
+      "power_source": "1",
+      "profile": "0104"
+    }
+  ],
+  "value_list": [
+    {
+      "periph_id": "motion_sensor-2",
+      "values": []
+    },
+    {
+      "periph_id": "motion_sensor-1",
+      "values": [
+        {
+          "value": "0",
+          "description": "Aucun mouvement",
+          "icon": "pirinactif.png"
+        },
+        {
+          "value": "100",
+          "description": "Mouvement",
+          "icon": "pir.png"
+        },
+        {
+          "value": "50",
+          "description": "Vibration",
+          "icon": "siren_on.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "motion_sensor-3",
+      "values": []
+    },
+    {
+      "periph_id": "thermostat_temp",
+      "values": []
+    },
+    {
+      "periph_id": "sys_5",
+      "values": [
+        {
+          "value": "0",
+          "description": "Jour Normal",
+          "icon": "Calendar.png"
+        },
+        {
+          "value": "1",
+          "description": "Jour de l'An",
+          "icon": "Calendar.png"
+        },
+        {
+          "value": "2",
+          "description": "Lundi de Pâques",
+          "icon": "Calendar.png"
+        },
+        {
+          "value": "3",
+          "description": "Fête du travail",
+          "icon": "Calendar.png"
+        },
+        {
+          "value": "4",
+          "description": "8 Mai 1945",
+          "icon": "Calendar.png"
+        },
+        {
+          "value": "5",
+          "description": "Ascension",
+          "icon": "Calendar.png"
+        },
+        {
+          "value": "6",
+          "description": "Pentecôte",
+          "icon": "Calendar.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "door_bell",
+      "values": [
+        {
+          "value": "0",
+          "description": "Stoppé",
+          "icon": "default_off.png"
+        },
+        {
+          "value": "100",
+          "description": "Carillone",
+          "icon": "play.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "sys_4",
+      "values": [
+        {
+          "value": "0",
+          "description": "Lever",
+          "icon": "timewakeup.png"
+        },
+        {
+          "value": "1",
+          "description": "Journée",
+          "icon": "timeatwork.png"
+        },
+        {
+          "value": "3",
+          "description": "Retour du travail",
+          "icon": "timebackhome.png"
+        },
+        {
+          "value": "4",
+          "description": "Soirée",
+          "icon": "timeevening.png"
+        },
+        {
+          "value": "5",
+          "description": "Couché",
+          "icon": "timesleeping.png"
+        },
+        {
+          "value": "6",
+          "description": "Absence",
+          "icon": "timeaway.png"
+        },
+        {
+          "value": "7",
+          "description": "avant levé",
+          "icon": "timewakeup.png"
+        },
+        {
+          "value": "8",
+          "description": "Absence Journée",
+          "icon": "timeaway.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "sys_3",
+      "values": [
+        {
+          "value": "1",
+          "description": "Journée de travail",
+          "icon": "daywork.png"
+        },
+        {
+          "value": "10",
+          "description": "Retour Vacances",
+          "icon": "timeaway.png"
+        },
+        {
+          "value": "2",
+          "description": "Journée à la maison",
+          "icon": "dayhome.png"
+        },
+        {
+          "value": "3",
+          "description": "Journée de vacances",
+          "icon": "dayholidays.png"
+        },
+        {
+          "value": "4",
+          "description": "Malade Maison",
+          "icon": "timebackhome.png"
+        },
+        {
+          "value": "5",
+          "description": "vacances Maison",
+          "icon": "dayholidays.png"
+        },
+        {
+          "value": "7",
+          "description": "Journée de travail courte",
+          "icon": "daywork.png"
+        },
+        {
+          "value": "8",
+          "description": "TéléTravail",
+          "icon": "daywork.png"
+        },
+        {
+          "value": "9",
+          "description": "Départ Vacances",
+          "icon": "dayholidays.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "sys_2",
+      "values": [
+        {
+          "value": "1",
+          "description": "Journée de travail",
+          "icon": "daywork.png"
+        },
+        {
+          "value": "10",
+          "description": "Retour Vacances",
+          "icon": "timeaway.png"
+        },
+        {
+          "value": "2",
+          "description": "Journée à la maison",
+          "icon": "dayhome.png"
+        },
+        {
+          "value": "3",
+          "description": "Journée de vacances",
+          "icon": "dayholidays.png"
+        },
+        {
+          "value": "4",
+          "description": "Malade Maison",
+          "icon": "timebackhome.png"
+        },
+        {
+          "value": "5",
+          "description": "vacances Maison",
+          "icon": "dayholidays.png"
+        },
+        {
+          "value": "7",
+          "description": "Journée de travail courte",
+          "icon": "daywork.png"
+        },
+        {
+          "value": "8",
+          "description": "TéléTravail",
+          "icon": "daywork.png"
+        },
+        {
+          "value": "9",
+          "description": "Départ Vacances",
+          "icon": "dayholidays.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "sun",
+      "values": [
+        {
+          "value": "0",
+          "description": "Couché",
+          "icon": "sun_0.png"
+        },
+        {
+          "value": "100",
+          "description": "Levé",
+          "icon": "sun_100.png"
+        },
+        {
+          "value": "20",
+          "description": "Se couche",
+          "icon": "sun_0.png"
+        },
+        {
+          "value": "80",
+          "description": "Se lève",
+          "icon": "sun_100.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "weather-1",
+      "values": []
+    },
+    {
+      "periph_id": "gps",
+      "values": []
+    },
+    {
+      "periph_id": "atmo-5",
+      "values": []
+    },
+    {
+      "periph_id": "atmo-3",
+      "values": []
+    },
+    {
+      "periph_id": "atmo-2",
+      "values": []
+    },
+    {
+      "periph_id": "atmo-4",
+      "values": []
+    },
+    {
+      "periph_id": "atmo-1",
+      "values": []
+    },
+    {
+      "periph_id": "atmo-6",
+      "values": []
+    },
+    {
+      "periph_id": "atmo-7",
+      "values": []
+    },
+    {
+      "periph_id": "switch_4",
+      "values": [
+        {
+          "value": "-2",
+          "description": "Secteur coupé",
+          "icon": "prise_c2.png"
+        },
+        {
+          "value": "-3",
+          "description": "Secteur rétabli",
+          "icon": "prise_c1.png"
+        },
+        {
+          "value": "0",
+          "description": "Off",
+          "icon": "lamp_off.png"
+        },
+        {
+          "value": "100",
+          "description": "On",
+          "icon": "lamp_on.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "prg_1",
+      "values": [
+        {
+          "value": "0",
+          "description": "Désactivée",
+          "icon": "people_alert_off.png"
+        },
+        {
+          "value": "12",
+          "description": "Activée",
+          "icon": "people_alert_mail_sms.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "door_switch",
+      "values": []
+    },
+    {
+      "periph_id": "sys_6",
+      "values": [
+        {
+          "value": "1",
+          "description": "Hiver",
+          "icon": "user/3028/seasons_1.png"
+        },
+        {
+          "value": "2",
+          "description": "Automne",
+          "icon": "user/3028/seasons_2.png"
+        },
+        {
+          "value": "3",
+          "description": "Eté",
+          "icon": "user/3028/seasons_3.png"
+        },
+        {
+          "value": "4",
+          "description": "Printemps",
+          "icon": "user/3028/seasons_4.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "switch_1",
+      "values": [
+        {
+          "value": "-2",
+          "description": "Secteur coupé",
+          "icon": "prise_c2.png"
+        },
+        {
+          "value": "-3",
+          "description": "Secteur rétabli",
+          "icon": "prise_c1.png"
+        },
+        {
+          "value": "0",
+          "description": "Off",
+          "icon": "lamp_off.png"
+        },
+        {
+          "value": "100",
+          "description": "On",
+          "icon": "lamp_on.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "message",
+      "values": []
+    },
+    {
+      "periph_id": "sound_level",
+      "values": [
+        {
+          "value": "0",
+          "description": "Muet",
+          "icon": "forbidden.png"
+        },
+        {
+          "value": "10",
+          "description": "10%",
+          "icon": "volume.png"
+        },
+        {
+          "value": "100",
+          "description": "Max",
+          "icon": "volume.png"
+        },
+        {
+          "value": "20",
+          "description": "20%",
+          "icon": "volume.png"
+        },
+        {
+          "value": "30",
+          "description": "30%",
+          "icon": "volume.png"
+        },
+        {
+          "value": "40",
+          "description": "40%",
+          "icon": "volume.png"
+        },
+        {
+          "value": "50",
+          "description": "50%",
+          "icon": "volume.png"
+        },
+        {
+          "value": "60",
+          "description": "60%",
+          "icon": "volume.png"
+        },
+        {
+          "value": "70",
+          "description": "70%",
+          "icon": "volume.png"
+        },
+        {
+          "value": "80",
+          "description": "80%",
+          "icon": "volume.png"
+        },
+        {
+          "value": "90",
+          "description": "90%",
+          "icon": "volume.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "cpu",
+      "values": []
+    },
+    {
+      "periph_id": "dhcp_sniffer",
+      "values": [
+        {
+          "value": "1A:D6:C7:01:00:97",
+          "description": "Iphone Francois 1A",
+          "icon": "heartbeat_c1.png"
+        },
+        {
+          "value": "1A:D6:C7:19:7F:8A",
+          "description": "Iphone 6 Lydie",
+          "icon": "heartbeat_c1.png"
+        },
+        {
+          "value": "1A:D6:C7:5E:0C:C9",
+          "description": "Bouton Chambre Florian",
+          "icon": "heartbeat_c1.png"
+        },
+        {
+          "value": "22:96:7F:97:9E:97",
+          "description": "Iphone Francois A4",
+          "icon": "heartbeat_c1.png"
+        },
+        {
+          "value": "78:FD:94:19:7F:8A",
+          "description": "Iphone 6 Lydie",
+          "icon": "heartbeat_c1.png"
+        },
+        {
+          "value": "B0:E8:92:92:17:12",
+          "description": "Imprimante Epson",
+          "icon": "heartbeat_c1.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "noise_level",
+      "values": []
+    },
+    {
+      "periph_id": "space",
+      "values": []
+    },
+    {
+      "periph_id": "plug_1-2",
+      "values": []
+    },
+    {
+      "periph_id": "plug_1-1",
+      "values": [
+        {
+          "value": "-2",
+          "description": "Secteur coupé",
+          "icon": "prise_c2.png"
+        },
+        {
+          "value": "-3",
+          "description": "Secteur rétabli",
+          "icon": "prise_c1.png"
+        },
+        {
+          "value": "0",
+          "description": "Off",
+          "icon": "lamp_off.png"
+        },
+        {
+          "value": "100",
+          "description": "On",
+          "icon": "lamp_on.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "thermostat_switch",
+      "values": [
+        {
+          "value": "0",
+          "description": "Off",
+          "icon": "chauffage_off.png"
+        },
+        {
+          "value": "1",
+          "description": "On",
+          "icon": "chauffage.png"
+        },
+        {
+          "value": "100",
+          "description": "On",
+          "icon": "chauffage.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "switch_6",
+      "values": [
+        {
+          "value": "0",
+          "description": "Fermé",
+          "icon": "shutter_closed.png"
+        },
+        {
+          "value": "100",
+          "description": "Ouvert",
+          "icon": "shutter_open.png"
+        },
+        {
+          "value": "ASSOC",
+          "description": "ASSOC",
+          "icon": "check.png"
+        },
+        {
+          "value": "DISSOC",
+          "description": "DISSOC",
+          "icon": "forbidden.png"
+        },
+        {
+          "value": "MY",
+          "description": "Stop",
+          "icon": "shutter_stop.png"
+        },
+        {
+          "value": "PARROTLEARN OFF",
+          "description": "PARROTLEARN OFF",
+          "icon": "heartbeat_b2.png"
+        },
+        {
+          "value": "PARROTLEARN ON",
+          "description": "PARROTLEARN ON",
+          "icon": "heartbeat_b1.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "switch_7",
+      "values": [
+        {
+          "value": "0",
+          "description": "Fermé",
+          "icon": "shutter_closed.png"
+        },
+        {
+          "value": "100",
+          "description": "Stop",
+          "icon": "shutter_open.png"
+        },
+        {
+          "value": "ASSOC",
+          "description": "ASSOC",
+          "icon": "check.png"
+        },
+        {
+          "value": "DISSOC",
+          "description": "DISSOC",
+          "icon": "forbidden.png"
+        },
+        {
+          "value": "MY",
+          "description": "Stop(MY)",
+          "icon": "shutter_stop.png"
+        },
+        {
+          "value": "PARROTLEARN OFF",
+          "description": "PARROTLEARN OFF",
+          "icon": "heartbeat_b2.png"
+        },
+        {
+          "value": "PARROTLEARN ON",
+          "description": "PARROTLEARN ON",
+          "icon": "heartbeat_b1.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "switch_2",
+      "values": [
+        {
+          "value": "-2",
+          "description": "Secteur coupé",
+          "icon": "prise_c2.png"
+        },
+        {
+          "value": "-3",
+          "description": "Secteur rétabli",
+          "icon": "prise_c1.png"
+        },
+        {
+          "value": "0",
+          "description": "Off",
+          "icon": "lamp_off.png"
+        },
+        {
+          "value": "100",
+          "description": "On",
+          "icon": "lamp_on.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "switch_dbl_1-1",
+      "values": [
+        {
+          "value": "-2",
+          "description": "Secteur coupé",
+          "icon": "prise_c2.png"
+        },
+        {
+          "value": "-3",
+          "description": "Secteur rétabli",
+          "icon": "prise_c1.png"
+        },
+        {
+          "value": "0",
+          "description": "Off",
+          "icon": "lamp_off.png"
+        },
+        {
+          "value": "100",
+          "description": "On",
+          "icon": "lamp_on.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "switch_dbl_1-2",
+      "values": [
+        {
+          "value": "-2",
+          "description": "Secteur coupé",
+          "icon": "prise_c2.png"
+        },
+        {
+          "value": "-3",
+          "description": "Secteur rétabli",
+          "icon": "prise_c1.png"
+        },
+        {
+          "value": "0",
+          "description": "Off",
+          "icon": "lamp_off.png"
+        },
+        {
+          "value": "100",
+          "description": "On",
+          "icon": "lamp_on.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "smoke_detector-1",
+      "values": [
+        {
+          "value": "0",
+          "description": "OK",
+          "icon": "smoke_ok.png"
+        },
+        {
+          "value": "100",
+          "description": "Alarme",
+          "icon": "smoke_alarm.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "smoke_detector-2",
+      "values": []
+    },
+    {
+      "periph_id": "bedside_1-2",
+      "values": [
+        {
+          "value": "000000",
+          "description": "Noir",
+          "icon": "user/3028/lamp_000000.png"
+        },
+        {
+          "value": "002FA7",
+          "description": "Bleu Klein",
+          "icon": "user/3028/lamp_002FA7.png"
+        },
+        {
+          "value": "003399",
+          "description": "Smalt",
+          "icon": "user/3028/lamp_003399.png"
+        },
+        {
+          "value": "00561B",
+          "description": "Vert impérial",
+          "icon": "user/3028/lamp_00561B.png"
+        },
+        {
+          "value": "007FFF",
+          "description": "Azur",
+          "icon": "user/3028/lamp_007FFF.png"
+        },
+        {
+          "value": "008020",
+          "description": "Vert",
+          "icon": "user/3028/lamp_008020.png"
+        },
+        {
+          "value": "008080",
+          "description": "Sarcelle",
+          "icon": "user/3028/lamp_008080.png"
+        },
+        {
+          "value": "0080FF",
+          "description": "Bleu",
+          "icon": "user/3028/lamp_0080FF.png"
+        },
+        {
+          "value": "00FF7F",
+          "description": "Vert printemps",
+          "icon": "user/3028/lamp_00FF7F.png"
+        },
+        {
+          "value": "0131B4",
+          "description": "Safre",
+          "icon": "user/3028/lamp_0131B4.png"
+        },
+        {
+          "value": "01D758",
+          "description": "Émeraude",
+          "icon": "user/3028/lamp_01D758.png"
+        },
+        {
+          "value": "03224C",
+          "description": "Bleu marine",
+          "icon": "user/3028/lamp_03224C.png"
+        },
+        {
+          "value": "048B9A",
+          "description": "Bleu canard",
+          "icon": "user/3028/lamp_048B9A.png"
+        },
+        {
+          "value": "067790",
+          "description": "Bleu paon",
+          "icon": "user/3028/lamp_067790.png"
+        },
+        {
+          "value": "095228",
+          "description": "Vert sapin",
+          "icon": "user/3028/lamp_095228.png"
+        },
+        {
+          "value": "096A09",
+          "description": "Vert bouteille",
+          "icon": "user/3028/lamp_096A09.png"
+        },
+        {
+          "value": "0F056B",
+          "description": "Bleu nuit",
+          "icon": "user/3028/lamp_0F056B.png"
+        },
+        {
+          "value": "149414",
+          "description": "Sinople",
+          "icon": "user/3028/lamp_149414.png"
+        },
+        {
+          "value": "16B84E",
+          "description": "Menthe",
+          "icon": "user/3028/lamp_16B84E.png"
+        },
+        {
+          "value": "175732",
+          "description": "Vert épinard",
+          "icon": "user/3028/lamp_175732.png"
+        },
+        {
+          "value": "18391E",
+          "description": "Vert de chrome",
+          "icon": "user/3028/lamp_18391E.png"
+        },
+        {
+          "value": "1B019B",
+          "description": "Bleu outremer",
+          "icon": "user/3028/lamp_1B019B.png"
+        },
+        {
+          "value": "1B4F08",
+          "description": "Vert de Hooker",
+          "icon": "user/3028/lamp_1B4F08.png"
+        },
+        {
+          "value": "1D4851",
+          "description": "Bleu pétrole",
+          "icon": "user/3028/lamp_1D4851.png"
+        },
+        {
+          "value": "1FA055",
+          "description": "Malachite",
+          "icon": "user/3028/lamp_1FA055.png"
+        },
+        {
+          "value": "22427C",
+          "description": "Bleu de cobalt",
+          "icon": "user/3028/lamp_22427C.png"
+        },
+        {
+          "value": "22780F",
+          "description": "Vert de vessie",
+          "icon": "user/3028/lamp_22780F.png"
+        },
+        {
+          "value": "24445C",
+          "description": "Bleu de Prusse",
+          "icon": "user/3028/lamp_24445C.png"
+        },
+        {
+          "value": "25FDE9",
+          "description": "Turquoise",
+          "icon": "user/3028/lamp_25FDE9.png"
+        },
+        {
+          "value": "26619C",
+          "description": "Lapis-lazuli",
+          "icon": "user/3028/lamp_26619C.png"
+        },
+        {
+          "value": "26C4EC",
+          "description": "Bleu céleste",
+          "icon": "user/3028/lamp_26C4EC.png"
+        },
+        {
+          "value": "2BFAFA",
+          "description": "Cyan",
+          "icon": "user/3028/lamp_2BFAFA.png"
+        },
+        {
+          "value": "2C75FF",
+          "description": "Bleu électrique",
+          "icon": "user/3028/lamp_2C75FF.png"
+        },
+        {
+          "value": "2E006C",
+          "description": "Indigo (teinture)",
+          "icon": "user/3028/lamp_2E006C.png"
+        },
+        {
+          "value": "2F1B0C",
+          "description": "Cachou",
+          "icon": "user/3028/lamp_2F1B0C.png"
+        },
+        {
+          "value": "303030",
+          "description": "Anthracite",
+          "icon": "user/3028/lamp_303030.png"
+        },
+        {
+          "value": "318CE7",
+          "description": "Bleu roi",
+          "icon": "user/3028/lamp_318CE7.png"
+        },
+        {
+          "value": "34C924",
+          "description": "Vert pomme",
+          "icon": "user/3028/lamp_34C924.png"
+        },
+        {
+          "value": "357AB7",
+          "description": "Cæruleum",
+          "icon": "user/3028/lamp_357AB7.png"
+        },
+        {
+          "value": "370028",
+          "description": "Aubergine",
+          "icon": "user/3028/lamp_370028.png"
+        },
+        {
+          "value": "3A8EBA",
+          "description": "Bleu acier",
+          "icon": "user/3028/lamp_3A8EBA.png"
+        },
+        {
+          "value": "3AF24B",
+          "description": "Vert perroquet",
+          "icon": "user/3028/lamp_3AF24B.png"
+        },
+        {
+          "value": "3F2204",
+          "description": "Brou de noix",
+          "icon": "user/3028/lamp_3F2204.png"
+        },
+        {
+          "value": "40826D",
+          "description": "Viride",
+          "icon": "user/3028/lamp_40826D.png"
+        },
+        {
+          "value": "425B8A",
+          "description": "Bleu turquin",
+          "icon": "user/3028/lamp_425B8A.png"
+        },
+        {
+          "value": "462E01",
+          "description": "Café",
+          "icon": "user/3028/lamp_462E01.png"
+        },
+        {
+          "value": "463F32",
+          "description": "Taupe",
+          "icon": "user/3028/lamp_463F32.png"
+        },
+        {
+          "value": "4CA66B",
+          "description": "Prasin",
+          "icon": "user/3028/lamp_4CA66B.png"
+        },
+        {
+          "value": "4E1609",
+          "description": "Puce",
+          "icon": "user/3028/lamp_4E1609.png"
+        },
+        {
+          "value": "4E3D28",
+          "description": "Bitume",
+          "icon": "user/3028/lamp_4E3D28.png"
+        },
+        {
+          "value": "5472AE",
+          "description": "Bleu barbeau",
+          "icon": "user/3028/lamp_5472AE.png"
+        },
+        {
+          "value": "556B2F",
+          "description": "Vert olive",
+          "icon": "user/3028/lamp_556B2F.png"
+        },
+        {
+          "value": "568203",
+          "description": "Avocat",
+          "icon": "user/3028/lamp_568203.png"
+        },
+        {
+          "value": "57D53B",
+          "description": "Vert prairie",
+          "icon": "user/3028/lamp_57D53B.png"
+        },
+        {
+          "value": "582900",
+          "description": "Marron",
+          "icon": "user/3028/lamp_582900.png"
+        },
+        {
+          "value": "5A3A22",
+          "description": "Chocolat",
+          "icon": "user/3028/lamp_5A3A22.png"
+        },
+        {
+          "value": "5A5E6B",
+          "description": "Ardoise",
+          "icon": "user/3028/lamp_5A5E6B.png"
+        },
+        {
+          "value": "5A6521",
+          "description": "Vert Véronèse",
+          "icon": "user/3028/lamp_5A6521.png"
+        },
+        {
+          "value": "5B3C11",
+          "description": "Brun",
+          "icon": "user/3028/lamp_5B3C11.png"
+        },
+        {
+          "value": "6050DC",
+          "description": "Bleu Majorelle",
+          "icon": "user/3028/lamp_6050DC.png"
+        },
+        {
+          "value": "606060",
+          "description": "Gris",
+          "icon": "user/3028/lamp_606060.png"
+        },
+        {
+          "value": "614B3A",
+          "description": "Cacao",
+          "icon": "user/3028/lamp_614B3A.png"
+        },
+        {
+          "value": "614E1A",
+          "description": "Bronze",
+          "icon": "user/3028/lamp_614E1A.png"
+        },
+        {
+          "value": "649B88",
+          "description": "Glauque",
+          "icon": "user/3028/lamp_649B88.png"
+        },
+        {
+          "value": "6600FF",
+          "description": "Bleu persan",
+          "icon": "user/3028/lamp_6600FF.png"
+        },
+        {
+          "value": "677179",
+          "description": "Gris de Payne",
+          "icon": "user/3028/lamp_677179.png"
+        },
+        {
+          "value": "689D71",
+          "description": "Vert sauge",
+          "icon": "user/3028/lamp_689D71.png"
+        },
+        {
+          "value": "6C0277",
+          "description": "Zinzolin",
+          "icon": "user/3028/lamp_6C0277.png"
+        },
+        {
+          "value": "6D071A",
+          "description": "Bordeaux",
+          "icon": "user/3028/lamp_6D071A.png"
+        },
+        {
+          "value": "6E0B14",
+          "description": "Grenat",
+          "icon": "user/3028/lamp_6E0B14.png"
+        },
+        {
+          "value": "708090",
+          "description": "Gris ardoise",
+          "icon": "user/3028/lamp_708090.png"
+        },
+        {
+          "value": "708D23",
+          "description": "Olive",
+          "icon": "user/3028/lamp_708D23.png"
+        },
+        {
+          "value": "723E64",
+          "description": "Violet d'évêque",
+          "icon": "user/3028/lamp_723E64.png"
+        },
+        {
+          "value": "730800",
+          "description": "Sang de b?uf",
+          "icon": "user/3028/lamp_730800.png"
+        },
+        {
+          "value": "766F64",
+          "description": "Bis",
+          "icon": "user/3028/lamp_766F64.png"
+        },
+        {
+          "value": "77B5FE",
+          "description": "Bleu ciel",
+          "icon": "user/3028/lamp_77B5FE.png"
+        },
+        {
+          "value": "785E2F",
+          "description": "Café au lait",
+          "icon": "user/3028/lamp_785E2F.png"
+        },
+        {
+          "value": "791CF8",
+          "description": "Indigo",
+          "icon": "user/3028/lamp_791CF8.png"
+        },
+        {
+          "value": "79F8F8",
+          "description": "Aigue-marine",
+          "icon": "user/3028/lamp_79F8F8.png"
+        },
+        {
+          "value": "7E3300",
+          "description": "Caramel",
+          "icon": "user/3028/lamp_7E3300.png"
+        },
+        {
+          "value": "7E5835",
+          "description": "Cannelle",
+          "icon": "user/3028/lamp_7E5835.png"
+        },
+        {
+          "value": "7F00FF",
+          "description": "Violet",
+          "icon": "user/3028/lamp_7F00FF.png"
+        },
+        {
+          "value": "7F7F7F",
+          "description": "Gris fer",
+          "icon": "user/3028/lamp_7F7F7F.png"
+        },
+        {
+          "value": "7FFF00",
+          "description": "Chartreuse",
+          "icon": "user/3028/lamp_7FFF00.png"
+        },
+        {
+          "value": "801818",
+          "description": "Rouge de Falun",
+          "icon": "user/3028/lamp_801818.png"
+        },
+        {
+          "value": "80D0D0",
+          "description": "Bleu givré",
+          "icon": "user/3028/lamp_80D0D0.png"
+        },
+        {
+          "value": "811453",
+          "description": "Prune",
+          "icon": "user/3028/lamp_811453.png"
+        },
+        {
+          "value": "82C46C",
+          "description": "Amande",
+          "icon": "user/3028/lamp_82C46C.png"
+        },
+        {
+          "value": "83A697",
+          "description": "Vert céladon",
+          "icon": "user/3028/lamp_83A697.png"
+        },
+        {
+          "value": "842E1B",
+          "description": "Brique",
+          "icon": "user/3028/lamp_842E1B.png"
+        },
+        {
+          "value": "850606",
+          "description": "Rouge sang",
+          "icon": "user/3028/lamp_850606.png"
+        },
+        {
+          "value": "85530F",
+          "description": "Chaudron",
+          "icon": "user/3028/lamp_85530F.png"
+        },
+        {
+          "value": "856D4D",
+          "description": "Bistre",
+          "icon": "user/3028/lamp_856D4D.png"
+        },
+        {
+          "value": "85C17E",
+          "description": "Vert lichen",
+          "icon": "user/3028/lamp_85C17E.png"
+        },
+        {
+          "value": "88421D",
+          "description": "Acajou",
+          "icon": "user/3028/lamp_88421D.png"
+        },
+        {
+          "value": "884DA7",
+          "description": "Améthyste",
+          "icon": "user/3028/lamp_884DA7.png"
+        },
+        {
+          "value": "8B008B",
+          "description": "Magenta",
+          "icon": "user/3028/lamp_8B008B.png"
+        },
+        {
+          "value": "8B6C42",
+          "description": "Basané",
+          "icon": "user/3028/lamp_8B6C42.png"
+        },
+        {
+          "value": "8EA2C6",
+          "description": "Bleu charrette",
+          "icon": "user/3028/lamp_8EA2C6.png"
+        },
+        {
+          "value": "8F5922",
+          "description": "Lavallière",
+          "icon": "user/3028/lamp_8F5922.png"
+        },
+        {
+          "value": "91283B",
+          "description": "Amarante",
+          "icon": "user/3028/lamp_91283B.png"
+        },
+        {
+          "value": "926D27",
+          "description": "Terre d'ombre",
+          "icon": "user/3028/lamp_926D27.png"
+        },
+        {
+          "value": "9370DB",
+          "description": "Pourpre moyen",
+          "icon": "user/3028/lamp_9370DB.png"
+        },
+        {
+          "value": "94812B",
+          "description": "Kaki",
+          "icon": "user/3028/lamp_94812B.png"
+        },
+        {
+          "value": "955628",
+          "description": "Noisette",
+          "icon": "user/3028/lamp_955628.png"
+        },
+        {
+          "value": "95A595",
+          "description": "Vert-de-gris",
+          "icon": "user/3028/lamp_95A595.png"
+        },
+        {
+          "value": "960018",
+          "description": "Carmin",
+          "icon": "user/3028/lamp_960018.png"
+        },
+        {
+          "value": "9683EC",
+          "description": "Lavande",
+          "icon": "user/3028/lamp_9683EC.png"
+        },
+        {
+          "value": "985717",
+          "description": "Rouille",
+          "icon": "user/3028/lamp_985717.png"
+        },
+        {
+          "value": "997A8D",
+          "description": "Rose Mountbatten",
+          "icon": "user/3028/lamp_997A8D.png"
+        },
+        {
+          "value": "9D3E0C",
+          "description": "Auburn",
+          "icon": "user/3028/lamp_9D3E0C.png"
+        },
+        {
+          "value": "9E0E40",
+          "description": "Pourpre (héraldique)",
+          "icon": "user/3028/lamp_9E0E40.png"
+        },
+        {
+          "value": "9E9E9E",
+          "description": "Gris souris",
+          "icon": "user/3028/lamp_9E9E9E.png"
+        },
+        {
+          "value": "9EFD38",
+          "description": "Lime",
+          "icon": "user/3028/lamp_9EFD38.png"
+        },
+        {
+          "value": "9F551E",
+          "description": "Tabac",
+          "icon": "user/3028/lamp_9F551E.png"
+        },
+        {
+          "value": "A42424",
+          "description": "Fraise écrasée",
+          "icon": "user/3028/lamp_A42424.png"
+        },
+        {
+          "value": "A5D152",
+          "description": "Vert tilleul",
+          "icon": "user/3028/lamp_A5D152.png"
+        },
+        {
+          "value": "A76726",
+          "description": "Alezan",
+          "icon": "user/3028/lamp_A76726.png"
+        },
+        {
+          "value": "A91101",
+          "description": "Rouge d'Andrinople",
+          "icon": "user/3028/lamp_A91101.png"
+        },
+        {
+          "value": "AC1E44",
+          "description": "Lie de vin",
+          "icon": "user/3028/lamp_AC1E44.png"
+        },
+        {
+          "value": "AD4F09",
+          "description": "Aquilain",
+          "icon": "user/3028/lamp_AD4F09.png"
+        },
+        {
+          "value": "ADFF2F",
+          "description": "Vert-jaune",
+          "icon": "user/3028/lamp_ADFF2F.png"
+        },
+        {
+          "value": "AE4A34",
+          "description": "Rouge tomette",
+          "icon": "user/3028/lamp_AE4A34.png"
+        },
+        {
+          "value": "AE642D",
+          "description": "Baillet",
+          "icon": "user/3028/lamp_AE642D.png"
+        },
+        {
+          "value": "AE8964",
+          "description": "Sépia",
+          "icon": "user/3028/lamp_AE8964.png"
+        },
+        {
+          "value": "AFAFAF",
+          "description": "Gris acier",
+          "icon": "user/3028/lamp_AFAFAF.png"
+        },
+        {
+          "value": "B0F2B6",
+          "description": "Vert d'eau",
+          "icon": "user/3028/lamp_B0F2B6.png"
+        },
+        {
+          "value": "B36700",
+          "description": "Cuivre",
+          "icon": "user/3028/lamp_B36700.png"
+        },
+        {
+          "value": "B3B191",
+          "description": "Mastic",
+          "icon": "user/3028/lamp_B3B191.png"
+        },
+        {
+          "value": "B666D2",
+          "description": "Lilas",
+          "icon": "user/3028/lamp_B666D2.png"
+        },
+        {
+          "value": "B67823",
+          "description": "Poil de chameau",
+          "icon": "user/3028/lamp_B67823.png"
+        },
+        {
+          "value": "B82010",
+          "description": "Rouge cardinal",
+          "icon": "user/3028/lamp_B82010.png"
+        },
+        {
+          "value": "BB0B0B",
+          "description": "Rouge cerise",
+          "icon": "user/3028/lamp_BB0B0B.png"
+        },
+        {
+          "value": "BBACAC",
+          "description": "Tourterelle",
+          "icon": "user/3028/lamp_BBACAC.png"
+        },
+        {
+          "value": "BBAE98",
+          "description": "Grège",
+          "icon": "user/3028/lamp_BBAE98.png"
+        },
+        {
+          "value": "BBD2E1",
+          "description": "Fumée",
+          "icon": "user/3028/lamp_BBD2E1.png"
+        },
+        {
+          "value": "BEF574",
+          "description": "Pistache",
+          "icon": "user/3028/lamp_BEF574.png"
+        },
+        {
+          "value": "BF3030",
+          "description": "Fraise",
+          "icon": "user/3028/lamp_BF3030.png"
+        },
+        {
+          "value": "C0C0C0",
+          "description": "Argent",
+          "icon": "user/3028/lamp_C0C0C0.png"
+        },
+        {
+          "value": "C60800",
+          "description": "Ponceau",
+          "icon": "user/3028/lamp_C60800.png"
+        },
+        {
+          "value": "C72C48",
+          "description": "Framboise",
+          "icon": "user/3028/lamp_C72C48.png"
+        },
+        {
+          "value": "C7CF00",
+          "description": "Moutarde",
+          "icon": "user/3028/lamp_C7CF00.png"
+        },
+        {
+          "value": "C8AD7F",
+          "description": "Beige",
+          "icon": "user/3028/lamp_C8AD7F.png"
+        },
+        {
+          "value": "C9A0DC",
+          "description": "Glycine",
+          "icon": "user/3028/lamp_C9A0DC.png"
+        },
+        {
+          "value": "CC5500",
+          "description": "Orange brûlé",
+          "icon": "user/3028/lamp_CC5500.png"
+        },
+        {
+          "value": "CCCCFF",
+          "description": "Pervenche",
+          "icon": "user/3028/lamp_CCCCFF.png"
+        },
+        {
+          "value": "CD5C5C",
+          "description": "Rouge indien",
+          "icon": "user/3028/lamp_CD5C5C.png"
+        },
+        {
+          "value": "CDCD0D",
+          "description": "Caca d'oie",
+          "icon": "user/3028/lamp_CDCD0D.png"
+        },
+        {
+          "value": "CECECE",
+          "description": "Gris perle",
+          "icon": "user/3028/lamp_CECECE.png"
+        },
+        {
+          "value": "CF0A1D",
+          "description": "Groseille",
+          "icon": "user/3028/lamp_CF0A1D.png"
+        },
+        {
+          "value": "CFA0E9",
+          "description": "Parme",
+          "icon": "user/3028/lamp_CFA0E9.png"
+        },
+        {
+          "value": "D0C07A",
+          "description": "Chamois",
+          "icon": "user/3028/lamp_D0C07A.png"
+        },
+        {
+          "value": "D473D4",
+          "description": "Mauve",
+          "icon": "user/3028/lamp_D473D4.png"
+        },
+        {
+          "value": "D58490",
+          "description": "Pelure d'oignon",
+          "icon": "user/3028/lamp_D58490.png"
+        },
+        {
+          "value": "DA70D6",
+          "description": "Orchidée",
+          "icon": "user/3028/lamp_DA70D6.png"
+        },
+        {
+          "value": "DB1702",
+          "description": "Cinabre",
+          "icon": "user/3028/lamp_DB1702.png"
+        },
+        {
+          "value": "DC143C",
+          "description": "Cramoisi",
+          "icon": "user/3028/lamp_DC143C.png"
+        },
+        {
+          "value": "DD985C",
+          "description": "Ocre rouge",
+          "icon": "user/3028/lamp_DD985C.png"
+        },
+        {
+          "value": "DE2916",
+          "description": "Tomate",
+          "icon": "user/3028/lamp_DE2916.png"
+        },
+        {
+          "value": "DF6D14",
+          "description": "Citrouille",
+          "icon": "user/3028/lamp_DF6D14.png"
+        },
+        {
+          "value": "DF73FF",
+          "description": "Héliotrope",
+          "icon": "user/3028/lamp_DF73FF.png"
+        },
+        {
+          "value": "DFAF2C",
+          "description": "Ocre",
+          "icon": "user/3028/lamp_DFAF2C.png"
+        },
+        {
+          "value": "E0115F",
+          "description": "Rubis",
+          "icon": "user/3028/lamp_E0115F.png"
+        },
+        {
+          "value": "E0CDA9",
+          "description": "Sable",
+          "icon": "user/3028/lamp_E0CDA9.png"
+        },
+        {
+          "value": "E1CE9A",
+          "description": "Vanille",
+          "icon": "user/3028/lamp_E1CE9A.png"
+        },
+        {
+          "value": "E21313",
+          "description": "Gueules",
+          "icon": "user/3028/lamp_E21313.png"
+        },
+        {
+          "value": "E2BC74",
+          "description": "Blond",
+          "icon": "user/3028/lamp_E2BC74.png"
+        },
+        {
+          "value": "E67E30",
+          "description": "Abricot",
+          "icon": "user/3028/lamp_E67E30.png"
+        },
+        {
+          "value": "E6E697",
+          "description": "Flave",
+          "icon": "user/3028/lamp_E6E697.png"
+        },
+        {
+          "value": "E73E01",
+          "description": "Corail",
+          "icon": "user/3028/lamp_E73E01.png"
+        },
+        {
+          "value": "E7A854",
+          "description": "Blond vénitien",
+          "icon": "user/3028/lamp_E7A854.png"
+        },
+        {
+          "value": "E7F00D",
+          "description": "Jaune canari",
+          "icon": "user/3028/lamp_E7F00D.png"
+        },
+        {
+          "value": "E8D630",
+          "description": "Blé",
+          "icon": "user/3028/lamp_E8D630.png"
+        },
+        {
+          "value": "E9383F",
+          "description": "Grenadine",
+          "icon": "user/3028/lamp_E9383F.png"
+        },
+        {
+          "value": "ED0000",
+          "description": "Écarlate",
+          "icon": "user/3028/lamp_ED0000.png"
+        },
+        {
+          "value": "EE1010",
+          "description": "Garance (pigment)",
+          "icon": "user/3028/lamp_EE1010.png"
+        },
+        {
+          "value": "EED153",
+          "description": "Jaune de Mars",
+          "icon": "user/3028/lamp_EED153.png"
+        },
+        {
+          "value": "EFD807",
+          "description": "Jaune d'or",
+          "icon": "user/3028/lamp_EFD807.png"
+        },
+        {
+          "value": "F00020",
+          "description": "Rouge",
+          "icon": "user/3028/lamp_F00020.png"
+        },
+        {
+          "value": "F0C300",
+          "description": "Ambre",
+          "icon": "user/3028/lamp_F0C300.png"
+        },
+        {
+          "value": "F0E36B",
+          "description": "Beurre",
+          "icon": "user/3028/lamp_F0E36B.png"
+        },
+        {
+          "value": "F4661B",
+          "description": "Carotte",
+          "icon": "user/3028/lamp_F4661B.png"
+        },
+        {
+          "value": "F4FEFE",
+          "description": "Blanc lunaire",
+          "icon": "user/3028/lamp_F4FEFE.png"
+        },
+        {
+          "value": "F7230C",
+          "description": "Rouge anglais",
+          "icon": "user/3028/lamp_F7230C.png"
+        },
+        {
+          "value": "F7E269",
+          "description": "Nankin",
+          "icon": "user/3028/lamp_F7E269.png"
+        },
+        {
+          "value": "F7FF3C",
+          "description": "Jaune citron",
+          "icon": "user/3028/lamp_F7FF3C.png"
+        },
+        {
+          "value": "F88E55",
+          "description": "Saumon",
+          "icon": "user/3028/lamp_F88E55.png"
+        },
+        {
+          "value": "FAEA73",
+          "description": "Topaze",
+          "icon": "user/3028/lamp_FAEA73.png"
+        },
+        {
+          "value": "FAF0E6",
+          "description": "Lin",
+          "icon": "user/3028/lamp_FAF0E6.png"
+        },
+        {
+          "value": "FC5D5D",
+          "description": "Nacarat",
+          "icon": "user/3028/lamp_FC5D5D.png"
+        },
+        {
+          "value": "FCD21C",
+          "description": "Orpiment",
+          "icon": "user/3028/lamp_FCD21C.png"
+        },
+        {
+          "value": "FCDC12",
+          "description": "Bouton d'or",
+          "icon": "user/3028/lamp_FCDC12.png"
+        },
+        {
+          "value": "FD3F92",
+          "description": "Fuchsia",
+          "icon": "user/3028/lamp_FD3F92.png"
+        },
+        {
+          "value": "FD6C9E",
+          "description": "Rose",
+          "icon": "user/3028/lamp_FD6C9E.png"
+        },
+        {
+          "value": "FDE9E0",
+          "description": "Coquille d'?uf",
+          "icon": "user/3028/lamp_FDE9E0.png"
+        },
+        {
+          "value": "FDEE00",
+          "description": "Jaune de cobalt",
+          "icon": "user/3028/lamp_FDEE00.png"
+        },
+        {
+          "value": "FDF1B8",
+          "description": "Crème",
+          "icon": "user/3028/lamp_FDF1B8.png"
+        },
+        {
+          "value": "FE1B00",
+          "description": "Rouge feu",
+          "icon": "user/3028/lamp_FE1B00.png"
+        },
+        {
+          "value": "FEA347",
+          "description": "Mandarine",
+          "icon": "user/3028/lamp_FEA347.png"
+        },
+        {
+          "value": "FEE347",
+          "description": "Paille",
+          "icon": "user/3028/lamp_FEE347.png"
+        },
+        {
+          "value": "FEE7F0",
+          "description": "Cuisse de nymphe",
+          "icon": "user/3028/lamp_FEE7F0.png"
+        },
+        {
+          "value": "FEF86C",
+          "description": "Jaune mimosa",
+          "icon": "user/3028/lamp_FEF86C.png"
+        },
+        {
+          "value": "FEFEE0",
+          "description": "Écru",
+          "icon": "user/3028/lamp_FEFEE0.png"
+        },
+        {
+          "value": "FEFEE2",
+          "description": "Blanc cassé",
+          "icon": "user/3028/lamp_FEFEE2.png"
+        },
+        {
+          "value": "FF0921",
+          "description": "Vermeil",
+          "icon": "user/3028/lamp_FF0921.png"
+        },
+        {
+          "value": "FF4901",
+          "description": "Rouge feu",
+          "icon": "user/3028/lamp_FF4901.png"
+        },
+        {
+          "value": "FF5E4D",
+          "description": "Capucine",
+          "icon": "user/3028/lamp_FF5E4D.png"
+        },
+        {
+          "value": "FF6F7D",
+          "description": "Incarnat",
+          "icon": "user/3028/lamp_FF6F7D.png"
+        },
+        {
+          "value": "FF7F00",
+          "description": "Orange",
+          "icon": "user/3028/lamp_FF7F00.png"
+        },
+        {
+          "value": "FFCB60",
+          "description": "Aurore",
+          "icon": "user/3028/lamp_FFCB60.png"
+        },
+        {
+          "value": "FFD700",
+          "description": "Or",
+          "icon": "user/3028/lamp_FFD700.png"
+        },
+        {
+          "value": "FFDE75",
+          "description": "Maïs",
+          "icon": "user/3028/lamp_FFDE75.png"
+        },
+        {
+          "value": "FFE436",
+          "description": "Jaune impérial",
+          "icon": "user/3028/lamp_FFE436.png"
+        },
+        {
+          "value": "FFE4C4",
+          "description": "Bisque",
+          "icon": "user/3028/lamp_FFE4C4.png"
+        },
+        {
+          "value": "FFF0BC",
+          "description": "Jaune de Naples",
+          "icon": "user/3028/lamp_FFF0BC.png"
+        },
+        {
+          "value": "FFFF00",
+          "description": "Jaune",
+          "icon": "user/3028/lamp_FFFF00.png"
+        },
+        {
+          "value": "FFFF6B",
+          "description": "Soufre",
+          "icon": "user/3028/lamp_FFFF6B.png"
+        },
+        {
+          "value": "FFFFD4",
+          "description": "Ivoire",
+          "icon": "user/3028/lamp_FFFFD4.png"
+        },
+        {
+          "value": "FFFFE0",
+          "description": "Jaune clair",
+          "icon": "user/3028/lamp_FFFFE0.png"
+        },
+        {
+          "value": "FFFFFF",
+          "description": "Blanc",
+          "icon": "user/3028/lamp_FFFFFF.png"
+        },
+        {
+          "value": "N/R",
+          "description": "N/A",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "auto",
+          "description": "Auto",
+          "icon": "automatic1.png"
+        },
+        {
+          "value": "off",
+          "description": "Off",
+          "icon": "lamp_off.png"
+        },
+        {
+          "value": "unreachable",
+          "description": "Non joignable",
+          "icon": "lamp_off.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "bedside_1-1",
+      "values": [
+        {
+          "value": "0",
+          "description": "Off",
+          "icon": "lamp_off.png"
+        },
+        {
+          "value": "10",
+          "description": "10%",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "100",
+          "description": "On",
+          "icon": "lamp_on.png"
+        },
+        {
+          "value": "15",
+          "description": "15%",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "20",
+          "description": "20%",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "25",
+          "description": "25%",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "30",
+          "description": "30%",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "35",
+          "description": "35%",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "40",
+          "description": "40%",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "45",
+          "description": "45%",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "5",
+          "description": "5%",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "50",
+          "description": "50%",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "55",
+          "description": "55%",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "60",
+          "description": "60%",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "65",
+          "description": "65%",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "70",
+          "description": "70%",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "75",
+          "description": "75%",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "80",
+          "description": "80%",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "85",
+          "description": "85%",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "90",
+          "description": "90%",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "95",
+          "description": "95%",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "auto",
+          "description": "Auto",
+          "icon": "automatic1.png"
+        },
+        {
+          "value": "unreachable",
+          "description": "Non joignable",
+          "icon": "lamp_off.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "bedside_1-3",
+      "values": [
+        {
+          "value": "1700",
+          "description": "1700k",
+          "icon": "user/3028/lamp_FFAA5F.png"
+        },
+        {
+          "value": "1800",
+          "description": "1800k",
+          "icon": "user/3028/lamp_FFAD65.png"
+        },
+        {
+          "value": "1900",
+          "description": "1900k",
+          "icon": "user/3028/lamp_FFB06A.png"
+        },
+        {
+          "value": "2000",
+          "description": "2000k",
+          "icon": "user/3028/lamp_FFB270.png"
+        },
+        {
+          "value": "2100",
+          "description": "2100k",
+          "icon": "user/3028/lamp_FFB475.png"
+        },
+        {
+          "value": "2200",
+          "description": "2200k",
+          "icon": "user/3028/lamp_FFB77A.png"
+        },
+        {
+          "value": "2300",
+          "description": "2300k",
+          "icon": "user/3028/lamp_FFB97E.png"
+        },
+        {
+          "value": "2400",
+          "description": "2400k",
+          "icon": "user/3028/lamp_FFBB83.png"
+        },
+        {
+          "value": "2500",
+          "description": "2500k",
+          "icon": "user/3028/lamp_FFBE87.png"
+        },
+        {
+          "value": "2600",
+          "description": "2600k",
+          "icon": "user/3028/lamp_FFC08B.png"
+        },
+        {
+          "value": "2700",
+          "description": "2700k",
+          "icon": "user/3028/lamp_FFC290.png"
+        },
+        {
+          "value": "2800",
+          "description": "2800k",
+          "icon": "user/3028/lamp_FFC494.png"
+        },
+        {
+          "value": "2900",
+          "description": "2900k",
+          "icon": "user/3028/lamp_FFC697.png"
+        },
+        {
+          "value": "3000",
+          "description": "3000k",
+          "icon": "user/3028/lamp_FFC89B.png"
+        },
+        {
+          "value": "3100",
+          "description": "3100k",
+          "icon": "user/3028/lamp_FFCA9F.png"
+        },
+        {
+          "value": "3200",
+          "description": "3200k",
+          "icon": "user/3028/lamp_FFCCA3.png"
+        },
+        {
+          "value": "3300",
+          "description": "3300k",
+          "icon": "user/3028/lamp_FFCEA6.png"
+        },
+        {
+          "value": "3400",
+          "description": "3400k",
+          "icon": "user/3028/lamp_FFD0AA.png"
+        },
+        {
+          "value": "3500",
+          "description": "3500k",
+          "icon": "user/3028/lamp_FFD1AD.png"
+        },
+        {
+          "value": "3600",
+          "description": "3600k",
+          "icon": "user/3028/lamp_FFD3B0.png"
+        },
+        {
+          "value": "3700",
+          "description": "3700k",
+          "icon": "user/3028/lamp_FFD5B3.png"
+        },
+        {
+          "value": "3800",
+          "description": "3800k",
+          "icon": "user/3028/lamp_FFD7B6.png"
+        },
+        {
+          "value": "3900",
+          "description": "3900k",
+          "icon": "user/3028/lamp_FFD8B9.png"
+        },
+        {
+          "value": "4000",
+          "description": "4000k",
+          "icon": "user/3028/lamp_FFDABC.png"
+        },
+        {
+          "value": "4100",
+          "description": "4100k",
+          "icon": "user/3028/lamp_FFDCBF.png"
+        },
+        {
+          "value": "4200",
+          "description": "4200k",
+          "icon": "user/3028/lamp_FFDDC2.png"
+        },
+        {
+          "value": "4300",
+          "description": "4300k",
+          "icon": "user/3028/lamp_FFDFC5.png"
+        },
+        {
+          "value": "4400",
+          "description": "4400k",
+          "icon": "user/3028/lamp_FFE0C8.png"
+        },
+        {
+          "value": "4500",
+          "description": "4500k",
+          "icon": "user/3028/lamp_FFE2CA.png"
+        },
+        {
+          "value": "4600",
+          "description": "4600k",
+          "icon": "user/3028/lamp_FFE4CD.png"
+        },
+        {
+          "value": "4700",
+          "description": "4700k",
+          "icon": "user/3028/lamp_FFE5D0.png"
+        },
+        {
+          "value": "4800",
+          "description": "4800k",
+          "icon": "user/3028/lamp_FFE6D2.png"
+        },
+        {
+          "value": "4900",
+          "description": "4900k",
+          "icon": "user/3028/lamp_FFE8D5.png"
+        },
+        {
+          "value": "5000",
+          "description": "5000k",
+          "icon": "user/3028/lamp_FFE9D7.png"
+        },
+        {
+          "value": "5100",
+          "description": "5100k",
+          "icon": "user/3028/lamp_FFEBDA.png"
+        },
+        {
+          "value": "5200",
+          "description": "5200k",
+          "icon": "user/3028/lamp_FFECDC.png"
+        },
+        {
+          "value": "5300",
+          "description": "5300k",
+          "icon": "user/3028/lamp_FFEDDE.png"
+        },
+        {
+          "value": "5400",
+          "description": "5400k",
+          "icon": "user/3028/lamp_FFEFE1.png"
+        },
+        {
+          "value": "5500",
+          "description": "5500k",
+          "icon": "user/3028/lamp_FFF0E3.png"
+        },
+        {
+          "value": "5600",
+          "description": "5600k",
+          "icon": "user/3028/lamp_FFF1E5.png"
+        },
+        {
+          "value": "5700",
+          "description": "5700k",
+          "icon": "user/3028/lamp_FFF3E7.png"
+        },
+        {
+          "value": "5800",
+          "description": "5800k",
+          "icon": "user/3028/lamp_FFF4E9.png"
+        },
+        {
+          "value": "5900",
+          "description": "5900k",
+          "icon": "user/3028/lamp_FFF5EB.png"
+        },
+        {
+          "value": "6000",
+          "description": "6000k",
+          "icon": "user/3028/lamp_FFF7EE.png"
+        },
+        {
+          "value": "6100",
+          "description": "6100k",
+          "icon": "user/3028/lamp_FFF8F0.png"
+        },
+        {
+          "value": "6200",
+          "description": "6200k",
+          "icon": "user/3028/lamp_FFF9F2.png"
+        },
+        {
+          "value": "6300",
+          "description": "6300k",
+          "icon": "user/3028/lamp_FFFAF4.png"
+        },
+        {
+          "value": "6400",
+          "description": "6400k",
+          "icon": "user/3028/lamp_FFFBF6.png"
+        },
+        {
+          "value": "6500",
+          "description": "6500k",
+          "icon": "user/3028/lamp_FFFDF8.png"
+        },
+        {
+          "value": "N/R",
+          "description": "N/A",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "auto",
+          "description": "Auto",
+          "icon": "automatic1.png"
+        },
+        {
+          "value": "off",
+          "description": "Off",
+          "icon": "lamp_off.png"
+        },
+        {
+          "value": "unreachable",
+          "description": "Non joignable",
+          "icon": "lamp_off.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "weather-2",
+      "values": []
+    },
+    {
+      "periph_id": "jamming",
+      "values": [
+        {
+          "value": "0",
+          "description": "OK",
+          "icon": "check.png"
+        },
+        {
+          "value": "100",
+          "description": "Brouillage",
+          "icon": "siren_on.png"
+        },
+        {
+          "value": "50",
+          "description": "Analyser pendant 1 min.",
+          "icon": "heartbeat.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "linky_1-1",
+      "values": []
+    },
+    {
+      "periph_id": "linky_1-3",
+      "values": []
+    },
+    {
+      "periph_id": "linky_1-2",
+      "values": []
+    },
+    {
+      "periph_id": "atmo-9",
+      "values": []
+    },
+    {
+      "periph_id": "atmo-10",
+      "values": []
+    },
+    {
+      "periph_id": "atmo-12",
+      "values": []
+    },
+    {
+      "periph_id": "atmo-8",
+      "values": []
+    },
+    {
+      "periph_id": "atmo-11",
+      "values": []
+    },
+    {
+      "periph_id": "sys_1",
+      "values": [
+        {
+          "value": "0",
+          "description": "reboot",
+          "icon": "/user/3028/reboot.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "switch_3-1",
+      "values": [
+        {
+          "value": "0",
+          "description": "Off",
+          "icon": "lamp_off.png"
+        },
+        {
+          "value": "100",
+          "description": "On",
+          "icon": "lamp_on.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "switch_3-4",
+      "values": [
+        {
+          "value": "0",
+          "description": "Off",
+          "icon": "default_off.png"
+        },
+        {
+          "value": "1",
+          "description": "Double appui",
+          "icon": "pilotage2.png"
+        },
+        {
+          "value": "100",
+          "description": "On",
+          "icon": "default_on.png"
+        },
+        {
+          "value": "2",
+          "description": "Simple appui",
+          "icon": "pilotage2.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "switch_3-2",
+      "values": []
+    },
+    {
+      "periph_id": "switch_3-3",
+      "values": []
+    },
+    {
+      "periph_id": "switch_5-1",
+      "values": [
+        {
+          "value": "0",
+          "description": "Off",
+          "icon": "default_off.png"
+        },
+        {
+          "value": "100",
+          "description": "On",
+          "icon": "default_on.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "switch_5-3",
+      "values": []
+    },
+    {
+      "periph_id": "switch_5-2",
+      "values": [
+        {
+          "value": "0",
+          "description": "Off",
+          "icon": "lamp_off.png"
+        },
+        {
+          "value": "100",
+          "description": "On",
+          "icon": "lamp_on.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "switch_5-4",
+      "values": [
+        {
+          "value": "0",
+          "description": "Off",
+          "icon": "default_off.png"
+        },
+        {
+          "value": "1",
+          "description": "Double appui",
+          "icon": "pilotage2.png"
+        },
+        {
+          "value": "100",
+          "description": "On",
+          "icon": "default_on.png"
+        },
+        {
+          "value": "2",
+          "description": "Simple appui",
+          "icon": "pilotage2.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "switch_5-5",
+      "values": [
+        {
+          "value": "0",
+          "description": "Off",
+          "icon": "default_off.png"
+        },
+        {
+          "value": "1",
+          "description": "Double appui",
+          "icon": "pilotage2.png"
+        },
+        {
+          "value": "100",
+          "description": "On",
+          "icon": "default_on.png"
+        },
+        {
+          "value": "2",
+          "description": "Simple appui",
+          "icon": "pilotage2.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "switch_5-6",
+      "values": [
+        {
+          "value": "0",
+          "description": "Off",
+          "icon": "default_off.png"
+        },
+        {
+          "value": "1",
+          "description": "Double appui",
+          "icon": "pilotage2.png"
+        },
+        {
+          "value": "100",
+          "description": "On",
+          "icon": "default_on.png"
+        },
+        {
+          "value": "2",
+          "description": "Simple appui",
+          "icon": "pilotage2.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "ping",
+      "values": [
+        {
+          "value": "0",
+          "description": "Absent",
+          "icon": "heartbeat_c2.png"
+        },
+        {
+          "value": "100",
+          "description": "Présent",
+          "icon": "heartbeat_c1.png"
+        },
+        {
+          "value": "50",
+          "description": "Demande DHCP",
+          "icon": "heartbeat_tm.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "battery_status",
+      "values": []
+    },
+    {
+      "periph_id": "thermostat",
+      "values": [
+        {
+          "value": "10",
+          "description": "10°C",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "11",
+          "description": "11°C",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "12",
+          "description": "12°C",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "13",
+          "description": "13°C",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "14",
+          "description": "14°C",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "15",
+          "description": "15°C",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "16",
+          "description": "16°C",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "17",
+          "description": "17°C",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "18",
+          "description": "18°C",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "19",
+          "description": "19°C",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "19.5",
+          "description": "19.5°C",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "20",
+          "description": "20°C",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "20.5",
+          "description": "20.5°C",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "21",
+          "description": "21°C",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "21.5",
+          "description": "21.5°C",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "22",
+          "description": "22°C",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "22.5",
+          "description": "22.5",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "23",
+          "description": "23°C",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "23.5",
+          "description": "23.5",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "24",
+          "description": "24°C",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "25",
+          "description": "25°C",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "26",
+          "description": "26°C",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "27",
+          "description": "27°C",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "28",
+          "description": "28°C",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "29",
+          "description": "29°C",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "30",
+          "description": "30°C",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "4",
+          "description": "4°C",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "5",
+          "description": "Hors-Gel",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "6",
+          "description": "6°C",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "7",
+          "description": "7°C",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "8",
+          "description": "8°C",
+          "icon": "consigne64.png"
+        },
+        {
+          "value": "9",
+          "description": "9°C",
+          "icon": "consigne64.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "remote?",
+      "values": [
+        {
+          "value": "0",
+          "description": "Off",
+          "icon": "default_off.png"
+        },
+        {
+          "value": "1",
+          "description": "On",
+          "icon": "pilotage2.png"
+        },
+        {
+          "value": "100",
+          "description": "Onxx",
+          "icon": "default_on.png"
+        },
+        {
+          "value": "2",
+          "description": "Simple appui",
+          "icon": "pilotage2.png"
+        },
+        {
+          "value": "5",
+          "description": "5",
+          "icon": "white_ring.png"
+        },
+        {
+          "value": "7",
+          "description": "7",
+          "icon": "white_ring.png"
+        }
+      ]
+    },
+    {
+      "periph_id": "light_1",
+      "values": [
+        {
+          "value": "0",
+          "description": "Off",
+          "icon": "lamp_off.png"
+        },
+        {
+          "value": "10",
+          "description": "10 %",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "100",
+          "description": "On",
+          "icon": "lamp_on.png"
+        },
+        {
+          "value": "20",
+          "description": "20 %",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "30",
+          "description": "30 %",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "40",
+          "description": "40 %",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "50",
+          "description": "50 %",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "60",
+          "description": "60 %",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "70",
+          "description": "70 %",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "80",
+          "description": "80 %",
+          "icon": "lamp_mid.png"
+        },
+        {
+          "value": "90",
+          "description": "90 %",
+          "icon": "lamp_mid.png"
+        }
+      ]
+    }
+  ]
+}
