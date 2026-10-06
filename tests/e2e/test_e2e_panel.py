@@ -144,9 +144,23 @@ class TestWebsocketCommands:
 
         Read-only: none of the four actions is exercised on the real
         instance (non-destructive); the queue must be non-empty —
-        157 peripherals were pending at epic time.
-        """
-        result = ws_call("eedomus/get_backfill_state")
+        157 peripherals were pending at epic time. Same reload window
+        as _get_peripherals_retrying: the queue derives from
+        _history_progress, reloaded during the first refresh after a
+        reload (the OptionsFlow restart-cycle test)."""
+        result = None
+        for attempt in range(6):
+            try:
+                result = ws_call("eedomus/get_backfill_state")
+            except AssertionError:
+                # No coordinator at all yet: the entry reload window
+                # (OptionsFlow restart cycle) is shorter than a cycle.
+                time.sleep(5)
+                continue
+            if result["queue"]:
+                break
+            time.sleep(5)
+        assert result is not None, "coordinator never became available"
         assert isinstance(result["queue"], list)
         assert len(result["queue"]) > 0
         row = result["queue"][0]
@@ -161,8 +175,25 @@ class TestWebsocketCommands:
 
     def test_get_box_metrics_serves_the_live_buffer(self, ws_call):
         """Supervision tab (CAP-9, story 4.2): one section per box with
-        its refresh-cycle buffer, non-empty once the box has refreshed."""
-        result = ws_call("eedomus/get_box_metrics")
+        its refresh-cycle buffer, non-empty once the box has refreshed.
+
+        The buffer fills only at the END of a refresh cycle: a
+        preceding reload (the OptionsFlow restart-cycle test) leaves a
+        fresh coordinator whose first cycle takes ~10s — same window as
+        _get_peripherals_retrying, so the buffer read retries."""
+        result = None
+        for attempt in range(6):
+            try:
+                result = ws_call("eedomus/get_box_metrics")
+            except AssertionError:
+                # No coordinator at all yet: the entry reload window
+                # (OptionsFlow restart cycle) is shorter than a cycle.
+                time.sleep(5)
+                continue
+            if result["boxes"] and result["boxes"][0]["cycles"]:
+                break
+            time.sleep(5)
+        assert result is not None, "coordinator never became available"
         assert isinstance(result["boxes"], list)
         assert len(result["boxes"]) >= 1
         box = result["boxes"][0]

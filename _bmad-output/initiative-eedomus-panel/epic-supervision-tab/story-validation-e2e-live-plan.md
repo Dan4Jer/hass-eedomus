@@ -3,7 +3,7 @@ title: 'Validation E2E + live'
 type: 'feature'
 ticket: 5
 created: '2026-10-06'
-status: 'in-progress'
+status: 'built'
 route: 'oneshot'
 route_source: 'auto'
 baseline_revision: '3fe01eb29299cc7c116154dc586d4579faa89c9d'
@@ -51,3 +51,29 @@ Oneshot — la surface livrée par 4.1-4.3 est testée unitairement et par harna
 - `python3 -m pytest tests/unit/ -q` -- expected: 324 verts inchangés
 - Post-déploiement : `python3 -m pytest tests/e2e/ -v` sur le Pi -- expected: 29 verts, dont la boucle dynamique des 7 modules servis
 </intent-contract>
+
+## Review Triage Log
+
+### 2026-10-06 — Review pass (quick, inline — route oneshot)
+- verdicts: 3 findings — high 0, medium 2, low 1, false 0
+- findings:
+  - `[medium]` `[patch]` (live) course reload → tampon vide : le test métriques échouait quand il tombait juste après le reload d'entrée (restart-cycle des tests OptionsFlow) — le tampon ne se remplit qu'à la FIN du premier cycle (~10 s) — patch : retry borné (6 × 5 s) sur le remplissage du tampon.
+  - `[medium]` `[patch]` (live) course reload → AUCUN coordinator : pendant la fenêtre de reload, la commande rend service_unavailable et ws_call lève immédiatement au lieu de retenter — patch : try/except AssertionError dans les deux boucles de retry (fenêtre plus courte qu'un cycle).
+  - `[low]` `[ratifié]` la file dérive de _history_progress rechargé au first refresh : même fenêtre → même blinding appliqué au test file (cohérence, la course n'a pas été observée sur ce test).
+
+Patches appliqués en direct par l'orchestrateur (impl oneshot), re-vérifiés : suite E2E complète **29 passed × 2 passes consécutives** sur le Pi.
+
+## Auto Run Result
+
+**Route:** oneshot — impl directe (orchestrateur), review quick inline, 2 courses de rechargement traitées.
+
+**Vérifications exécutées (2026-10-06, 04:05-04:24 CEST) :**
+- `python3 -m pytest tests/e2e/ --collect-only -q` — 29 collectés (27 + 2)
+- `python3 -m pytest tests/unit/ -q` — 324 verts inchangés
+- Déployé via `deploy_hass_eedomus.sh` (git-only, unstable @ f96a9f7), restart HA
+- `python3 -m pytest tests/e2e/ -q` sur le Pi : **29 passed in 62.53s** puis **29 passed in 59.43s** (2 passes complètes consécutives, courses de reload couvertes)
+- La boucle dynamique des modules servis s'est exercée réellement contre le Pi (7 modules + marqueurs, incl. coherence-helpers.js nouveau et supervision.js)
+- État live vérifié : file non vide (157 periphs en attente), tampon métriques rempli (cycles de FULL et PARTIAL REFRESH), aucune action exercée sur l'instance réelle (non destructif)
+- Logs : intégration initialisée proprement, aucun échec de capture métriques
+
+**Post-déploiement :** le contrôle visuel des graphiques et de la file par l'utilisateur (Done when #5) est demandé au HALT built — l'onglet Supervision est déployé (attention cache navigateur : rechargement forcé nécessaire après déploiement).
