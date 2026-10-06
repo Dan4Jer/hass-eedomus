@@ -7,7 +7,7 @@
  * moved as-is.
  */
 
-import { escapeHtml, coherenceStatusText } from './shared.js';
+import { escapeHtml, coherenceStatusText, truncateDetailText } from './shared.js';
 
 // Coherence signals (CAP-6): exact strings from eedomus/get_coherence,
 // one chip per signal — glyph + label, never color alone (DESIGN.md).
@@ -575,16 +575,6 @@ function coherenceRowExpansionHtml(row, expandedId, narrow, t) {
   };
 }
 
-// Truncation of the error detail in the chip (visible + accessible
-// name, the full message lives in the title).
-function coherenceTruncateText(text, max) {
-  const value = String(text);
-  if (value.length <= max) {
-    return value;
-  }
-  return `${value.slice(0, max - 1)}…`;
-}
-
 // Chips of the Status cell: one chip per signal, "consistent" when
 // there is none; an unknown string keeps a neutral chip carrying
 // the raw value — never dropped, never "consistent".
@@ -608,7 +598,7 @@ function coherenceChipHtml(signal, row, t) {
   if (signal === 'en_erreur' && row && row.error_message) {
     // The retry detail is visible (truncated), in the accessible name,
     // and complete in the title — never color or title alone.
-    const detail = coherenceTruncateText(row.error_message, 40);
+    const detail = truncateDetailText(row.error_message, 40);
     label = t('panel.coherence.chips.en_erreur_detail', { truncated: detail });
     title = ` title="${escapeHtml(
       t('panel.coherence.chips.error_title', { msg: row.error_message })

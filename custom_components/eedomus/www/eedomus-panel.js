@@ -129,6 +129,21 @@ class EedomusConfigPanel extends HTMLElement {
     this._metricsErrorDetail = null;
     this._metricsLoading = false;
     this._metricsGeneration = 0;
+    // Backfill queue state (ticket 4.3) — the tab's second parallel
+    // load, with its own error/skeleton slot (the two zones resolve
+    // independently). The last refused action and the pending ignore
+    // confirmation are volatile per visit.
+    this._backfill = null;
+    this._backfillError = null;
+    this._backfillErrorDetail = null;
+    this._backfillLoading = false;
+    this._backfillGeneration = 0;
+    // One backfill action at a time (in-flight guard), generations
+    // dropping superseded resolutions — mirror of the load slots.
+    this._backfillActionLoading = false;
+    this._backfillActionGen = 0;
+    this._backfillActionError = null;
+    this._confirmIgnore = null;
     this._boundCoherenceBreakpoint = (ev) => this._onCoherenceBreakpoint(ev);
   }
 
@@ -150,9 +165,15 @@ class EedomusConfigPanel extends HTMLElement {
       } else if (this._tab === 'coherence' && this._coherence === null
           && !this._coherenceError) {
         this._loadCoherence();
-      } else if (this._tab === 'supervision' && this._metrics === null
-          && !this._metricsError) {
-        this._loadMetrics();
+      } else if (this._tab === 'supervision') {
+        // Two parallel loads, independent slots: a deep-link entry
+        // starts both (the zones resolve on their own).
+        if (this._metrics === null && !this._metricsError) {
+          this._loadMetrics();
+        }
+        if (this._backfill === null && !this._backfillError) {
+          this._loadBackfill();
+        }
       }
     }
   }
@@ -305,6 +326,11 @@ class EedomusConfigPanel extends HTMLElement {
     // Back/forward between tabs: the URL hash is the source of truth.
     const tab = this._tabFromLocation();
     if (tab !== this._tab) {
+      if (this._tab === 'supervision') {
+        // Back/forward leaves the tab: the pending ignore
+        // confirmation voids, same as _setTab.
+        this._confirmIgnore = null;
+      }
       this._tab = tab;
       // The replaced table carries no anchor row: like the popover,
       // a stale expanded row never survives the switch.
@@ -314,6 +340,11 @@ class EedomusConfigPanel extends HTMLElement {
   }
 
   _setTab(tab, updateHash = true) {
+    if (tab !== this._tab && this._tab === 'supervision') {
+      // Leaving the Supervision tab voids the pending ignore
+      // confirmation (volatile per visit, ticket 4.3).
+      this._confirmIgnore = null;
+    }
     this._tab = tab;
     if (updateHash) {
       window.location.hash = tab;
@@ -504,6 +535,7 @@ ${SUPERVISION_STYLES}
         </nav>
 
         <main id="tab-content" aria-live="polite"></main>
+        <p class="sr-only" id="backfill-status-live" role="status"></p>
       </div>
     `;
 
@@ -524,6 +556,10 @@ ${SUPERVISION_STYLES}
       } else if (retry.dataset.retry === 'coherence') {
         this._coherenceError = null;
         this._loadCoherence();
+      } else if (retry.dataset.retry === 'backfill') {
+        this._backfillError = null;
+        this._backfillErrorDetail = null;
+        this._loadBackfill();
       } else if (retry.dataset.retry === 'metrics') {
         this._metricsError = null;
         this._metricsErrorDetail = null;
@@ -608,6 +644,14 @@ ${SUPERVISION_STYLES}
     if (filterBtn) {
       this._touchedOnly = !this._touchedOnly;
       this._renderPeriphList();
+      return;
+    }
+    if (this._tab === 'supervision') {
+      // Supervision's own delegation runs BEFORE the generic
+      // .row-action + periphId branch below: the queue rows use
+      // .row-action buttons too, and the generic branch would route
+      // them to _createRuleFor (collision).
+      this._onSupervisionEvent(ev);
       return;
     }
     const action = ev.target.closest('.row-action');
@@ -874,6 +918,9 @@ ${SUPERVISION_STYLES}
       content.innerHTML = this._renderSupervisionTab();
       if (this._metrics === null && !this._metricsError) {
         this._loadMetrics();
+      }
+      if (this._backfill === null && !this._backfillError) {
+        this._loadBackfill();
       }
     } else {
       content.innerHTML = `

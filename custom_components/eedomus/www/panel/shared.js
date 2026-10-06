@@ -79,6 +79,20 @@ export function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+// Truncation of an error detail for display (visible + accessible
+// text — the full message lives in the title). Shared by the
+// coherence chips and the supervision backfill rows: ONE copy, same
+// 40-char contract. Truncation walks code points (Array.from) so a
+// surrogate pair (an emoji) is never cut mid-pair.
+export function truncateDetailText(text, max) {
+  const value = String(text);
+  const chars = Array.from(value);
+  if (chars.length <= max) {
+    return value;
+  }
+  return `${chars.slice(0, max - 1).join('')}…`;
+}
+
 export function applySharedMixin(EedomusConfigPanel) {
   Object.assign(EedomusConfigPanel.prototype, {
   // Result-count announcements (sweep). The visible count element

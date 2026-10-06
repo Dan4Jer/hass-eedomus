@@ -226,6 +226,62 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
             "the first refresh."
         ),
         "panel.supervision.skeleton.aria": "Loading supervision…",
+        # Supervision — backfill queue (CAP-5)
+        "panel.supervision.backfill.title": "History backfill queue",
+        "panel.supervision.backfill.skeleton.aria": (
+            "Loading the backfill queue…"
+        ),
+        "panel.supervision.backfill.empty": (
+            "All recovered. No pending history."
+        ),
+        "panel.supervision.backfill.error.load": (
+            "Failed to load the backfill queue: {err}."
+        ),
+        "panel.supervision.backfill.global.label": "Global pause",
+        "panel.supervision.backfill.global.state_paused": "paused",
+        "panel.supervision.backfill.global.state_resumed": "resumed",
+        "panel.supervision.backfill.status.priority": "prioritized",
+        "panel.supervision.backfill.status.in_progress": "in progress",
+        "panel.supervision.backfill.status.error": "in error",
+        "panel.supervision.backfill.status.paused": "paused",
+        "panel.supervision.backfill.status.pending": "pending",
+        "panel.supervision.backfill.status.unknown": "{raw}",
+        "panel.supervision.backfill.action.retry": "Retry now",
+        "panel.supervision.backfill.action.prioritize": "Prioritize",
+        "panel.supervision.backfill.action.pause": "Pause",
+        "panel.supervision.backfill.action.resume": "Resume",
+        "panel.supervision.backfill.action.ignore": "Ignore",
+        "panel.supervision.backfill.action.reactivate": "Reactivate",
+        "panel.supervision.backfill.ignore.confirm": "Confirm ignore?",
+        "panel.supervision.backfill.ignore.confirm_message": (
+            "Ignore {name}? Its recovery will be abandoned."
+        ),
+        "panel.supervision.backfill.row.position": "position {n}",
+        "panel.supervision.backfill.row.attempts_one": "({n} attempt)",
+        "panel.supervision.backfill.row.attempts_other": "({n} attempts)",
+        "panel.supervision.backfill.row.retry_after": "— retry at {retry_after}",
+        "panel.supervision.backfill.row.error_fallback": "import error",
+        "panel.supervision.backfill.ignored.title": "Ignored peripherals",
+        "panel.supervision.backfill.feedback.retry": (
+            "Retry started for {name}."
+        ),
+        "panel.supervision.backfill.feedback.prioritize": (
+            "{name} moved to the head of the queue."
+        ),
+        "panel.supervision.backfill.feedback.pause": "{name} paused.",
+        "panel.supervision.backfill.feedback.resume": "{name} resumed.",
+        "panel.supervision.backfill.feedback.ignore": (
+            "Recovery of {name} abandoned."
+        ),
+        "panel.supervision.backfill.feedback.reactivate": (
+            "{name} reactivated."
+        ),
+        "panel.supervision.backfill.feedback.global": (
+            "Backfill engine {state}."
+        ),
+        "panel.supervision.backfill.feedback.error": (
+            "Action refused for {name}: {err}."
+        ),
     },
     "fr": {
         # Shell / navigation
@@ -463,6 +519,62 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
             "graphiques se rempliront après le premier refresh."
         ),
         "panel.supervision.skeleton.aria": "Chargement de la supervision…",
+        # Supervision — backfill queue (CAP-5)
+        "panel.supervision.backfill.title": "File de récupération d'historique",
+        "panel.supervision.backfill.skeleton.aria": (
+            "Chargement de la file de récupération…"
+        ),
+        "panel.supervision.backfill.empty": (
+            "Tout est récupéré. Aucun historique en attente."
+        ),
+        "panel.supervision.backfill.error.load": (
+            "Impossible de charger la file de récupération : {err}."
+        ),
+        "panel.supervision.backfill.global.label": "Pause globale",
+        "panel.supervision.backfill.global.state_paused": "en pause",
+        "panel.supervision.backfill.global.state_resumed": "repris",
+        "panel.supervision.backfill.status.priority": "priorisé",
+        "panel.supervision.backfill.status.in_progress": "en cours",
+        "panel.supervision.backfill.status.error": "en erreur",
+        "panel.supervision.backfill.status.paused": "en pause",
+        "panel.supervision.backfill.status.pending": "en attente",
+        "panel.supervision.backfill.status.unknown": "{raw}",
+        "panel.supervision.backfill.action.retry": "Réessayer maintenant",
+        "panel.supervision.backfill.action.prioritize": "Prioriser",
+        "panel.supervision.backfill.action.pause": "Pause",
+        "panel.supervision.backfill.action.resume": "Reprendre",
+        "panel.supervision.backfill.action.ignore": "Ignorer",
+        "panel.supervision.backfill.action.reactivate": "Réactiver",
+        "panel.supervision.backfill.ignore.confirm": "Confirmer l'abandon ?",
+        "panel.supervision.backfill.ignore.confirm_message": (
+            "Ignorer {name} ? Sa récupération sera abandonnée."
+        ),
+        "panel.supervision.backfill.row.position": "position {n}",
+        "panel.supervision.backfill.row.attempts_one": "({n} tentative)",
+        "panel.supervision.backfill.row.attempts_other": "({n} tentatives)",
+        "panel.supervision.backfill.row.retry_after": (
+            "— nouvelle tentative {retry_after}"
+        ),
+        "panel.supervision.backfill.row.error_fallback": "erreur d'import",
+        "panel.supervision.backfill.ignored.title": "Périphériques ignorés",
+        "panel.supervision.backfill.feedback.retry": (
+            "Nouvelle tentative lancée pour {name}."
+        ),
+        "panel.supervision.backfill.feedback.prioritize": (
+            "{name} remonté en tête de la file."
+        ),
+        "panel.supervision.backfill.feedback.pause": "{name} en pause.",
+        "panel.supervision.backfill.feedback.resume": "{name} repris.",
+        "panel.supervision.backfill.feedback.ignore": (
+            "Récupération de {name} abandonnée."
+        ),
+        "panel.supervision.backfill.feedback.reactivate": "{name} réactivé.",
+        "panel.supervision.backfill.feedback.global": (
+            "Moteur de récupération {state}."
+        ),
+        "panel.supervision.backfill.feedback.error": (
+            "Action refusée pour {name} : {err}."
+        ),
     },
 }
 

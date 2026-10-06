@@ -124,6 +124,8 @@ const hook = `
   supervisionMetricCardHtml,
   supervisionFormatSeconds,
   supervisionFormatCount,
+  supervisionFormatTimestamp,
+  truncateDetailText,
 };`;
 
 // Mini module loader (story 102): the panel is real ES modules — the
@@ -220,6 +222,8 @@ const {
   supervisionMetricCardHtml,
   supervisionFormatSeconds,
   supervisionFormatCount,
+  supervisionFormatTimestamp,
+  truncateDetailText,
 } = sandbox.__coherence;
 
 // Fixture translator (CAP-3): the frozen FR catalog, identical
@@ -1871,6 +1875,375 @@ assertEq(
   [1, null]
 );
 
+// --- Supervision backfill queue (ticket 4.3): render + gestures -----
+const BF_LONG_ERROR =
+  'API timeout while fetching the history of the peripheral device';
+const BF_STATE = {
+  queue: [
+    { periph_id: '101', name: 'Salon', status: 'error', position: 1,
+      error_message: BF_LONG_ERROR,
+      retry_after: '2026-10-07T21:04:00+02:00', attempts: 2,
+      entry_id: 'E1' },
+    { periph_id: '102', name: 'Cave', status: 'pending', position: 2,
+      entry_id: 'E1' },
+    { periph_id: '103', name: 'Garage', status: 'paused', position: 3,
+      entry_id: 'E1' },
+    { periph_id: '104', name: 'Bureau', status: 'priority', position: 4,
+      entry_id: 'E1' },
+    { periph_id: '105', name: 'Chambre', status: 'in_progress', position: 5,
+      entry_id: 'E1' },
+    { periph_id: '106', name: 'Cellier', status: 'weird_token', position: 6,
+      entry_id: 'E1' },
+  ],
+  ignored: [{ periph_id: '107', name: 'Grenier', entry_id: 'E1' }],
+  global_paused: false,
+  engine_active: true,
+};
+const bfPanel = new EedomusConfigPanel();
+bfPanel._strings = FR;
+bfPanel._stringsLocale = 'fr';
+bfPanel._tab = 'supervision';
+const bfContentEl = { innerHTML: '' };
+bfPanel.shadowRoot = {
+  getElementById: (id) =>
+    id === 'tab-content' ? bfContentEl
+      : id === 'backfill-status-live'
+        ? { id: 'backfill-status-live', textContent: '' }
+        : null,
+  querySelectorAll: () => [],
+  querySelector: () => null,
+};
+// Loaded metrics zone (empty) + loaded queue: the queue renders on
+// its own slot, the composition never gates one zone on the other.
+bfPanel._metrics = { boxes: [] };
+bfPanel._backfill = BF_STATE;
+const bfHtml = bfPanel._renderSupervisionTab();
+assertEq(
+  'backfill: the loaded queue heads with the global switch and named rows',
+  [
+    bfHtml.includes('role="switch"'),
+    bfHtml.includes('aria-checked="false"'),
+    bfHtml.includes('Pause globale'),
+    bfHtml.includes('Salon'),
+    bfHtml.includes('periph_id 101'),
+  ],
+  [true, true, true, true, true]
+);
+assertEq(
+  'backfill: statuses render as text — the five tokens and the raw unknown',
+  [
+    bfHtml.includes('en erreur'),
+    bfHtml.includes('en attente'),
+    bfHtml.includes('en pause'),
+    bfHtml.includes('priorisé'),
+    bfHtml.includes('en cours'),
+    bfHtml.includes('weird_token'),
+  ],
+  [true, true, true, true, true, true]
+);
+assertEq(
+  'backfill: every row carries its position and the four actions',
+  [
+    bfHtml.includes('position 1'),
+    bfHtml.includes('position 6'),
+    bfHtml.includes('Réessayer maintenant'),
+    bfHtml.includes('Prioriser'),
+    bfHtml.includes('data-bf-action="retry"'),
+    bfHtml.includes('data-bf-action="prioritize"'),
+    bfHtml.includes('data-bf-action="pause"'),
+    bfHtml.includes('data-bf-action="ignore"'),
+  ],
+  [true, true, true, true, true, true, true, true]
+);
+// A paused row swaps its Pause for the Resume control.
+const bfGarageBlock = bfHtml.match(
+  /data-bf-row="103"[\s\S]*?data-bf-row="104"/
+)[0];
+assertEq(
+  'backfill: a paused row offers Resume instead of Pause',
+  [
+    bfGarageBlock.includes('data-bf-action="resume"'),
+    bfGarageBlock.includes('Reprendre'),
+    bfGarageBlock.includes('data-bf-action="pause"'),
+  ],
+  [true, true, false]
+);
+assertEq(
+  'backfill: the error row shows the truncated detail, the full title and the retry context',
+  [
+    bfHtml.includes(truncateDetailText(BF_LONG_ERROR, 40)),
+    bfHtml.includes(`title="${BF_LONG_ERROR}"`),
+    (bfHtml.match(new RegExp(BF_LONG_ERROR, 'g')) || []).length,
+    bfHtml.includes('(2 tentatives)'),
+    bfHtml.includes('— nouvelle tentative 07/10 21:04'),
+    bfHtml.includes('title="2026-10-07T21:04:00+02:00"'),
+  ],
+  [true, true, 1, true, true, true]
+);
+assertEq(
+  'backfill: the live region lives in the shell, not the re-rendered fragment',
+  bfHtml.includes('backfill-status-live'),
+  false
+);
+assertEq(
+  'backfill: the ignored sub-section lists its rows with Reactivate',
+  [
+    bfHtml.includes('Périphériques ignorés'),
+    bfHtml.includes('Grenier'),
+    bfHtml.includes('data-bf-action="reactivate"'),
+    bfHtml.includes('data-bf-periph="107"'),
+    bfHtml.includes('Réactiver'),
+  ],
+  [true, true, true, true, true]
+);
+// Two independent slots: a metrics error never blanks the queue.
+bfPanel._metricsError = 'panel.common.command_refused';
+const bfBothHtml = bfPanel._renderSupervisionTab();
+assertEq(
+  'backfill: the metrics error and the queue coexist (independent slots)',
+  [
+    bfBothHtml.includes('Impossible de charger les métriques'),
+    bfBothHtml.includes('data-retry="metrics"'),
+    bfBothHtml.includes('Pause globale'),
+    bfBothHtml.includes('Salon'),
+  ],
+  [true, true, true, true]
+);
+bfPanel._metricsError = null;
+bfPanel._metricsErrorDetail = null;
+// The positive empty state replaces the queue (and the switch).
+bfPanel._backfill = { queue: [], ignored: [], global_paused: false };
+const bfEmptyHtml = bfPanel._renderSupervisionTab();
+assertEq(
+  'backfill: an all-done queue renders the positive empty state',
+  [
+    bfEmptyHtml.includes('Tout est récupéré. Aucun historique en attente.'),
+    bfEmptyHtml.includes('role="switch"'),
+  ],
+  [true, false]
+);
+// The dedicated queue skeleton (metrics loaded, queue in flight).
+bfPanel._backfill = null;
+const bfSkelHtml = bfPanel._renderSupervisionTab();
+assertEq(
+  'backfill: the queue skeleton renders on its own slot',
+  [
+    (bfSkelHtml.match(/backfill-skeleton-row/g) || []).length,
+    bfSkelHtml.includes('Chargement de la file de récupération…'),
+    bfSkelHtml.includes('Pause globale'),
+    bfSkelHtml.includes('panel.'),
+  ],
+  [4, true, false, false]
+);
+// The dedicated queue error + Retry button.
+bfPanel._backfillError = 'panel.common.command_refused';
+const bfErrHtml = bfPanel._renderSupervisionTab();
+assertEq(
+  'backfill: a ws error renders the zone alert + its own Retry',
+  [
+    bfErrHtml.includes('role="alert"'),
+    bfErrHtml.includes(
+      'Impossible de charger la file de récupération : commande refusée.'
+    ),
+    bfErrHtml.includes('data-retry="backfill"'),
+  ],
+  [true, true, true]
+);
+bfPanel._backfillError = null;
+bfPanel._backfillErrorDetail = null;
+
+// Two-gesture ignore: the first click arms, never calls.
+bfPanel._backfill = BF_STATE;
+bfPanel._confirmIgnore = null;
+const bfWsCalls = [];
+bfPanel._hass = {
+  locale: { language: 'fr' },
+  callWS: async (msg) => {
+    bfWsCalls.push(msg);
+    return { success: true, state: BF_STATE };
+  },
+};
+bfPanel._onSupervisionEvent({
+  target: {
+    closest: (sel) => (sel === '[data-bf-action]'
+      ? { dataset: { bfAction: 'ignore', bfPeriph: '102' } }
+      : null),
+  },
+});
+assertEq(
+  'backfill: the first ignore gesture arms the confirmation, no callWS',
+  [bfPanel._confirmIgnore, bfWsCalls.length],
+  ['102', 0]
+);
+const bfConfirmHtml = bfPanel._renderSupervisionTab();
+assertEq(
+  'backfill: the armed line swaps the button and shows the inline message',
+  [
+    bfConfirmHtml.includes('Ignorer Cave ? Sa récupération sera abandonnée.'),
+    bfConfirmHtml.includes("Confirmer l'abandon ?"),
+    bfConfirmHtml.includes('role="alert"'),
+  ],
+  [true, true, true]
+);
+// Arming another line cancels the first confirmation (single slot).
+bfPanel._onSupervisionEvent({
+  target: {
+    closest: (sel) => (sel === '[data-bf-action]'
+      ? { dataset: { bfAction: 'ignore', bfPeriph: '103' } }
+      : null),
+  },
+});
+assertEq(
+  'backfill: arming another line cancels the first confirmation',
+  [
+    bfPanel._confirmIgnore,
+    bfPanel._renderSupervisionTab().includes(
+      'Ignorer Cave ? Sa récupération sera abandonnée.'
+    ),
+  ],
+  ['103', false]
+);
+// retry_after formats for display; the full ISO stays in the title.
+assertEq(
+  'backfill: retry_after formats as readable text, unparseable stays raw',
+  [
+    supervisionFormatTimestamp('2026-10-07T21:04:00+02:00'),
+    supervisionFormatTimestamp('not-a-timestamp'),
+    supervisionFormatTimestamp(undefined),
+  ],
+  ['07/10 21:04', 'not-a-timestamp', '—']
+);
+// The shared truncate walks code points: a surrogate pair at the cut
+// boundary is dropped whole, never rendered as a broken half.
+assertEq(
+  'truncate: a surrogate pair at the boundary is never cut mid-pair',
+  truncateDetailText('x'.repeat(38) + '\u{1F600}' + 'y'.repeat(10), 40),
+  'x'.repeat(38) + '\u{1F600}…'
+);
+// An empty queue with ignored rows: NO all-recovered message above
+// the ignored list (recoveries were abandoned, not recovered).
+bfPanel._confirmIgnore = null;
+bfPanel._backfill = {
+  queue: [],
+  ignored: [{ periph_id: '107', name: 'Grenier', entry_id: 'E1' }],
+  global_paused: false,
+};
+const bfIgnoredOnlyHtml = bfPanel._renderSupervisionTab();
+assertEq(
+  'backfill: an empty queue with ignored rows shows no all-recovered message',
+  [
+    bfIgnoredOnlyHtml.includes('Tout est récupéré'),
+    bfIgnoredOnlyHtml.includes('Périphériques ignorés'),
+    bfIgnoredOnlyHtml.includes('Grenier'),
+    bfIgnoredOnlyHtml.includes('role="switch"'),
+  ],
+  [false, true, true, false]
+);
+// A refused load keeps no stale queue: Retry re-renders the skeleton
+// while the reload is in flight.
+bfPanel._backfill = BF_STATE;
+bfPanel._backfillError = 'panel.common.command_refused';
+bfPanel._backfillLoading = false;
+const bfReloadIssued = [];
+bfPanel._hass = {
+  locale: { language: 'fr' },
+  callWS: (msg) => {
+    bfReloadIssued.push(msg.type);
+    return new Promise(() => {}); // dropped: never settles
+  },
+};
+bfPanel._onClick({
+  target: {
+    closest: (sel) => (sel === '.retry'
+      ? { dataset: { retry: 'backfill' } }
+      : null),
+  },
+});
+assertEq(
+  'backfill: Retry after a refused load drops the stale queue for the skeleton',
+  [
+    bfPanel._backfill === null,
+    bfReloadIssued.includes('eedomus/get_backfill_state'),
+    bfContentEl.innerHTML.includes('backfill-skeleton-row'),
+  ],
+  [true, true, true]
+);
+bfPanel._backfillLoading = false;
+bfPanel._backfillError = null;
+// The armed confirmation is volatile per visit: leaving the tab and
+// coming back never keeps it armed.
+bfPanel._backfill = BF_STATE;
+bfPanel._confirmIgnore = '102';
+bfPanel._renderTabContent = () => {};
+bfPanel._setTab('coherence');
+assertEq(
+  'backfill: leaving the tab resets the pending confirmation',
+  bfPanel._confirmIgnore,
+  null
+);
+bfPanel._setTab('supervision');
+assertEq(
+  'backfill: coming back leaves the confirmation reset',
+  bfPanel._confirmIgnore,
+  null
+);
+// Focus preservation: a re-render resolving while the keyboard sits
+// on a queue control restores the control after the swap.
+const bfFocusPanel = new EedomusConfigPanel();
+bfFocusPanel._strings = FR;
+bfFocusPanel._stringsLocale = 'fr';
+bfFocusPanel._tab = 'supervision';
+const bfPreserveLog = [];
+const bfPreserveRow = {
+  getAttribute: () => '101',
+  querySelector: (sel) => {
+    const match = /\[data-bf-action="([a-z]+)"\]/.exec(sel);
+    return { focus: () => bfPreserveLog.push(match ? match[1] : 'button') };
+  },
+};
+bfFocusPanel.shadowRoot = {
+  getElementById: (id) => (id === 'tab-content' ? { innerHTML: '' } : null),
+  querySelectorAll: (sel) => (sel === '[data-bf-row]' ? [bfPreserveRow] : []),
+  querySelector: () => null,
+  activeElement: { dataset: { bfAction: 'retry', bfPeriph: '101' } },
+};
+bfFocusPanel._metrics = { boxes: [] };
+bfFocusPanel._backfill = BF_STATE;
+bfFocusPanel._renderSupervisionContent();
+assertEq(
+  'backfill: a re-render restores the focused queue control',
+  bfPreserveLog,
+  ['retry']
+);
+// Delegation order: a queue button that ALSO matches the generic
+// .row-action + periphId branch routes to the supervision handler —
+// _createRuleFor never fires (the collision fix).
+const bfCollPanel = new EedomusConfigPanel();
+bfCollPanel._strings = FR;
+bfCollPanel._tab = 'supervision';
+const bfRouted = [];
+let bfRuleFired = false;
+bfCollPanel._onSupervisionEvent = (ev) => {
+  bfRouted.push(ev);
+};
+bfCollPanel._createRuleFor = () => {
+  bfRuleFired = true;
+};
+bfCollPanel._onClick({
+  target: {
+    closest: (sel) => (sel === '[data-bf-action]'
+      ? { dataset: { bfAction: 'retry', bfPeriph: '101' } }
+      : sel === '.row-action'
+        ? { dataset: { periphId: '101', usageId: '7' } }
+        : null),
+  },
+});
+assertEq(
+  'backfill: the supervision delegation wins over the generic row-action branch',
+  [bfRouted.length, bfRuleFired],
+  [1, false]
+);
+
 // Sync suite boundary: a sync failure exits before the async block.
 if (failures) {
   console.log(`\n${failures} failure(s)`);
@@ -2042,6 +2415,11 @@ async function runCatalogLifecycleTests() {
     [true, true, true, true]
   );
   assertEq(
+    'lifecycle: the shell carries the stable backfill live region',
+    liveHtml.includes('id="backfill-status-live"'),
+    true
+  );
+  assertEq(
     'lifecycle: delegation listeners attached exactly once',
     gatePanel.shadowRoot.listeners.click.length,
     1
@@ -2073,6 +2451,12 @@ async function runCatalogLifecycleTests() {
     'eedomus/get_mapping_versions': { versions: [], current: {} },
     'eedomus/get_coherence': { peripherals: [] },
     'eedomus/get_box_metrics': { boxes: [] },
+    'eedomus/get_backfill_state': {
+      queue: [],
+      ignored: [],
+      global_paused: false,
+      engine_active: false,
+    },
   };
   const lazyIssued = [];
   const lazyHass = {
@@ -2087,6 +2471,7 @@ async function runCatalogLifecycleTests() {
     ['historique', 'eedomus/get_mapping_versions'],
     ['coherence', 'eedomus/get_coherence'],
     ['supervision', 'eedomus/get_box_metrics'],
+    ['supervision', 'eedomus/get_backfill_state'],
   ]) {
     const panel = lifecyclePanel();
     panel._tab = lazyTab;
@@ -2447,6 +2832,312 @@ async function runSupervisionAsyncTests() {
   );
 }
 
+// --- Supervision backfill actions (ticket 4.3, async) ---------------
+// Verb issuance, {state} re-render without a second get_backfill_state,
+// nominative aria-live feedback, refused actions keeping the known
+// queue, focus restoration — all driven with a recording callWS.
+async function runBackfillAsyncTests() {
+  const panel = new EedomusConfigPanel();
+  panel._strings = FR;
+  panel._stringsLocale = 'fr';
+  panel._tab = 'supervision';
+  const contentEl = { innerHTML: '' };
+  const live = { id: 'backfill-status-live', textContent: '' };
+  const focusLog = [];
+  // Row stub: answers the focus queries, records the control that
+  // took the focus (the counterpart mapping is under test).
+  const rowStub = {
+    getAttribute: () => '101',
+    querySelector: (sel) => {
+      const match = /\[data-bf-action="([a-z]+)"\]/.exec(sel);
+      return { focus: () => focusLog.push(match ? match[1] : 'button') };
+    },
+  };
+  panel.shadowRoot = {
+    getElementById: (id) =>
+      id === 'tab-content' ? contentEl
+        : id === 'backfill-status-live' ? live
+        : null,
+    querySelectorAll: (sel) => (sel === '[data-bf-row]' ? [rowStub] : []),
+    querySelector: (sel) =>
+      sel === '[data-bf-switch]'
+        ? { focus: () => focusLog.push('switch') }
+        : null,
+  };
+  const wsCalls = [];
+  let wsAnswer = null;
+  panel._hass = {
+    locale: { language: 'fr' },
+    callWS: (msg) => {
+      wsCalls.push(msg);
+      if (wsAnswer instanceof Error) {
+        return Promise.reject(wsAnswer);
+      }
+      return Promise.resolve(wsAnswer);
+    },
+  };
+  const QUEUE = [
+    { periph_id: '101', name: 'Salon', status: 'pending', position: 2,
+      entry_id: 'E1' },
+    { periph_id: '102', name: 'Cave', status: 'error', position: 1,
+      error_message: 'API error', attempts: 1, entry_id: 'E1' },
+  ];
+  const STATE = {
+    queue: QUEUE,
+    ignored: [],
+    global_paused: false,
+    engine_active: false,
+  };
+  panel._metrics = { boxes: [] };
+  panel._backfill = STATE;
+
+  // (1) prioritize: the verb once, the response {state} adopted, the
+  // nominative feedback announced, the focus restored — and NEVER a
+  // second get_backfill_state round trip.
+  const NEXT = {
+    queue: [
+      { periph_id: '101', name: 'Salon', status: 'priority', position: 1,
+        entry_id: 'E1' },
+      { periph_id: '102', name: 'Cave', status: 'error', position: 2,
+        error_message: 'API error', attempts: 1, entry_id: 'E1' },
+    ],
+    ignored: [],
+    global_paused: false,
+    engine_active: true,
+  };
+  wsAnswer = { success: true, periph_id: '101', prioritized: true, state: NEXT };
+  await panel._onBackfillAction({
+    dataset: { bfAction: 'prioritize', bfPeriph: '101' },
+  });
+  assertEq(
+    'backfill: prioritize issues the verb once and adopts the response state',
+    [
+      wsCalls[0].type,
+      wsCalls[0].periph_id,
+      panel._backfill === NEXT,
+      wsCalls.some((call) => call.type === 'eedomus/get_backfill_state'),
+    ],
+    ['eedomus/backfill_prioritize', '101', true, false]
+  );
+  assertEq(
+    'backfill: the nominative feedback lands in the live region',
+    live.textContent,
+    'Salon remonté en tête de la file.'
+  );
+  assertEq(
+    'backfill: the focus returns to the line control after the re-render',
+    focusLog.slice(-1),
+    ['prioritize']
+  );
+
+  // (2) refused action: the queue keeps the known real state, the
+  // refusal is named in the zone and announced — never a mute button.
+  // The pending ignore confirmation voids with the refusal.
+  wsAnswer = new Error('A history import is already in progress');
+  const knownState = panel._backfill;
+  panel._confirmIgnore = '102';
+  await panel._onBackfillAction({
+    dataset: { bfAction: 'retry', bfPeriph: '101' },
+  });
+  assertEq(
+    'backfill: a refused action keeps the known queue and names the refusal',
+    [panel._backfill === knownState, live.textContent],
+    [
+      true,
+      'Action refusée pour Salon : A history import is already in progress.',
+    ]
+  );
+  assertEq(
+    'backfill: a refused action voids the pending confirmation',
+    panel._confirmIgnore,
+    null
+  );
+  assertEq(
+    'backfill: the refusal renders nominatively in the queue zone',
+    panel._renderSupervisionTab().includes(
+      'Action refusée pour Salon : A history import is already in progress.'
+    ),
+    true
+  );
+
+  // (3) pause: the verb carries paused=true and the focus hands over
+  // to the resume counterpart of the re-rendered row.
+  wsAnswer = { success: true, periph_id: '101', paused: true, state: NEXT };
+  await panel._onBackfillAction({
+    dataset: { bfAction: 'pause', bfPeriph: '101' },
+  });
+  assertEq(
+    'backfill: pause issues the verb and the focus lands on Resume',
+    [
+      wsCalls[wsCalls.length - 1].type,
+      wsCalls[wsCalls.length - 1].paused,
+      focusLog.slice(-1),
+    ],
+    ['eedomus/backfill_set_paused', true, ['resume']]
+  );
+  assertEq(
+    'backfill: pause announces nominatively',
+    live.textContent,
+    'Salon en pause.'
+  );
+
+  // (4) ignore executes from the confirmed state; the line leaves
+  // for the ignored sub-section and the confirmation resets.
+  panel._confirmIgnore = '102';
+  const AFTER_IGNORE = {
+    queue: [NEXT.queue[0]],
+    ignored: [{ periph_id: '102', name: 'Cave', entry_id: 'E1' }],
+    global_paused: false,
+    engine_active: true,
+  };
+  wsAnswer = {
+    success: true,
+    periph_id: '102',
+    ignored: true,
+    state: AFTER_IGNORE,
+  };
+  await panel._onBackfillAction({
+    dataset: { bfAction: 'ignore', bfPeriph: '102' },
+  });
+  assertEq(
+    'backfill: the second gesture executes the ignore verb and resets the confirmation',
+    [
+      wsCalls[wsCalls.length - 1].type,
+      wsCalls[wsCalls.length - 1].ignored,
+      panel._confirmIgnore,
+      live.textContent,
+    ],
+    ['eedomus/backfill_set_ignored', true, null, 'Récupération de Cave abandonnée.']
+  );
+  assertEq(
+    'backfill: the ignored line re-renders into the ignored sub-section',
+    [
+      contentEl.innerHTML.includes('Cave'),
+      contentEl.innerHTML.includes('Réactiver'),
+      contentEl.innerHTML.includes('Périphériques ignorés'),
+    ],
+    [true, true, true]
+  );
+
+  // (5) reactivate: ignored=false, nominative feedback — and the
+  // focus lands on the queue row's retry control (the row re-enters
+  // the queue, retry is its leading action).
+  wsAnswer = {
+    success: true,
+    periph_id: '101',
+    ignored: false,
+    state: STATE,
+  };
+  await panel._onBackfillAction({
+    dataset: { bfAction: 'reactivate', bfPeriph: '101' },
+  });
+  assertEq(
+    'backfill: reactivate issues ignored=false, announces and focuses the retry control',
+    [
+      wsCalls[wsCalls.length - 1].type,
+      wsCalls[wsCalls.length - 1].ignored,
+      live.textContent,
+      focusLog.slice(-1),
+    ],
+    ['eedomus/backfill_set_ignored', false, 'Salon réactivé.', ['retry']]
+  );
+
+  // (6) the global switch: the verb carries global=true, the state
+  // re-renders the switch, the announcement names the engine state
+  // and the switch keeps the focus.
+  wsAnswer = {
+    success: true,
+    global: true,
+    paused: true,
+    state: { ...STATE, global_paused: true },
+  };
+  await panel._onBackfillAction({ dataset: { bfAction: 'global' } });
+  assertEq(
+    'backfill: the global switch issues the global verb and re-renders',
+    [
+      wsCalls[wsCalls.length - 1].type,
+      wsCalls[wsCalls.length - 1].global,
+      wsCalls[wsCalls.length - 1].paused,
+      contentEl.innerHTML.includes('aria-checked="true"'),
+      live.textContent,
+      focusLog.slice(-1),
+    ],
+    ['eedomus/backfill_set_paused', true, true, true,
+      'Moteur de récupération en pause.', ['switch']]
+  );
+
+  // (7) the in-flight guard: a second action while one is pending
+  // issues nothing — a double-click fires the verb once.
+  let resolvePending;
+  wsAnswer = new Promise((resolve) => {
+    resolvePending = resolve;
+  });
+  const pendingAction = panel._onBackfillAction({
+    dataset: { bfAction: 'retry', bfPeriph: '101' },
+  });
+  const callsBeforeSecond = wsCalls.length;
+  await panel._onBackfillAction({
+    dataset: { bfAction: 'prioritize', bfPeriph: '101' },
+  });
+  assertEq(
+    'backfill: a second action while one is in flight issues nothing',
+    wsCalls.length - callsBeforeSecond,
+    0
+  );
+  resolvePending({ success: true, periph_id: '101', state: NEXT });
+  await pendingAction;
+
+  // (8) the generation guard: a resolution superseded while in
+  // flight is dropped — a stale state is never written back.
+  let resolveStale;
+  wsAnswer = new Promise((resolve) => {
+    resolveStale = resolve;
+  });
+  const staleAction = panel._onBackfillAction({
+    dataset: { bfAction: 'prioritize', bfPeriph: '101' },
+  });
+  panel._backfillActionGen += 1; // superseded while in flight
+  const stateBeforeStale = panel._backfill;
+  const liveBeforeStale = live.textContent;
+  resolveStale({ success: true, periph_id: '101', state: STATE });
+  await staleAction;
+  assertEq(
+    'backfill: a superseded action resolution is dropped',
+    [
+      panel._backfill === stateBeforeStale,
+      live.textContent === liveBeforeStale,
+    ],
+    [true, true]
+  );
+
+  // (9) a response without a usable state: treated as a refusal —
+  // the known state kept, the error named, NO success announce.
+  wsAnswer = { success: true, periph_id: '101' };
+  const knownStateAfter = panel._backfill;
+  await panel._onBackfillAction({
+    dataset: { bfAction: 'retry', bfPeriph: '101' },
+  });
+  assertEq(
+    'backfill: a response without state is a named refusal, never a success',
+    [
+      panel._backfill === knownStateAfter,
+      live.textContent,
+      panel._renderSupervisionTab().includes(
+        'Action refusée pour Salon : erreur inconnue.'
+      ),
+    ],
+    [true, 'Action refusée pour Salon : erreur inconnue.', true]
+  );
+
+  // (10) structuring decision pinned: no command payload ever
+  // carries entry_id — the backend owns the mono-box resolution.
+  assertEq(
+    'backfill: no command payload ever carries entry_id',
+    wsCalls.every((call) => !('entry_id' in call)),
+    true
+  );
+}
+
 // --- periphs search-no-result state (CAP-3 spine row, 3.3) ---
 function runPeriphSearchTests() {
   const searchPanel = new EedomusConfigPanel();
@@ -2668,6 +3359,7 @@ async function runCopyJsonTests() {
 
 runCatalogLifecycleTests()
   .then(runSupervisionAsyncTests)
+  .then(runBackfillAsyncTests)
   .then(runCopyJsonTests)
   .then(
   () => {
