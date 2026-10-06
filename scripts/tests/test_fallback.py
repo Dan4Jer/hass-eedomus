@@ -5,12 +5,9 @@ import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
-from pytest_homeassistant_custom_component.common import MockConfigEntry
-
 from aiohttp import ClientError, ClientSession
-
 from homeassistant.config_entries import ConfigEntry
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.eedomus.const import (
     CONF_PHP_FALLBACK_ENABLED,
@@ -245,7 +242,7 @@ async def test_fallback_script_parameters():
     # Assert that all required parameters are present
     assert "value" in params
     assert "device_id" in params
-    
+
     # Assert that the parameter values are correct
     assert params["value"] == "50"
     assert params["device_id"] == "123"

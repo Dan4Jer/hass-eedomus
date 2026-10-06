@@ -155,6 +155,7 @@ async def test_fetch_data_http_error_utf8(client, mock_session):
     assert result["http_status"] == 500
     assert result["raw_response"] == "Erreur serveur"
 
+
 @pytest.mark.asyncio
 async def test_fetch_data_http_error_iso_fallback(client, mock_session):
     """Vérifie le passage en ISO-8859-1 en cas d'erreur de décodage UTF-8."""
@@ -169,6 +170,7 @@ async def test_fetch_data_http_error_iso_fallback(client, mock_session):
     assert result["success"] == 0
     assert result["http_status"] == 403
     assert result["raw_response"] == "Erreur accès"
+
 
 def test_decode_response_encodings(client):
     """Vérifie le décodage sous plusieurs encodages (latin-1, iso, windows-1252)."""
@@ -334,7 +336,9 @@ async def test_get_periph_list_normalization(client):
 async def test_get_periph_caract(client):
     """Vérifie la transmission de l'option show_config."""
     mock_response = {"success": 1, "body": {"name": "Thermostat"}}
-    with patch.object(client, "fetch_data", AsyncMock(return_value=mock_response)) as mock_fetch:
+    with patch.object(
+        client, "fetch_data", AsyncMock(return_value=mock_response)
+    ) as mock_fetch:
         await client.get_periph_caract("12345", show_config=True)
         mock_fetch.assert_called_once_with(
             "periph.caract", {"periph_id": "12345", "show_config": 1}
@@ -433,6 +437,7 @@ async def test_php_fallback_disabled(client):
     assert res["success"] == 0
     assert res["error"] == "PHP fallback not configured"
 
+
 @pytest.mark.asyncio
 async def test_php_fallback_success(client, mock_session):
     """Vérifie le succès de l'exécution du script de secours PHP."""
@@ -446,6 +451,7 @@ async def test_php_fallback_success(client, mock_session):
     assert res["success"] == 1
     assert res["duration"] == "0.12"
 
+
 @pytest.mark.asyncio
 async def test_php_fallback_http_error(client, mock_session):
     """Vérifie la gestion d'une erreur HTTP sur le script PHP de secours."""
@@ -457,6 +463,7 @@ async def test_php_fallback_http_error(client, mock_session):
 
     assert res["success"] == 0
     assert "HTTP 404" in res["error"]
+
 
 @pytest.mark.asyncio
 async def test_php_fallback_json_error(client, mock_session):
@@ -482,6 +489,7 @@ async def test_php_fallback_timeout(client, mock_session):
     assert res["success"] == 0
     assert res["error"] == "PHP fallback script timeout"
 
+
 @pytest.mark.asyncio
 async def test_php_fallback_client_error(client, mock_session):
     """Vérifie la gestion d'une erreur client lors de l'appel PHP."""
@@ -492,4 +500,3 @@ async def test_php_fallback_client_error(client, mock_session):
 
     assert res["success"] == 0
     assert "DNS fail" in res["error"]
-

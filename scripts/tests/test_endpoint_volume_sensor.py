@@ -1,8 +1,8 @@
 """Tests unitaires pour les capteurs de volume de données des endpoints eedomus."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
-import pytest
 
+import pytest
 from homeassistant.components.sensor import SensorStateClass
 from homeassistant.const import EntityCategory
 
@@ -29,7 +29,7 @@ def mock_coordinator():
     coordinator.config_entry.data = {"host": "192.168.1.50"}
     coordinator._endpoint_data_sizes = {
         "get_periph_list": 1048576,  # 1 Mo = 1024 Ko
-        "partial_refresh": 2048,     # 2 Ko
+        "partial_refresh": 2048,  # 2 Ko
         "empty_endpoint": 0,
     }
     coordinator._endpoint_call_counts = {
@@ -57,6 +57,7 @@ def test_get_clean_box_name_from_coord_formatted_title(mock_coordinator):
     host, box_name = get_clean_box_name_from_coord(mock_coordinator)
     assert host == "10.0.0.1"
     assert box_name == "Box eedomus (10.0.0.1)"
+
 
 def test_get_clean_box_name_from_coord_unclosed_parenthesis(mock_coordinator):
     """Vérifie le parsing d'un titre avec parenthèse ouvrante sans fermeture."""
@@ -213,12 +214,13 @@ async def test_async_setup_endpoint_volume_sensors(mock_coordinator):
     assert isinstance(sensors[3], EedomusPartialRefreshVolumeSensor)
     assert isinstance(sensors[4], EedomusTotalDataVolumeSensor)
 
+
 @pytest.mark.asyncio
 async def test_endpoint_volume_sensor_edge_cases():
     """Cover endpoint_volume_sensor.py missing lines 31-32 and 159."""
     from custom_components.eedomus.endpoint_volume_sensor import (
-        get_clean_box_name_from_coord,
         EedomusEndpointVolumeSensor,
+        get_clean_box_name_from_coord,
     )
 
     # 1. Cible les lignes 31-32 : exception dans get_clean_box_name_from_coord
@@ -240,15 +242,19 @@ async def test_endpoint_volume_sensor_edge_cases():
 
     device_info = MagicMock()
     # Ajout de l'argument 'icon' requis par le constructeur
-    sensor = EedomusEndpointVolumeSensor(coordinator_no_size, device_info, "mdi:database")
-    
+    sensor = EedomusEndpointVolumeSensor(
+        coordinator_no_size, device_info, "mdi:database"
+    )
+
     val = sensor.native_value
     assert val == 0
+
 
 @pytest.mark.asyncio
 async def test_inspect_endpoint_volume_sensor_lines():
     """Diagnostic pour afficher les lignes exactes du fichier endpoint_volume_sensor.py."""
     import inspect
+
     from custom_components.eedomus import endpoint_volume_sensor
 
     source_lines, start_line = inspect.getsourcelines(endpoint_volume_sensor)
@@ -259,10 +265,13 @@ async def test_inspect_endpoint_volume_sensor_lines():
     print("-----------------------------\n")
     assert True
 
+
 @pytest.mark.asyncio
 async def test_total_volume_sensor_missing_data_sizes():
     """Target the exact return 0 line in the total volume sensor when _endpoint_data_sizes is missing."""
-    from custom_components.eedomus.endpoint_volume_sensor import EedomusTotalDataVolumeSensor
+    from custom_components.eedomus.endpoint_volume_sensor import (
+        EedomusTotalDataVolumeSensor,
+    )
 
     class CoordinatorWithoutSizes:
         def __init__(self):
@@ -271,11 +280,10 @@ async def test_total_volume_sensor_missing_data_sizes():
             # _endpoint_data_sizes est volontairement absent
 
     coordinator = CoordinatorWithoutSizes()
-    
+
     # Instanciation avec uniquement le coordinateur
     sensor = EedomusTotalDataVolumeSensor(coordinator)
-    
+
     # Cela va forcer le hasattr à False et exécuter le return 0
     val = sensor.native_value
     assert val == 0
-

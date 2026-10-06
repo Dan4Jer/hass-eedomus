@@ -1,9 +1,9 @@
 """Tests unitaires pour le flux d'options (options_flow) d'eedomus."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 import voluptuous as vol
-
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
@@ -255,9 +255,7 @@ async def test_step_yaml_submit_valid(hass: HomeAssistant, mock_config_entry):
         assert result["data"][CONF_YAML_CONTENT] == valid_yaml_str
 
 
-async def test_step_yaml_submit_invalid_syntax(
-    hass: HomeAssistant, mock_config_entry
-):
+async def test_step_yaml_submit_invalid_syntax(hass: HomeAssistant, mock_config_entry):
     """Vérifie l'erreur remontée en cas de syntaxe YAML corrompue."""
     flow = EedomusOptionsFlow.async_get_options_flow(mock_config_entry)
     flow.hass = hass
@@ -276,9 +274,7 @@ async def test_step_yaml_submit_invalid_syntax(
         assert "invalid_yaml" in result["errors"]["base"]
 
 
-async def test_step_yaml_submit_invalid_schema(
-    hass: HomeAssistant, mock_config_entry
-):
+async def test_step_yaml_submit_invalid_schema(hass: HomeAssistant, mock_config_entry):
     """Vérifie l'erreur remontée si le schéma de validation du mapping échoue."""
     flow = EedomusOptionsFlow.async_get_options_flow(mock_config_entry)
     flow.hass = hass
@@ -300,9 +296,7 @@ async def test_step_yaml_submit_invalid_schema(
         assert "invalid_mapping" in result["errors"]["base"]
 
 
-async def test_step_yaml_submit_save_failure(
-    hass: HomeAssistant, mock_config_entry
-):
+async def test_step_yaml_submit_save_failure(hass: HomeAssistant, mock_config_entry):
     """Vérifie l'erreur quand la fonction async_save_custom_mapping retourne False."""
     flow = EedomusOptionsFlow.async_get_options_flow(mock_config_entry)
     flow.hass = hass
@@ -336,8 +330,6 @@ async def test_options_flow_copy_config_with_existing_options():
     config_entry.data = {}
 
     flow = EedomusOptionsFlow(config_entry)
-    
+
     # Appel direct de la méthode interne pour exécuter la ligne 60
     flow._copy_config_to_options()
-
-

@@ -1,9 +1,10 @@
 """Tests for Eedomus binary sensor entities."""
 
 from unittest.mock import AsyncMock, MagicMock
-import pytest
 
+import pytest
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass
+
 from custom_components.eedomus.binary_sensor import (
     EedomusBinarySensor,
     async_setup_entry,
@@ -173,13 +174,7 @@ async def test_async_setup_entry_binary_sensor():
     entry = MagicMock()
     entry.entry_id = "test_entry"
 
-    hass.data = {
-        DOMAIN: {
-            "test_entry": {
-                COORDINATOR: mock_coordinator
-            }
-        }
-    }
+    hass.data = {DOMAIN: {"test_entry": {COORDINATOR: mock_coordinator}}}
 
     async_add_entities = MagicMock()
 
@@ -191,6 +186,7 @@ async def test_async_setup_entry_binary_sensor():
     assert isinstance(entities[0], EedomusBinarySensor)
     assert entities[0]._periph_id == "binary_1"
 
+
 @pytest.mark.asyncio
 async def test_binary_sensor_missing_periph_data():
     """Cover lines 72-75 and 107: periph_data is None/missing."""
@@ -201,10 +197,10 @@ async def test_binary_sensor_missing_periph_data():
 
     # Instanciation avec coordinator et periph_id uniquement
     sensor = EedomusBinarySensor(coordinator, "unknown_id")
-    
+
     # Déclenche les lignes 72-75 (is_on / retour de None avec warning)
     assert sensor.is_on is None
-    
+
     # Déclenche la ligne 107 (device_class avec periph_info vide)
     assert sensor.device_class is None
 
@@ -212,43 +208,39 @@ async def test_binary_sensor_missing_periph_data():
 @pytest.mark.asyncio
 async def test_binary_sensor_device_class_keywords():
     """Cover lines 120, 127, and 133: MOTION, SMOKE, and VIBRATION device classes."""
-    from custom_components.eedomus.binary_sensor import EedomusBinarySensor
     from homeassistant.components.binary_sensor import BinarySensorDeviceClass
+
+    from custom_components.eedomus.binary_sensor import EedomusBinarySensor
 
     coordinator = MagicMock()
 
     # 1. Test ligne 120 : Mouvement (MOTION)
-    coordinator.data = {
-        "p1": {"usage_name": "capteur mouvement", "last_value": "1"}
-    }
+    coordinator.data = {"p1": {"usage_name": "capteur mouvement", "last_value": "1"}}
     s1 = EedomusBinarySensor(coordinator, "p1")
     assert s1.device_class == BinarySensorDeviceClass.MOTION
 
     # 2. Test ligne 127 : Fumée
-    coordinator.data = {
-        "p2": {"usage_name": "détecteur fumée", "last_value": "0"}
-    }
+    coordinator.data = {"p2": {"usage_name": "détecteur fumée", "last_value": "0"}}
     s2 = EedomusBinarySensor(coordinator, "p2")
     assert s2.device_class == BinarySensorDeviceClass.SMOKE
 
     # 3. Test ligne 133 : Vibration
-    coordinator.data = {
-        "p3": {"usage_name": "capteur vibration", "last_value": "0"}
-    }
+    coordinator.data = {"p3": {"usage_name": "capteur vibration", "last_value": "0"}}
     s3 = EedomusBinarySensor(coordinator, "p3")
     assert s3.device_class == BinarySensorDeviceClass.VIBRATION
+
 
 @pytest.mark.asyncio
 async def test_binary_sensor_presence_device_class():
     """Cover line 120: PRESENCE device class via 'presence' / 'présence' keyword."""
-    from custom_components.eedomus.binary_sensor import EedomusBinarySensor
     from homeassistant.components.binary_sensor import BinarySensorDeviceClass
+
+    from custom_components.eedomus.binary_sensor import EedomusBinarySensor
 
     coordinator = MagicMock()
     coordinator.data = {
         "p_presence": {"usage_name": "capteur présence", "last_value": "1"}
     }
-    
+
     sensor = EedomusBinarySensor(coordinator, "p_presence")
     assert sensor.device_class == BinarySensorDeviceClass.PRESENCE
-

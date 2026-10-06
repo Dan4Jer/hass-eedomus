@@ -1,6 +1,7 @@
 """Tests unitaires pour la classe EedomusEntity et la logique de mapping."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 
 from custom_components.eedomus.const import DOMAIN
@@ -286,9 +287,7 @@ def test_map_device_fallback_default():
     """Vérifie la priorité 5 : fallback par défaut quand aucune règle ne correspond."""
     device_data = {"periph_id": "30", "name": "Inconnu", "usage_id": "888"}
 
-    with patch.dict(
-        "custom_components.eedomus.entity.DEVICE_MAPPINGS", {}, clear=True
-    ):
+    with patch.dict("custom_components.eedomus.entity.DEVICE_MAPPINGS", {}, clear=True):
         result = map_device_to_ha_entity(device_data, default_ha_entity="sensor")
         assert result["ha_entity"] == "sensor"
         assert result["ha_subtype"] == "unknown"

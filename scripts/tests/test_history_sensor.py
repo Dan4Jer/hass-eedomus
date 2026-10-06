@@ -1,8 +1,8 @@
 """Tests unitaires pour les capteurs d'historique eedomus."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
-import pytest
 
+import pytest
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.helpers.entity import DeviceInfo
 
@@ -85,9 +85,7 @@ def test_history_sensor_fallback_when_data_missing(mock_coordinator, mock_device
     mock_coordinator.data = {}
     mock_coordinator._history_progress = {}
 
-    sensor = EedomusHistorySensor(
-        mock_coordinator, "9999", "Inconnu", mock_device_info
-    )
+    sensor = EedomusHistorySensor(mock_coordinator, "9999", "Inconnu", mock_device_info)
 
     assert sensor.native_value == "unknown"
     attrs = sensor.extra_state_attributes
@@ -237,6 +235,7 @@ async def test_async_setup_history_sensors_no_history(mock_coordinator):
     # Seuls les 2 capteurs globaux doivent être créés
     assert len(sensors) == 2
 
+
 @pytest.mark.asyncio
 async def test_history_sensor_missing_lines_168_and_229():
     """Target history_sensor.py missing lines 168 and 229."""
@@ -260,10 +259,7 @@ async def test_history_sensor_missing_lines_168_and_229():
     assert val_global == 0.0
 
     # 2. Cible la ligne 229 : total_points <= 0 (évite le if et retourne 0.0)
-    coordinator._history_progress = {
-        "p1": {"total_points": 0, "retrieved_points": 0}
-    }
+    coordinator._history_progress = {"p1": {"total_points": 0, "retrieved_points": 0}}
     stats_sensor = EedomusHistoryStatsSensor(coordinator, device_info)
     val_stats = stats_sensor.native_value
     assert val_stats == 0.0
-

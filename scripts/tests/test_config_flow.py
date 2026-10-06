@@ -1,40 +1,27 @@
 """Tests unitaires pour le flux de configuration (config_flow) d'eedomus."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 import voluptuous as vol
-
-from homeassistant import config_entries
+from homeassistant import config_entries, data_entry_flow
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.eedomus.config_flow import EedomusConfigFlow
+from custom_components.eedomus.config_flow import EedomusConfigFlow, EedomusOptionsFlow
 from custom_components.eedomus.const import (
     CONF_API_HOST,
     CONF_API_SECRET,
     CONF_API_USER,
     CONF_ENABLE_API_EEDOMUS,
     CONF_ENABLE_API_PROXY,
-    CONF_HTTP_REQUEST_TIMEOUT,
-    DOMAIN,
-)
-
-from homeassistant import data_entry_flow
-from homeassistant.core import HomeAssistant
-from custom_components.eedomus.const import (
-    DOMAIN,
-    CONF_API_HOST,
-    CONF_API_USER,
-    CONF_API_SECRET,
     CONF_ENABLE_HISTORY,
+    CONF_HTTP_REQUEST_TIMEOUT,
     CONF_REMOVE_ENTITIES,
     DEFAULT_REMOVE_ENTITIES,
+    DOMAIN,
 )
-
-from custom_components.eedomus.config_flow import EedomusOptionsFlow, EedomusConfigFlow
-
-
 
 # Données de test valides pour le formulaire
 VALID_USER_INPUT = {
@@ -81,6 +68,7 @@ async def test_step_user_show_form(hass: HomeAssistant):
 
 
 # --- 2. Tests de succès (API Eedomus & Proxy) ---
+
 
 async def test_step_user_success_api_mode(
     hass: HomeAssistant,
@@ -179,7 +167,9 @@ async def test_step_user_success_proxy_only_mode(hass: HomeAssistant):
     )
 
     # On mocke EedomusClient pour empêcher toute tentative de connexion réseau réelle
-    with patch("custom_components.eedomus.config_flow.EedomusClient") as mock_client_cls:
+    with patch(
+        "custom_components.eedomus.config_flow.EedomusClient"
+    ) as mock_client_cls:
         mock_client = mock_client_cls.return_value
         mock_client.auth_test = AsyncMock(return_value={"success": 1})
 
@@ -331,25 +321,29 @@ def test_async_get_options_flow():
 
 # =================
 
+import inspect
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 import voluptuous as vol
-import inspect
-from unittest.mock import MagicMock, patch, AsyncMock
 from homeassistant import data_entry_flow
 from homeassistant.config_entries import ConfigFlow
 from homeassistant.core import HomeAssistant
+
+from custom_components.eedomus.config_flow import EedomusConfigFlow
 from custom_components.eedomus.const import (
-    DOMAIN,
     CONF_API_HOST,
     CONF_ENABLE_HISTORY,
     CONF_REMOVE_ENTITIES,
+    DOMAIN,
 )
-from custom_components.eedomus.config_flow import EedomusConfigFlow
+
 
 def test_print_validate_input_source():
     """Diagnostic pour voir où se trouve et comment est définie la fonction de validation."""
     try:
         from custom_components.eedomus import config_flow
+
         if hasattr(config_flow, "validate_input"):
             print("\n--- SOURCE validate_input ---")
             print(inspect.getsource(config_flow.validate_input))
@@ -360,6 +354,7 @@ def test_print_validate_input_source():
             print("---------------------------------------------\n")
     except Exception as e:
         print(f"Erreur diagnostic : {e}")
+
 
 @pytest.mark.asyncio
 @patch("custom_components.eedomus.config_flow.EedomusClient")
@@ -377,11 +372,14 @@ async def test_history_without_api_eedomus_invalid(hass: HomeAssistant):
 
     validator = getattr(flow, "validate_input", None)
     if validator is not None:
-        with pytest.raises(vol.Invalid, match="History can only be enabled with API Eedomus mode"):
+        with pytest.raises(
+            vol.Invalid, match="History can only be enabled with API Eedomus mode"
+        ):
             if inspect.iscoroutinefunction(validator):
                 await validator(user_input)
             else:
                 validator(flow, user_input)
+
 
 @pytest.mark.asyncio
 async def test_config_flow_uninstall_form_and_submit(hass: HomeAssistant):
@@ -398,10 +396,17 @@ async def test_config_flow_uninstall_form_and_submit(hass: HomeAssistant):
     assert result["step_id"] == "uninstall"
 
     # 2. user_input soumis -> met à jour l'entrée et appelle async_step_remove
-    with patch.object(flow, "async_step_remove", return_value={"type": data_entry_flow.FlowResultType.ABORT}) as mock_remove:
-        result = await flow.async_step_uninstall(user_input={CONF_REMOVE_ENTITIES: True})
+    with patch.object(
+        flow,
+        "async_step_remove",
+        return_value={"type": data_entry_flow.FlowResultType.ABORT},
+    ) as mock_remove:
+        result = await flow.async_step_uninstall(
+            user_input={CONF_REMOVE_ENTITIES: True}
+        )
         flow.hass.config_entries.async_update_entry.assert_called_once()
         mock_remove.assert_called_once()
+
 
 @pytest.mark.asyncio
 async def test_config_flow_remove_and_entity_cleanup(hass: HomeAssistant):
@@ -420,10 +425,14 @@ async def test_config_flow_remove_and_entity_cleanup(hass: HomeAssistant):
     if not hasattr(flow.hass, "helpers") or flow.hass.helpers is None:
         flow.hass.helpers = MagicMock()
     flow.hass.helpers.entity_registry = MagicMock()
-    flow.hass.helpers.entity_registry.async_get_registry = AsyncMock(return_value=entity_registry)
+    flow.hass.helpers.entity_registry.async_get_registry = AsyncMock(
+        return_value=entity_registry
+    )
 
     original_super_remove = getattr(ConfigFlow, "async_step_remove", None)
-    ConfigFlow.async_step_remove = AsyncMock(return_value={"type": data_entry_flow.FlowResultType.ABORT})
+    ConfigFlow.async_step_remove = AsyncMock(
+        return_value={"type": data_entry_flow.FlowResultType.ABORT}
+    )
 
     try:
         flow.config_entry.options = {CONF_REMOVE_ENTITIES: True}
@@ -451,7 +460,9 @@ async def test_validation_connection_failure(hass: HomeAssistant):
         CONF_API_SECRET: "secret",
     }
 
-    with patch("custom_components.eedomus.config_flow.EedomusClient") as mock_client_cls:
+    with patch(
+        "custom_components.eedomus.config_flow.EedomusClient"
+    ) as mock_client_cls:
         mock_client = mock_client_cls.return_value
         # Simule un échec de l'API (ex: success != 1 ou exception)
         mock_client.auth_test = AsyncMock(return_value={"success": 0})
@@ -460,11 +471,13 @@ async def test_validation_connection_failure(hass: HomeAssistant):
             DOMAIN, context={"source": config_entries.SOURCE_USER}
         )
         result2 = await hass.config_entries.flow.async_configure(
-            result["flow_id"], user_input,
+            result["flow_id"],
+            user_input,
         )
 
         assert result2["type"] == FlowResultType.FORM
         assert "base" in result2["errors"]
+
 
 async def test_validation_unexpected_exception(hass: HomeAssistant):
     """Vérifie qu'une exception inattendue pendant l'authentification lève une erreur de validation."""
@@ -472,7 +485,9 @@ async def test_validation_unexpected_exception(hass: HomeAssistant):
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
 
-    with patch("custom_components.eedomus.config_flow.EedomusClient") as mock_client_cls:
+    with patch(
+        "custom_components.eedomus.config_flow.EedomusClient"
+    ) as mock_client_cls:
         mock_client = mock_client_cls.return_value
         # Simule une erreur critique / exception inattendue
         mock_client.auth_test.side_effect = Exception("Erreur réseau critique")

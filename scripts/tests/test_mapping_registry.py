@@ -2,6 +2,7 @@
 
 import logging
 from unittest.mock import patch
+
 import pytest
 
 from custom_components.eedomus.mapping_registry import (
@@ -28,7 +29,7 @@ def reset_registry():
 def test_register_device_mapping_minimal():
     """Vérifie l'enregistrement d'un mapping minimal sans device_data ni justification."""
     mapping = {"ha_entity": "light", "ha_subtype": "dimmer"}
-    
+
     register_device_mapping(mapping, "Lampe Salon", "1001")
 
     registry = get_mapping_registry()
@@ -67,7 +68,7 @@ def test_clear_mapping_registry():
     """Vérifie le vidage du registre."""
     mapping = {"ha_entity": "sensor", "ha_subtype": "temperature"}
     register_device_mapping(mapping, "Capteur", "1003")
-    
+
     assert len(get_mapping_registry()) == 1
     clear_mapping_registry()
     assert len(get_mapping_registry()) == 0
@@ -92,6 +93,7 @@ def test_print_mapping_table_empty(caplog):
     with caplog.at_level(logging.WARNING):
         print_mapping_table()
         assert "Mapping registry is empty" in caplog.text
+
 
 def test_print_mapping_table_populated(caplog):
     """Vérifie l'affichage du tableau avec formatage et troncature des chaînes longues."""
@@ -123,6 +125,7 @@ def test_print_mapping_table_populated(caplog):
         assert "102" in caplog.text
         # Vérification de la troncature aux 29 premiers caractères
         assert "Nom de périphérique extrêmeme" in caplog.text
+
 
 # --- 4. Tests de print_mapping_summary ---
 

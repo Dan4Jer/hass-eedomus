@@ -1,26 +1,24 @@
 """Tests de custom_components.eedomus.__init__."""
 
-import pytest
-
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from pytest_homeassistant_custom_component.common import MockConfigEntry
-
+import pytest
 from homeassistant.exceptions import ConfigEntryNotReady
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.eedomus import (
     async_migrate_entry,
+    async_remove_entry,
+    async_setup_entry,
     async_unload_entry,
     async_update_listener,
     get_clean_box_name,
-    async_setup_entry,
-    async_remove_entry,
 )
 from custom_components.eedomus.const import (
     CONF_API_HOST,
+    CONF_API_PROXY_DISABLE_SECURITY,
     CONF_API_SECRET,
     CONF_API_USER,
-    CONF_API_PROXY_DISABLE_SECURITY,
     CONF_ENABLE_API_EEDOMUS,
     CONF_ENABLE_API_PROXY,
     CONF_ENABLE_HISTORY,
@@ -32,6 +30,7 @@ from custom_components.eedomus.const import (
     DOMAIN,
 )
 
+
 def test_get_clean_box_name_from_api_host():
     entry = MagicMock()
     entry.data = {
@@ -40,6 +39,7 @@ def test_get_clean_box_name_from_api_host():
     entry.title = "Mock Title"
 
     assert get_clean_box_name(entry) == "Box eedomus (192.168.1.50)"
+
 
 def test_get_clean_box_name_from_host():
     entry = MagicMock()
@@ -51,12 +51,14 @@ def test_get_clean_box_name_from_host():
 
     assert get_clean_box_name(entry) == "Box eedomus (192.168.1.60)"
 
+
 def test_get_clean_box_name_from_title():
     entry = MagicMock()
     entry.data = {}
     entry.title = "Eedomus (192.168.1.70)"
 
     assert get_clean_box_name(entry) == "Box eedomus (192.168.1.70)"
+
 
 def test_get_clean_box_name_plain_title():
     entry = MagicMock()
@@ -65,12 +67,14 @@ def test_get_clean_box_name_plain_title():
 
     assert get_clean_box_name(entry) == "Box eedomus (Ma Box)"
 
+
 @pytest.fixture
 def mock_http(hass):
     """Simule le serveur HTTP Home Assistant pour les tests de setup."""
     hass.http = MagicMock()
     hass.http.register_view = MagicMock()
     return hass.http
+
 
 @pytest.mark.asyncio
 async def test_async_update_listener_updates_scan_interval(hass):
@@ -95,12 +99,12 @@ async def test_async_update_listener_updates_scan_interval(hass):
         "async_reload",
         new_callable=AsyncMock,
     ) as mock_reload:
-
         await async_update_listener(hass, entry)
         await hass.async_block_till_done()
 
     assert coordinator.update_interval.total_seconds() == 120
     mock_reload.assert_awaited_once_with(entry.entry_id)
+
 
 @pytest.mark.asyncio
 async def test_async_update_listener_without_coordinator(hass):
@@ -120,11 +124,11 @@ async def test_async_update_listener_without_coordinator(hass):
         "async_reload",
         new_callable=AsyncMock,
     ) as mock_reload:
-
         await async_update_listener(hass, entry)
         await hass.async_block_till_done()
 
     mock_reload.assert_awaited_once_with(entry.entry_id)
+
 
 @pytest.mark.asyncio
 async def test_async_unload_entry_success(hass):
@@ -151,6 +155,7 @@ async def test_async_unload_entry_success(hass):
     assert result is True
     assert entry.entry_id not in hass.data[DOMAIN]
 
+
 @pytest.mark.asyncio
 async def test_async_unload_entry_failure(hass):
     entry = MockConfigEntry(
@@ -176,6 +181,7 @@ async def test_async_unload_entry_failure(hass):
     assert result is False
     assert entry.entry_id in hass.data[DOMAIN]
 
+
 @pytest.mark.asyncio
 async def test_async_unload_entry_missing_data(hass):
     entry = MockConfigEntry(
@@ -197,6 +203,7 @@ async def test_async_unload_entry_missing_data(hass):
 
     assert result is True
 
+
 @pytest.mark.asyncio
 async def test_async_migrate_entry_without_mapping_file(hass):
     entry = MockConfigEntry(
@@ -212,6 +219,7 @@ async def test_async_migrate_entry_without_mapping_file(hass):
 
     assert result is True
     assert entry.version == CONFIG_VERSION
+
 
 @pytest.mark.asyncio
 async def test_async_migrate_entry_backup_failure(hass):
@@ -236,6 +244,7 @@ async def test_async_migrate_entry_backup_failure(hass):
 
     assert result is True
     assert entry.version == CONFIG_VERSION
+
 
 @pytest.mark.asyncio
 async def test_setup_entry_runs_migration(hass):
@@ -276,6 +285,7 @@ async def test_setup_entry_runs_migration(hass):
         entry.entry_id,
     )
 
+
 @pytest.mark.asyncio
 async def test_setup_entry_migration_failure(hass):
     entry = MockConfigEntry(
@@ -293,7 +303,6 @@ async def test_setup_entry_migration_failure(hass):
         new_callable=AsyncMock,
         side_effect=RuntimeError("Migration test failure"),
     ) as mock_migrate:
-
         result = await async_setup_entry(
             hass,
             entry,
@@ -305,6 +314,7 @@ async def test_setup_entry_migration_failure(hass):
         hass,
         entry,
     )
+
 
 @pytest.mark.asyncio
 async def test_setup_entry_repairs_missing_unique_id(hass, mock_http):
@@ -337,6 +347,7 @@ async def test_setup_entry_repairs_missing_unique_id(hass, mock_http):
 
     assert result is True
     assert entry.unique_id == "eedomus_192.168.1.50"
+
 
 @pytest.mark.asyncio
 async def test_setup_entry_modernizes_legacy_keys(hass, mock_http):
@@ -373,6 +384,7 @@ async def test_setup_entry_modernizes_legacy_keys(hass, mock_http):
 
     assert entry.data[CONF_ENABLE_API_EEDOMUS] is False
     assert entry.data[CONF_ENABLE_API_PROXY] is True
+
 
 @pytest.mark.asyncio
 async def test_setup_entry_modernizes_legacy_option_keys(hass, mock_http):
@@ -412,6 +424,7 @@ async def test_setup_entry_modernizes_legacy_option_keys(hass, mock_http):
 
     assert entry.options[CONF_ENABLE_API_EEDOMUS] is False
     assert entry.options[CONF_ENABLE_API_PROXY] is True
+
 
 @pytest.mark.asyncio
 async def test_setup_entry_syncs_connection_options_to_data(hass, mock_http):
@@ -479,6 +492,7 @@ async def test_setup_entry_client_creation_failure(hass, mock_http):
 
     assert result is False
 
+
 @pytest.mark.asyncio
 async def test_setup_entry_initial_refresh_failure(hass, mock_http):
     entry = MockConfigEntry(
@@ -516,6 +530,7 @@ async def test_setup_entry_initial_refresh_failure(hass, mock_http):
 
     assert result is False
 
+
 @pytest.mark.asyncio
 async def test_setup_entry_initial_refresh_not_ready(hass, mock_http):
     entry = MockConfigEntry(
@@ -551,6 +566,7 @@ async def test_setup_entry_initial_refresh_not_ready(hass, mock_http):
     ):
         with pytest.raises(ConfigEntryNotReady):
             await async_setup_entry(hass, entry)
+
 
 @pytest.mark.asyncio
 async def test_setup_entry_api_mode_success(hass, mock_http):
@@ -602,6 +618,7 @@ async def test_setup_entry_api_mode_success(hass, mock_http):
 
     assert result is True
     coordinator.async_config_entry_first_refresh.assert_awaited_once()
+
 
 @pytest.mark.asyncio
 async def test_setup_entry_history_enabled_from_options(hass, mock_http):
@@ -658,6 +675,7 @@ async def test_setup_entry_history_enabled_from_options(hass, mock_http):
     assert result is True
     mock_history.assert_awaited_once()
 
+
 @pytest.mark.asyncio
 async def test_setup_entry_history_data_true_options_false(hass, mock_http):
     entry = MockConfigEntry(
@@ -713,6 +731,7 @@ async def test_setup_entry_history_data_true_options_false(hass, mock_http):
     assert result is True
     mock_history.assert_awaited_once()
 
+
 @pytest.mark.asyncio
 async def test_async_migrate_entry_from_version_1(hass):
     entry = MockConfigEntry(
@@ -739,6 +758,7 @@ async def test_async_migrate_entry_from_version_1(hass):
     assert CONF_ENABLE_API_PROXY in entry.options
     assert CONF_API_PROXY_DISABLE_SECURITY in entry.options
 
+
 @pytest.mark.asyncio
 async def test_async_migrate_entry_from_version_2(hass):
     entry = MockConfigEntry(
@@ -762,6 +782,7 @@ async def test_async_migrate_entry_from_version_2(hass):
 
     assert CONF_ENABLE_API_PROXY in entry.options
     assert CONF_API_PROXY_DISABLE_SECURITY in entry.options
+
 
 @pytest.mark.asyncio
 async def test_async_remove_entry_removes_own_entities(hass):
@@ -803,9 +824,8 @@ async def test_async_remove_entry_removes_own_entities(hass):
     ):
         await async_remove_entry(hass, entry)
 
-    entity_registry.async_remove.assert_called_once_with(
-        "sensor.eedomus_own"
-    )
+    entity_registry.async_remove.assert_called_once_with("sensor.eedomus_own")
+
 
 @pytest.mark.asyncio
 async def test_async_remove_entry_keeps_entities_when_disabled(hass):
@@ -879,6 +899,7 @@ async def test_setup_entry_main_device_creation_failure(hass, mock_http):
 
     assert result is True
 
+
 @pytest.mark.asyncio
 async def test_setup_entry_mapping_table_failure(hass, mock_http):
     entry = MockConfigEntry(
@@ -928,6 +949,7 @@ async def test_setup_entry_mapping_table_failure(hass, mock_http):
 
     assert result is True
 
+
 @pytest.mark.asyncio
 async def test_setup_entry_api_services_failure(hass, mock_http):
     entry = MockConfigEntry(
@@ -973,6 +995,7 @@ async def test_setup_entry_api_services_failure(hass, mock_http):
         result = await async_setup_entry(hass, entry)
 
     assert result is True
+
 
 @pytest.mark.asyncio
 async def test_setup_entry_history_setup_failure(hass, mock_http):
@@ -1027,6 +1050,7 @@ async def test_setup_entry_history_setup_failure(hass, mock_http):
 
     assert result is True
 
+
 @pytest.mark.asyncio
 async def test_setup_entry_proxy_security_disabled_webhook_disabled(
     hass,
@@ -1058,6 +1082,7 @@ async def test_setup_entry_proxy_security_disabled_webhook_disabled(
     # Proxy seulement : une seule vue doit être enregistrée.
     assert mock_http.register_view.call_count == 1
 
+
 @pytest.mark.asyncio
 async def test_async_migrate_entry_backs_up_mapping_file(hass):
     entry = MockConfigEntry(
@@ -1084,6 +1109,7 @@ async def test_async_migrate_entry_backs_up_mapping_file(hass):
     assert result is True
     assert entry.version == CONFIG_VERSION
     mock_executor.assert_awaited_once()
+
 
 @pytest.mark.asyncio
 async def test_setup_entry_history_enabled_from_data_only(hass, mock_http):
@@ -1138,6 +1164,7 @@ async def test_setup_entry_history_enabled_from_data_only(hass, mock_http):
     assert result is True
     mock_history.assert_awaited_once()
 
+
 @pytest.mark.asyncio
 async def test_setup_entry_history_disabled_from_data_only(hass, mock_http):
     entry = MockConfigEntry(
@@ -1191,6 +1218,7 @@ async def test_setup_entry_history_disabled_from_data_only(hass, mock_http):
     assert result is True
     mock_history.assert_not_awaited()
 
+
 @pytest.mark.asyncio
 async def test_setup_entry_no_mode_enabled(hass, mock_http):
     entry = MockConfigEntry(
@@ -1209,6 +1237,7 @@ async def test_setup_entry_no_mode_enabled(hass, mock_http):
     result = await async_setup_entry(hass, entry)
 
     assert result is False
+
 
 @pytest.mark.asyncio
 async def test_setup_entry_proxy_services_failure(hass, mock_http):
@@ -1234,15 +1263,14 @@ async def test_setup_entry_proxy_services_failure(hass, mock_http):
 
     assert result is True
 
+
 def test_get_clean_box_name_split_failure():
     class BrokenSplitStr(str):
         def split(self, *args, **kwargs):
             raise RuntimeError("split failure")
 
     entry = MagicMock()
-    entry.data = {
-        "host": BrokenSplitStr("Eedomus (192.168.1.50)")
-    }
+    entry.data = {"host": BrokenSplitStr("Eedomus (192.168.1.50)")}
     entry.title = "Eedomus"
 
     result = get_clean_box_name(entry)

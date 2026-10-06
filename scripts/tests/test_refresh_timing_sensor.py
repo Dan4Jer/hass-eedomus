@@ -1,8 +1,8 @@
 """Tests unitaires pour les capteurs de timing de rafraîchissement eedomus."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
-import pytest
 
+import pytest
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.const import EntityCategory
 
@@ -84,9 +84,7 @@ def test_get_clean_box_name_from_coord_fallback(mock_coordinator):
 
 def test_refresh_timing_sensor_base(mock_coordinator):
     """Vérifie l'initialisation et les propriétés du capteur de base."""
-    sensor = EedomusRefreshTimingSensor(
-        mock_coordinator, "Test Type", "s", "mdi:clock"
-    )
+    sensor = EedomusRefreshTimingSensor(mock_coordinator, "Test Type", "s", "mdi:clock")
 
     assert sensor.unique_id == "eedomus_box_entry_123_test_type_timing"
     assert sensor.name == "Eedomus Test Type (192.168.1.50)"
@@ -223,10 +221,13 @@ async def test_async_setup_refresh_timing_sensors(mock_coordinator):
     assert isinstance(sensors[6], EedomusGetPeriphCaractSensor)
     assert isinstance(sensors[7], EedomusPartialRefreshSensor)
 
+
 @pytest.mark.asyncio
 async def test_get_clean_box_name_exception_handling():
     """Cover lines 34-35 in refresh_timing_sensor: exception handling during host string splitting."""
-    from custom_components.eedomus.refresh_timing_sensor import get_clean_box_name_from_coord
+    from custom_components.eedomus.refresh_timing_sensor import (
+        get_clean_box_name_from_coord,
+    )
 
     coordinator = MagicMock()
     coordinator.config_entry.data.get.return_value = "Eedomus (192.168.1.100)"

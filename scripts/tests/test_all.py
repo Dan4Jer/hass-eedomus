@@ -2,6 +2,7 @@
 
 import os
 import sys
+
 import pytest
 
 # 1. Déterminer le dossier actuel du script (scripts/tests/)
@@ -13,6 +14,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "../.."))
 # 3. Injecter la racine dans le chemin Python pour trouver 'custom_components'
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
+
 
 def main():
     """Run all tests."""
@@ -52,10 +54,12 @@ def main():
     pytest_args = [os.path.join(SCRIPT_DIR, f) for f in test_files]
 
     # 6. Ajouter les options pytest
-    pytest_args.extend([
-        "-v",
-        "--tb=short",
-    ])
+    pytest_args.extend(
+        [
+            "-v",
+            "--tb=short",
+        ]
+    )
 
     # Exécuter pytest AVEC les arguments ciblés
     exit_code = pytest.main(pytest_args)
@@ -66,6 +70,7 @@ def main():
         print("❌ Some tests failed!")
 
     return exit_code
+
 
 if __name__ == "__main__":
     # Exécution synchrone standard (Pytest gère l'async en interne)

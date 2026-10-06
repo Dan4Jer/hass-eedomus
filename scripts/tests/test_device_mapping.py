@@ -1,6 +1,7 @@
 """Tests unitaires pour le chargement et la fusion des configurations YAML dans device_mapping."""
 
 from unittest.mock import mock_open, patch
+
 import pytest
 
 from custom_components.eedomus.device_mapping import (
@@ -10,8 +11,8 @@ from custom_components.eedomus.device_mapping import (
     merge_yaml_mappings,
 )
 
-
 # --- 1. Tests de chargement de fichier YAML ---
+
 
 def test_load_yaml_file_success():
     """Vérifie le chargement réussi d'un fichier YAML valide."""
@@ -37,6 +38,7 @@ def test_load_yaml_file_not_found():
 
 
 # --- 2. Tests de fusion des Mappings (Merge) ---
+
 
 def test_merge_yaml_mappings_with_custom_overrides():
     """Vérifie que custom_specific_device_dynamic_overrides surcharge correctement la configuration de base."""
@@ -64,13 +66,18 @@ def test_merge_yaml_mappings_with_custom_overrides():
     # Clé finale fusionnée
     assert "specific_device_dynamic_overrides" in merged
     assert "111111" in merged["specific_device_dynamic_overrides"]
-    
+
     # Vérification que le device 111111 conserve son état base
     assert merged["specific_device_dynamic_overrides"]["111111"]["ha_entity"] == "light"
 
     # Vérification que le device 3463520 a bien été surchargé par le custom
-    assert merged["specific_device_dynamic_overrides"]["3463520"]["ha_entity"] == "climate"
-    assert merged["specific_device_dynamic_overrides"]["3463520"]["ha_subtype"] == "thermostat"
+    assert (
+        merged["specific_device_dynamic_overrides"]["3463520"]["ha_entity"] == "climate"
+    )
+    assert (
+        merged["specific_device_dynamic_overrides"]["3463520"]["ha_subtype"]
+        == "thermostat"
+    )
 
 
 # --- 3. Tests de chargement global ---
@@ -105,4 +112,3 @@ def test_load_and_merge_yaml_mappings():
             result["specific_device_dynamic_overrides"]["3463520"]["ha_entity"]
             == "climate"
         )
-

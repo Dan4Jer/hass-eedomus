@@ -2,16 +2,17 @@
 
 import os
 import sys
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-#sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "custom_components/eedomus")))
+from custom_components.eedomus.cover import EedomusCover
+from custom_components.eedomus.light import EedomusLight
+from custom_components.eedomus.sensor import EedomusSensor
+from custom_components.eedomus.switch import EedomusSwitch
 
-from  custom_components.eedomus.cover import EedomusCover
-from  custom_components.eedomus.light import EedomusLight
-from  custom_components.eedomus.sensor import EedomusSensor
-from  custom_components.eedomus.switch import EedomusSwitch
+# sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "custom_components/eedomus")))
+
 
 
 @pytest.mark.asyncio
@@ -67,8 +68,10 @@ async def test_integration_cover_with_energy_sensor():
         "usage_id": "26",
     }
 
-    #energy_sensor = EedomusEnergySensor(mock_coordinator, energy_sensor_device_info["periph_id"])
-    energy_sensor = EedomusSensor(mock_coordinator, energy_sensor_device_info["periph_id"])
+    # energy_sensor = EedomusEnergySensor(mock_coordinator, energy_sensor_device_info["periph_id"])
+    energy_sensor = EedomusSensor(
+        mock_coordinator, energy_sensor_device_info["periph_id"]
+    )
 
     # Verify energy sensor properties
     assert energy_sensor.name == "Living Room Shutter Consumption"
@@ -138,7 +141,9 @@ async def test_integration_switch_with_energy_sensor():
         "usage_id": "26",
     }
 
-    energy_sensor = EedomusSensor(mock_coordinator, energy_sensor_device_info["periph_id"])
+    energy_sensor = EedomusSensor(
+        mock_coordinator, energy_sensor_device_info["periph_id"]
+    )
 
     # Verify energy sensor properties
     assert energy_sensor.name == "Living Room Light Consumption"
@@ -205,7 +210,9 @@ async def test_integration_light_with_energy_sensor():
         "usage_id": "26",
     }
 
-    energy_sensor = EedomusSensor(mock_coordinator, energy_sensor_device_info["periph_id"])
+    energy_sensor = EedomusSensor(
+        mock_coordinator, energy_sensor_device_info["periph_id"]
+    )
 
     # Verify energy sensor properties
     assert energy_sensor.name == "Living Room Light Consumption"
@@ -282,7 +289,7 @@ async def test_multiple_devices_with_energy_sensors():
             "name": f"{device_type.capitalize()} {device_id} Consumption",
             "usage_id": "26",
         }
-        
+
         sensor = EedomusSensor(mock_coordinator, energy_sensor_device_info["periph_id"])
         energy_sensors.append(sensor)
 
