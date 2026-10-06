@@ -23,7 +23,7 @@ sources: []
   - **success:** Le backfill d'une box simulée importe des statistics horaires via le chemin production (spec-eedomus-history CAP-1) sans modification du client.
 
 - **CAP-3 — Ajout d'une box simulée dans HA**
-  - **intent:** Une deuxième config entry pointant vers le simulateur (`api_host=host:port`) traverse la config flow réelle — entités créées depuis le dump, cycle de vie de l'entry géré par le test (création, coexistence, suppression propre).
+  - **intent:** Une deuxième config entry pointant vers le simulateur (`api_host=127.0.0.1:port` — le simulateur tourne sur l'environnement cible même, déployé par le pull git) traverse la config flow réelle — entités créées depuis le dump, cycle de vie de l'entry géré par le test (création, coexistence, suppression propre).
   - **success:** L'instance porte deux boxes (réelle + simulée) qui coexistent sans interférer ; l'entry simulée disparaît proprement après le test.
 
 - **CAP-4 — Strate E2E simulateur**
@@ -58,7 +58,7 @@ Un E2E-sim ajoute une deuxième box simulée sur l'instance Home Assistant via l
 
 ## Assumptions
 
-- L'instance live (le Pi) reste le support de la strate E2E-sim pour la phase 1 : la 2e entry pointe vers le simulateur tenu sur la machine de dev, joignable depuis le Pi.
+- Le simulateur tourne sur l'environnement cible même (le Pi), déployé par le pull git du déploiement existant et démarré par le harnais de test sur un port dédié — la box fictive pointe en local (`127.0.0.1:port`), aucune dépendance réseau cross-machine (décision utilisateur 2026-10-06).
 - Le dump de fmo01 est réellement anonymisé (vérification rapide faite — ids synthétiques, noms de modèles) ; la passe de vie privée complète reste une contrainte de commit.
 
 ## Open Questions

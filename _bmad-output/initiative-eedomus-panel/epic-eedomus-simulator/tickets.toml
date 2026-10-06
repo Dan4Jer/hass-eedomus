@@ -27,7 +27,7 @@ unknown = "Profondeur N et densité : à fixer au premier E2E backfill mesuré (
 id = 3
 type = "story"
 title = "Harnais box simulée (2e config entry via config flow réelle)"
-description = "Harnais de test ajoutant une box simulée dans HA : fixture démarrant le simulateur (port dédié), création d'une 2e config entry pointant vers api_host=hôte:port via la config flow réelle (API), coexistence box réelle + box simulée vérifiée, suppression propre de l'entry en fin de test (mécanisme à trancher : API config entries vs nettoyage documenté). Premier test e2e_sim (marqueur dédié, distinct de la strate live-Pi) : config flow ok (auth valide, entités créées depuis le dump) et ko (auth refusée)."
+description = "Harnais de test ajoutant une box simulée dans HA, sur l'environnement cible même : le simulateur est démarré SUR le Pi (déployé par le pull git, démarré par le harnais via SSH sur un port dédié), création d'une 2e config entry pointant vers api_host=127.0.0.1:port via la config flow réelle (API), coexistence box réelle + box simulée vérifiée, suppression propre de l'entry en fin de test (mécanisme à trancher : API config entries vs nettoyage documenté). Premier test e2e_sim (marqueur dédié, distinct de la strate live-Pi) : config flow ok (auth valide, entités créées depuis le dump) et ko (auth refusée)."
 verify = "Une 2e entry existe sur l'instance, ses entités du dump sont créées, l'auth refusée est rejetée par la config flow, et l'entry disparaît proprement après le test ; la box réelle n'est pas perturbée."
 covers = ["CAP-3"]
 after = [1]

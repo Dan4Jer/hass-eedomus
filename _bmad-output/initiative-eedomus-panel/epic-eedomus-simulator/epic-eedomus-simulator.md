@@ -50,4 +50,4 @@ L'infrastructure de test. Pas de merge de la PR #119 au-delà du salvage, pas de
 - Decision: plan_checkpoint sur l'entrée 3 (harnais box simulée — cycle de vie d'une config entry sur l'instance live, risque high).
 - Unknown: mécanisme de suppression propre de l'entry simulée (API config entries vs nettoyage manuel) — tranché à l'entrée 3 (open question du spec).
 - Unknown: profondeur N (années) et densité de l'historique synthétique — fixées au premier E2E backfill mesuré (entrée 5, open question du spec).
-- Waits on nothing: l'épique est indépendant des épiques done ; l'instance live doit simplement être joignable depuis la machine tenant le simulateur.
+- Waits on nothing: l'épique est indépendant des épiques done ; le simulateur tourne sur le Pi même (décision utilisateur 2026-10-06 — déploiement git, api_host=127.0.0.1:port), aucune dépendance cross-machine.
