@@ -15,11 +15,11 @@ The values below are updated automatically by the GitHub Actions
 `Run Tests` workflow after a successful test run.
 
 <!-- TEST-STATS-START -->
-- Tests: **446 passed**
-- Statements: **4388**
-- Covered: **3958**
-- Missing: **430**
-- Coverage: **90.20%**
+- Tests: **477 passed**
+- Statements: **4386**
+- Covered: **4074**
+- Missing: **312**
+- Coverage: **92.89%**
 <!-- TEST-STATS-END -->
 
 The latest successful GitHub Actions run is the reference for the current
@@ -381,14 +381,14 @@ The following values correspond to the same successful local run mentioned
 above and are not intended to remain permanently current.
 
 <!-- COVERAGE-MODULES-START -->
-Last update: **2026-10-06 14:34:10 Europe/Paris**
+Last update: **2026-10-06 15:43:06 Europe/Paris**
 
 | Component | Statements | Missed | Coverage |
 |---|---:|---:|---:|
 | `__init__.py` | 258 | 3 | 98.84% |
 | `api_proxy.py` | 37 | 0 | 100.00% |
 | `binary_sensor.py` | 72 | 0 | 100.00% |
-| `climate.py` | 403 | 118 | 70.72% |
+| `climate.py` | 401 | 0 | 100.00% |
 | `config_flow.py` | 114 | 0 | 100.00% |
 | `const.py` | 49 | 0 | 100.00% |
 | `coordinator.py` | 595 | 114 | 80.84% |
@@ -410,7 +410,7 @@ Last update: **2026-10-06 14:34:10 Europe/Paris**
 | `switch.py` | 103 | 0 | 100.00% |
 | `text_sensor.py` | 95 | 0 | 100.00% |
 | `webhook.py` | 56 | 0 | 100.00% |
-| **TOTAL** | **4388** | **430** | **90.20%** |
+| **TOTAL** | **4386** | **312** | **92.89%** |
 <!-- COVERAGE-MODULES-END -->
 
 ---
@@ -569,10 +569,10 @@ Python 3.14.7
 pytest 9.0.3
 pytest-cov 7.1.0
 pytest-homeassistant-custom-component 0.13.367
-446 tests collected
-446 tests passed
-90.20% total coverage
-Last test run: 2026-10-06 14:34:10 Europe/Paris
+477 tests collected
+477 tests passed
+92.89% total coverage
+Last test run: 2026-10-06 15:43:06 Europe/Paris
 ```
 <!-- TEST-ENV-END -->
 
