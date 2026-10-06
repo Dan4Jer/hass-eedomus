@@ -31,8 +31,8 @@ sources: []
   - **success:** La documentation de l'option décrit le comportement à l'activation, la durée attendue de la première activation, la reprise après redémarrage, et ce qui est visible dans HA (statistics/graphes long terme) vs ce qui ne l'est pas (panel History).
 
 - **CAP-5 — File de backfill exposée et pilotable**
-  - **intent:** L'état de la récupération est exposé — par périphérique : en attente (position dans la file), en cours, en erreur (message et `retry_after`), ignoré, en pause ; plus un état global du moteur (actif / en pause globale) — et quatre actions : Réessayer maintenant (relance immédiate hors cadence), Prioriser (remonte en tête de file, pris au prochain drain), Pause/Reprise par périphérique et un interrupteur global, Ignorer (persisté en `.storage`, destructeur, confirmé, réactivable). Les commandes websocket suivent le pattern `eedomus/<verb>` (`require_admin`) ; toutes les actions passent par le coordinator (AD-7).
-  - **success:** La vue de Supervision (spec-eedomus-mapping-panel, CAP-9) rend l'état complet de la file ; chaque action produit un retour nominatif et la file se re-rend ; l'ignorage survit à un redémarrage HA ; la pause globale stoppe le drain sans casser la reprise (CAP-3) ; le temps réel (CAP-2) n'est jamais bloqué par une action.
+  - **intent:** L'état de la récupération est exposé — par périphérique : en attente (position dans la file), en cours, en erreur (message et `retry_after`), ignoré, en pause, **plus la progression de la récupération (points récupérés `retrieved_points` / total `total_points`, plus ancien timestamp récupéré, début de rétention)** ; plus un état global du moteur (actif / en pause globale) — et quatre actions : Réessayer maintenant (relance immédiate hors cadence), Prioriser (remonte en tête de file, pris au prochain drain), Pause/Reprise par périphérique et un interrupteur global, Ignorer (persisté en `.storage`, destructeur, confirmé, réactivable). Les champs de progression sont servis par `eedomus/get_backfill_state` **et** par la vue `eedomus/get_coherence` (le détail périphérique de la Cohérence affiche le même indicateur que la file). Les commandes websocket suivent le pattern `eedomus/<verb>` (`require_admin`) ; toutes les actions passent par le coordinator (AD-7).
+  - **success:** La vue de Supervision (spec-eedomus-mapping-panel, CAP-9) rend l'état complet de la file, dont l'indicateur de progression par périphérique (barre + texte, file de Supervision et détail périphérique de la Cohérence — spine UX update run 4, instantané de visite) ; chaque action produit un retour nominatif et la file se re-rend ; l'ignorage survit à un redémarrage HA ; la pause globale stoppe le drain sans casser la reprise (CAP-3) ; le temps réel (CAP-2) n'est jamais bloqué par une action.
 
 ## Constraints
 
@@ -62,5 +62,4 @@ Après la première activation complète : les graphs long-terme des capteurs ee
 
 ## Open Questions
 
-- Le verrou recorder (depuis le 27/09 09:01) : maintenance WAL à froid (option 1) ou base recorder neuve (option 2) ? Bloque le déploiement et la validation de CAP-1.
-- Durée à annoncer dans la doc d'activation (CAP-4) : à mesurer sur la première exécution réelle — le volume exact par périph est inconnu.
+- Durée à annoncer dans la doc d'activation (CAP-4) : à mesurer sur la première exécution réelle — le volume exact par périph est inconnu (ticket 1.6 de l'épique backfill).
