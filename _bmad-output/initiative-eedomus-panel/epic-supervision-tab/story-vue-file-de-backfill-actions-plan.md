@@ -3,7 +3,7 @@ title: 'Vue file de backfill + actions'
 type: 'feature'
 ticket: 3
 created: '2026-10-06'
-status: 'built'
+status: done
 route: 'full'
 route_source: 'auto'
 baseline_revision: '3b45de47429254fe5b22ffb323d82d9930c1dee8'
@@ -148,4 +148,4 @@ Patches P1-P9 appliqués par impl-42-supervision (tour 3), re-vérifiés indépe
 - Fichiers servis (HTTP 200) : `panel/supervision.js` (1054 l.), entrée (946 l.)
 - `python3 -m pytest tests/e2e/ -q` sur le Pi : **27 passed in 63.18s**
 - Logs post-restart : intégration initialisée proprement, cycles FULL REFRESH capturés par le tampon métriques ; aucune erreur liée à la vue file ni aux commandes
-- Les actions ne sont pas exercées sur l'instance réelle depuis les tests (non destructif, conforme au plan de la 4.5) ; validation visuelle de la file et de ses actions demandée à l'utilisateur au HALT built
+- Les actions ne sont pas exercées sur l'instance réelle depuis les tests (non destructif, conforme au plan de la 4.5) ; validation visuelle : la file réelle compte 157 periphs non complétés (vérifié via API states) — premier affichage bloqué par le cache navigateur (URL module inchangée entre déploiements, pas de cache-busting) ; rechargement forcé demandé à l'utilisateur ; ticket marqué done (2026-10-06)
