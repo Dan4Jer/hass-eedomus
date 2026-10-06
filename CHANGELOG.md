@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.24.3](https://github.com/fmo01/hass-eedomus/compare/0.24.2...0.24.3) (2026-10-06)
+
+### Bug Fixes
+
+* corrections suite a la couverture du tests a 100% ([6deb85d](https://github.com/fmo01/hass-eedomus/commit/6deb85dbc7a8ab45e8ed5cbf8542acbe8042d7af))
+* mise en formes de scripts ([882a12b](https://github.com/fmo01/hass-eedomus/commit/882a12b79fa96649fedac98f635773847e6022df))
+
 ## [0.24.2](https://github.com/fmo01/hass-eedomus/compare/0.24.1...0.24.2) (2026-10-04)
 
 ### Bug Fixes
