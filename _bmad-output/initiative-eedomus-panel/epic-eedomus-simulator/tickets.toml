@@ -1,0 +1,59 @@
+# tickets.toml — epic-eedomus-simulator : 5 entrées, ordre de build.
+
+[[entry]]
+id = 1
+type = "story"
+title = "Salvage du simulateur (PR #119)"
+description = "Import du simulateur d'API eedomus depuis la PR #119 dans scripts/simulateur/ — simulator.py (Flask : auth.test, periph.list, periph.value_list, periph.caract, periph.value, /simulate/change, règles thermostat), scripts d'extraction/renommage/anonymisation (00/01/02), README — traduit en anglais (AGENTS.md), crédit fmo01 dans les commits. Dump fmo01 (69 periphs) commité après la passe de vie privée complète. Flask ajouté à requirements-test uniquement. Tests unitaires du simulateur : contrats d'endpoints contre les attentes d'eedomus_client, auth ok/ko, règles thermostat, multi-instances sur ports distincts."
+verify = "La config flow de HA (harnais de test ou requête directe) valide la connexion au simulateur et les endpoints répondent conformes au client ; la suite unitaire reste verte ; le dump commité a passé la passe de vie privée."
+covers = ["CAP-1", "CAP-5"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 2
+type = "story"
+title = "Endpoint periph.history synthétique"
+description = "Ajout de l'endpoint periph.history au simulateur : historique généré depuis le dump (points horaires sur N années, densité paramétrable), chunking/pagination conformes au client (≤ 10 000 points/appel, sémantique de reprise du client), déterministe (même dump + même ancrage temporel = même historique, aucun temps muré). Tests unitaires : déterminisme, bornes de chunk, pagination, periphs sans historique."
+verify = "Le client d'intégration (chemin production, sans modification) pagine l'historique complet d'un periph du dump sans erreur et le total de points est stable entre deux exécutions à ancrage identique."
+covers = ["CAP-2"]
+after = [1]
+hitl = false
+risk = "medium"
+unknown = "Profondeur N et densité : à fixer au premier E2E backfill mesuré (entrée 5) — l'endpoint est paramétrable pour ne pas bloquer."
+
+[[entry]]
+id = 3
+type = "story"
+title = "Harnais box simulée (2e config entry via config flow réelle)"
+description = "Harnais de test ajoutant une box simulée dans HA : fixture démarrant le simulateur (port dédié), création d'une 2e config entry pointant vers api_host=hôte:port via la config flow réelle (API), coexistence box réelle + box simulée vérifiée, suppression propre de l'entry en fin de test (mécanisme à trancher : API config entries vs nettoyage documenté). Premier test e2e_sim (marqueur dédié, distinct de la strate live-Pi) : config flow ok (auth valide, entités créées depuis le dump) et ko (auth refusée)."
+verify = "Une 2e entry existe sur l'instance, ses entités du dump sont créées, l'auth refusée est rejetée par la config flow, et l'entry disparaît proprement après le test ; la box réelle n'est pas perturbée."
+covers = ["CAP-3"]
+after = [1]
+hitl = false
+risk = "high"
+plan_checkpoint = true
+unknown = "Mécanisme de suppression propre de l'entry simulée (open question du spec) — tranché au checkpoint de cette entrée."
+
+[[entry]]
+id = 4
+type = "story"
+title = "Refactor sweep"
+description = "Nettoyage de fin d'épique sur la base des build records et findings différés ; périmètre fixé à son démarrage ; cleanup uniquement."
+verify = "Aucun finding différé non traité ; les suites (unit, node, e2e collect) restent vertes."
+covers = []
+after = [3]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 5
+type = "story"
+title = "Suite E2E-sim multi-box + destructive"
+description = "Suite e2e_sim couvrant l'intestable : agrégation multi-box (get_backfill_state et get_box_metrics sur deux boxes, collisions periph_id, fan-out de la pause globale), les 4 actions backfill destructives de bout en bout sur la box simulée (ignore deux-gestes exécuté, pause/reprise, prioriser, réessayer), sections box du panel. AGENTS.md passe à la règle deux strates (AD-16 : live-Pi = vérité de regression jamais mockée ; simulateur = multi-box/destructif). Profondeur N de l'historique synthétique fixée d'après la mesure."
+verify = "Les quatre actions backfill s'exercent sur la box simulée, la file de Supervision rend les deux boxes, la suite live-Pi reste verte et inchangée ; AGENTS.md porte la règle deux strates."
+covers = ["CAP-4"]
+after = [4]
+hitl = false
+risk = "medium"

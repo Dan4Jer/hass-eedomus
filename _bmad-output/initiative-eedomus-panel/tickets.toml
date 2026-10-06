@@ -23,3 +23,9 @@ id = 4
 slug = "epic-supervision-tab"
 title = "Onglet Supervision — métriques box et pilotage du backfill"
 covers = ["CAP-9", "CAP-5"]
+
+[[epic]]
+id = 5
+slug = "epic-eedomus-simulator"
+title = "Simulateur eedomus — strate E2E multi-box et destructive"
+covers = ["CAP-1", "CAP-2", "CAP-3", "CAP-4", "CAP-5"]
