@@ -139,6 +139,43 @@ class TestWebsocketCommands:
         assert result["valid"] is True
         assert result["validated_config"] is not None
 
+    def test_get_backfill_state_lists_the_live_queue(self, ws_call):
+        """Supervision tab (CAP-5, story 4.1/4.3): the live queue shape.
+
+        Read-only: none of the four actions is exercised on the real
+        instance (non-destructive); the queue must be non-empty —
+        157 peripherals were pending at epic time.
+        """
+        result = ws_call("eedomus/get_backfill_state")
+        assert isinstance(result["queue"], list)
+        assert len(result["queue"]) > 0
+        row = result["queue"][0]
+        for key in ("periph_id", "name", "status", "position", "entry_id"):
+            assert key in row, key
+        assert row["status"] in (
+            "priority", "in_progress", "error", "paused", "pending",
+        )
+        assert isinstance(result["ignored"], list)
+        assert isinstance(result["global_paused"], bool)
+        assert isinstance(result["engine_active"], bool)
+
+    def test_get_box_metrics_serves_the_live_buffer(self, ws_call):
+        """Supervision tab (CAP-9, story 4.2): one section per box with
+        its refresh-cycle buffer, non-empty once the box has refreshed."""
+        result = ws_call("eedomus/get_box_metrics")
+        assert isinstance(result["boxes"], list)
+        assert len(result["boxes"]) >= 1
+        box = result["boxes"][0]
+        for key in ("entry_id", "name", "cycles"):
+            assert key in box, key
+        assert len(box["cycles"]) > 0
+        cycle = box["cycles"][-1]
+        for key in (
+            "ts", "refresh_time", "api_time", "api_calls",
+            "periphs_total", "periphs_dynamic",
+        ):
+            assert key in cycle, key
+
 
 class TestSaveAutoApply:
     def test_identical_save_applies_and_changes_nothing(self, ws_call):
