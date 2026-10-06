@@ -3,7 +3,7 @@ title: 'Validation E2E + live'
 type: 'feature'
 ticket: 5
 created: '2026-10-06'
-status: 'built'
+status: done
 route: 'oneshot'
 route_source: 'auto'
 baseline_revision: '3fe01eb29299cc7c116154dc586d4579faa89c9d'
