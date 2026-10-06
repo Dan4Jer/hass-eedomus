@@ -681,9 +681,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             datetime.now() - start_time
         ).total_seconds()
         # Store data size in bytes (raw response size from client)
-        self._endpoint_data_sizes[
-            "get_periph_value_list"
-        ] = peripherals_value_list_response.get("_raw_data_size_bytes", 0)
+        self._endpoint_data_sizes["get_periph_value_list"] = (
+            peripherals_value_list_response.get("_raw_data_size_bytes", 0)
+        )
         self._endpoint_call_counts["get_periph_value_list"] += 1
 
         start_time = datetime.now()
@@ -692,9 +692,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             datetime.now() - start_time
         ).total_seconds()
         # Store data size in bytes (raw response size from client)
-        self._endpoint_data_sizes[
-            "get_periph_caract"
-        ] = peripherals_caract_response.get("_raw_data_size_bytes", 0)
+        self._endpoint_data_sizes["get_periph_caract"] = (
+            peripherals_caract_response.get("_raw_data_size_bytes", 0)
+        )
         self._endpoint_call_counts["get_periph_caract"] += 1
 
         _LOGGER.debug(

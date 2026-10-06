@@ -131,7 +131,9 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
 
         # Validate coordinator and find climate entity
         if not coordinator:
-            _LOGGER.error("❌ No coordinator available - cannot set climate temperature")
+            _LOGGER.error(
+                "❌ No coordinator available - cannot set climate temperature"
+            )
             raise ValueError("Coordinator not available")
 
         # Check if device exists and is a climate entity
