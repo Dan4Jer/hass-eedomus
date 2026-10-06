@@ -151,3 +151,5 @@ Patches P1-P10 appliqués par impl-41-backfill (tour 2), re-vérifiés indépend
 - `python3 -m pytest tests/e2e/ -q` sur le Pi : **27 passed in 62.23s**
 - Logs post-restart : « Eedomus integration initialized successfully » ; le nouveau segment drain fonctionne (PARTIAL REFRESH avec History 5 periphs ce cycle, import statistics AD-11 normal) ; aucune erreur liée aux commandes CAP-5 ; motif préexistant de retry historique inchangé
 - Les commandes ne sont pas encore consommées (le panneau les rend en 4.3) ; les actions ne sont pas exercées sur l'instance réelle (non destructif, conforme au plan de la 4.5)
+
+**Sweep 4.4 (2026-10-06) :** finding différé « canal push » traité par décision consignée (S3) — le plan_checkpoint de la 4.3 a ratifié le polling : un callWS par visite + Réessayer, pas d'abonnement.

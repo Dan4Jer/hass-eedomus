@@ -149,3 +149,5 @@ Patches P1-P9 appliqués par impl-42-supervision (tour 3), re-vérifiés indépe
 - `python3 -m pytest tests/e2e/ -q` sur le Pi : **27 passed in 63.18s**
 - Logs post-restart : intégration initialisée proprement, cycles FULL REFRESH capturés par le tampon métriques ; aucune erreur liée à la vue file ni aux commandes
 - Les actions ne sont pas exercées sur l'instance réelle depuis les tests (non destructif, conforme au plan de la 4.5) ; validation visuelle : la file réelle compte 157 periphs non complétés (vérifié via API states) — premier affichage bloqué par le cache navigateur (URL module inchangée entre déploiements, pas de cache-busting) ; rechargement forcé demandé à l'utilisateur ; ticket marqué done (2026-10-06)
+
+**Sweep 4.4 (2026-10-06) :** décision du plan_checkpoint consignée définitivement (S3) — polling ratifié : un callWS par visite + Réessayer, pas d'abonnement, pas de canal push.

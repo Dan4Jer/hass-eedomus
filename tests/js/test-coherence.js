@@ -135,14 +135,18 @@ const hook = `
 // and concatenates everything into the single script scope the hook
 // reads — the same scope the pre-split panel had. A missing module
 // fails loud here; a duplicated top-level name fails loud at
-// evaluation (const redeclaration). Only two forms are stripped —
-// "import ... from '...';" and a leading "^export ": any other ESM
-// form (side-effect import, namespace import, re-export, double
-// quotes) is REJECTED loudly instead of failing later as an
-// unrelated vm SyntaxError.
+// evaluation (const redeclaration). Three forms are stripped —
+// "import ... from '...';", the ESM re-export "export { ... } from
+// '...';" (the 4.4 split re-exports the entry-consumed helpers from
+// coherence.js — wiring, not scope content), and a leading "^export
+// ": any other ESM form (side-effect import, namespace import, a
+// bare export list, double quotes) is REJECTED loudly instead of
+// failing later as an unrelated vm SyntaxError.
 function loadPanelSource() {
   const loaded = [];
   const seen = new Set();
+  const importRe = /import\s[^;]*?from\s*'[^']+'\s*;/g;
+  const reexportRe = /export\s*\{[^}]*\}\s*from\s*'[^']+'\s*;/g;
   function walk(file) {
     if (seen.has(file)) {
       return;
@@ -154,16 +158,19 @@ function loadPanelSource() {
     } catch (err) {
       throw new Error(`panel module missing or unreadable: ${file}`);
     }
-    const importRe = /import\s[^;]*?from\s*'[^']+'\s*;/g;
     const dir = path.dirname(file);
     const deps = [];
     let match;
     while ((match = importRe.exec(src)) !== null) {
       deps.push(path.resolve(dir, /'([^']+)'/.exec(match[0])[1]));
     }
+    while ((match = reexportRe.exec(src)) !== null) {
+      deps.push(path.resolve(dir, /'([^']+)'/.exec(match[0])[1]));
+    }
     deps.forEach(walk);
     const stripped = src
       .replace(importRe, '')
+      .replace(reexportRe, '')
       .replace(/^export (const|function|class) /gm, '$1 ');
     const leftover = stripped.match(/^[ \t]*(import|export)\b/m);
     if (leftover) {

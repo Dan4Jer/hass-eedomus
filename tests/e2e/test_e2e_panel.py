@@ -9,6 +9,7 @@ behavior, and archives nothing (skip-if-identical).
 
 import os
 import time
+from pathlib import Path
 
 import pytest
 import requests
@@ -18,6 +19,32 @@ pytestmark = pytest.mark.e2e
 
 HA_URL = os.environ.get("HA_URL", "http://192.168.1.5:8123")
 EXPECTED_PANEL = "eedomus-config"
+
+# The panel is real ES modules (story 102 split): the module list of
+# the serving loop is DERIVED from the repo's www/panel/ directory —
+# a manual list let supervision.js (4.2) and coherence-helpers.js
+# (4.4) drift out silently, the exact regression shape where a 404
+# kills the panel while the test stays green. A new module without a
+# marker entry fails the test loudly instead of escaping the loop.
+PANEL_MODULES_DIR = (
+    Path(__file__).resolve().parents[2]
+    / "custom_components"
+    / "eedomus"
+    / "www"
+    / "panel"
+)
+
+# One distinctive symbol per module (keyed by file name): the file
+# must be served AND contain its marker.
+PANEL_MODULE_MARKERS = {
+    "shared.js": "applySharedMixin",
+    "coherence.js": "applyCoherenceMixin",
+    "coherence-helpers.js": "COHERENCE_SIGNALS",
+    "peripheriques.js": "applyPeripheriquesMixin",
+    "regles.js": "applyReglesMixin",
+    "historique.js": "applyHistoriqueMixin",
+    "supervision.js": "applySupervisionMixin",
+}
 
 
 def _get_peripherals_retrying(ws_call):
@@ -50,21 +77,23 @@ class TestPanelRegistration:
         # The entry is a real ES module (story 102 split): EVERY tab
         # module must be served by the same static path — a 404 on any
         # one of them (shared.js included) kills the whole panel while
-        # the test would otherwise stay green.
-        for module, marker in (
-            ("shared.js", "applySharedMixin"),
-            ("coherence.js", "COHERENCE_SIGNALS"),
-            ("peripheriques.js", "applyPeripheriquesMixin"),
-            ("regles.js", "applyReglesMixin"),
-            ("historique.js", "applyHistoriqueMixin"),
-        ):
+        # the test would otherwise stay green. The loop walks the
+        # repo's actual www/panel/ directory; the marker map above
+        # keys the serving check per module.
+        modules = sorted(path.name for path in PANEL_MODULES_DIR.glob("*.js"))
+        assert modules, f"no panel module found in {PANEL_MODULES_DIR}"
+        unmarked = [m for m in modules if m not in PANEL_MODULE_MARKERS]
+        assert not unmarked, (
+            f"panel modules missing a serving marker: {unmarked}"
+        )
+        for module in modules:
             res_module = requests.get(
                 f"{HA_URL}/local/eedomus/panel/{module}",
                 headers=ha_headers,
                 timeout=30,
             )
             assert res_module.status_code == 200, module
-            assert marker in res_module.text, module
+            assert PANEL_MODULE_MARKERS[module] in res_module.text, module
 
 
 class TestWebsocketCommands:

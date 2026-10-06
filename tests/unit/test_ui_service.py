@@ -1627,8 +1627,9 @@ class TestCoherenceSignalContract:
     two-space indentation) - a same-shaped object anywhere else in
     the coherence module must not satisfy the contract by accident.
 
-    The block lives in the coherence ES module since the story 102
-    split (the entry imports it); the file read follows the move."""
+    The block lives in the coherence-helpers ES module since the
+    story 4.4 split (coherence.js imports it from there); the file
+    read follows the move."""
 
     PANEL_JS = (
         Path(__file__).resolve().parents[2]
@@ -1636,7 +1637,7 @@ class TestCoherenceSignalContract:
         / "eedomus"
         / "www"
         / "panel"
-        / "coherence.js"
+        / "coherence-helpers.js"
     ).read_text(encoding="utf-8")
 
     @classmethod

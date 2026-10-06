@@ -147,3 +147,5 @@ Patches appliqués par impl-102-split (tour 2), tous re-vérifiés indépendamme
 - `python3 -m pytest tests/e2e/ -v` sur le Pi : **27 passed in 62.67s** (dont `test_panel_asset_served` avec la boucle 5 modules)
 - Logs post-restart : `Eedomus configuration panel registered`, `websocket commands registered`, `Eedomus integration initialized successfully` ; aucune ERROR/traceback liée au panel — seules erreurs : motif préexistant de retry historique (periph 1235258, retry in 24 h)
 - Validation visuelle des 4 onglets : faite par l'utilisateur (2026-10-05) — « tout est identique » ; ticket marqué done
+
+**Sweep 4.4 (2026-10-06) :** findings différés traités — scission coherence.js livrée (helpers purs → `coherence-helpers.js`, byte-identiques, S1) et ligne frontend AGENTS.md mise à jour (entrée + 7 modules, S2).

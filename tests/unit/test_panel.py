@@ -74,9 +74,11 @@ class TestSetupPanel:
         for module in (
             "shared.js",
             "coherence.js",
+            "coherence-helpers.js",
             "peripheriques.js",
             "regles.js",
             "historique.js",
+            "supervision.js",
         ):
             assert (WWW_DIR / "panel" / module).is_file(), module
 

@@ -12,7 +12,8 @@ Home Assistant custom integration for the Eedomus box (Python 3.9+, vanilla JS p
 
 ## Where things are
 
-- Core: `coordinator.py` (refresh + history import), `ui_service.py` (panel websocket commands), `www/eedomus-panel.js` (panel frontend).
+- Core: `coordinator.py` (refresh + history import), `ui_service.py` (panel websocket commands).
+- Panel frontend: `www/eedomus-panel.js` is the ES-module entry (the URL panel.py registers; it keeps the core: constructor/state, `t()` catalog loading, tab/hash navigation, `_render` shell, event delegation). It imports 7 modules from `www/panel/`: `shared.js` (cross-tab constants/helpers/mixin), one per tab — `peripheriques.js`, `regles.js`, `historique.js`, `coherence.js`, `supervision.js` — and `coherence-helpers.js` (coherence pure helpers; `coherence.js` imports and re-exports them).
 - Starting a feature? Read `_bmad-output/specs/spec-eedomus-mapping-panel/SPEC.md` (or `spec-eedomus-history/`) first — capabilities and constraints live there.
 
 ## Running and verifying
