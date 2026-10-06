@@ -573,7 +573,7 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                     eedomus_value = acceptable_values[temp_str_deg]
                 else:
                     # Try to find the closest integer value
-                    numeric_values = []
+                    numeric_values = {}
                     for val in acceptable_values.values():
                         try:
                             f_val = float(val)
@@ -606,9 +606,6 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                         ),
                     )
                     return
-
-            if eedomus_value is None:
-                return
 
             try:
                 # Formatage propre préservant les décimales (.5)
