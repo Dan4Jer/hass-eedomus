@@ -14,7 +14,6 @@ from custom_components.eedomus.switch import EedomusSwitch
 # sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "custom_components/eedomus")))
 
 
-
 @pytest.mark.asyncio
 async def test_integration_cover_with_energy_sensor():
     """Test integration between cover and energy sensor (Issue #9)."""
