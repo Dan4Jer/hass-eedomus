@@ -14,8 +14,8 @@ flake8==7.4.1
 isort>=9.0.1
 vulture>=2.16
 #
-pytest>=9
+pytest
 pytest-asyncio
-pytest-cov>=7
+pytest-cov
 pytest-homeassistant-custom-component
 async-timeout
