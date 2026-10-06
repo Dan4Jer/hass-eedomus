@@ -142,3 +142,10 @@ Patches P1-P9 appliqués par impl-42-supervision (tour 3), re-vérifiés indépe
 **Contrats gelés :** les 15 commandes websocket intactes, aucun fichier Python touché, catalogue 193 clés (35 nouvelles clés backfill EN+FR + fixtures synchronisées).
 
 **Post-déploiement :** à consigner après validation live.
+
+**Post-déploiement (2026-10-06, 00:32-00:41 CEST) :**
+- Déployé via `deploy_hass_eedomus.sh` (git-only, unstable @ e328a5a), restart HA, ~2 min d'attente
+- Fichiers servis (HTTP 200) : `panel/supervision.js` (1054 l.), entrée (946 l.)
+- `python3 -m pytest tests/e2e/ -q` sur le Pi : **27 passed in 63.18s**
+- Logs post-restart : intégration initialisée proprement, cycles FULL REFRESH capturés par le tampon métriques ; aucune erreur liée à la vue file ni aux commandes
+- Les actions ne sont pas exercées sur l'instance réelle depuis les tests (non destructif, conforme au plan de la 4.5) ; validation visuelle de la file et de ses actions demandée à l'utilisateur au HALT built
