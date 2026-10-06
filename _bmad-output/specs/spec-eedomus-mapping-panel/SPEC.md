@@ -50,6 +50,10 @@ sources: []
   - **intent:** Un 5e onglet du panneau présente en une vue les informations de la box — temps de refresh, nombre de périphériques, sollicitations de l'API proxy — en graphiques (composants du frontend HA disponibles dans le contexte du panneau, repli SVG inline thémé), un lien vers l'onglet Cohérence (mécanisme de hash existant), et la vue de la file de récupération d'historique en cours (en attente, en cours, en erreur, ignorés, en pause) ; les données et les quatre actions de la file relèvent de `spec-eedomus-history` (CAP-5) — le panneau affiche, il ne réimplémente pas le moteur.
   - **success:** L'onglet affiche les métriques en chart cards thémées avec équivalents textuels ; le lien Cohérence bascule d'onglet ; la file de backfill rendue depuis une commande websocket alimentée par le coordinator se pilote depuis cette vue, avec retour nominatif par action.
 
+- **CAP-10 — Aide au format dans l'onglet Règles**
+  - **intent:** Une section d'aide repliable dans l'onglet Règles présente la grammaire du mapping custom (conditions `usage_id`/regex, champs `ha_entity`/`device_class`/`unit`/`state_class`/`priority`) avec de courts exemples, accessible dans les deux modes (formulaire structuré et YAML brut) sans quitter le panneau ; un lien pointe vers la page `docs/mapping-format.md` du repo qui documente le format complet (page écrite dans le même livrable).
+  - **success:** Un utilisateur qui ne connaît pas le format écrit une règle valide dans chaque mode après avoir lu l'aide ; le lien ouvre la page de doc du repo ; l'aide repliée n'encombre pas l'éditeur.
+
 Le libellé d'onglet « Historique » (CAP-5) devient « Historique config » — désambiguïsation avec la récupération des données historiques eedomus ; le libellé vit dans la spine UX, l'intent de CAP-5 est inchangé (décision 2026-10-04).
 
 ## Constraints
