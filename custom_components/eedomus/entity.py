@@ -687,8 +687,15 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
             _LOGGER.debug("🔍 FINAL mapping decision for device 1269454: %s:%s",
                         mapping["ha_entity"], mapping["ha_subtype"])
             _LOGGER.debug("🔍 Justification: %s", mapping["justification"])
-        
-        return mapping
+
+        # Bug 108: the standard usage_id path used to return the mapping
+        # without _create_mapping, so it never reached the mapping registry
+        # - the coherence identity showed unknown for every standard-mapped
+        # peripheral. Route through _create_mapping to register it.
+        return _create_mapping(
+            mapping, periph_name, periph_id, usage_id, "🎯",
+            device_data, registry_entry_id
+        )
     
     # Priority 4: Name-based detection (YAML patterns)
     name_lower = device_data["name"].lower()
@@ -705,7 +712,12 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
             }
             _LOGGER.debug("🎯 Name pattern matched: %s (%s) → %s:%s (pattern: %s)",
                         periph_name, periph_id, mapping["ha_entity"], mapping["ha_subtype"], pattern['pattern'])
-            return mapping
+            # Bug 108: same registry hole as the usage_id path - the name
+            # pattern mapping must be registered too.
+            return _create_mapping(
+                mapping, periph_name, periph_id, "name-pattern", "🎯",
+                device_data, registry_entry_id
+            )
     
     # Legacy name detection (can be removed in future)
     if "message" in name_lower and "box" in name_lower:
@@ -755,7 +767,12 @@ def map_device_to_ha_entity(device_data, all_devices=None, default_ha_entity: st
     
     _LOGGER.warning("❓ Unknown device: %s (%s) → %s:%s. Data: %s",
                     periph_name, periph_id, mapping["ha_entity"], mapping["ha_subtype"], device_data)
-    return mapping
+    # Bug 108: same registry hole - the default fallback mapping must be
+    # registered (the unknown-device warning above already covers logging).
+    return _create_mapping(
+        mapping, periph_name, periph_id, "default", "🎯",
+        device_data, registry_entry_id
+    )
 
 
     async def async_set_value(self, value: str) -> dict | None:

@@ -343,6 +343,88 @@ class TestMappingRegistryEntryTagging:
         assert registry[0]["periph_id"] == "55"
 
 
+class TestMappingRegistryAllPathsRegister:
+    """Bug 108: every mapping path of map_device_to_ha_entity registers
+    in the mapping registry. The standard usage_id, name-pattern and
+    default-fallback paths used to return the mapping without
+    _create_mapping, so 138 of 165 live periphs showed an unknown
+    mapping identity in the coherence detail."""
+
+    @staticmethod
+    def _map(device):
+        import custom_components.eedomus.entity as entity_module
+        from types import SimpleNamespace
+
+        coordinator = SimpleNamespace(
+            config_entry=SimpleNamespace(entry_id="entry_108")
+        )
+        entity_module.map_device_to_ha_entity(
+            device, {}, coordinator=coordinator
+        )
+
+    def test_standard_usage_id_path_registers(self, monkeypatch):
+        import custom_components.eedomus.mapping_registry as registry_module
+
+        monkeypatch.setattr(registry_module, "_MAPPING_REGISTRY", [])
+        # usage_id 23 is a standard usage_id_mappings entry (not one of
+        # the specific cases): this path used to skip the registry.
+        self._map({"periph_id": "230", "name": "CPU Box", "usage_id": "23"})
+
+        registry = registry_module.get_mapping_registry()
+        assert len(registry) == 1
+        assert registry[0]["periph_id"] == "230"
+        assert registry[0]["ha_entity"]
+        assert registry[0]["justification"]
+
+    def test_default_fallback_path_registers(self, monkeypatch):
+        import custom_components.eedomus.mapping_registry as registry_module
+
+        monkeypatch.setattr(registry_module, "_MAPPING_REGISTRY", [])
+        # Unknown usage_id and a name matching no pattern: the default
+        # fallback path used to skip the registry too.
+        self._map(
+            {"periph_id": "999", "name": "Zzz Mystery 424242", "usage_id": "999"}
+        )
+
+        registry = registry_module.get_mapping_registry()
+        assert len(registry) == 1
+        assert registry[0]["periph_id"] == "999"
+        assert registry[0]["ha_entity"]
+        assert registry[0]["justification"]
+
+    def test_name_pattern_path_registers(self, monkeypatch):
+        import custom_components.eedomus.entity as entity_module
+        import custom_components.eedomus.mapping_registry as registry_module
+
+        monkeypatch.setattr(registry_module, "_MAPPING_REGISTRY", [])
+        # The shipped device_mapping.yaml ships no name pattern: inject a
+        # synthetic one to exercise the path (it used to skip the registry).
+        monkeypatch.setattr(
+            entity_module,
+            "NAME_PATTERNS",
+            [
+                {
+                    "pattern": "zzz mystery",
+                    "ha_entity": "sensor",
+                    "ha_subtype": "text",
+                }
+            ],
+        )
+        self._map(
+            {"periph_id": "998", "name": "Zzz Mystery Probe", "usage_id": "999"}
+        )
+
+        registry = registry_module.get_mapping_registry()
+        assert len(registry) == 1
+        assert registry[0]["periph_id"] == "998"
+        # The dynamic entity properties rewrite the synthetic pattern's
+        # subtype and justification ("virtual device..."): the regression
+        # pinned here is the REGISTRATION itself, not the final values -
+        # this path used to leave the registry empty.
+        assert registry[0]["ha_entity"]
+        assert registry[0]["justification"]
+
+
 class TestAsyncRemoveEntryTeardown:
     @pytest.mark.asyncio
     async def test_remove_last_entry_tears_down_panel(self, monkeypatch):
