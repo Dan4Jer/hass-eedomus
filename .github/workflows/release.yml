@@ -69,27 +69,15 @@ jobs:
           echo "✅ Package contains required files"
 
       - name: Create GitHub Release
+        # No hardcoded name/body: the release notes are authored
+        # per-release (see the v0.15.x notes) - softprops overwrites
+        # the body of an existing release when `body` is provided,
+        # which erased hand-written notes once (v0.15.1, 2026-10-06).
+        # The action still attaches the HACS package; the release
+        # title and notes are filled after the workflow runs.
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
-          name: Release v${{ steps.version.outputs.version }}
-          body: |
-            ## Release v${{ steps.version.outputs.version }}
-            
-            **Important:** This release excludes the `.vibe` directory (skills, local configs) which is only needed for development.
-            
-            ### Installation
-            
-            **Via HACS:**
-            1. Go to HACS > Integrations
-            2. Click the three dots (⋮) > Custom repositories
-            3. Add: `https://github.com/Dan4Jer/hass-eedomus`
-            4. Install via HACS interface
-            
-            **Manual:**
-            1. Download the release package below
-            2. Extract to your `custom_components/` directory
-            3. Restart Home Assistant
           files: ${{ steps.package.outputs.package }}
           draft: false
           prerelease: false
