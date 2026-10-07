@@ -71,6 +71,10 @@ def make_coordinator(entry_id=ENTRY_ID, enable_history=True):
         periph_id: {"periph_id": periph_id, "ha_entity": "sensor"}
         for periph_id in PERIPH_IDS
     }
+    coordinator._backfill_eligible_peripherals = {
+        periph_id: {"periph_id": periph_id, "ha_entity": "sensor"}
+        for periph_id in PERIPH_IDS
+    }
     coordinator._history_progress = {
         periph_id: {"last_timestamp": 0, "completed": False}
         for periph_id in PERIPH_IDS
@@ -865,3 +869,97 @@ class TestWebsocketHandlers:
         schema = handler._ws_schema
         keys = {getattr(key, "schema", None) for key in schema}
         assert {"periph_id", "global", "paused"} <= keys
+
+
+class TestBackfillEligibilityAd3:
+    """AD-3: only peripherals mapped as a sensor entity with a
+    numerically resolvable value (AD-6) are backfill-eligible.
+    Discrete states never enter the queue."""
+
+    def test_float_sensor_is_eligible(self):
+        coordinator = make_coordinator()
+        periph = {"periph_id": "201", "ha_entity": "sensor", "value_type": "float"}
+        assert coordinator._is_backfill_eligible(periph) is True
+
+    def test_integer_sensor_is_eligible(self):
+        coordinator = make_coordinator()
+        periph = {"periph_id": "201", "ha_entity": "sensor", "value_type": "integer"}
+        assert coordinator._is_backfill_eligible(periph) is True
+
+    def test_discrete_entities_are_not_eligible(self):
+        """A light/switch/... never produces statistics, whatever its
+        value_type: the on-time need is served live via history_stats."""
+        coordinator = make_coordinator()
+        for ha_entity in (
+            "light",
+            "switch",
+            "binary_sensor",
+            "cover",
+            "climate",
+            "select",
+            "number",
+        ):
+            periph = {
+                "periph_id": "202",
+                "ha_entity": ha_entity,
+                "value_type": "float",
+            }
+            assert coordinator._is_backfill_eligible(periph) is False, ha_entity
+
+    def test_sensor_with_numeric_value_list_is_eligible(self):
+        """List-type sensors resolve labels through the merged
+        value_list (AD-6): numeric values make them eligible."""
+        coordinator = make_coordinator()
+        periph = {
+            "periph_id": "203",
+            "ha_entity": "sensor",
+            "values": [{"description": "Confort", "value": "7"}],
+        }
+        assert coordinator._is_backfill_eligible(periph) is True
+
+    def test_sensor_without_resolvable_value_is_not_eligible(self):
+        coordinator = make_coordinator()
+        periph = {
+            "periph_id": "204",
+            "ha_entity": "sensor",
+            "values": [],
+        }
+        assert coordinator._is_backfill_eligible(periph) is False
+
+    def test_unmapped_peripheral_is_not_eligible(self):
+        coordinator = make_coordinator()
+        assert coordinator._is_backfill_eligible({"value_type": "float"}) is False
+
+    def test_invalid_payload_is_not_eligible(self):
+        coordinator = make_coordinator()
+        assert coordinator._is_backfill_eligible(None) is False
+        assert coordinator._is_backfill_eligible("not-a-dict") is False
+
+    def test_queue_derives_from_the_eligible_set(self):
+        """A dynamic light is out of the queue; a static numeric sensor
+        (not dynamic) is in, with its natural position."""
+        coordinator = make_coordinator()
+        coordinator._backfill_eligible_peripherals = {
+            "201": {"periph_id": "201", "ha_entity": "sensor", "value_type": "float"}
+        }
+        coordinator._dynamic_peripherals = {
+            "202": {"periph_id": "202", "ha_entity": "light"}
+        }
+        coordinator._history_progress = {}
+        assert coordinator._backfill_queue_ids() == ["201"]
+
+    @pytest.mark.asyncio
+    async def test_prioritize_refuses_ineligible_periph(self):
+        """A prioritized ineligible periph would linger forever: the
+        command refuses it up front."""
+        coordinator = make_coordinator()
+        coordinator.data["999"] = {"periph_id": "999", "name": "Lamp"}
+        with pytest.raises(EedomusBackfillError):
+            await coordinator.async_backfill_prioritize("999")
+
+    @pytest.mark.asyncio
+    async def test_retry_now_refuses_ineligible_periph(self):
+        coordinator = make_coordinator()
+        coordinator.data["999"] = {"periph_id": "999", "name": "Lamp"}
+        with pytest.raises(EedomusBackfillError):
+            await coordinator.async_backfill_retry_now("999")

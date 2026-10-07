@@ -87,6 +87,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         self._full_refresh_needed = True
         self._all_peripherals = {}
         self._dynamic_peripherals = {}
+        # AD-3: backfill-eligible peripherals (sensor entity with a
+        # numerically resolvable value). The queue is derived from this
+        # set, not from _dynamic_peripherals.
+        self._backfill_eligible_peripherals = {}
         self._history_progress = (
             {}
         )  # Format: {periph_id: {"last_timestamp": int, "completed": bool}}
@@ -267,6 +271,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # Initialize attributes
         self._all_peripherals = aggregated_data
         self._dynamic_peripherals = {}
+        self._backfill_eligible_peripherals = {}
         self._full_refresh_needed = False
 
         # Process the peripherals
@@ -289,10 +294,15 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 self._dynamic_peripherals[periph_id] = periph_data
                 dynamic += 1
 
+            if self._is_backfill_eligible(periph_data):
+                self._backfill_eligible_peripherals[periph_id] = periph_data
+
         _LOGGER.info(
-            "📊 Device processing summary: %d total peripherals, %d dynamic, %d skipped, %d processed",
+            "📊 Device processing summary: %d total peripherals, %d dynamic, "
+            "%d backfill-eligible, %d skipped, %d processed",
             len(aggregated_data),
             dynamic,
+            len(self._backfill_eligible_peripherals),
             skipped,
             len(aggregated_data),
         )
@@ -900,6 +910,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # Initialize attributes
         self._all_peripherals = aggregated_data
         self._dynamic_peripherals = {}
+        self._backfill_eligible_peripherals = {}
         self._full_refresh_needed = False
 
         # Process the peripherals
@@ -922,10 +933,15 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 self._dynamic_peripherals[periph_id] = periph_data
                 dynamic += 1
 
+            if self._is_backfill_eligible(periph_data):
+                self._backfill_eligible_peripherals[periph_id] = periph_data
+
         _LOGGER.info(
-            "📊 Device processing summary: %d total peripherals, %d dynamic, %d skipped, %d processed",
+            "📊 Device processing summary: %d total peripherals, %d dynamic, "
+            "%d backfill-eligible, %d skipped, %d processed",
             len(aggregated_data),
             dynamic,
+            len(self._backfill_eligible_peripherals),
             skipped,
             len(aggregated_data),
         )
@@ -1157,6 +1173,31 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
         return self.data
 
+    def _is_backfill_eligible(self, periph):
+        """Determine if a peripheral is eligible for history backfill.
+
+        AD-3: only peripherals mapped as a `sensor` entity with a
+        numerically resolvable value (AD-6) produce statistics.
+        Discrete states (light/switch/binary_sensor/cover/climate/
+        select) are never backfilled; the "on time" need is served
+        live through HA history_stats.
+        """
+        if not isinstance(periph, dict) or periph.get("ha_entity") != "sensor":
+            return False
+        # Numeric by declared type
+        if periph.get("value_type") in ("float", "int", "integer"):
+            return True
+        # List-type peripherals: eligible when the merged value_list
+        # carries at least one numeric value (AD-6 label resolution).
+        for item in periph.get("values") or []:
+            if isinstance(item, dict):
+                try:
+                    float(item.get("value"))
+                    return True
+                except (ValueError, TypeError):
+                    continue
+        return False
+
     def _is_dynamic_peripheral(self, periph):
         """Determine if a peripheral needs regular updates."""
         ha_entity = periph.get("ha_entity")
@@ -1349,13 +1390,15 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
         The queue is never stored: it is _history_progress (non completed
         peripherals) projected onto the natural drain order
-        (_dynamic_peripherals). The priority list jumps its entries to
-        the head; ignored periphs are out of the queue entirely. The
-        drain view also drops paused periphs, while the state view keeps
-        them (the panel must render them as paused, position included).
+        (_backfill_eligible_peripherals — AD-3: sensor entities with a
+        numerically resolvable value, discrete states excluded). The
+        priority list jumps its entries to the head; ignored periphs
+        are out of the queue entirely. The drain view also drops
+        paused periphs, while the state view keeps them (the panel
+        must render them as paused, position included).
         """
         pending: list[str] = []
-        for periph_id in self._dynamic_peripherals:
+        for periph_id in self._backfill_eligible_peripherals:
             if periph_id in self._backfill_ignored:
                 continue
             if for_drain and periph_id in self._backfill_paused:
@@ -1562,6 +1605,12 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             raise EedomusBackfillError(
                 BACKFILL_ERROR_INVALID, f"Unknown peripheral {periph_id}"
             )
+        if periph_id not in self._backfill_eligible_peripherals:
+            raise EedomusBackfillError(
+                BACKFILL_ERROR_INVALID,
+                f"Peripheral {periph_id} is not eligible for history "
+                "backfill (AD-3: numeric sensors only)",
+            )
         if self._history_progress.get(periph_id, {}).get("completed"):
             raise EedomusBackfillError(
                 BACKFILL_ERROR_INVALID,
@@ -1626,6 +1675,12 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         if periph_id not in (self.data or {}):
             raise EedomusBackfillError(
                 BACKFILL_ERROR_INVALID, f"Unknown peripheral {periph_id}"
+            )
+        if periph_id not in self._backfill_eligible_peripherals:
+            raise EedomusBackfillError(
+                BACKFILL_ERROR_INVALID,
+                f"Peripheral {periph_id} is not eligible for history "
+                "backfill (AD-3: numeric sensors only)",
             )
         if self._history_progress.get(periph_id, {}).get("completed"):
             raise EedomusBackfillError(

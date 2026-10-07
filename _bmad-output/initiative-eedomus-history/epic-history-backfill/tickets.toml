@@ -69,3 +69,15 @@ covers = ["CAP-1", "CAP-2", "CAP-3", "CAP-4"]
 after = [5]
 hitl = false
 risk = "low"
+
+[[entry]]
+id = 7
+type = "story"
+title = "AD-3 compliance: statistics scope limited to numeric sensors"
+description = "La file de backfill dérive désormais d'un ensemble _backfill_eligible_peripherals (periphs mappés entité sensor avec valeur numérique résoluble — float/int déclaré, ou value_list avec au moins une valeur numérique, AD-6) et non plus de _dynamic_peripherals : les états discrets (light/switch/cover/climate/...) sortent de la file, les capteurs numériques statiques (températures, humidité) y entrent. Prioritize et retry_now refusent un periph non éligible (une entrée morte ne traîne pas en tête de file)."
+verify = "Un capteur de température statique (ex. Température Sonoff Salon, periph 3516814) apparaît dans la file eedomus/get_backfill_state et son backfill importe ses statistics antérieures à l'installation HA ; aucune entité discrète ne figure dans la file."
+covers = ["CAP-1", "CAP-5"]
+after = [2]
+hitl = false
+risk = "medium"
+references = ["../../planning-artifacts/architecture/architecture-hass-eedomus-2026-09-27/ARCHITECTURE-SPINE.md#ad-3"]

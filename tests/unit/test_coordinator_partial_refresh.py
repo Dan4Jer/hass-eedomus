@@ -28,6 +28,15 @@ def make_coordinator(enable_history=True):
     coordinator._dynamic_peripherals = {
         PERIPH_ID: {"periph_id": PERIPH_ID, "ha_entity": "light"}
     }
+    # AD-3: the queue reads the eligible set (numeric sensors), not
+    # the dynamic set (the periph above is a light: real-time only).
+    coordinator._backfill_eligible_peripherals = {
+        PERIPH_ID: {
+            "periph_id": PERIPH_ID,
+            "ha_entity": "sensor",
+            "value_type": "float",
+        }
+    }
     coordinator._history_progress = {}
     coordinator.client.get_periph_caract = AsyncMock(
         return_value={
@@ -140,6 +149,10 @@ async def test_partial_refresh_history_quota_limits_per_scan():
     coordinator = EedomusDataUpdateCoordinator(hass=MagicMock(), client=client)
     coordinator.data = {p: {"periph_id": p, "value": 1} for p in periph_ids}
     coordinator._dynamic_peripherals = {p: {"periph_id": p} for p in periph_ids}
+    coordinator._backfill_eligible_peripherals = {
+        p: {"periph_id": p, "ha_entity": "sensor", "value_type": "float"}
+        for p in periph_ids
+    }
     coordinator._history_progress = {}
     coordinator.client.get_periph_caract = AsyncMock(
         return_value={
@@ -193,6 +206,10 @@ async def test_partial_refresh_busy_lock_skips_history_segment():
     coordinator = EedomusDataUpdateCoordinator(hass=MagicMock(), client=client)
     coordinator.data = {p: {"periph_id": p, "value": 1} for p in periph_ids}
     coordinator._dynamic_peripherals = {p: {"periph_id": p} for p in periph_ids}
+    coordinator._backfill_eligible_peripherals = {
+        p: {"periph_id": p, "ha_entity": "sensor", "value_type": "float"}
+        for p in periph_ids
+    }
     coordinator._history_progress = {}
     coordinator.client.get_periph_caract = AsyncMock(
         return_value={
@@ -230,6 +247,10 @@ async def test_partial_refresh_global_pause_skips_history_segment():
     coordinator = EedomusDataUpdateCoordinator(hass=MagicMock(), client=client)
     coordinator.data = {p: {"periph_id": p, "value": 1} for p in periph_ids}
     coordinator._dynamic_peripherals = {p: {"periph_id": p} for p in periph_ids}
+    coordinator._backfill_eligible_peripherals = {
+        p: {"periph_id": p, "ha_entity": "sensor", "value_type": "float"}
+        for p in periph_ids
+    }
     coordinator._history_progress = {}
     coordinator.client.get_periph_caract = AsyncMock(
         return_value={
@@ -272,6 +293,10 @@ async def test_partial_refresh_priority_jumps_the_natural_order():
     coordinator = EedomusDataUpdateCoordinator(hass=MagicMock(), client=client)
     coordinator.data = {p: {"periph_id": p, "value": 1} for p in periph_ids}
     coordinator._dynamic_peripherals = {p: {"periph_id": p} for p in periph_ids}
+    coordinator._backfill_eligible_peripherals = {
+        p: {"periph_id": p, "ha_entity": "sensor", "value_type": "float"}
+        for p in periph_ids
+    }
     coordinator._history_progress = {}
     coordinator.client.get_periph_caract = AsyncMock(
         return_value={
