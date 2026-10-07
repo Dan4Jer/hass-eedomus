@@ -1,7 +1,7 @@
 # Intégration eedomus pour Home Assistant
 
 [![HACS Validated](https://img.shields.io/badge/HACS-Validated-green.svg)](https://github.com/hacs/integration)
-[![Version](https://img.shields.io/badge/version-0.15.0-blue.svg)](https://github.com/Dan4Jer/hass-eedomus/releases)
+[![Version](https://img.shields.io/badge/version-0.15.1-blue.svg)](https://github.com/Dan4Jer/hass-eedomus/releases)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/Dan4Jer/hass-eedomus/blob/main/LICENSE)
 [![Release](https://img.shields.io/github/v/release/Dan4Jer/hass-eedomus?label=latest)](https://github.com/Dan4Jer/hass-eedomus/releases/latest)
 
