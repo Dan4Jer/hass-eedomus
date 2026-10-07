@@ -3,7 +3,7 @@ title: 'Fix-now de la rétro i18n : valeur FR dans l''arbre EN, surfaces de flow
 type: 'bugfix'
 ticket: 'story-fix-now-r-tro-i18n-arbre-en-surfaces-de-flow'
 created: '2026-10-05'
-status: 'built'
+status: done
 route: 'full'
 route_source: 'auto'
 baseline_revision: 'd6879ee1a2b3acd2c67585c82f92d5281831325f'

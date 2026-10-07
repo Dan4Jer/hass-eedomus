@@ -45,7 +45,6 @@ jobs:
           # Copy only files needed for HACS
           cp -r custom_components/ "${RELEASE_DIR}/" || true
           cp -r icons/ "${RELEASE_DIR}/" || true
-          cp -r translations/ "${RELEASE_DIR}/" || true
           cp README.md LICENSE requirements.txt requirements_prod.txt "${RELEASE_DIR}/" 2>/dev/null || true
           
           # Copy manifest.json from custom_components/eedomus to root of release
