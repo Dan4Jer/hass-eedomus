@@ -3,7 +3,7 @@ title: 'H.1.2 Import statistics direct via async_import_statistics'
 type: 'feature'
 ticket: 2
 created: '2026-10-03'
-status: 'built'
+status: done
 route: 'full'
 route_source: 'auto'
 baseline_revision: '8f256621b5ebd080eb923854fd2a4dd1ecb690e5'
