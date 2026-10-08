@@ -39,14 +39,15 @@ notes = ["Purger aussi la statistic de test sensor.eedomus_test_import (statisti
 [[entry]]
 id = 4
 type = "story"
-title = "Tâche de fond et progression .storage scopée"
-description = "Sort le fetch/import du cycle de partial refresh : tâche de fond cadencée par history_peripherals_per_scan, progression et retry persistés en .storage sous la clé <config_entry_id>_<periph_id>, value_list figée au fetch du chunk (AD-6bis), unload = await + flush, au plus un importer actif par entry."
-verify = "Un partial refresh reste ~1 s pendant un backfill complet ; après redémarrage HA en cours de backfill, la reprise repart de la progression persistée."
-covers = ["CAP-2", "CAP-3"]
+title = "Tâche de fond, progression .storage scopée et indicateurs CAP-5"
+description = "Sort le fetch/import du cycle de partial refresh : tâche de fond cadencée par history_peripherals_per_scan, progression et retry persistés en .storage sous la clé <config_entry_id>_<periph_id>, value_list figée au fetch du chunk (AD-6bis), unload = await + flush, au plus un importer actif par entry. La progression persistée porte les champs CAP-5 réellement écrits par le coordinator : retrieved_points (cumul réel), total_points (ESTIMÉ — fenêtre now−creation_date × densité 1/POLLING, marqué comme estimation), plus ancien timestamp récupéré, début de rétention — servis par eedomus/get_backfill_state ET eedomus/get_coherence. Répare le bug 109 en fusion : les capteurs History Progress sont réellement montés (retour d'async_setup_history_sensors consommé, _history_sensors assigné) et affichent le % réel + leurs 4 attributs (0→100 en cours, 100 à completed). Le rendu panneau (barre + texte, file Supervision et détail Cohérence) est porté par la story 110 du backlog panel."
+verify = "Un partial refresh reste ~1 s pendant un backfill complet ; après redémarrage HA en cours de backfill, la reprise repart de la progression persistée ; get_backfill_state et get_coherence exposent les champs de progression ; un capteur History Progress monté affiche un % réel — 100 sur un periph completed (ex. Température Sonoff Salon) — et ses 4 attributs."
+covers = ["CAP-2", "CAP-3", "CAP-5"]
 after = [3]
 hitl = false
 risk = "medium"
-references = ["../../planning-artifacts/architecture/architecture-hass-eedomus-2026-09-27/ARCHITECTURE-SPINE.md#ad-2"]
+notes = ["Fusion du bug 109 (capteurs History Progress) décidée par l'utilisateur le 2026-10-08 : la réparation est faite avec cette story, le rendu panel suit (story 110 backlog).", "Décision 2026-10-08 : les deux mesures (couverture temporelle + % de points), total estimé = fenêtre now−creation_date × densité 1/POLLING, marqué estimation dans l'UI."]
+references = ["../../planning-artifacts/architecture/architecture-hass-eedomus-2026-09-27/ARCHITECTURE-SPINE.md#ad-2", "../../initiative-eedomus-panel/backlog/bug-165-capteurs-history-progress-jamais-montes.md"]
 
 [[entry]]
 id = 5
