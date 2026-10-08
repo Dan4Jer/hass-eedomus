@@ -234,7 +234,6 @@ async def test_fetch_history_chunk_writes_no_historical_states():
     coordinator.client.get_device_history = AsyncMock(return_value=chunk)
     coordinator.hass.states.async_set = MagicMock()
     coordinator._save_history_progress = AsyncMock()
-    coordinator._create_error_sensors = AsyncMock()
 
     result = await coordinator.async_fetch_history_chunk(PERIPH_ID)
 

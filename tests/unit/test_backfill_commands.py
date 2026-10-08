@@ -89,7 +89,6 @@ def make_coordinator(entry_id=ENTRY_ID, enable_history=True):
             "_raw_data_size_bytes": 128,
         }
     )
-    coordinator._create_error_sensors = AsyncMock()
     coordinator.async_fetch_history_chunk = AsyncMock(return_value=[])
     coordinator.async_import_history_chunk = AsyncMock(return_value=0)
     return coordinator

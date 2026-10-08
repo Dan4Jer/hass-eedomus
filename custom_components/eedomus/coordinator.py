@@ -1142,9 +1142,6 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     history_import_time += import_time
                     history_time += fetch_time + import_time
 
-        # Create/update error sensors
-        await self._create_error_sensors()
-
         # End processing timing
         processing_time = (datetime.now() - processing_start_time).total_seconds()
 
@@ -1958,8 +1955,6 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             )
 
             await self._save_history_progress()
-            # History sensors are now proper entities, no need to recreate them here
-            await self._create_error_sensors()
             return chunk
 
         except Exception as e:
@@ -1968,75 +1963,6 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             )
             self._handle_fetch_error(periph_id, str(e))
             return []
-
-    async def _create_error_sensors(self):
-        """Create sensors to visualize the errors and the retry queue."""
-        if not self.hass:
-            return
-
-        try:
-            # Sensor for the total number of peripherals in error
-            self.hass.states.async_set(
-                "sensor.eedomus_history_errors_total",
-                str(len(self._retry_queue)),
-                {
-                    "device_class": "problem",
-                    "state_class": "measurement",
-                    "unit_of_measurement": "devices",
-                    "friendly_name": "Eedomus History Errors Total",
-                    "icon": "mdi:alert-circle",
-                    "last_updated": datetime.now().isoformat(),
-                },
-            )
-
-            # Sensor for the number of completed peripherals
-            completed_count = sum(
-                1 for p in self._history_progress.values() if p.get("completed", False)
-            )
-            self.hass.states.async_set(
-                "sensor.eedomus_history_completed",
-                str(completed_count),
-                {
-                    "device_class": "problem",
-                    "state_class": "measurement",
-                    "unit_of_measurement": "devices",
-                    "friendly_name": "Eedomus History Completed",
-                    "icon": "mdi:check-circle",
-                    "last_updated": datetime.now().isoformat(),
-                },
-            )
-
-            # Sensor for each peripheral in error
-            for periph_id, error_info in self._retry_queue.items():
-                periph_name = self.data.get(periph_id, {}).get("name", "Unknown")
-                retry_in_hours = max(
-                    0, (error_info["retry_after"] - datetime.now().timestamp()) / 3600
-                )
-
-                self.hass.states.async_set(
-                    f"sensor.eedomus_history_error_{periph_id}",
-                    str(retry_in_hours),
-                    {
-                        "device_class": "duration",
-                        "state_class": "measurement",
-                        "unit_of_measurement": "hours",
-                        "friendly_name": f"History Error: {periph_name}",
-                        "icon": "mdi:clock-alert",
-                        "periph_id": periph_id,
-                        "periph_name": periph_name,
-                        "error_message": error_info["error_message"],
-                        "attempts": error_info["attempts"],
-                        "last_updated": datetime.now().isoformat(),
-                    },
-                )
-
-            _LOGGER.info(
-                "✅ Error sensors created: %d devices in retry queue",
-                len(self._retry_queue),
-            )
-
-        except Exception as e:
-            _LOGGER.error("Error creating error sensors: %s", e)
 
     async def async_import_history_chunk(
         self, periph_id: str, chunk: list, main_entity_id: str = None

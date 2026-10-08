@@ -44,7 +44,6 @@ def make_coordinator(enable_history=True):
             "_raw_data_size_bytes": 128,
         }
     )
-    coordinator._create_error_sensors = AsyncMock()
     return coordinator
 
 
@@ -160,7 +159,6 @@ async def test_partial_refresh_history_quota_limits_per_scan():
             "_raw_data_size_bytes": 128,
         }
     )
-    coordinator._create_error_sensors = AsyncMock()
     # 111 returns an empty chunk: it consumes its quota slot but stays
     # pending, so it is retried on a later scan
     coordinator.async_fetch_history_chunk = AsyncMock(
@@ -217,7 +215,6 @@ async def test_partial_refresh_busy_lock_skips_history_segment():
             "_raw_data_size_bytes": 128,
         }
     )
-    coordinator._create_error_sensors = AsyncMock()
     coordinator.async_fetch_history_chunk = AsyncMock(return_value=[{"value": 1}])
     coordinator.async_import_history_chunk = AsyncMock(return_value=1)
 
@@ -258,7 +255,6 @@ async def test_partial_refresh_global_pause_skips_history_segment():
             "_raw_data_size_bytes": 128,
         }
     )
-    coordinator._create_error_sensors = AsyncMock()
     coordinator.async_fetch_history_chunk = AsyncMock(return_value=[])
     coordinator.async_import_history_chunk = AsyncMock(return_value=0)
 
@@ -304,7 +300,6 @@ async def test_partial_refresh_priority_jumps_the_natural_order():
             "_raw_data_size_bytes": 128,
         }
     )
-    coordinator._create_error_sensors = AsyncMock()
     coordinator.async_fetch_history_chunk = AsyncMock(return_value=[{"value": 1}])
     coordinator.async_import_history_chunk = AsyncMock(return_value=1)
 
@@ -318,3 +313,28 @@ async def test_partial_refresh_priority_jumps_the_natural_order():
     # Next drain: the natural order drains the remaining periph.
     await coordinator._async_partial_refresh()
     coordinator.async_fetch_history_chunk.assert_any_await("111")
+
+
+@pytest.mark.asyncio
+async def test_cycle_writes_no_sensor_eedomus_state():
+    """Story 1.3: a backfill cycle never writes a sensor.eedomus_*
+    helper state — the error/completion information lives in the
+    CAP-5 view (eedomus/get_backfill_state), never in the state
+    machine."""
+    coordinator = make_coordinator(enable_history=True)
+    coordinator.hass.states.async_set = MagicMock()
+    chunk = [{"value": 1, "timestamp": "2026-09-27T08:15:00"}]
+    coordinator.async_fetch_history_chunk = AsyncMock(return_value=chunk)
+    coordinator.async_import_history_chunk = AsyncMock(return_value=1)
+    coordinator._retry_queue["999"] = {
+        "error_time": datetime.now().timestamp(),
+        "retry_after": datetime.now().timestamp() + 3600,
+        "error_message": "API error",
+        "attempts": 2,
+    }
+
+    await coordinator._async_partial_refresh()
+
+    for call in coordinator.hass.states.async_set.call_args_list:
+        entity_id = call.args[0]
+        assert not entity_id.startswith("sensor.eedomus_"), entity_id
