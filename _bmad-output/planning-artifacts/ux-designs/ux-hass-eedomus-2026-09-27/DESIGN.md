@@ -2,7 +2,7 @@
 name: Eedomus Config
 description: Panneau de configuration du mapping custom eedomus dans Home Assistant — héritage pur du thème HA ; ce DESIGN.md ne définit que la sémantique de diff type git, le badge de modification, les signaux de cohérence et les surfaces de supervision (carte de graphique, file de backfill).
 status: final
-updated: 2026-10-06
+updated: 2026-10-08
 colors:
   # Héritage UI-system : chaque valeur est une variable CSS du thème HA.
   # Aucun hex — le thème utilisateur (clair/sombre) rend les valeurs.
@@ -127,6 +127,10 @@ components:
     background: '{colors.card-background}'
     border-color: '{colors.divider}'
     radius: '{rounded.DEFAULT}'
+  metric-value-card:
+    background: '{colors.card-background}'
+    border-color: '{colors.divider}'
+    radius: '{rounded.DEFAULT}'
   backfill-queue:
     background: '{colors.card-background}'
     border-color: '{colors.divider}'
@@ -210,6 +214,7 @@ Un seul rayon de surface : `{rounded.DEFAULT}` = `var(--ha-card-border-radius)` 
 - **En-tête de tri (`{components.sort-header}`)** — bouton focusable dans chaque cellule d'en-tête du tableau de cohérence, outline du thème jamais supprimé ; `aria-sort` porte l'état de tri ; l'indicateur de direction (glyphe flèche) en `{colors.text-secondary}`.
 - **Tableau de cohérence (`{components.coherence-table}`)** — pleine largeur de la zone de contenu, fond `{colors.card-background}`. Séparation de lignes par filet `{colors.divider}` (pas de zébrage) ; l'en-tête collant garde fond `{colors.card-background}` et filet bas `{colors.divider}` pour rester lisible au défilement ; cellules en `{typography.body}`, `periph_id` en `{typography.code}`. Densité compacte mais respirée : hauteur de ligne ≥ 44 px (cible tactile), padding vertical `{spacing.3}` — un tableau de ~165 lignes se balaye sans fatigue visuelle.
 - **Lien d'entité HA (`{components.entity-link}`)** — lien texte inline en `{colors.accent}`, souligné ; pas de fond, pas de bordure, pas de chrome de bouton. Il navigue vers la page de réglages standard de l'entité HA — un lien, pas un contrôle d'édition.
+- **Carte de métrique valeur (`{components.metric-value-card}`)** — surface = motif de carte existant : fond `{colors.card-background}`, filet `{colors.divider}`, rayon `{rounded.DEFAULT}`. Deux variantes : (a) valeur statique + puces de catégorie — les puces héritent la discipline des puces de cohérence (`{components.coherence-chip-*}`) : teinte `color-mix` 12 % sur fond carte, texte `{colors.text-primary}` ≥ 4.5:1, icône + texte jamais la couleur seule ; (b) gauge (activité des périphériques) — priorité au composant gauge du frontend HA exposé dans le contexte du panneau, repli SVG inline thémé (variables CSS HA uniquement, aucune palette locale), couleurs sémantiques du thème, jamais la couleur comme unique porteur (équivalent textuel requis, voir EXPERIENCE.md §Accessibility Floor).
 - **Carte de graphique de métrique (`{components.metric-chart-card}`)** — surface = motif de carte existant : fond `{colors.card-background}`, filet `{colors.divider}`, rayon `{rounded.DEFAULT}`. Les couleurs de séries héritent de la palette de graphique du thème HA (voir §Colors) — aucune palette locale. Priorité aux composants de graphique du frontend HA exposés dans le contexte du panneau ; repli SVG inline thémé (variables CSS HA uniquement). `[ASSUMPTION]` : la disponibilité des composants de graphique HA dans le contexte du panneau est vérifiée à l'implémentation.
 - **File de backfill (`{components.backfill-queue}`)** — lignes sur `{colors.card-background}`, filets `{colors.divider}`. Les boutons d'action sont les boutons standard HA — aucun pattern visuel nouveau ; les statuts sont portés par texte, jamais la couleur seule (comportement dans EXPERIENCE.md). Indicateur de progression par ligne : barre fine (piste `{colors.divider}`, remplissage `{colors.accent}`), hauteur contenue, rayon `{rounded.full}` (pill) ; la valeur textuelle est rendue à côté de la barre — le texte porte l'information, la barre est la redondance visuelle (voir Accessibility dans EXPERIENCE.md). Ce composant n'introduit aucun token de couleur.
 
