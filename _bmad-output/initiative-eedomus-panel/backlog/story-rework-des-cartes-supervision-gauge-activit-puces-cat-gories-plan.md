@@ -3,15 +3,18 @@ title: 'Story 111: Supervision cards rework — activity gauge, category chips, 
 type: 'feature'
 ticket: '111'
 created: '2026-10-08'
-status: 'ready-for-dev'
+status: blocked
 route: 'full'
 route_source: 'auto'
 review: ''
 review_source: ''
 lenses_ran: []
+baseline_revision: 'e1edeba'
 review_loop_iteration: 0
 context:
   - /Users/danjer/mistral/hass-eedomus/_bmad-output/planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/EXPERIENCE.md
+blocked_at: "2026-10-08"
+blocked_reason: "no subagents"
 ---
 
 <frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
@@ -84,3 +87,21 @@ Gauge: SVG arc, radius from the card, stroke via `var(--primary-color)`, track v
 
 **Manual checks (if no CLI):**
 - After deploy: Supervision tab shows 4 cards; CPU chart populated after 2+ refresh cycles; no API calls card; FR locale labels correct
+
+
+## Auto Run Result
+
+Status: blocked — blocking condition: no subagents.
+
+Run 2026-10-08 (bmad-build-auto, full route). The plan routed correctly
+(ticket 111, plan ready-for-dev -> in-progress, baseline e1edeba) and
+the working tree was clean. The implementing subagent could not be
+launched: three spawn attempts (impl-111-supervision, impl-111-b, and
+a trivial diagnostic agent) all returned success but never registered
+in the subagent list — the harness's subagent capability is down in
+this environment (same silent failure earlier tonight with the UX
+rubric-walker agent). Per the workflow's Subagents rule, the full route
+mandates an implementing subagent; without it the run halts blocked.
+No code was changed. Resume paths: (a) rerun bmad-build-auto in a fresh
+session once subagents work, or (b) authorize inline implementation
+(the interactive bmad-build path allows direct implementation).
