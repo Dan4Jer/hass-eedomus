@@ -138,6 +138,7 @@ async def test_nominal_chunk_calls_async_import_statistics(monkeypatch):
         "mean_type": StatisticMeanType.ARITHMETIC,
         "has_sum": False,
         "unit_of_measurement": UNIT,
+        "unit_class": "temperature",
     }
     # Both points fall in hour 08: one aggregated hourly statistic
     assert [s["start"] for s in stats] == [
@@ -350,3 +351,34 @@ async def test_api_error_skips_chunk(monkeypatch, caplog, api_error):
         if "skipping" in r.getMessage() and "history points" in r.getMessage()
     ]
     assert len(skip_warnings) == 1
+
+
+@pytest.mark.asyncio
+async def test_energy_unit_derives_energy_unit_class(monkeypatch):
+    """Bug 1.8: kWh maps to the energy unit_class via HA converters."""
+    fake_registry(monkeypatch, [("eedomus", f"{ENTRY_ID}_{PERIPH_ID}", ENTITY_ID)])
+    coordinator = make_coordinator()
+    rec_stats = configure_statistics(coordinator, unit="kWh")
+
+    imported = await coordinator.async_import_history_chunk(PERIPH_ID, CHUNK)
+
+    assert imported == 1
+    _hass, metadata, _stats = rec_stats.async_import_statistics.call_args.args
+    assert metadata["unit_class"] == "energy"
+
+
+@pytest.mark.asyncio
+async def test_unit_without_converter_keeps_none_unit_class(monkeypatch):
+    """Bug 1.8: a unit HA has no converter for (% or custom) keeps
+    unit_class None — the key stays present, only its absence
+    deprecates (HA 2026.11)."""
+    fake_registry(monkeypatch, [("eedomus", f"{ENTRY_ID}_{PERIPH_ID}", ENTITY_ID)])
+    coordinator = make_coordinator()
+    rec_stats = configure_statistics(coordinator, unit="%")
+
+    imported = await coordinator.async_import_history_chunk(PERIPH_ID, CHUNK)
+
+    assert imported == 1
+    _hass, metadata, _stats = rec_stats.async_import_statistics.call_args.args
+    assert metadata["unit_class"] is None
+    assert metadata["unit_of_measurement"] == "%"

@@ -3,7 +3,7 @@ title: 'Story 111: Supervision cards rework — activity gauge, category chips, 
 type: 'feature'
 ticket: '111'
 created: '2026-10-08'
-status: built
+status: done
 route: 'full'
 route_source: 'auto'
 review: 'thorough'

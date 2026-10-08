@@ -274,6 +274,28 @@ def _install_homeassistant_stubs():
     ha_dt.as_utc = lambda dt: (
         dt if getattr(dt, "tzinfo", None) else dt.replace(tzinfo=timezone.utc)
     )
+    # homeassistant.util.unit_conversion - get_unit_converter maps a
+    # unit to its converter class carrying UNIT_CLASS (bug 1.8: the
+    # statistics metadata derives unit_class from it). Mirrors real HA
+    # semantics: ValueError for a unit without a converter.
+    ha_unit_conv = module("homeassistant.util.unit_conversion")
+
+    def _get_unit_converter(unit):
+        converters = {
+            "°C": "temperature",
+            "°F": "temperature",
+            "kWh": "energy",
+            "W": "power",
+            "kW": "power",
+            "hPa": "pressure",
+        }
+        if unit not in converters:
+            raise ValueError(f"No converter for {unit!r}")
+        return type(
+            "StubConverter", (), {"UNIT_CLASS": converters[unit]}
+        )
+
+    ha_unit_conv.get_unit_converter = _get_unit_converter
     # UTC constant and utcnow are used by the history backfill's AD-11 clip
     ha_dt.UTC = timezone.utc
     ha_dt.utcnow = lambda: datetime.now(timezone.utc)

@@ -2251,6 +2251,19 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 return 0
             unit = state.attributes.get("unit_of_measurement")
 
+            # unit_class derived through HA's own converters (bug 1.8:
+            # the missing key deprecates from HA 2026.11). A unit
+            # without a converter keeps unit_class None — the key stays
+            # present, only its absence deprecates.
+            unit_class = None
+            try:
+                from homeassistant.util import unit_conversion
+
+                converter = unit_conversion.get_unit_converter(unit)
+                unit_class = getattr(converter, "UNIT_CLASS", None)
+            except (ValueError, TypeError):
+                unit_class = None
+
             # AD-11: the recorder compiler owns every hour from the sensor's
             # first native statistic onward (the upsert would overwrite its
             # means); the backfill writes strictly earlier hours only.
@@ -2301,6 +2314,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 "mean_type": StatisticMeanType.ARITHMETIC,
                 "has_sum": False,
                 "unit_of_measurement": unit,
+                # bug 1.8: unit_class is required metadata from HA
+                # 2026.11 — derived from the unit (None without a
+                # converter, the key itself must be present).
+                "unit_class": unit_class,
             }
 
             _LOGGER.info(
