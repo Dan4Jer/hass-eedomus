@@ -1742,6 +1742,8 @@ supPanel._metrics = {
       entry_id: 'E1',
       name: 'Salon',
       periphs_dynamic: 6,
+      active_periphs_last_hour: 42,
+      periphs_by_category: { sensor: 100, light: 60, switch: 5 },
       cycles: [
         {
           ts: '2026-10-03T09:00:00',
@@ -1750,6 +1752,8 @@ supPanel._metrics = {
           api_calls: 3,
           periphs_total: 164,
           periphs_dynamic: 6,
+          cpu: 28.9,
+          free_space_kb: 2282.45,
         },
         {
           ts: '2026-10-03T09:05:00',
@@ -1758,12 +1762,15 @@ supPanel._metrics = {
           api_calls: 2,
           periphs_total: 165,
           periphs_dynamic: 6,
+          cpu: 29.2,
+          free_space_kb: 2282.45,
         },
       ],
     },
   ],
 };
 const supCardsHtml = supPanel._renderSupervisionTab();
+
 assertEq(
   'supervision: cards render with charts and textual equivalents',
   [
@@ -1772,14 +1779,82 @@ assertEq(
     supCardsHtml.includes(
       'Dernier cycle : 2.100 s au total, 1.100 s sur l&#39;API.'
     ),
-    supCardsHtml.includes('165 périphériques, dont 6 dynamiques.'),
+    supCardsHtml.includes('165 périphériques en 3 catégories.'),
+    supCardsHtml.includes('<span class="metric-chip">sensor 100</span>'),
     supCardsHtml.includes(
-      '2 appels à l&#39;API eedomus lors du dernier cycle.'
+      '42 périphériques ont remonté une valeur dans la dernière heure.'
     ),
+    supCardsHtml.includes('metric-gauge'),
+    supCardsHtml.includes('CPU 29.2 % - 2282.4 Ko libres sur la box.'),
     supCardsHtml.includes('Box Salon'),
     supCardsHtml.includes('Sur les 2 derniers cycles de refresh.'),
   ],
-  [true, true, true, true, true, true, true]
+  [true, true, true, true, true, true, true, true, true, true]
+);
+// The API calls card is gone by design (spine 2026-10-08): no stale
+// diagnostic card, no orphan key usage in the rendered markup.
+assertEq(
+  'supervision: no api calls card renders',
+  supCardsHtml.includes('appels à l&#39;API eedomus lors du dernier cycle'),
+  false
+);
+// A box without cpu samples hides the system card — never a
+// half-empty card (spine fallback).
+supPanel._metrics = {
+  boxes: [
+    {
+      entry_id: 'E1',
+      name: 'Salon',
+      cycles: [
+        {
+          ts: '2026-10-03T09:00:00',
+          refresh_time: 2.5,
+          api_time: 1.25,
+          periphs_total: 165,
+          periphs_dynamic: 6,
+        },
+      ],
+    },
+  ],
+};
+const supNoSystemHtml = supPanel._renderSupervisionTab();
+assertEq(
+  'supervision: no cpu samples hides the system card',
+  [
+    supNoSystemHtml.includes('Système box'),
+    supNoSystemHtml.includes('165 périphériques, dont 6 dynamiques.'),
+  ],
+  [false, true]
+);
+// CPU samples without free space: the system card renders with the
+// CPU-only sentence — no placeholder, no half-empty companion.
+supPanel._metrics = {
+  boxes: [
+    {
+      entry_id: 'E1',
+      name: 'Salon',
+      cycles: [
+        {
+          ts: '2026-10-03T09:00:00',
+          refresh_time: 2.5,
+          api_time: 1.25,
+          periphs_total: 165,
+          periphs_dynamic: 6,
+          cpu: 29.2,
+        },
+      ],
+    },
+  ],
+};
+const supCpuOnlyHtml = supPanel._renderSupervisionTab();
+assertEq(
+  'supervision: cpu without free space renders the cpu-only sentence',
+  [
+    supCpuOnlyHtml.includes('Système box'),
+    supCpuOnlyHtml.includes('CPU 29.2 % sur la box.'),
+    supCpuOnlyHtml.includes('2282'),
+  ],
+  [true, true, false]
 );
 // The coherence link renders and delegates through _setTab — the
 // internal-link precedent of the "create a rule" shortcut.

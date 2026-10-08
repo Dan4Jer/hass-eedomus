@@ -121,6 +121,15 @@ EXEMPTIONS: List[Exemption] = [
         ),
     ),
     Exemption(
+        file="custom_components/eedomus/coordinator.py",
+        literal='"Espace libre"',
+        reason=(
+            "data matcher: the eedomus box names its free-storage "
+            "system periph in French (usage 23), matched to sample "
+            "the Supervision system card"
+        ),
+    ),
+    Exemption(
         file="custom_components/eedomus/sensor.py",
         literal="Espace libre Box",
         reason=(

@@ -49,6 +49,20 @@ export const SUPERVISION_STYLES = `
         .metric-chart {
           display: block; width: 100%; height: 120px; margin-top: 10px;
         }
+        .metric-gauge { height: 96px; }
+        .metric-chips {
+          display: flex; flex-wrap: wrap; gap: 4px; margin: 10px 0 0;
+        }
+        .metric-chip {
+          display: inline-flex; align-items: center;
+          padding: 2px 8px;
+          border-radius: var(--ha-chip-border-radius, 16px);
+          font-size: 12px;
+          color: var(--primary-text-color);
+          background: color-mix(
+            in srgb, var(--primary-color) 12%, var(--card-background-color)
+          );
+        }
         .metric-skeleton {
           height: 180px;
           background: var(--card-background-color);
@@ -229,6 +243,15 @@ export function supervisionFormatCount(value) {
   return String(Math.round(value));
 }
 
+// One-decimal formatting of a metric value (CPU %, free space kB);
+// missing value → em dash.
+export function supervisionFormatDecimal(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return '—';
+  }
+  return value.toFixed(1);
+}
+
 // Display formatting of a retry_after timestamp: the ISO local text
 // served by _json_safe ("2026-10-07T21:04:00+02:00") becomes readable
 // "07/10 21:04" (day/month + HH:MM, the offset dropped for display) —
@@ -339,6 +362,88 @@ export function supervisionMetricCardHtml(card, t) {
       <p class="metric-value">${escapeHtml(card.value)}</p>
       <p class="metric-text">${escapeHtml(t(card.textKey, card.textParams || {}))}</p>
       ${chart}
+    </div>
+  `;
+}
+
+// SVG path of a semicircular gauge arc (CAP-9 activity card): the
+// fraction clamps to [0, 1]; 0 draws no arc, 1 spans the full
+// semicircle. Pure — the arcs of the tests are exact strings.
+export function supervisionGaugeArc(fraction, radius = 40) {
+  const value = Number(fraction);
+  if (!Number.isFinite(value) || value <= 0) {
+    return '';
+  }
+  const clamped = Math.min(value, 1);
+  if (clamped >= 1) {
+    return `M ${50 - radius} 50 A ${radius} ${radius} 0 0 1 ${50 + radius} 50`;
+  }
+  const theta = Math.PI * (1 - clamped);
+  const x = 50 + radius * Math.cos(theta);
+  const y = 50 - radius * Math.sin(theta);
+  return (
+    `M ${50 - radius} 50 A ${radius} ${radius} 0 0 1 ` +
+    `${x.toFixed(1)} ${y.toFixed(1)}`
+  );
+}
+
+// Inline themed gauge (same accessibility contract as the charts: the
+// svg is aria-hidden, the textual equivalent beside it carries the
+// information — never the arc color alone).
+export function supervisionGaugeHtml(fraction) {
+  const arc = supervisionGaugeArc(fraction);
+  const track = `M 10 50 A 40 40 0 0 1 90 50`;
+  const valuePath = arc
+    ? `<path d="${arc}" fill="none" stroke="var(--primary-color)" ` +
+      'stroke-width="8" stroke-linecap="round"></path>'
+    : '';
+  return (
+    `<svg class="metric-chart metric-gauge" viewBox="0 0 100 56" ` +
+    'aria-hidden="true" focusable="false">' +
+    `<path d="${track}" fill="none" stroke="var(--divider-color)" ` +
+    `stroke-width="8" stroke-linecap="round"></path>${valuePath}</svg>`
+  );
+}
+
+// Category chips of the periph count card: one chip per mapped entity
+// type, sorted by count, name and count escaped at the boundary —
+// the coherence-chip discipline (text on a 12% tint, never the color
+// alone).
+export function supervisionCategoryChipsHtml(categories) {
+  if (!categories || typeof categories !== 'object') {
+    return '';
+  }
+  const entries = Object.entries(categories)
+    .filter(([, count]) => typeof count === 'number' && count > 0)
+    .sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])));
+  if (entries.length === 0) {
+    return '';
+  }
+  const chips = entries
+    .map(
+      ([name, count]) =>
+        `<span class="metric-chip">${escapeHtml(name)} ` +
+        `${escapeHtml(String(count))}</span>`
+    )
+    .join('');
+  return `<p class="metric-chips">${chips}</p>`;
+}
+
+// One metric value card (no chart): label, current value, textual
+// equivalent, then the optional gauge and chips. Same escaping
+// contract as the chart card.
+export function supervisionValueCardHtml(card, t) {
+  const gauge = card.kind === 'gauge'
+    ? supervisionGaugeHtml(card.fraction)
+    : '';
+  const chips = card.chips || '';
+  return `
+    <div class="metric-card">
+      <h3>${escapeHtml(t(card.titleKey))}</h3>
+      <p class="metric-value">${escapeHtml(card.value)}</p>
+      <p class="metric-text">${escapeHtml(t(card.textKey, card.textParams || {}))}</p>
+      ${gauge}
+      ${chips}
     </div>
   `;
 }
@@ -489,12 +594,31 @@ export function applySupervisionMixin(EedomusConfigPanel) {
     }
     const last = cycles[cycles.length - 1];
     const refreshSeries = supervisionCycleSeries(cycles, 'refresh_time');
-    const periphSeries = supervisionCycleSeries(cycles, 'periphs_total');
-    const callsSeries = supervisionCycleSeries(cycles, 'api_calls');
-    // Each card: label + current value + textual equivalent + chart.
-    // The equivalent names the numbers — the chart is never the only
-    // carrier (Accessibility floor). Value, series and sentence all
-    // read from the SAME last cycle record.
+    const cpuSeries = supervisionCycleSeries(cycles, 'cpu');
+    const freeSeries = supervisionCycleSeries(cycles, 'free_space_kb');
+    const categories =
+      box && typeof box.periphs_by_category === 'object'
+        ? box.periphs_by_category
+        : null;
+    const activeRaw = box ? box.active_periphs_last_hour : null;
+    const active =
+      typeof activeRaw === 'number' && Number.isFinite(activeRaw)
+        ? activeRaw
+        : null;
+    const categoryTotal = categories
+      ? Object.values(categories).reduce(
+          (sum, count) => (typeof count === 'number' ? sum + count : sum),
+          0
+        )
+        : null;
+    // Each card: label + current value + textual equivalent (+ chart
+    // or gauge + chips). The equivalent names the numbers — the visual
+    // is never the only carrier (Accessibility floor). Card set per
+    // the spine (2026-10-08): refresh chart, activity gauge, static
+    // count with category chips, system chart. The system card hides
+    // when no CPU sample exists — never a half-empty card.
+    const lastFinite = (series) =>
+      series.length > 0 ? series[series.length - 1] : null;
     const cards = [
       supervisionMetricCardHtml(
         {
@@ -510,41 +634,86 @@ export function applySupervisionMixin(EedomusConfigPanel) {
         },
         this._t
       ),
-      supervisionMetricCardHtml(
+    ];
+    if (active !== null) {
+      const total = last.periphs_total;
+      const fraction =
+        typeof total === 'number' && total > 0 ? active / total : 0;
+      cards.push(
+        supervisionValueCardHtml(
+          {
+            titleKey: 'panel.supervision.card.activity',
+            kind: 'gauge',
+            fraction,
+            value: supervisionFormatCount(active),
+            textKey: 'panel.supervision.value.activity',
+            textParams: { n: supervisionFormatCount(active) },
+          },
+          this._t
+        )
+      );
+    }
+    const countValue =
+      categoryTotal !== null && categoryTotal > 0
+        ? categoryTotal
+        : last.periphs_total;
+    cards.push(
+      supervisionValueCardHtml(
         {
           titleKey: 'panel.supervision.card.periphs',
-          kind: 'line',
-          series: periphSeries,
-          value: supervisionFormatCount(last.periphs_total),
-          textKey: 'panel.supervision.value.periphs',
-          textParams: {
-            total: supervisionFormatCount(last.periphs_total),
-            dynamic: supervisionFormatCount(last.periphs_dynamic),
-          },
+          value: supervisionFormatCount(countValue),
+          textKey: categories
+            ? 'panel.supervision.value.periphs_categories'
+            : 'panel.supervision.value.periphs',
+          textParams: categories
+            ? {
+                total: supervisionFormatCount(countValue),
+                n: supervisionFormatCount(
+                  Object.values(categories).filter(
+                    (count) => typeof count === 'number' && count > 0
+                  ).length
+                ),
+              }
+            : {
+                total: supervisionFormatCount(last.periphs_total),
+                dynamic: supervisionFormatCount(last.periphs_dynamic),
+              },
+          chips: supervisionCategoryChipsHtml(categories),
         },
         this._t
-      ),
-      supervisionMetricCardHtml(
-        {
-          titleKey: 'panel.supervision.card.api_calls',
-          kind: 'bars',
-          series: callsSeries,
-          value: supervisionFormatCount(last.api_calls),
-          textKey: 'panel.supervision.value.api_calls',
-          textParams: {
-            n: supervisionFormatCount(last.api_calls),
+      )
+    );
+    if (cpuSeries.length > 0) {
+      const cpu = lastFinite(cpuSeries);
+      const freeKb = lastFinite(freeSeries);
+      cards.push(
+        supervisionMetricCardHtml(
+          {
+            titleKey: 'panel.supervision.card.system',
+            kind: 'line',
+            series: cpuSeries,
+            value: `${supervisionFormatDecimal(cpu)} %`,
+            textKey:
+              freeKb !== null
+                ? 'panel.supervision.value.system'
+                : 'panel.supervision.value.system_cpu',
+            textParams: {
+              cpu: supervisionFormatDecimal(cpu),
+              kb: supervisionFormatDecimal(freeKb),
+            },
           },
-        },
-        this._t
-      ),
-    ].join('');
+          this._t
+        )
+      );
+    }
+    const cardsHtml = cards.join('');
     return `
       <section class="supervision-section">
         <h2>${title}</h2>
         <p class="result-count">${this.t('panel.supervision.cycles', {
           n: cycles.length,
         })}</p>
-        <div class="metric-grid">${cards}</div>
+        <div class="metric-grid">${cardsHtml}</div>
       </section>
     `;
   },

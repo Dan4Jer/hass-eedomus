@@ -1244,6 +1244,75 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         """Return all peripherals (for entity setup)."""
         return self._all_peripherals
 
+    def _parse_box_system_value(self, value) -> float | None:
+        """Tolerantly parse a box system periph value (CAP-9).
+
+        The box reports its CPU and free storage as ordinary periphs;
+        an unparseable state is a None sample, never an exception.
+        """
+        try:
+            return round(float(value), 2)
+        except (ValueError, TypeError):
+            return None
+
+    def _sample_box_system_periphs(self) -> tuple[float | None, float | None]:
+        """Sample the box's own system periphs (usage 23, CAP-9).
+
+        The eedomus box exposes its CPU and free storage as regular
+        periphs (usage 23) — no scraping, the ordinary cached data is
+        the source. A box without them samples (None, None) and the
+        panel hides the system card.
+        """
+        cpu = None
+        free_space_kb = None
+        for periph in (self.data or {}).values():
+            if not isinstance(periph, dict) or periph.get("usage_id") != "23":
+                continue
+            name = str(periph.get("name") or "")
+            if "CPU" in name and cpu is None:
+                cpu = self._parse_box_system_value(periph.get("last_value"))
+            elif "Espace libre" in name and free_space_kb is None:
+                free_space_kb = self._parse_box_system_value(
+                    periph.get("last_value")
+                )
+        return cpu, free_space_kb
+
+    def _count_active_periphs_last_hour(self) -> int:
+        """Count periphs whose value changed within the last hour.
+
+        Read from the cached last_value_change (naive local text); an
+        unparseable or missing date never counts and never raises.
+        """
+        cutoff = datetime.now() - timedelta(hours=1)
+        active = 0
+        for periph in (self.data or {}).values():
+            if not isinstance(periph, dict):
+                continue
+            changed = periph.get("last_value_change")
+            if not isinstance(changed, str) or not changed:
+                continue
+            try:
+                moment = datetime.strptime(changed[:19], "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                continue
+            if moment >= cutoff:
+                active += 1
+        return active
+
+    def _count_periphs_by_category(self) -> dict[str, int]:
+        """Count peripherals per mapped entity type (CAP-9).
+
+        Unmapped periphs are counted under "unmapped" so the chip row
+        accounts for the whole box.
+        """
+        counts: dict[str, int] = {}
+        for periph in (self.data or {}).values():
+            if not isinstance(periph, dict):
+                continue
+            ha_entity = periph.get("ha_entity") or "unmapped"
+            counts[ha_entity] = counts.get(ha_entity, 0) + 1
+        return counts
+
     def _capture_cycle_metrics(self, refresh_time: float, api_time: float) -> None:
         """Record one refresh cycle into the circular metrics buffer.
 
@@ -1251,9 +1320,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         and swallowed - the refresh flow never depends on the metrics.
         The cycle carries the total and API durations, the API call
         delta against the cycle baseline (the cumulative endpoint
-        counters are never reset, only incremented), and the total and
-        dynamic peripheral counts. Only the success paths call this - a
-        timed-out cycle is not a completed cycle and records nothing.
+        counters are never reset, only incremented), the total and
+        dynamic peripheral counts, and the box's own system samples
+        (CPU / free space, usage 23 — None when the box has no such
+        periph). Only the success paths call this - a timed-out cycle
+        is not a completed cycle and records nothing.
         """
         try:
             baseline = self._metrics_cycle_start_calls
@@ -1265,6 +1336,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 api_calls = 0
             else:
                 api_calls = current - baseline
+            cpu, free_space_kb = self._sample_box_system_periphs()
             self._metrics_history.append(
                 {
                     "ts": dt_util.utcnow().isoformat(),
@@ -1273,6 +1345,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     "api_calls": api_calls,
                     "periphs_total": len(self._all_peripherals or {}),
                     "periphs_dynamic": len(self._dynamic_peripherals or {}),
+                    "cpu": cpu,
+                    "free_space_kb": free_space_kb,
                 }
             )
         except Exception as err:
@@ -1285,6 +1359,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         lives nowhere else - the timing sensors only expose the last
         cycle's scalars, and every value the panel's cards render comes
         from the cycle records themselves, so the payload stops there.
+        The snapshot fields (activity gauge and category counts) come
+        from the same cache - one visit, one payload, no subscription.
         One box = one coordinator: entry_id and display name ride along
         so the panel can section multi-box setups. The websocket handler
         runs the payload through _json_safe.
@@ -1293,6 +1369,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             "entry_id": self._backfill_entry_id(),
             "name": self._box_display_name(),
             "cycles": list(self._metrics_history),
+            "active_periphs_last_hour": self._count_active_periphs_last_hour(),
+            "periphs_by_category": self._count_periphs_by_category(),
         }
 
     def _box_display_name(self) -> str | None:

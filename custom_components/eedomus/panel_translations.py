@@ -209,15 +209,25 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "panel.supervision.cycles": "Over the last {n} refresh cycles.",
         "panel.supervision.card.refresh_time": "Refresh time",
         "panel.supervision.card.periphs": "Peripherals",
-        "panel.supervision.card.api_calls": "API calls",
+        "panel.supervision.card.activity": "Peripheral activity",
+        "panel.supervision.card.system": "Box system",
         "panel.supervision.value.refresh_time": (
             "Last cycle: {n} s total, {api} s on the API."
         ),
         "panel.supervision.value.periphs": (
             "{total} peripherals, {dynamic} dynamic."
         ),
-        "panel.supervision.value.api_calls": (
-            "{n} calls to the eedomus API during the last cycle."
+        "panel.supervision.value.periphs_categories": (
+            "{total} peripherals across {n} categories."
+        ),
+        "panel.supervision.value.activity": (
+            "{n} peripherals reported a value in the last hour."
+        ),
+        "panel.supervision.value.system": (
+            "CPU {cpu} % - {kb} kB free on the box."
+        ),
+        "panel.supervision.value.system_cpu": (
+            "CPU {cpu} % on the box."
         ),
         "panel.supervision.link.coherence": "See the coherence table",
         "panel.supervision.error.load": "Failed to load metrics: {err}.",
@@ -500,15 +510,25 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "panel.supervision.cycles": "Sur les {n} derniers cycles de refresh.",
         "panel.supervision.card.refresh_time": "Temps de refresh",
         "panel.supervision.card.periphs": "Périphériques",
-        "panel.supervision.card.api_calls": "Appels API",
+        "panel.supervision.card.activity": "Activité des périphériques",
+        "panel.supervision.card.system": "Système box",
         "panel.supervision.value.refresh_time": (
             "Dernier cycle : {n} s au total, {api} s sur l'API."
         ),
         "panel.supervision.value.periphs": (
             "{total} périphériques, dont {dynamic} dynamiques."
         ),
-        "panel.supervision.value.api_calls": (
-            "{n} appels à l'API eedomus lors du dernier cycle."
+        "panel.supervision.value.periphs_categories": (
+            "{total} périphériques en {n} catégories."
+        ),
+        "panel.supervision.value.activity": (
+            "{n} périphériques ont remonté une valeur dans la dernière heure."
+        ),
+        "panel.supervision.value.system": (
+            "CPU {cpu} % - {kb} Ko libres sur la box."
+        ),
+        "panel.supervision.value.system_cpu": (
+            "CPU {cpu} % sur la box."
         ),
         "panel.supervision.link.coherence": "Voir le tableau de cohérence",
         "panel.supervision.error.load": (

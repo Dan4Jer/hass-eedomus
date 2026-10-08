@@ -15,7 +15,7 @@ exercised through the EedomusUIService handler invoked directly with
 a mock connection (same pattern as test_ui_service.py).
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -204,7 +204,13 @@ class TestGetBoxMetrics:
         assert len(metrics["cycles"]) == 2
         # The payload stops at what the panel renders: every card value
         # comes from the cycle records themselves.
-        assert set(metrics) == {"entry_id", "name", "cycles"}
+        assert set(metrics) == {
+            "entry_id",
+            "name",
+            "cycles",
+            "active_periphs_last_hour",
+            "periphs_by_category",
+        }
 
     def test_box_name_resolves_from_the_config_entry_title(self):
         coordinator = make_coordinator()
@@ -244,7 +250,13 @@ class TestGetBoxMetricsHandler:
         assert len(only_buffered["cycles"]) == 1
         assert only_buffered["cycles"][0]["refresh_time"] == 1.0
         # Trimmed payload: nothing the panel does not render.
-        assert set(only_buffered) == {"entry_id", "name", "cycles"}
+        assert set(only_buffered) == {
+            "entry_id",
+            "name",
+            "cycles",
+            "active_periphs_last_hour",
+            "periphs_by_category",
+        }
         # The empty box still gets its section: the panel renders the
         # positive empty state for it, never hides the box.
         assert payload["boxes"][1]["cycles"] == []
@@ -333,3 +345,87 @@ class TestGetBoxMetricsHandler:
 
         payload = connection.send_result.call_args[0][1]
         assert [box["entry_id"] for box in payload["boxes"]] == [ENTRY_ID]
+
+
+class TestBoxSystemMetrics:
+    """Story 111 I/O matrix: the box system periphs sampled per cycle
+    (CPU / free space, usage 23 — None when the box has none, never an
+    exception on an unparseable state), the activity gauge snapshot and
+    the per-category counts, all served by get_box_metrics."""
+
+    def test_cycle_carries_box_system_samples(self):
+        coordinator = make_coordinator()
+        coordinator.data = {
+            "101": {
+                "periph_id": "101",
+                "name": "CPU Box [demo]",
+                "usage_id": "23",
+                "last_value": "29.2",
+            },
+            "102": {
+                "periph_id": "102",
+                "name": "Espace libre Box [demo]",
+                "usage_id": "23",
+                "last_value": "2282.452",
+            },
+        }
+        coordinator._capture_cycle_metrics(1.0, 0.5)
+        cycle = coordinator._metrics_history[-1]
+        assert cycle["cpu"] == 29.2
+        assert cycle["free_space_kb"] == 2282.45
+
+    def test_cycle_without_system_periphs_samples_none(self):
+        coordinator = make_coordinator()
+        coordinator._capture_cycle_metrics(1.0, 0.5)
+        cycle = coordinator._metrics_history[-1]
+        assert cycle["cpu"] is None
+        assert cycle["free_space_kb"] is None
+
+    def test_unparseable_system_value_samples_none(self):
+        coordinator = make_coordinator()
+        coordinator.data = {
+            "101": {
+                "periph_id": "101",
+                "name": "CPU Box [demo]",
+                "usage_id": "23",
+                "last_value": "not-a-number",
+            }
+        }
+        coordinator._capture_cycle_metrics(1.0, 0.5)
+        cycle = coordinator._metrics_history[-1]
+        assert cycle["cpu"] is None
+
+    def test_active_periphs_last_hour_counts_only_recent_changes(self):
+        coordinator = make_coordinator()
+        now = datetime.now()
+        recent = now.strftime("%Y-%m-%d %H:%M:%S")
+        old = (now - timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")
+        coordinator.data = {
+            "101": {"periph_id": "101", "last_value_change": recent},
+            "102": {"periph_id": "102", "last_value_change": old},
+            "103": {"periph_id": "103", "last_value_change": "garbage"},
+            "104": {"periph_id": "104"},
+        }
+        assert coordinator._count_active_periphs_last_hour() == 1
+
+    def test_periphs_by_category_counts_unmapped_too(self):
+        coordinator = make_coordinator()
+        coordinator.data = {
+            "101": {"periph_id": "101", "ha_entity": "sensor"},
+            "102": {"periph_id": "102", "ha_entity": "light"},
+            "103": {"periph_id": "103"},
+        }
+        assert coordinator._count_periphs_by_category() == {
+            "sensor": 1,
+            "light": 1,
+            "unmapped": 1,
+        }
+
+    def test_get_box_metrics_payload_carries_snapshot_fields(self):
+        coordinator = make_coordinator()
+        coordinator._capture_cycle_metrics(1.0, 0.5)
+        payload = coordinator.get_box_metrics()
+        assert isinstance(payload["active_periphs_last_hour"], int)
+        assert payload["periphs_by_category"] == {"unmapped": 2}
+        assert "cpu" in payload["cycles"][0]
+        assert "free_space_kb" in payload["cycles"][0]

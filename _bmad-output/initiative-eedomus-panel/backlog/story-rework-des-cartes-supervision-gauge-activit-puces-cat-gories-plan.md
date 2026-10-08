@@ -3,18 +3,27 @@ title: 'Story 111: Supervision cards rework — activity gauge, category chips, 
 type: 'feature'
 ticket: '111'
 created: '2026-10-08'
-status: blocked
+status: built
 route: 'full'
 route_source: 'auto'
-review: ''
-review_source: ''
-lenses_ran: []
+review: 'thorough'
+review_source: 'auto'
+lenses_ran: [blind-hunter, edge-case-hunter, verification-gap, intent-alignment]
 baseline_revision: 'e1edeba'
 review_loop_iteration: 0
+followup_review_recommended: false
+deferred:
+  - summary: >-
+      Activity gauge timezone assumption — eedomus naive-local timestamps
+      compared against host-local now.
+    evidence: >-
+      A box/HA-host timezone mismatch would skew active_periphs_last_hour by
+      the offset. Not shown reachable (box and host share the site). Settle by
+      comparing the box clock against the host timezone on the live instance.
+    location: custom_components/eedomus/coordinator.py (_count_active_periphs_last_hour)
+    severity: medium (unverified)
 context:
   - /Users/danjer/mistral/hass-eedomus/_bmad-output/planning-artifacts/ux-designs/ux-hass-eedomus-2026-09-27/EXPERIENCE.md
-blocked_at: "2026-10-08"
-blocked_reason: "no subagents"
 ---
 
 <frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
@@ -68,9 +77,32 @@ blocked_reason: "no subagents"
 
 ## Implementation Notes
 
+- Inline run (user-authorized 2026-10-08): implemented in-session, the
+  subagent harness being down (see Auto Run Result).
+- Decimal formatting added for the system card (supervisionFormatDecimal):
+  counts round (29), CPU/kB carry one decimal (29.2 / 2282.4).
+- "Espace libre" added to the French-lexicon exemptions (data matcher —
+  the eedomus box names its free-storage periph in French, same
+  precedent as sensor.py).
+- Both catalog fixtures regenerated (sorted keys, matching the previous
+  convention): panel-keys.json 197 keys, panel-catalog.json minimal diff.
+- Two pre-existing payload key-set tests updated (the contract grew by
+  active_periphs_last_hour + periphs_by_category, by design).
+
 ## Plan Change Log
 
 ## Review Triage Log
+
+### 2026-10-08 — Review pass (thorough, run inline: subagent harness down, user-authorized)
+- verdicts: 7 findings — high 0, medium 0, low 1, false 5, maybe-false 1
+- findings:
+  - `[maybe-false]` `[defer]` Activity count compares the eedomus naive-local last_value_change against host-local datetime.now() — a box/host timezone mismatch would skew the gauge. Not shown reachable (same-LAN deployment); comparing the box clock against the host TZ would settle it. Deferred below.
+  - `[low]` `[reject]` Bar-chart helpers (supervisionBarRects/BarChartHtml) lost their only card consumer with the api_calls card. Generic, harness-tested chart capability; removal is churn with no user gain — rejected.
+  - `[false]` `[reject]` usage_id arriving as int would hide the system card — refuted: 24 string-comparison sites on usage_id across the codebase; the string invariant is repo-wide, the matcher follows the convention.
+  - `[false]` `[reject]` Handler-chain verification gap — refuted: the updated handler test asserts the full payload key set (cycles + snapshot fields) and runs green.
+  - `[false]` `[reject]` cycle api_calls field retained without a card — refuted as a defect: data/presentation split by design, the metrics tests consume the field.
+  - `[false]` `[reject]` "espace libre en valeur associée" claim falsified — refuted: the companion rides the card's textual sentence (the equivalent-carrier discipline of the spine), and the cpu-only branch exists when free space is absent.
+  - `[false]` `[reject]` Activity gauge counts the box's own system periphs — refuted as a defect: the CPU periph is a periph; the sentence stays honest.
 
 ## Design Notes
 
@@ -105,3 +137,61 @@ mandates an implementing subagent; without it the run halts blocked.
 No code was changed. Resume paths: (a) rerun bmad-build-auto in a fresh
 session once subagents work, or (b) authorize inline implementation
 (the interactive bmad-build path allows direct implementation).
+
+---
+
+## Auto Run Result — final (2026-10-08, same day)
+
+**Status: built.** Continuation of the blocked run above: the user
+authorized inline implementation (the subagent harness stayed down), and
+the plan was implemented, verified and reviewed in-session under the
+bmad-build discipline.
+
+**Implemented change.** The Supervision metric cards now render the
+spine's set: refresh-time chart (unchanged), activity gauge (periphs
+that reported a value in the last hour, semicircular SVG arc with
+textual equivalent), static periph count with category chips (coherence
+chip discipline), and the box system chart (CPU sampled per refresh
+cycle from the usage-23 periphs, free space as companion sentence,
+card hidden without CPU samples). The API calls card and its i18n keys
+are gone. The get_box_metrics payload gained active_periphs_last_hour
+and periphs_by_category; cycle records gained cpu and free_space_kb.
+
+**Files changed.**
+- custom_components/eedomus/coordinator.py — box-system sampling,
+  activity/category counters, cycle + payload extensions
+- custom_components/eedomus/panel_translations.py — 2 keys removed,
+  6 added, EN + FR
+- custom_components/eedomus/www/panel/supervision.js — gauge, chips,
+  value-card renderer, decimal formatting, cards rework
+- tests/fixtures/panel-keys.json, panel-catalog.json — regenerated
+  (197 keys, sorted convention kept)
+- tests/js/test-coherence.js — card-set expectations updated; new
+  cases: no-api-calls card, system card hidden, cpu-only sentence
+- tests/unit/test_box_metrics.py — I/O matrix coverage (6 new tests)
+  + 2 payload key-set updates
+- tests/unit/test_no_french_source.py — "Espace libre" exemption
+  (data matcher, sensor.py precedent)
+
+**Review findings breakdown.** Thorough lenses run inline (subagent
+harness down; deviation noted in the triage log). 7 findings: 0 high,
+0 medium, 1 low (rejected — bar-chart helpers keep their tested
+generic role), 5 false (refutations in the triage log), 1 maybe-false
+deferred (timezone assumption, medium-unverified). Patches applied:
+none — no finding survived triage as this change's problem to fix.
+
+**Follow-up review: false** (nothing patched; counts by verdict: high 0,
+medium 0, low 0 patched).
+
+**Verification performed.** python3 -m pytest tests/unit/ -q — 343
+passed. node tests/js/test-coherence.js — all passed. Line-length
+guard on changed files — no new lines over 88. Frontmatter deferred
+list YAML-validated (1 entry). Full unified diff re-read from
+baseline e1edeba.
+
+**Residual risks.** (1) The deferred timezone assumption (unverified,
+medium if true) — settle by comparing the box clock with the host TZ.
+(2) Manual deploy check pending (per the plan): after the git-only
+deploy, the Supervision tab shows 4 cards, CPU chart fills after 2+
+cycles, FR labels correct. (3) The activity count includes the box's
+own system periphs (honest, noted in triage).
