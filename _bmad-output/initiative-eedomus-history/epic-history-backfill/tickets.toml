@@ -40,13 +40,13 @@ notes = ["Purger aussi la statistic de test sensor.eedomus_test_import (statisti
 id = 4
 type = "story"
 title = "Tâche de fond, progression .storage scopée et indicateurs CAP-5"
-description = "Sort le fetch/import du cycle de partial refresh : tâche de fond cadencée par history_peripherals_per_scan, progression et retry persistés en .storage sous la clé <config_entry_id>_<periph_id>, value_list figée au fetch du chunk (AD-6bis), unload = await + flush, au plus un importer actif par entry. La progression persistée porte les champs CAP-5 réellement écrits par le coordinator : retrieved_points (cumul réel), total_points (ESTIMÉ — fenêtre now−creation_date × densité 1/POLLING, marqué comme estimation), plus ancien timestamp récupéré, début de rétention — servis par eedomus/get_backfill_state ET eedomus/get_coherence. Répare le bug 109 en fusion : les capteurs History Progress sont réellement montés (retour d'async_setup_history_sensors consommé, _history_sensors assigné) et affichent le % réel + leurs 4 attributs (0→100 en cours, 100 à completed). Le rendu panneau (barre + texte, file Supervision et détail Cohérence) est porté par la story 110 du backlog panel."
+description = "Sort le fetch/import du cycle de partial refresh : tâche de fond cadencée par history_peripherals_per_scan, progression et retry persistés en .storage sous la clé <config_entry_id>_<periph_id>, value_list figée au fetch du chunk (AD-6bis), unload = await + flush, au plus un importer actif par entry. La progression persistée porte les champs CAP-5 réellement écrits par le coordinator : retrieved_points (cumul réel), total_points (ESTIMÉ — fenêtre now−creation_date × densité 1/POLLING, marqué comme estimation), plus ancien timestamp récupéré, début de rétention — servis par eedomus/get_backfill_state ET eedomus/get_coherence. Répare le bug 109 en fusion : les capteurs History Progress sont réellement montés (retour d'async_setup_history_sensors consommé, _history_sensors assigné) et affichent le % réel + leurs 4 attributs (0→100 en cours, 100 à completed). Livre l'action CAP-5 « Réinitialiser la progression » (par périphérique, websocket require_admin) : efface le marqueur de progression persisté uniquement — les statistics importées ne sont jamais supprimées, le re-import est idempotent (CAP-3). Le rendu panneau (barre + texte, file Supervision et détail Cohérence) est porté par la story 110 du backlog panel."
 verify = "Un partial refresh reste ~1 s pendant un backfill complet ; après redémarrage HA en cours de backfill, la reprise repart de la progression persistée ; get_backfill_state et get_coherence exposent les champs de progression ; un capteur History Progress monté affiche un % réel — 100 sur un periph completed (ex. Température Sonoff Salon) — et ses 4 attributs."
 covers = ["CAP-2", "CAP-3", "CAP-5"]
 after = [3]
 hitl = false
 risk = "medium"
-notes = ["Fusion du bug 109 (capteurs History Progress) décidée par l'utilisateur le 2026-10-08 : la réparation est faite avec cette story, le rendu panel suit (story 110 backlog).", "Décision 2026-10-08 : les deux mesures (couverture temporelle + % de points), total estimé = fenêtre now−creation_date × densité 1/POLLING, marqué estimation dans l'UI.", "Protocole de test/validation (proposition utilisateur 2026-10-08) : periph cible Elevation soleil Balcon (1123011, float, créé 2018 — historique multi-chunks, >10 000 points/page). (1) remettre à zéro SA progression persistée (clé .storage <entry>_<periph>, PAS les statistics déjà importées — le re-import est idempotent CAP-3, upsert + clip AD-11) ; (2) pause globale ON ; (3) l'utilisateur relance manuellement (retry_now ou reprise globale) et observe l'indicateur monter chunk par chunk. Les statistics réelles ne sont jamais supprimées : seul le marqueur de progression est réinitialisé."]
+notes = ["Fusion du bug 109 (capteurs History Progress) décidée par l'utilisateur le 2026-10-08 : la réparation est faite avec cette story, le rendu panel suit (story 110 backlog).", "Décision 2026-10-08 : les deux mesures (couverture temporelle + % de points), total estimé = fenêtre now−creation_date × densité 1/POLLING, marqué estimation dans l'UI.", "Protocole de test/validation (proposition utilisateur 2026-10-08) : periph cible Elevation soleil Balcon (1123011, float, créé 2018 — historique multi-chunks, >10 000 points/page). (1) remettre à zéro SA progression via l'action « Réinitialiser la progression » (marqueur persisté uniquement, PAS les statistics déjà importées — le re-import est idempotent CAP-3, upsert + clip AD-11) ; (2) pause globale ON ; (3) l'utilisateur relance manuellement (retry_now ou reprise globale) et observe l'indicateur monter chunk par chunk. Les statistics réelles ne sont jamais supprimées : seul le marqueur de progression est réinitialisé."]
 references = ["../../planning-artifacts/architecture/architecture-hass-eedomus-2026-09-27/ARCHITECTURE-SPINE.md#ad-2", "../../initiative-eedomus-panel/backlog/bug-165-capteurs-history-progress-jamais-montes.md"]
 
 [[entry]]
@@ -82,3 +82,15 @@ after = [2]
 hitl = false
 risk = "medium"
 references = ["../../planning-artifacts/architecture/architecture-hass-eedomus-2026-09-27/ARCHITECTURE-SPINE.md#ad-3"]
+
+[[entry]]
+id = 8
+type = "bug"
+title = "Passer unit_class a async_import_statistics (breaking HA 2026.11)"
+description = "HA loggue a chaque import : \"custom integration 'eedomus' doesn't specify unit_class when calling async_import_statistics... This will stop working in Home Assistant 2026.11\" (observe live 2026-10-08 01:04). Le metadata de statistics doit porter unit_class (derive de l'unite via les helpers HA) a cote de mean_type/unit_of_measurement deja passes. Sans fix, tout import statistics casse a la prochaine montee de version majeure (instance actuelle 2026.9.4)."
+verify = "Aucun warning unit_class dans les logs lors d'un import de statistics ; statistics_meta porte unit_class pour une entitee importee (ex. sensor.temperature_sonoff_salon_2) ; suite unit verte."
+covers = ["CAP-1"]
+after = []
+hitl = false
+risk = "low"
+notes = ["Decision utilisateur 2026-10-08 : ticketter sans fixer maintenant.", "A livrer avant la prochaine mise a jour majeure de HA."]
