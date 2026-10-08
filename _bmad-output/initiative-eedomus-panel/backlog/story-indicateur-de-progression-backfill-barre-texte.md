@@ -46,3 +46,4 @@ Prérequis : epic-history-backfill 1.4 livré (champs de progression exposés pa
 ## Notes
 
 - Créée le 2026-10-08 après vérification live : aucun champ de progression servi par get_backfill_state (lignes sans retrieved_points/total_points), capteur History Progress Sonoff `unavailable` (bug 109), aucun rendu dans www/panel/supervision.js ni coherence.js — la validation utilisateur de l'indicateur était impossible.
+- Protocole de validation (proposition utilisateur 2026-10-08) : periph cible Elevation soleil Balcon (1123011, créé 2018, historique multi-chunks) — progression remise à zéro (marqueur seulement, jamais les statistics), pause globale ON, relance manuelle par l'utilisateur, observation de la barre chunk par chunk dans la file Supervision et le détail Cohérence.

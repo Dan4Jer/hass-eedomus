@@ -46,7 +46,7 @@ covers = ["CAP-2", "CAP-3", "CAP-5"]
 after = [3]
 hitl = false
 risk = "medium"
-notes = ["Fusion du bug 109 (capteurs History Progress) décidée par l'utilisateur le 2026-10-08 : la réparation est faite avec cette story, le rendu panel suit (story 110 backlog).", "Décision 2026-10-08 : les deux mesures (couverture temporelle + % de points), total estimé = fenêtre now−creation_date × densité 1/POLLING, marqué estimation dans l'UI."]
+notes = ["Fusion du bug 109 (capteurs History Progress) décidée par l'utilisateur le 2026-10-08 : la réparation est faite avec cette story, le rendu panel suit (story 110 backlog).", "Décision 2026-10-08 : les deux mesures (couverture temporelle + % de points), total estimé = fenêtre now−creation_date × densité 1/POLLING, marqué estimation dans l'UI.", "Protocole de test/validation (proposition utilisateur 2026-10-08) : periph cible Elevation soleil Balcon (1123011, float, créé 2018 — historique multi-chunks, >10 000 points/page). (1) remettre à zéro SA progression persistée (clé .storage <entry>_<periph>, PAS les statistics déjà importées — le re-import est idempotent CAP-3, upsert + clip AD-11) ; (2) pause globale ON ; (3) l'utilisateur relance manuellement (retry_now ou reprise globale) et observe l'indicateur monter chunk par chunk. Les statistics réelles ne sont jamais supprimées : seul le marqueur de progression est réinitialisé."]
 references = ["../../planning-artifacts/architecture/architecture-hass-eedomus-2026-09-27/ARCHITECTURE-SPINE.md#ad-2", "../../initiative-eedomus-panel/backlog/bug-165-capteurs-history-progress-jamais-montes.md"]
 
 [[entry]]
