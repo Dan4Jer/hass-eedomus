@@ -9,6 +9,7 @@ entry reloads, removed when the last entry is deleted.
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
+import json
 import pytest
 
 import custom_components.eedomus.panel as panel_module
@@ -59,7 +60,14 @@ class TestSetupPanel:
         assert kwargs["webcomponent_name"] == PANEL_COMPONENT_NAME
         assert kwargs["sidebar_title"] == PANEL_SIDEBAR_TITLE
         assert kwargs["require_admin"] is True
-        assert kwargs["module_url"] == f"{PANEL_ASSETS_URL}/eedomus-panel.js"
+        # AD-17 (story 106): the module URL carries the manifest
+        # version - every release busts the browser cache natively.
+        manifest = json.loads(
+            (WWW_DIR.parent / "manifest.json").read_text(encoding="utf-8")
+        )
+        assert kwargs["module_url"] == (
+            f"{PANEL_ASSETS_URL}/eedomus-panel.js?v={manifest['version']}"
+        )
 
         assert hass.data[DOMAIN]["panel_registered"] is True
 
@@ -126,3 +134,33 @@ class TestUnloadPanel:
         await async_unload_panel(hass)
 
         remove_panel.assert_not_called()
+
+
+class TestPanelModuleUrlCacheBusting:
+    """AD-17 (story 106): the module URL changes with the version."""
+
+    def test_module_url_carries_the_manifest_version(self):
+        url = panel_module.panel_module_url()
+        assert "?v=" in url
+        assert url.startswith(f"{panel_module.PANEL_ASSETS_URL}/eedomus-panel.js")
+
+    def test_a_version_change_changes_the_url(self, monkeypatch, tmp_path):
+        manifest = tmp_path / "manifest.json"
+        manifest.write_text(
+            json.dumps({"version": "0.99.9"}), encoding="utf-8"
+        )
+        monkeypatch.setattr(
+            panel_module, "__file__", str(tmp_path / "panel.py")
+        )
+        assert panel_module.panel_module_url().endswith("?v=0.99.9")
+
+        manifest.write_text(
+            json.dumps({"version": "0.99.10"}), encoding="utf-8"
+        )
+        assert panel_module.panel_module_url().endswith("?v=0.99.10")
+
+    def test_unreadable_manifest_falls_back_to_dev(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(
+            panel_module, "__file__", str(tmp_path / "nowhere" / "panel.py")
+        )
+        assert panel_module.panel_module_url().endswith("?v=dev")
