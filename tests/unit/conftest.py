@@ -174,6 +174,26 @@ def _install_homeassistant_stubs():
     ha_rec_stats.async_import_statistics = MagicMock()
     ha_rec_stats.statistics_during_period = MagicMock(return_value={})
 
+    # STATISTIC_UNIT_TO_UNIT_CONVERTER maps a unit to its converter class
+    # carrying UNIT_CLASS (bug 1.8 follow-up: unit_class derives from the
+    # recorder's own table — get_unit_converter never existed in
+    # homeassistant.util.unit_conversion and its AttributeError aborted
+    # every live import). A unit without an entry keeps unit_class None.
+    def _stub_converter(unit_class):
+        return type("StubConverter", (), {"UNIT_CLASS": unit_class})
+
+    ha_rec_stats.STATISTIC_UNIT_TO_UNIT_CONVERTER = {
+        unit: _stub_converter(cls)
+        for unit, cls in {
+            "°C": "temperature",
+            "°F": "temperature",
+            "kWh": "energy",
+            "W": "power",
+            "kW": "power",
+            "hPa": "pressure",
+        }.items()
+    }
+
     # homeassistant.components.websocket_api - async_register_command is used
     # by ui_service to register the panel commands. In real HA it returns
     # None (no deregistration handle) and is called in the handler form
@@ -274,28 +294,6 @@ def _install_homeassistant_stubs():
     ha_dt.as_utc = lambda dt: (
         dt if getattr(dt, "tzinfo", None) else dt.replace(tzinfo=timezone.utc)
     )
-    # homeassistant.util.unit_conversion - get_unit_converter maps a
-    # unit to its converter class carrying UNIT_CLASS (bug 1.8: the
-    # statistics metadata derives unit_class from it). Mirrors real HA
-    # semantics: ValueError for a unit without a converter.
-    ha_unit_conv = module("homeassistant.util.unit_conversion")
-
-    def _get_unit_converter(unit):
-        converters = {
-            "°C": "temperature",
-            "°F": "temperature",
-            "kWh": "energy",
-            "W": "power",
-            "kW": "power",
-            "hPa": "pressure",
-        }
-        if unit not in converters:
-            raise ValueError(f"No converter for {unit!r}")
-        return type(
-            "StubConverter", (), {"UNIT_CLASS": converters[unit]}
-        )
-
-    ha_unit_conv.get_unit_converter = _get_unit_converter
     # UTC constant and utcnow are used by the history backfill's AD-11 clip
     ha_dt.UTC = timezone.utc
     ha_dt.utcnow = lambda: datetime.now(timezone.utc)

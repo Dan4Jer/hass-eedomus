@@ -2393,18 +2393,18 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 return 0
             unit = state.attributes.get("unit_of_measurement")
 
-            # unit_class derived through HA's own converters (bug 1.8:
-            # the missing key deprecates from HA 2026.11). A unit
-            # without a converter keeps unit_class None — the key stays
-            # present, only its absence deprecates.
-            unit_class = None
-            try:
-                from homeassistant.util import unit_conversion
-
-                converter = unit_conversion.get_unit_converter(unit)
-                unit_class = getattr(converter, "UNIT_CLASS", None)
-            except (ValueError, TypeError):
-                unit_class = None
+            # unit_class derived through the recorder's own unit map
+            # (bug 1.8: the missing key deprecates from HA 2026.11).
+            # unit_conversion.get_unit_converter does not exist in HA
+            # 2026.9 — the AttributeError aborted every import, so the
+            # lookup goes through STATISTIC_UNIT_TO_UNIT_CONVERTER, the
+            # same table the recorder itself resolves converters from.
+            # A unit without a converter keeps unit_class None — the key
+            # stays present, only its absence deprecates.
+            converter = (
+                recorder_statistics.STATISTIC_UNIT_TO_UNIT_CONVERTER.get(unit)
+            )
+            unit_class = getattr(converter, "UNIT_CLASS", None)
 
             # AD-11: the recorder compiler owns every hour from the sensor's
             # first native statistic onward (the upsert would overwrite its

@@ -58,7 +58,20 @@ baseline_revision: 'c48cfdd'
 
 ## Implementation Notes
 
+- 2026-10-09 hotfix: `unit_conversion.get_unit_converter()` does not exist
+  in HA 2026.9 (the AttributeError — not caught by the ValueError/TypeError
+  handler — aborted every live statistics import, 103 failures / 25 entities).
+  Replaced with `recorder_statistics.STATISTIC_UNIT_TO_UNIT_CONVERTER`, the
+  table the recorder itself resolves converters from. Chunks fetched during
+  the failure window were already advanced past (progress moves on fetch,
+  not import) — affected periphs need a progress reset to re-import them.
+
 ## Plan Change Log
+
+- 2026-10-09: unit_class lookup switched from
+  `homeassistant.util.unit_conversion.get_unit_converter` to
+  `recorder.statistics.STATISTIC_UNIT_TO_UNIT_CONVERTER.get(unit)`
+  (coordinator.py ~2395, conftest stub follows).
 
 ## Review Triage Log
 
