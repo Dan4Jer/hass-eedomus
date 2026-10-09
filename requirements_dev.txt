@@ -8,7 +8,7 @@ yarl==1.24.5
 
 
 # Development dependencies
-black==26.5.1
+black==26.10.0
 # Eedomus simulator (scripts/simulateur, story 5.1)
 flask>=3.1
 flake8==7.4.1
