@@ -92,3 +92,36 @@ jobs:
                 exit 1
             fi
         done
+  # Story 101: E2E suite on a self-hosted runner. Dormant until the
+  # repository variable E2E_RUNNER is set to "enabled" AND a runner
+  # with the e2e label is registered - the HAOS host (Alpine
+  # appliance) cannot run the official runner; the runner lives on a
+  # LAN machine (see docs/self-hosted-runner.md).
+  e2e:
+    name: E2E suite (self-hosted, live Pi)
+    if: vars.E2E_RUNNER == 'enabled'
+    permissions:
+      contents: read
+    runs-on: [self-hosted, e2e]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v7
+
+    - name: Set up Python
+      uses: actions/setup-python@v7
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install E2E dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-asyncio voluptuous pyyaml aiohttp websockets
+
+    - name: Run the E2E suite against the live instance
+      env:
+        HA_TOKEN: ${{ secrets.E2E_HA_TOKEN }}
+        HA_URL: ${{ vars.E2E_HA_URL }}
+      run: |
+        python3 -m pytest tests/e2e/ -q
