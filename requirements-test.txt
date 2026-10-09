@@ -7,7 +7,7 @@ requests>=2.31.0
 # Required by the integration modules under unit test
 voluptuous>=0.13.0
 aiohttp>=3.9.0
-async-timeout>=4.0.0
+async-timeout>=5.0.1
 PyYAML>=6.0.3
 # Websocket client for the E2E tests against the live instance (tests/e2e/)
 websockets>=12.0
