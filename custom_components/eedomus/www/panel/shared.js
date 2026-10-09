@@ -10,11 +10,11 @@
  */
 
 export const TABS = [
+  'supervision',
   'peripheriques',
   'regles',
   'historique',
   'coherence',
-  'supervision',
 ];
 
 // Debounce of the result-count announcement (sweep): a burst of typing

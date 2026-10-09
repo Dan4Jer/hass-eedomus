@@ -58,7 +58,7 @@ class EedomusConfigPanel extends HTMLElement {
     // Translator handed to the pure helpers (they stay this-free).
     this._t = (key, params) => this.t(key, params);
     this._config = {};
-    this._tab = 'peripheriques';
+    this._tab = 'supervision';
     this._periphs = null;
     this._error = null;
     this._search = '';
@@ -319,7 +319,7 @@ class EedomusConfigPanel extends HTMLElement {
 
   _tabFromLocation() {
     const hash = window.location.hash.replace('#', '');
-    return TABS.includes(hash) ? hash : 'peripheriques';
+    return TABS.includes(hash) ? hash : 'supervision';
   }
 
   _onHashChange() {
@@ -522,6 +522,8 @@ ${SUPERVISION_STYLES}
         <nav class="tabs" aria-label="${this._escapeHtml(
           this.t('panel.nav.aria')
         )}">
+          <button class="tab" role="tab" data-tab="supervision"
+                  aria-selected="false">${this.t('panel.tabs.supervision')}</button>
           <button class="tab" role="tab" data-tab="peripheriques"
                   aria-selected="false">${this.t('panel.tabs.peripheriques')}</button>
           <button class="tab" role="tab" data-tab="regles"
@@ -530,8 +532,6 @@ ${SUPERVISION_STYLES}
                   aria-selected="false">${this.t('panel.tabs.historique')}</button>
           <button class="tab" role="tab" data-tab="coherence"
                   aria-selected="false">${this.t('panel.tabs.coherence')}</button>
-          <button class="tab" role="tab" data-tab="supervision"
-                  aria-selected="false">${this.t('panel.tabs.supervision')}</button>
         </nav>
 
         <main id="tab-content" aria-live="polite"></main>

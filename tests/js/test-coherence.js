@@ -1935,9 +1935,9 @@ assertEq(
 );
 sandbox.window.location.hash = '';
 assertEq(
-  'supervision: an absent hash falls back to peripheriques',
+  'supervision: an absent hash falls back to supervision (default tab)',
   new EedomusConfigPanel()._tabFromLocation(),
-  'peripheriques'
+  'supervision'
 );
 // The Retry delegation clears the error and re-issues the load.
 supPanel._metricsError = 'panel.common.command_refused';
