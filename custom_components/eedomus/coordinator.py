@@ -2328,6 +2328,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             last_state: dict[datetime, float] = {}
             last_ts: dict[datetime, datetime] = {}
             skipped_points = 0
+            first_skip_reason: str | None = None
             for entry in chunk:
                 try:
                     # HA statistics require timezone-aware start datetimes;
@@ -2349,9 +2350,27 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                         last_ts[hour] = timestamp
                         last_state[hour] = state_value
                 except (ValueError, TypeError) as e:
-                    _LOGGER.warning("Skipping invalid data point: %s", e)
+                    # Per-point detail stays debug: a fully
+                    # unresolvable periph (e.g. a box color preset
+                    # mapped as sensor) would flood the log with one
+                    # warning per history point; the chunk-level
+                    # aggregate below carries the diagnosis.
+                    _LOGGER.debug("Skipping invalid data point: %s", e)
                     skipped_points += 1
+                    if first_skip_reason is None:
+                        first_skip_reason = str(e)
                     continue
+
+            if skipped_points:
+                _LOGGER.warning(
+                    "Skipped %d of %d history points for %s (periph %s): "
+                    "%s",
+                    skipped_points,
+                    len(chunk),
+                    entity_id,
+                    periph_id,
+                    first_skip_reason,
+                )
 
             statistics_data = []
             for hour in sorted(hourly_values):

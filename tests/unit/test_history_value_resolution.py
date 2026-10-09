@@ -155,7 +155,8 @@ async def test_statistics_import_aggregates_per_hour():
 
 @pytest.mark.asyncio
 async def test_statistics_import_skips_unresolvable_label(caplog):
-    """A label with no value_list entry is skipped with one warning per point."""
+    """A label with no value_list entry is skipped with one aggregate
+    warning per chunk; the per-point detail is debug-level."""
     coordinator = make_coordinator()
     rec_stats = configure_statistics_harness(coordinator)
     chunk = [
@@ -171,10 +172,12 @@ async def test_statistics_import_skips_unresolvable_label(caplog):
     skip_warnings = [
         record
         for record in caplog.records
-        if "Skipping invalid data point" in record.message
+        if "history points for" in record.message
     ]
     assert len(skip_warnings) == 1
-    assert "Hors-Gel" in skip_warnings[0].getMessage()
+    message = skip_warnings[0].getMessage()
+    assert "Skipped 1 of 2" in message
+    assert "Hors-Gel" in message
     # The valid point is still imported
     _hass, _metadata, statistics = rec_stats.async_import_statistics.call_args.args
     assert len(statistics) == 1
