@@ -1179,3 +1179,26 @@ class TestBackfillProgressV2:
         await coordinator.async_shutdown_backfill()
         worker_task.cancel.assert_called_once()
         assert coordinator._backfill_worker_task is None
+
+
+@pytest.mark.asyncio
+async def test_global_pause_survives_the_v1_to_v2_migration():
+    """Story 1.4 regression guard: a v1 control document with the
+    global pause ON migrates to v2 keeping the pause - the worker
+    must not silently start draining."""
+    from homeassistant.helpers.storage import Store
+
+    Store.registry[f"eedomus.backfill_{ENTRY_ID}"] = {
+        "ignored": [PERIPH_IGNORED],
+        "paused": [],
+        "global_paused": True,
+        "config_schema_version": 1,
+    }
+
+    coordinator = make_coordinator(entry_id=ENTRY_ID)
+    await coordinator._load_backfill_persistence()
+
+    assert coordinator._backfill_global_paused is True
+    stored = Store.registry[f"eedomus.backfill_{ENTRY_ID}"]
+    assert stored["config_schema_version"] == 2
+    assert stored["global_paused"] is True
