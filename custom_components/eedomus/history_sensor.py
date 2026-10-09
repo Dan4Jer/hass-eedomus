@@ -84,9 +84,12 @@ class EedomusHistoryProgressSensor(CoordinatorEntity, SensorEntity):
     def native_value(self):
         """Return the current progress percentage."""
         progress = self.coordinator._history_progress.get(self._periph_id, {})
-        total_points = self.coordinator._history_progress.get(self._periph_id, {}).get("total_points", 1)
-        retrieved_points = self.coordinator._history_progress.get(self._periph_id, {}).get("retrieved_points", 0)
-        
+        # total_points is None when the estimate could not be made
+        # (creation_date/POLLING missing): the sensor reports 0, never
+        # raises (a None key present defeats .get's default).
+        total_points = progress.get("total_points", 1) or 0
+        retrieved_points = progress.get("retrieved_points", 0) or 0
+
         if total_points > 0:
             return min(100, (retrieved_points / total_points) * 100)
         return 0
@@ -180,9 +183,17 @@ class EedomusHistoryStatsSensor(CoordinatorEntity, SensorEntity):
         if not hasattr(self.coordinator, '_history_progress') or not self.coordinator._history_progress:
             return 0
         
-        # Simple estimation: assume 100 bytes per data point
-        total_points = sum(p.get("total_points", 0) for p in self.coordinator._history_progress.values())
-        retrieved_points = sum(p.get("retrieved_points", 0) for p in self.coordinator._history_progress.values())
+        # Simple estimation: assume 100 bytes per data point. A None
+        # total_points (estimate unavailable) counts as 0 — the sum
+        # must never meet None (bug: TypeError on coordinator updates).
+        total_points = sum(
+            p.get("total_points") or 0
+            for p in self.coordinator._history_progress.values()
+        )
+        retrieved_points = sum(
+            p.get("retrieved_points") or 0
+            for p in self.coordinator._history_progress.values()
+        )
         
         if total_points > 0:
             downloaded_mb = (retrieved_points * 100) / (1024 * 1024)

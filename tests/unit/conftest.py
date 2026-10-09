@@ -44,6 +44,8 @@ def _install_homeassistant_stubs():
         "LOCK",
     ]
     ha_const.Platform = types.SimpleNamespace(**{n: n.lower() for n in platform_names})
+    # EntityCategory - diagnostic entity category used by history_sensor.py
+    ha_const.EntityCategory = types.SimpleNamespace(DIAGNOSTIC="diagnostic")
 
     # homeassistant.core - callback decorator
     ha_core = module("homeassistant.core")
@@ -143,7 +145,16 @@ def _install_homeassistant_stubs():
     ha_http = module("homeassistant.components.http")
     ha_http.HomeAssistantView = type("HomeAssistantView", (), {})
     ha_sensor = module("homeassistant.components.sensor")
-    ha_sensor.SensorEntity = MagicMock
+
+    class _StubSensorEntity:
+        """Minimal SensorEntity base. A plain MagicMock base breaks
+        subclass instantiation (same rationale as
+        _StubCoordinatorEntity): sensor subclasses set attrs on self
+        and never reach a mock's __init__."""
+
+    ha_sensor.SensorEntity = _StubSensorEntity
+    ha_sensor.SensorDeviceClass = MagicMock
+    ha_sensor.SensorStateClass = MagicMock
 
     # homeassistant.components.recorder.models - StatisticMeanType is a real
     # IntEnum consumed by the recorder (the metadata must carry the enum,
