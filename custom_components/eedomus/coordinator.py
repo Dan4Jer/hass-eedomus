@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import time
 from collections import deque
@@ -32,17 +33,31 @@ from .entity import _get_config_value, get_entry_prefix, map_device_to_ha_entity
 
 _LOGGER = logging.getLogger(__name__)
 
-# CAP-5: schema version of the persisted backfill control state (ignored /
-# paused periphs, global pause). Calqued on the mapping store of
+# CAP-5: schema version of the persisted backfill document (ignored /
+# paused periphs, global pause, and since v2 the per-periph history
+# progress + retry queue). Calqued on the mapping store of
 # config_manager: bump this and add a migration to _BACKFILL_MIGRATIONS
-# when the stored grammar evolves. The history PROGRESS itself stays in
-# hass.states (eedomus.history_progress_*) and is never migrated here.
-BACKFILL_CONFIG_SCHEMA_VERSION = 1
+# when the stored grammar evolves. The progress entries are keyed
+# "<config_entry_id>_<periph_id>" (spec-eedomus-history constraint).
+BACKFILL_CONFIG_SCHEMA_VERSION = 2
 
 # Ordered schema migrations: target_version -> pure transform (dict) -> dict.
 # A migration for target N upgrades the stored document from N-1 to N.
-# Empty until the first real grammar change; the mechanism is the deliverable.
-_BACKFILL_MIGRATIONS: dict[int, Any] = {}
+def _migrate_backfill_v1_to_v2(data: dict) -> dict:
+    """v1 (control state only) -> v2 (progress + retry ride along)."""
+    return {
+        **data,
+        "progress": data.get("progress") or {},
+        "retry": data.get("retry") or {},
+    }
+
+
+_BACKFILL_MIGRATIONS: dict[int, Any] = {2: _migrate_backfill_v1_to_v2}
+
+# AD-2: seconds between two drain passes of the background worker. The
+# pass drains at most history_peripherals_per_scan peripherals - the
+# real-time refresh never hosts the history segment again.
+BACKFILL_WORKER_INTERVAL = 60
 
 # Websocket error codes surfaced by the backfill control API (CAP-5):
 # a refused action carries a stable, branchable code instead of a generic
@@ -159,6 +174,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         self._backfill_import_lock = asyncio.Lock()
         self._backfill_active_periph: str | None = None
         self._backfill_store: Store | None = None
+        self._backfill_worker_task = None
 
     async def async_config_entry_first_refresh(self):
         """Perform the first data refresh and load the history progress.
@@ -176,6 +192,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # CAP-5: reload the persisted backfill control state (ignored /
         # paused / global pause) before any drain can run.
         await self._load_backfill_persistence()
+
+        # AD-2: the background drain worker starts with the coordinator -
+        # the refresh cycles never host the history segment again.
+        self._ensure_backfill_worker()
 
         # Perform initial full data retrieval including peripherals list and value list
         try:
@@ -957,34 +977,15 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         Updates only devices marked as dynamic (lights, switches, sensors that change frequently).
         More efficient than full refresh as it targets only devices that need frequent updates.
         """
-        # Options take precedence over config data, then default (False):
-        # an explicit value in options must be honored in either direction.
-        history_retrieval = _get_config_value(
-            self.client.config_entry, CONF_ENABLE_HISTORY, False
-        )
-
-        # Get all peripherals that need history retrieval
-        # Include all peripherals that have data, not just dynamic ones
+        # AD-2 (story 1.4): the history drain lives in the background
+        # worker; the refresh cycle only refreshes the dynamic periphs.
         peripherals_for_history = []
-
-        # Populate peripherals_for_history with dynamic peripheral IDs
         for periph_id in self._dynamic_peripherals:
             peripherals_for_history.append(periph_id)
 
-        # AD-2 cadence: at most history_peripherals_per_scan history
-        # imports per refresh cycle, so the real-time polling is never
-        # blocked by the slow cloud backfill (90 periphs = ~180 s).
-        # Pending periphs beyond the quota drain on later scans.
-        history_scan_quota = _get_config_value(
-            self.client.config_entry,
-            CONF_HISTORY_PERIPHERALS_PER_SCAN,
-            DEFAULT_HISTORY_PERIPHERALS_PER_SCAN,
-        )
-
         _LOGGER.debug(
-            "Performing partial refresh for %d dynamic peripherals, history=%s",
+            "Performing partial refresh for %d dynamic peripherals",
             len(self._dynamic_peripherals),
-            history_retrieval,
         )
 
         # Start API timing
@@ -1086,61 +1087,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     periph_id,
                 )
 
-        # CAP-5 history drain segment: the queue is derived from
-        # _history_progress (non completed) x the drain order, with the
-        # priority list consumed at the head. Paused and ignored periphs
-        # left the queue; a global pause skips the whole segment so the
-        # quota is not consumed. The mono-importer lock guards the fetch
-        # + import segment: a busy lock (retry_now in flight) skips the
-        # segment this cycle instead of blocking the real-time refresh.
-        history_queue = self._backfill_queue_ids()
-        if (
-            history_retrieval
-            and history_queue
-            and not self._backfill_global_paused
-            and not self._backfill_import_lock.locked()
-        ):
-            async with self._backfill_import_lock:
-                for periph_id in history_queue:
-                    if history_scan_quota <= 0:
-                        break
-                    _LOGGER.debug("Retrieving data history %s", periph_id)
-                    if periph_id in self._backfill_priority:
-                        # The priority jump is consumed by the drain that
-                        # actually processes the periph.
-                        self._backfill_priority.remove(periph_id)
-                    # The active marker covers the fetch too: a state
-                    # query during a long fetch must not show "pending".
-                    self._backfill_active_periph = periph_id
-                    try:
-                        fetch_start = datetime.now()
-                        chunk = await self.async_fetch_history_chunk(periph_id)
-                        fetch_time = (datetime.now() - fetch_start).total_seconds()
-                        import_time = 0.0
-                        if chunk:
-                            _LOGGER.debug(
-                                "Retrieved %d history data points for %s",
-                                len(chunk),
-                                periph_id,
-                            )
-                            # Import the historical data using the optimized Recorder API method
-                            import_start = datetime.now()
-                            imported = await self.async_import_history_chunk(
-                                periph_id, chunk
-                            )
-                            import_time = (
-                                datetime.now() - import_start
-                            ).total_seconds()
-                            history_periphs += 1
-                            history_states += imported
-                    finally:
-                        self._backfill_active_periph = None
-                    # The quota counts periphs processed this cycle, not
-                    # data points: a no-data fetch still consumed its slot.
-                    history_scan_quota -= 1
-                    history_fetch_time += fetch_time
-                    history_import_time += import_time
-                    history_time += fetch_time + import_time
+        # AD-2 (story 1.4): the history drain moved OUT of the refresh
+        # cycle - the dedicated background worker (_async_backfill_worker)
+        # owns it. The refresh cycle reports zero history metrics and
+        # stays ~1 s even mid-backfill.
 
         # End processing timing
         processing_time = (datetime.now() - processing_start_time).total_seconds()
@@ -1399,62 +1349,150 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
     """
 
-    async def _load_history_progress(self):
-        """Load the history progress from Home Assistant states.
+    def _history_enabled(self) -> bool:
+        """Whether the history option is on (options > data > default)."""
+        return bool(
+            _get_config_value(self.client.config_entry, CONF_ENABLE_HISTORY, False)
+        )
 
-        This method loads progress from the existing states.
+    def _ensure_backfill_worker(self):
+        """Start the AD-2 background drain worker (idempotent).
+
+        A MagicMock hass in tests absorbs the call; in HA the task is
+        tracked for the unload shutdown. The worker owns the whole
+        history drain - the refresh cycles never touch it again.
         """
-        _LOGGER.debug("Loading history progress from Home Assistant states")
+        if self._backfill_worker_task is not None and not (
+            getattr(self._backfill_worker_task, "done", lambda: True)()
+        ):
+            return
+        create = getattr(self.hass, "async_create_task", None)
+        if create is None:
+            return
+        self._backfill_worker_task = create(self._async_backfill_worker())
+
+    async def async_shutdown_backfill(self):
+        """Unload = await + flush (AD-2): cancel the worker, wait for it,
+        flush the persisted progress to .storage."""
+        task = self._backfill_worker_task
+        self._backfill_worker_task = None
+        if task is not None:
+            cancel = getattr(task, "cancel", None)
+            if callable(cancel):
+                cancel()
+            try:
+                await task
+            except (asyncio.CancelledError, Exception):
+                pass
+        await self._save_backfill_persistence()
+
+    async def _async_backfill_worker(self):
+        """AD-2: the history drain as a dedicated background task.
+
+        One pass every BACKFILL_WORKER_INTERVAL seconds; each pass
+        drains at most history_peripherals_per_scan peripherals under
+        the mono-importer lock. A global pause skips the pass without
+        consuming the quota; any pass failure is logged and the worker
+        keeps running - the backfill never takes the integration down.
+        """
+        while True:
+            await asyncio.sleep(BACKFILL_WORKER_INTERVAL)
+            try:
+                await self._backfill_drain_pass()
+            except asyncio.CancelledError:
+                raise
+            except Exception as err:
+                _LOGGER.warning("Backfill worker pass failed: %s", err)
+
+    async def _backfill_drain_pass(self):
+        """One drain pass (CAP-5 queue, AD-2 cadence).
+
+        Same contract as the old in-cycle segment: priority jumps
+        consumed at the head, the active marker covers the fetch, the
+        quota counts periphs (a no-data fetch consumed its slot), the
+        mono-importer lock serializes with retry_now.
+        """
+        if not self._history_enabled():
+            return
+        if self._backfill_global_paused:
+            return
+        if self._backfill_import_lock.locked():
+            return
+        quota = int(
+            _get_config_value(
+                self.client.config_entry,
+                CONF_HISTORY_PERIPHERALS_PER_SCAN,
+                DEFAULT_HISTORY_PERIPHERALS_PER_SCAN,
+            )
+            or 0
+        )
+        if quota <= 0:
+            return
+        history_queue = self._backfill_queue_ids()
+        if not history_queue:
+            return
+        async with self._backfill_import_lock:
+            for periph_id in history_queue:
+                if quota <= 0:
+                    break
+                _LOGGER.debug("Worker retrieving history for %s", periph_id)
+                if periph_id in self._backfill_priority:
+                    self._backfill_priority.remove(periph_id)
+                self._backfill_active_periph = periph_id
+                try:
+                    chunk = await self.async_fetch_history_chunk(periph_id)
+                    if chunk:
+                        await self.async_import_history_chunk(periph_id, chunk)
+                finally:
+                    self._backfill_active_periph = None
+                quota -= 1
+
+    async def _load_history_progress(self):
+        """One-time migration: read progress from the legacy helper states.
+
+        Story 1.4: the progress itself now lives in .storage (the
+        backfill document, keyed "<entry_id>_<periph_id>"). The old
+        eedomus.history_progress_* helper states are read once, when the
+        stored document carries no progress yet; afterwards the states
+        are never written again and die at the next restart.
+        """
+        _LOGGER.debug("Checking legacy history progress states")
 
         try:
-            # Load progress from the existing states
             if progress := await self.hass.async_add_executor_job(
                 lambda: self.hass.states.async_all(f"{DOMAIN}.history_progress_*")
             ):
                 for state in progress:
                     periph_id = state.entity_id.split("_")[-1]
+                    try:
+                        last_timestamp = int(float(state.state))
+                    except (ValueError, TypeError):
+                        continue
                     self._history_progress[periph_id] = {
-                        "last_timestamp": int(float(state.state)),
+                        "last_timestamp": last_timestamp,
                         "completed": state.attributes.get("completed", False),
                     }
                     _LOGGER.debug(
-                        "Loaded progress for %s: %s",
+                        "Migrated legacy progress for %s: %s",
                         periph_id,
                         self._history_progress[periph_id],
                     )
         except Exception as e:
             _LOGGER.warning(
-                "Warning loading history progress (this is normal if no history data exists): %s",
+                "Warning loading legacy history progress "
+                "(this is normal if no history data exists): %s",
                 e,
             )
 
     async def _save_history_progress(self):
-        """Save the history progress into Home Assistant states.
+        """Persist the history progress into the backfill .storage doc.
 
-        This method only uses Home Assistant states.
+        Story 1.4: no state-machine writes - the entries are keyed
+        "<entry_id>_<periph_id>" in the document's progress map
+        (spec-eedomus-history constraint), and the real History Progress
+        entities (bug 109) read the in-memory dict the same way.
         """
-        _LOGGER.debug("Saving history progress to Home Assistant states")
-
-        try:
-            for periph_id, progress in self._history_progress.items():
-                entity_id = f"{DOMAIN}.history_progress_{periph_id}"
-                self.hass.states.async_set(
-                    entity_id,
-                    str(progress["last_timestamp"]),
-                    {
-                        "completed": progress["completed"],
-                        "periph_name": (
-                            self.data[periph_id]["name"]
-                            if periph_id in self.data
-                            else "Unknown"
-                        ),
-                        "device_class": "timestamp",
-                        "state_class": "measurement",
-                    },
-                )
-                _LOGGER.debug("Saved progress for %s: %s", periph_id, progress)
-        except Exception as e:
-            _LOGGER.error("Error saving history progress: %s", e)
+        await self._save_backfill_persistence()
 
     # ------------------------------------------------------------------
     # CAP-5: backfill queue control API (steering of the history queue)
@@ -1525,6 +1563,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             retry_after = retry_info.get("retry_after") if has_error else None
             if retry_after is not None:
                 retry_after = dt_util.as_local(dt_util.utc_from_timestamp(retry_after))
+            progress = self._history_progress.get(periph_id, {})
+            oldest = progress.get("oldest_timestamp")
+            if oldest is not None:
+                oldest = dt_util.as_local(dt_util.utc_from_timestamp(oldest))
             queue.append(
                 {
                     "periph_id": periph_id,
@@ -1537,6 +1579,14 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                     ),
                     "retry_after": retry_after,
                     "attempts": retry_info.get("attempts") if has_error else None,
+                    # CAP-5 progress fields (story 1.4): retrieved points
+                    # (real), total (ESTIMATED when estimated is True),
+                    # oldest timestamp retrieved, retention start.
+                    "retrieved_points": progress.get("retrieved_points", 0),
+                    "total_points": progress.get("total_points"),
+                    "estimated": progress.get("estimated", False),
+                    "oldest_timestamp": oldest,
+                    "retention_start": progress.get("retention_start"),
                 }
             )
         ignored = [
@@ -1640,27 +1690,66 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             self._backfill_ignored = set(data.get("ignored") or [])
             self._backfill_paused = set(data.get("paused") or [])
             self._backfill_global_paused = bool(data.get("global_paused", False))
+            # v2 (story 1.4): the per-periph progress + retry queue ride
+            # in the same document. Stored progress wins; an empty
+            # stored map keeps whatever the one-time legacy-state
+            # migration read (it gets persisted right after).
+            stored_progress = data.get("progress") or {}
+            if stored_progress:
+                prefix = f"{self._backfill_entry_id()}_"
+                self._history_progress = {
+                    key.removeprefix(prefix): dict(value)
+                    for key, value in stored_progress.items()
+                }
+            elif self._history_progress:
+                _LOGGER.info(
+                    "Migrating %d legacy history progress entries "
+                    "from the state machine to .storage",
+                    len(self._history_progress),
+                )
+                await self._save_backfill_persistence()
+            stored_retry = data.get("retry") or {}
+            if isinstance(stored_retry, dict):
+                self._retry_queue = {
+                    key: dict(value) for key, value in stored_retry.items()
+                }
         except Exception as e:
             # A broken store never blocks the coordinator: the control
             # state starts empty (worst case, periphs are re-ignored).
             _LOGGER.warning("Failed to load the backfill control state: %s", e)
 
     async def _save_backfill_persistence(self) -> None:
-        """Persist the backfill control state to .storage (CAP-5)."""
+        """Persist the backfill document to .storage (CAP-5 + story 1.4).
+
+        One document per config entry: the control state (ignored /
+        paused / global pause) and, since v2, the per-periph history
+        progress (keyed "<entry_id>_<periph_id>") and the retry queue.
+        """
         store = self._get_backfill_store()
         if store is None:
             return
         try:
+            prefix = f"{self._backfill_entry_id()}_"
+            progress_doc = {
+                f"{prefix}{periph_id}": dict(progress)
+                for periph_id, progress in self._history_progress.items()
+            }
+            retry_doc = {
+                periph_id: dict(retry)
+                for periph_id, retry in self._retry_queue.items()
+            }
             await store.async_save(
                 {
                     "ignored": sorted(self._backfill_ignored),
                     "paused": sorted(self._backfill_paused),
                     "global_paused": self._backfill_global_paused,
+                    "progress": progress_doc,
+                    "retry": retry_doc,
                     "config_schema_version": BACKFILL_CONFIG_SCHEMA_VERSION,
                 }
             )
         except Exception as e:
-            _LOGGER.warning("Failed to persist the backfill control state: %s", e)
+            _LOGGER.warning("Failed to persist the backfill state: %s", e)
 
     async def async_backfill_retry_now(self, periph_id: str) -> dict[str, Any]:
         """Retry a peripheral in error immediately, off-schedule (CAP-5).
@@ -1770,6 +1859,44 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             self._backfill_priority.append(periph_id)
         return {"success": True, "periph_id": periph_id, "prioritized": True}
 
+    async def async_backfill_reset_progress(self, periph_id: str) -> dict[str, Any]:
+        """Clear one periph's persisted progress marker (CAP-5, 5th action).
+
+        The marker only: the imported statistics are NEVER deleted (the
+        re-import is an idempotent upsert, CAP-3). The periph re-enters
+        the queue at zero - the test protocol's reset step (spec
+        decision 2026-10-08). Ignored periphs are refused (reactivate
+        first); unknown and ineligible periphs are refused as
+        invalid_format. A paused periph stays paused - a pause is
+        temporary and outlives the reset.
+        """
+        if periph_id not in (self.data or {}):
+            raise EedomusBackfillError(
+                BACKFILL_ERROR_INVALID, f"Unknown peripheral {periph_id}"
+            )
+        if periph_id not in self._backfill_eligible_peripherals:
+            raise EedomusBackfillError(
+                BACKFILL_ERROR_INVALID,
+                f"Peripheral {periph_id} is not eligible for history "
+                "backfill (AD-3: numeric sensors only)",
+            )
+        if periph_id in self._backfill_ignored:
+            raise EedomusBackfillError(
+                BACKFILL_ERROR_INVALID, f"Peripheral {periph_id} is ignored"
+            )
+        self._history_progress.pop(periph_id, None)
+        self._retry_queue.pop(periph_id, None)
+        self._error_count.pop(periph_id, None)
+        await self._save_backfill_persistence()
+        row = self._backfill_row(periph_id)
+        return {
+            "success": True,
+            "periph_id": periph_id,
+            "reset": True,
+            "status": row["status"] if row is not None else "pending",
+            "state": self.get_backfill_state(),
+        }
+
     async def async_backfill_set_paused(
         self,
         periph_id: str | None = None,
@@ -1876,6 +2003,41 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             if periph_id in self._retry_queue:
                 self._retry_queue[periph_id]["attempts"] += 1
 
+    def _estimate_total_points(self, periph_data: dict) -> tuple[int | None, str | None]:
+        """CAP-5: estimate the total history points (marked ESTIMATED).
+
+        Window = now - creation_date (the periph's data availability),
+        density = 1/POLLING (the periph's declared polling seconds) -
+        both from the cached caract payload. Missing or unparseable
+        inputs give (None, None): the UI then shows what it has.
+        """
+        try:
+            created = datetime.strptime(
+                str(periph_data.get("creation_date")), "%Y-%m-%d %H:%M:%S"
+            )
+            polling = int(periph_data.get("POLLING"))
+            if polling <= 0:
+                raise ValueError
+        except (ValueError, TypeError):
+            return None, None
+        retention_start = periph_data.get("creation_date")
+        total = int((datetime.now() - created).total_seconds() / polling)
+        return max(total, 0), retention_start
+
+    def _value_list_fingerprint(self, periph_data: dict) -> str | None:
+        """AD-6bis: freeze the value_list at the fetch of the chunk.
+
+        A stable JSON dump of the merged values list; None for periphs
+        without one (nothing to freeze, nothing to invalidate).
+        """
+        values = periph_data.get("values")
+        if not values:
+            return None
+        try:
+            return json.dumps(values, sort_keys=True, default=str)
+        except (TypeError, ValueError):
+            return None
+
     async def async_fetch_history_chunk(self, periph_id: str) -> list:
         """Fetch a chunk of 10,000 history data points."""
         # Check whether the peripheral is in the retry queue
@@ -1888,12 +2050,55 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 return []
 
         if periph_id not in self._history_progress:
+            periph_data = (self.data or {}).get(periph_id, {})
+            total_points, retention_start = self._estimate_total_points(
+                periph_data
+            )
             self._history_progress[periph_id] = {
                 "last_timestamp": 0,
                 "completed": False,
+                # CAP-5 progress fields (story 1.4)
+                "retrieved_points": 0,
+                "total_points": total_points,
+                "estimated": total_points is not None,
+                "oldest_timestamp": None,
+                "retention_start": retention_start,
+                # AD-6bis: the value_list frozen at the first fetch
+                "value_list_fingerprint": self._value_list_fingerprint(
+                    periph_data
+                ),
             }
 
         progress = self._history_progress[periph_id]
+
+        # AD-6bis: a value_list variation invalidates the periph's
+        # progress - the imported statistics would silently change
+        # meaning. The periph re-enters the queue at zero.
+        current_fingerprint = self._value_list_fingerprint(
+            (self.data or {}).get(periph_id, {})
+        )
+        frozen = progress.get("value_list_fingerprint")
+        if (
+            frozen is not None
+            and current_fingerprint is not None
+            and frozen != current_fingerprint
+        ):
+            _LOGGER.warning(
+                "value_list changed for %s: history progress invalidated",
+                periph_id,
+            )
+            self._history_progress[periph_id] = {
+                "last_timestamp": 0,
+                "completed": False,
+                "retrieved_points": 0,
+                "total_points": progress.get("total_points"),
+                "estimated": progress.get("estimated", False),
+                "oldest_timestamp": None,
+                "retention_start": progress.get("retention_start"),
+                "value_list_fingerprint": current_fingerprint,
+            }
+            progress = self._history_progress[periph_id]
+
         if progress["completed"]:
             _LOGGER.debug("History already fully fetched for %s", periph_id)
             return []
@@ -1944,10 +2149,21 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             # (async_import_history_chunk). Replaying them as states
             # flooded the recorder with backdated writes that never
             # committed ("database is locked").
-            progress["last_timestamp"] = max(
+            timestamps = [
                 int(datetime.fromisoformat(entry["timestamp"]).timestamp())
                 for entry in chunk
+            ]
+            progress["last_timestamp"] = max(timestamps)
+            # CAP-5 (story 1.4): the cumulative point count and the
+            # oldest timestamp retrieved so far.
+            progress["retrieved_points"] = (
+                progress.get("retrieved_points", 0) + len(chunk)
             )
+            oldest = min(timestamps)
+            if progress.get("oldest_timestamp") is None or (
+                oldest < progress["oldest_timestamp"]
+            ):
+                progress["oldest_timestamp"] = oldest
             _LOGGER.debug(
                 "Updated last_timestamp for %s to %s",
                 periph_id,

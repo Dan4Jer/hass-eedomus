@@ -326,7 +326,7 @@ class TestPrioritize:
         coordinator.client.config_entry.options["history_peripherals_per_scan"] = 1
         coordinator._backfill_priority = [PERIPH_PRIORITY]
 
-        await coordinator._async_partial_refresh()
+        await coordinator._backfill_drain_pass()
 
         coordinator.async_fetch_history_chunk.assert_awaited_once_with(
             PERIPH_PRIORITY
@@ -397,7 +397,7 @@ class TestPause:
         assert coordinator._backfill_global_paused is True
 
         # Global pause: no history import this cycle, quota untouched.
-        await coordinator._async_partial_refresh()
+        await coordinator._backfill_drain_pass()
         coordinator.async_fetch_history_chunk.assert_not_awaited()
         assert coordinator._last_history_periphs == 0
 
@@ -405,7 +405,7 @@ class TestPause:
         await coordinator.async_backfill_set_paused(global_pause=True, paused=False)
         assert coordinator._backfill_global_paused is False
 
-        await coordinator._async_partial_refresh()
+        await coordinator._backfill_drain_pass()
         assert coordinator.async_fetch_history_chunk.await_count > 0
 
     @pytest.mark.asyncio
@@ -414,7 +414,7 @@ class TestPause:
         coordinator.client.config_entry.options["history_peripherals_per_scan"] = 10
         coordinator._backfill_paused = {PERIPH_PAUSED}
 
-        await coordinator._async_partial_refresh()
+        await coordinator._backfill_drain_pass()
 
         fetched = [
             call.args[0]
@@ -613,7 +613,15 @@ class TestPersistence:
         assert coordinator._backfill_ignored == {PERIPH_IGNORED}
         assert coordinator._backfill_global_paused is True
         stored = Store.registry[f"eedomus.backfill_{ENTRY_ID}"]
-        assert stored["config_schema_version"] == 1
+        # v1 docs migrate to v2 (progress + retry ride along). The
+        # stored progress map was empty: the in-memory progress (here
+        # the fixture's seeds - in production, the one-time legacy
+        # state migration) is persisted right after the load.
+        assert stored["config_schema_version"] == 2
+        assert stored["retry"] == {}
+        assert set(stored["progress"]) == {
+            f"01BACKFILL_{periph_id}" for periph_id in PERIPH_IDS
+        }
 
     @pytest.mark.asyncio
     async def test_no_entry_id_disables_persistence_silently(self):
@@ -962,3 +970,212 @@ class TestBackfillEligibilityAd3:
         coordinator.data["999"] = {"periph_id": "999", "name": "Lamp"}
         with pytest.raises(EedomusBackfillError):
             await coordinator.async_backfill_retry_now("999")
+
+
+class TestBackfillProgressV2:
+    """Story 1.4: progress + retry in the .storage backfill document
+    (schema v2, keyed "<entry_id>_<periph>"), the CAP-5 progress
+    fields written at fetch, the fifth action (reset), and the
+    worker's drain pass."""
+
+    @pytest.mark.asyncio
+    async def test_progress_survives_a_re_instantiation(self):
+        """Saved progress reloads into a fresh coordinator: CAP-3
+        resume works without the state machine."""
+        from homeassistant.helpers.storage import Store
+
+        coordinator = make_coordinator()
+        coordinator._history_progress[PERIPH_PENDING] = {
+            "last_timestamp": 1700000000,
+            "completed": False,
+            "retrieved_points": 42,
+            "total_points": 100,
+            "estimated": True,
+        }
+        await coordinator._save_history_progress()
+
+        reborn = make_coordinator()
+        await reborn._load_backfill_persistence()
+        progress = reborn._history_progress[PERIPH_PENDING]
+        assert progress["last_timestamp"] == 1700000000
+        assert progress["retrieved_points"] == 42
+        assert progress["total_points"] == 100
+        stored = Store.registry[f"eedomus.backfill_{ENTRY_ID}"]
+        assert f"{ENTRY_ID}_{PERIPH_PENDING}" in stored["progress"]
+        assert stored["config_schema_version"] == 2
+
+    @pytest.mark.asyncio
+    async def test_estimation_and_counters_written_at_fetch(self):
+        """CAP-5: total estimated from creation_date x POLLING density,
+        retrieved_points cumulative, oldest timestamp tracked."""
+        from datetime import datetime, timedelta
+
+        coordinator = make_coordinator()
+        coordinator.data[PERIPH_PENDING] = {
+            "periph_id": PERIPH_PENDING,
+            "name": "Device",
+            "creation_date": (
+                datetime.now() - timedelta(days=10)
+            ).strftime("%Y-%m-%d %H:%M:%S"),
+            "POLLING": "3600",
+        }
+        coordinator._history_progress = {}
+        coordinator._retry_queue = {}
+        coordinator.client.get_device_history = AsyncMock(
+            return_value=[
+                {"value": 1, "timestamp": "2026-10-01T08:10:00"},
+                {"value": 2, "timestamp": "2026-10-01T09:10:00"},
+            ]
+        )
+        # make_coordinator mocks the fetch method: rebind the real one.
+        coordinator.async_fetch_history_chunk = (
+            EedomusDataUpdateCoordinator.async_fetch_history_chunk.__get__(
+                coordinator
+            )
+        )
+
+        chunk = await coordinator.async_fetch_history_chunk(PERIPH_PENDING)
+
+        assert chunk is not None
+        progress = coordinator._history_progress[PERIPH_PENDING]
+        # 10 days x 24 points/day estimated
+        assert 239 <= progress["total_points"] <= 240
+        assert progress["estimated"] is True
+        assert progress["retrieved_points"] == 2
+        assert progress["oldest_timestamp"] is not None
+        assert progress["retention_start"] == coordinator.data[
+            PERIPH_PENDING
+        ]["creation_date"]
+
+    def test_estimation_without_creation_date_is_none(self):
+        coordinator = make_coordinator()
+        total, retention = coordinator._estimate_total_points(
+            {"periph_id": "1", "POLLING": "3600"}
+        )
+        assert total is None
+        assert retention is None
+
+    @pytest.mark.asyncio
+    async def test_value_list_change_invalidates_progress(self):
+        """AD-6bis: a frozen value_list that differs at the next fetch
+        resets the periph's progress (re-enters the queue at zero)."""
+        coordinator = make_coordinator()
+        coordinator.data[PERIPH_PENDING] = {
+            "periph_id": PERIPH_PENDING,
+            "name": "Device",
+            "values": [{"description": "Confort", "value": "7"}],
+        }
+        coordinator._history_progress[PERIPH_PENDING] = {
+            "last_timestamp": 1700000000,
+            "completed": True,
+            "retrieved_points": 999,
+            "value_list_fingerprint": coordinator._value_list_fingerprint(
+                {"values": [{"description": "Confort", "value": "7"}]}
+            ),
+        }
+        coordinator._retry_queue = {}
+        coordinator.client.get_device_history = AsyncMock(return_value=[])
+        # make_coordinator mocks the fetch method: rebind the real one.
+        coordinator.async_fetch_history_chunk = (
+            EedomusDataUpdateCoordinator.async_fetch_history_chunk.__get__(
+                coordinator
+            )
+        )
+
+        # The value_list changes between two fetches
+        coordinator.data[PERIPH_PENDING]["values"] = [
+            {"description": "Confort", "value": "20"}
+        ]
+        await coordinator.async_fetch_history_chunk(PERIPH_PENDING)
+
+        progress = coordinator._history_progress[PERIPH_PENDING]
+        assert progress["completed"] is False
+        assert progress["last_timestamp"] == 0
+        assert progress["retrieved_points"] == 0
+
+    @pytest.mark.asyncio
+    async def test_reset_progress_clears_the_marker_only(self):
+        """CAP-5 fifth action: the persisted marker is cleared, the
+        periph re-enters the queue; refused on unknown/ineligible/
+        ignored periphs."""
+        coordinator = make_coordinator()
+        coordinator._history_progress[PERIPH_PENDING] = {
+            "last_timestamp": 1700000000,
+            "completed": True,
+        }
+        coordinator._retry_queue[PERIPH_PENDING] = {
+            "error_time": 0,
+            "retry_after": 0,
+            "error_message": "x",
+            "attempts": 3,
+        }
+
+        result = await coordinator.async_backfill_reset_progress(
+            PERIPH_PENDING
+        )
+
+        assert result["reset"] is True
+        assert result["status"] == "pending"
+        assert PERIPH_PENDING not in coordinator._history_progress
+        assert PERIPH_PENDING not in coordinator._retry_queue
+        row = next(
+            (
+                r
+                for r in result["state"]["queue"]
+                if r["periph_id"] == PERIPH_PENDING
+            ),
+            None,
+        )
+        assert row is not None, "the reset periph re-enters the queue"
+
+        coordinator._backfill_ignored = {PERIPH_IGNORED}
+        with pytest.raises(EedomusBackfillError):
+            await coordinator.async_backfill_reset_progress("999")
+        with pytest.raises(EedomusBackfillError):
+            await coordinator.async_backfill_reset_progress(PERIPH_IGNORED)
+
+    def test_reset_dispatcher_declares_its_ws_contract(self):
+        import custom_components.eedomus.ui_service as ui_service_module
+
+        handler = ui_service_module._ws_backfill_reset_progress
+        assert handler._ws_command == (
+            ui_service_module.WS_TYPE_EEDOMUS_BACKFILL_RESET_PROGRESS
+        )
+        schema = handler._ws_schema
+        keys = {getattr(key, "schema", None) for key in schema}
+        assert {"type", "periph_id"} <= keys
+
+    @pytest.mark.asyncio
+    async def test_queue_rows_carry_the_progress_fields(self):
+        coordinator = make_coordinator()
+        coordinator._history_progress[PERIPH_PENDING] = {
+            "last_timestamp": 0,
+            "completed": False,
+            "retrieved_points": 12,
+            "total_points": 30,
+            "estimated": True,
+            "oldest_timestamp": 1700000000,
+            "retention_start": "2018-09-02 00:28:59",
+        }
+        state = coordinator.get_backfill_state()
+        row = next(
+            r for r in state["queue"] if r["periph_id"] == PERIPH_PENDING
+        )
+        assert row["retrieved_points"] == 12
+        assert row["total_points"] == 30
+        assert row["estimated"] is True
+        assert row["oldest_timestamp"] is not None
+        assert row["retention_start"] == "2018-09-02 00:28:59"
+
+    @pytest.mark.asyncio
+    async def test_shutdown_cancels_the_worker_and_flushes(self):
+        coordinator = make_coordinator()
+
+        async def _stub_worker():
+            return None
+
+        worker_task = AsyncMock(side_effect=_stub_worker)
+        coordinator._backfill_worker_task = worker_task
+        await coordinator.async_shutdown_backfill()
+        worker_task.cancel.assert_called_once()
+        assert coordinator._backfill_worker_task is None

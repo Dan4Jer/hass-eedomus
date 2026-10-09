@@ -30,6 +30,9 @@ WS_TYPE_EEDOMUS_GET_BACKFILL_STATE = f"{DOMAIN}/get_backfill_state"
 WS_TYPE_EEDOMUS_GET_BOX_METRICS = f"{DOMAIN}/get_box_metrics"
 WS_TYPE_EEDOMUS_BACKFILL_RETRY_NOW = f"{DOMAIN}/backfill_retry_now"
 WS_TYPE_EEDOMUS_BACKFILL_PRIORITIZE = f"{DOMAIN}/backfill_prioritize"
+WS_TYPE_EEDOMUS_BACKFILL_RESET_PROGRESS = (
+    f"{DOMAIN}/backfill_reset_progress"
+)
 WS_TYPE_EEDOMUS_BACKFILL_SET_PAUSED = f"{DOMAIN}/backfill_set_paused"
 WS_TYPE_EEDOMUS_BACKFILL_SET_IGNORED = f"{DOMAIN}/backfill_set_ignored"
 
@@ -327,6 +330,27 @@ async def _ws_backfill_prioritize(hass: HomeAssistant, connection, msg: dict) ->
 @require_admin
 @websocket_command(
     {
+        vol.Required("type"): WS_TYPE_EEDOMUS_BACKFILL_RESET_PROGRESS,
+        vol.Required("periph_id"): str,
+    }
+)
+@async_response
+async def _ws_backfill_reset_progress(
+    hass: HomeAssistant, connection, msg: dict
+) -> None:
+    """Dispatch eedomus/backfill_reset_progress to the UI service."""
+    service = _get_ui_service(hass)
+    if service is None:
+        connection.send_error(
+            msg["id"], "service_unavailable", "Eedomus UI service not initialized"
+        )
+        return
+    await service._handle_backfill_reset_progress(hass, connection, msg)
+
+
+@require_admin
+@websocket_command(
+    {
         vol.Required("type"): WS_TYPE_EEDOMUS_BACKFILL_SET_PAUSED,
         vol.Optional("periph_id"): str,
         vol.Optional("global"): bool,
@@ -380,6 +404,7 @@ WS_COMMANDS = (
     (WS_TYPE_EEDOMUS_GET_BOX_METRICS, _ws_get_box_metrics),
     (WS_TYPE_EEDOMUS_BACKFILL_RETRY_NOW, _ws_backfill_retry_now),
     (WS_TYPE_EEDOMUS_BACKFILL_PRIORITIZE, _ws_backfill_prioritize),
+    (WS_TYPE_EEDOMUS_BACKFILL_RESET_PROGRESS, _ws_backfill_reset_progress),
     (WS_TYPE_EEDOMUS_BACKFILL_SET_PAUSED, _ws_backfill_set_paused),
     (WS_TYPE_EEDOMUS_BACKFILL_SET_IGNORED, _ws_backfill_set_ignored),
 )
@@ -464,6 +489,11 @@ ENDPOINT_DESCRIPTIONS = {
     WS_TYPE_EEDOMUS_BACKFILL_PRIORITIZE: (
         "Backfill Prioritize",
         "Move a peripheral to the head of the backfill queue",
+    ),
+    WS_TYPE_EEDOMUS_BACKFILL_RESET_PROGRESS: (
+        "Reset Backfill Progress",
+        "Clear one peripheral's persisted history progress marker "
+        "(the imported statistics are kept)",
     ),
     WS_TYPE_EEDOMUS_BACKFILL_SET_PAUSED: (
         "Backfill Set Paused",
@@ -918,6 +948,20 @@ class EedomusUIService:
         if isinstance(retry_after, (int, float)):
             retry_after = datetime.fromtimestamp(retry_after, tz=timezone.utc)
 
+        # CAP-5 (story 1.4): the periph detail of the Coherence tab
+        # carries the same progress indicator as the Supervision queue -
+        # guarded with getattr so a coordinator variant without the
+        # progress dict still projects a line.
+        progress_map = getattr(coordinator, "_history_progress", None)
+        progress = (
+            progress_map.get(periph_id)
+            if isinstance(progress_map, dict)
+            else None
+        ) or {}
+        oldest = progress.get("oldest_timestamp")
+        if isinstance(oldest, (int, float)):
+            oldest = datetime.fromtimestamp(oldest, tz=timezone.utc)
+
         base.update(
             {
                 "ha_entity": mapping.get("ha_entity"),
@@ -933,6 +977,11 @@ class EedomusUIService:
                 ),
                 "attempts": active_info.get("attempts") if active_info else None,
                 "retry_after": _json_safe(retry_after),
+                "retrieved_points": progress.get("retrieved_points", 0),
+                "total_points": progress.get("total_points"),
+                "estimated": progress.get("estimated", False),
+                "oldest_timestamp": _json_safe(oldest),
+                "retention_start": progress.get("retention_start"),
             }
         )
         return base
@@ -1265,6 +1314,37 @@ class EedomusUIService:
                 )
                 return
             result = await coordinator.async_backfill_prioritize(periph_id)
+            state = self._aggregate_backfill_state(hass)
+            connection.send_result(
+                msg.get("id"), _json_safe({**result, "state": state})
+            )
+        except Exception as e:
+            self._send_backfill_error(connection, msg, e)
+
+    async def _handle_backfill_reset_progress(
+        self,
+        hass: HomeAssistant,
+        connection,
+        msg: dict,
+    ) -> None:
+        """Handle the backfill reset progress command (CAP-5, 5th action).
+
+        AD-7: through the coordinator only. The reset clears the
+        persisted progress marker - the imported statistics are never
+        deleted (CAP-3 idempotence); the response carries the fresh
+        aggregated state for the panel re-render.
+        """
+        try:
+            periph_id = msg.get("periph_id")
+            coordinator = self._coordinator_for_periph(hass, periph_id)
+            if coordinator is None:
+                connection.send_error(
+                    msg.get("id"),
+                    "invalid_format",
+                    f"Unknown peripheral {periph_id}",
+                )
+                return
+            result = await coordinator.async_backfill_reset_progress(periph_id)
             state = self._aggregate_backfill_state(hass)
             connection.send_result(
                 msg.get("id"), _json_safe({**result, "state": state})

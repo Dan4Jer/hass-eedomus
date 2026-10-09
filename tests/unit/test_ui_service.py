@@ -68,7 +68,7 @@ class TestAsyncInit:
 
         await service.async_init()
 
-        assert register.call_count == 15
+        assert register.call_count == 16
         # Handler form: (hass, handler) on the module-level dispatchers -
         # HA calls websocket handlers as plain (hass, connection, msg)
         # functions, so bound methods cannot be dispatched directly
@@ -88,6 +88,7 @@ class TestAsyncInit:
             ui_service_module._ws_get_box_metrics,
             ui_service_module._ws_backfill_retry_now,
             ui_service_module._ws_backfill_prioritize,
+            ui_service_module._ws_backfill_reset_progress,
             ui_service_module._ws_backfill_set_paused,
             ui_service_module._ws_backfill_set_ignored,
         ]
@@ -105,6 +106,7 @@ class TestAsyncInit:
             ui_service_module.WS_TYPE_EEDOMUS_GET_BOX_METRICS,
             ui_service_module.WS_TYPE_EEDOMUS_BACKFILL_RETRY_NOW,
             ui_service_module.WS_TYPE_EEDOMUS_BACKFILL_PRIORITIZE,
+            ui_service_module.WS_TYPE_EEDOMUS_BACKFILL_RESET_PROGRESS,
             ui_service_module.WS_TYPE_EEDOMUS_BACKFILL_SET_PAUSED,
             ui_service_module.WS_TYPE_EEDOMUS_BACKFILL_SET_IGNORED,
         ]
@@ -202,7 +204,7 @@ class TestGetAvailableEndpoints:
         await service.async_init()
 
         assert service._registered_commands == first
-        assert register.call_count == 30
+        assert register.call_count == 32
 
     @pytest.mark.asyncio
     async def test_shutdown_resets_state_without_unregistering(self):
@@ -739,6 +741,12 @@ class TestGetCoherenceHandler:
             "error_message",
             "attempts",
             "retry_after",
+            # CAP-5 progress fields (story 1.4)
+            "retrieved_points",
+            "total_points",
+            "estimated",
+            "oldest_timestamp",
+            "retention_start",
         }
     )
 
@@ -918,6 +926,11 @@ class TestGetCoherenceHandler:
             "error_message": None,
             "attempts": None,
             "retry_after": None,
+            "retrieved_points": 0,
+            "total_points": None,
+            "estimated": False,
+            "oldest_timestamp": None,
+            "retention_start": None,
         }
 
     @pytest.mark.asyncio

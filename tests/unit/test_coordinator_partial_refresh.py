@@ -48,8 +48,9 @@ def make_coordinator(enable_history=True):
 
 
 @pytest.mark.asyncio
-async def test_partial_refresh_history_metrics_accumulate():
-    """History fetch/import are timed and counted per imported peripheral."""
+async def test_cycle_reports_zero_history_and_the_drain_pass_fetches():
+    """AD-2 (story 1.4): the cycle reports zero history metrics - the
+    background drain pass owns the fetch+import."""
     coordinator = make_coordinator(enable_history=True)
     chunk = [{"value": 1}, {"value": 2}, {"value": 3}]
     coordinator.async_fetch_history_chunk = AsyncMock(return_value=chunk)
@@ -57,25 +58,23 @@ async def test_partial_refresh_history_metrics_accumulate():
     coordinator.async_import_history_chunk = AsyncMock(return_value=len(chunk))
 
     await coordinator._async_partial_refresh()
+    assert coordinator._last_history_periphs == 0
+    assert coordinator._last_history_states == 0
+    coordinator.async_fetch_history_chunk.assert_not_awaited()
 
+    await coordinator._backfill_drain_pass()
     coordinator.async_fetch_history_chunk.assert_awaited_once_with(PERIPH_ID)
     coordinator.async_import_history_chunk.assert_awaited_once_with(PERIPH_ID, chunk)
-    assert coordinator._last_history_periphs == 1
-    assert coordinator._last_history_states == 3
-    assert coordinator._last_history_time >= 0.0
-    assert (
-        coordinator._last_history_fetch_time + coordinator._last_history_import_time
-    ) <= coordinator._last_history_time + 0.001
 
 
 @pytest.mark.asyncio
-async def test_partial_refresh_no_history_when_disabled():
-    """With history disabled, no fetch/import call is made and metrics stay zero."""
+async def test_drain_pass_no_history_when_disabled():
+    """With history disabled, the drain pass is a no-op."""
     coordinator = make_coordinator(enable_history=False)
     coordinator.async_fetch_history_chunk = AsyncMock()
     coordinator.async_import_history_chunk = AsyncMock()
 
-    await coordinator._async_partial_refresh()
+    await coordinator._backfill_drain_pass()
 
     coordinator.async_fetch_history_chunk.assert_not_awaited()
     coordinator.async_import_history_chunk.assert_not_awaited()
@@ -110,13 +109,12 @@ async def test_partial_refresh_log_decomposition(caplog):
 
 
 @pytest.mark.asyncio
-async def test_partial_refresh_log_reports_history_counts(caplog):
-    """With history enabled, the log line reports the imported peripherals/states."""
+async def test_partial_refresh_log_reports_zero_history_counts(caplog):
+    """With history enabled, the refresh log reports zero history - the
+    drain lives in the background worker (AD-2, story 1.4)."""
     coordinator = make_coordinator(enable_history=True)
-    chunk = [{"value": 1}, {"value": 2}]
-    coordinator.async_fetch_history_chunk = AsyncMock(return_value=chunk)
-    # async_import_history_chunk returns the number of statistics imported
-    coordinator.async_import_history_chunk = AsyncMock(return_value=len(chunk))
+    coordinator.async_fetch_history_chunk = AsyncMock()
+    coordinator.async_import_history_chunk = AsyncMock()
     coordinator._full_refresh_needed = False
     coordinator._last_update_start_time = datetime.now()
 
@@ -128,7 +126,7 @@ async def test_partial_refresh_log_reports_history_counts(caplog):
     ]
     assert partial_logs
     message = partial_logs[0].getMessage()
-    assert "[1 periphs, 2 states]" in message
+    assert "[0 periphs, 0 states]" in message
 
 
 @pytest.mark.asyncio
@@ -168,21 +166,19 @@ async def test_partial_refresh_history_quota_limits_per_scan():
     )
     coordinator.async_import_history_chunk = AsyncMock(return_value=1)
 
-    await coordinator._async_partial_refresh()
+    await coordinator._backfill_drain_pass()
 
     fetched_first = [
         call.args[0] for call in coordinator.async_fetch_history_chunk.call_args_list
     ]
-    assert len(fetched_first) == 2, "quota of 2 must cap the first cycle"
+    assert len(fetched_first) == 2, "quota of 2 must cap the first pass"
     assert "333" not in fetched_first, "the third periph is beyond the quota"
-    # Only 222 imported: 111 consumed a slot with an empty chunk
-    assert coordinator._last_history_periphs == 1
 
     # 222 is complete: the next cycle retries the empty 111 and drains
     # 333 (quota 2, two pending).
     coordinator._history_progress["222"] = {"completed": True}
 
-    await coordinator._async_partial_refresh()
+    await coordinator._backfill_drain_pass()
 
     all_calls = coordinator.async_fetch_history_chunk.call_args_list
     fetched_second = [call.args[0] for call in all_calls][len(fetched_first) :]
@@ -219,14 +215,14 @@ async def test_partial_refresh_busy_lock_skips_history_segment():
     coordinator.async_import_history_chunk = AsyncMock(return_value=1)
 
     async with coordinator._backfill_import_lock:
-        await coordinator._async_partial_refresh()
+        await coordinator._backfill_drain_pass()
 
     # Busy lock: no history import this cycle, quota untouched.
     coordinator.async_fetch_history_chunk.assert_not_awaited()
     assert coordinator._last_history_periphs == 0
 
     # Lock released: the next cycle drains with its full quota.
-    await coordinator._async_partial_refresh()
+    await coordinator._backfill_drain_pass()
     assert coordinator.async_fetch_history_chunk.await_count == 2
 
 
@@ -259,7 +255,7 @@ async def test_partial_refresh_global_pause_skips_history_segment():
     coordinator.async_import_history_chunk = AsyncMock(return_value=0)
 
     coordinator._backfill_global_paused = True
-    await coordinator._async_partial_refresh()
+    await coordinator._backfill_drain_pass()
 
     # Global pause: the history segment is skipped entirely, quota intact.
     coordinator.async_fetch_history_chunk.assert_not_awaited()
@@ -267,7 +263,7 @@ async def test_partial_refresh_global_pause_skips_history_segment():
 
     # Resume: the drain picks up with its full quota.
     coordinator._backfill_global_paused = False
-    await coordinator._async_partial_refresh()
+    await coordinator._backfill_drain_pass()
 
     fetched = [
         call.args[0] for call in coordinator.async_fetch_history_chunk.call_args_list
@@ -304,14 +300,14 @@ async def test_partial_refresh_priority_jumps_the_natural_order():
     coordinator.async_import_history_chunk = AsyncMock(return_value=1)
 
     coordinator._backfill_priority = ["222"]
-    await coordinator._async_partial_refresh()
+    await coordinator._backfill_drain_pass()
 
     # Quota 1: the prioritized periph (natural second) got the slot.
     coordinator.async_fetch_history_chunk.assert_awaited_once_with("222")
     assert coordinator._backfill_priority == [], "the jump is consumed by the drain"
 
     # Next drain: the natural order drains the remaining periph.
-    await coordinator._async_partial_refresh()
+    await coordinator._backfill_drain_pass()
     coordinator.async_fetch_history_chunk.assert_any_await("111")
 
 
@@ -333,7 +329,7 @@ async def test_cycle_writes_no_sensor_eedomus_state():
         "attempts": 2,
     }
 
-    await coordinator._async_partial_refresh()
+    await coordinator._backfill_drain_pass()
 
     for call in coordinator.hass.states.async_set.call_args_list:
         entity_id = call.args[0]

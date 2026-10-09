@@ -419,10 +419,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
                 device_registry = async_get_device_registry(hass)
 
-                # Create proper history sensor entities
+                # Create proper history sensor entities (bug 109: the
+                # return is consumed - the sensors reach the platform
+                # through coordinator._history_sensors).
                 from .history_sensor import async_setup_history_sensors
 
-                await async_setup_history_sensors(hass, coordinator, device_registry)
+                coordinator._history_sensors = await (
+                    async_setup_history_sensors(
+                        hass, coordinator, device_registry
+                    )
+                )
+                _LOGGER.info(
+                    "Mounted %d history sensor entities",
+                    len(coordinator._history_sensors or []),
+                )
 
             except Exception as err:
                 _LOGGER.error("Failed to create history sensors: %s", err)
@@ -453,8 +463,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             from .history_sensor import async_setup_history_sensors
 
             device_registry = async_get_device_registry(hass)
-            await async_setup_history_sensors(hass, coordinator, device_registry)
-            _LOGGER.info("✅ History sensors registered successfully")
+            # bug 109: the return is consumed - sensor.py's
+            # _history_sensors branch finally sees the entities.
+            coordinator._history_sensors = await (
+                async_setup_history_sensors(hass, coordinator, device_registry)
+            )
+            _LOGGER.info(
+                "✅ History sensors registered successfully: %d entities",
+                len(coordinator._history_sensors or []),
+            )
         except Exception as err:
             _LOGGER.error("Failed to setup history sensors: %s", err)
 
@@ -708,6 +725,19 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     the entry data from the Home Assistant data store.
     """
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
+        # AD-2 (story 1.4): unload = await + flush - the background
+        # drain worker stops and the persisted progress is flushed.
+        entry_data = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+        coordinator = (
+            entry_data.get(COORDINATOR) if isinstance(entry_data, dict) else None
+        )
+        if coordinator is not None and hasattr(
+            coordinator, "async_shutdown_backfill"
+        ):
+            try:
+                await coordinator.async_shutdown_backfill()
+            except Exception as err:
+                _LOGGER.warning("Backfill worker shutdown failed: %s", err)
         # Registry lifecycle: an unloaded entry no longer feeds the
         # coherence identity join - its registrations are dropped.
         from .mapping_registry import prune_mapping_registry
