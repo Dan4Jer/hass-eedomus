@@ -9,6 +9,8 @@ yarl==1.24.5
 
 # Development dependencies
 black==26.5.1
+# Eedomus simulator (scripts/simulateur, story 5.1)
+flask>=3.1
 flake8==7.4.1
 isort==9.0.1
 pytest==9.1.1
