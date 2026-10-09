@@ -12,7 +12,7 @@ black==26.10.0
 # Eedomus simulator (scripts/simulateur, story 5.1)
 flask>=3.1
 flake8==7.4.1
-isort==9.0.1
+isort==9.0.2
 pytest==9.1.1
 pytest-asyncio==1.4.0
 mypy==2.3.1
