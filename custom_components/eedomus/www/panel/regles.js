@@ -7,6 +7,23 @@
  */
 
 export const RULES_STYLES = `
+        .rules-help {
+          margin: 0 0 12px;
+          border: 1px solid var(--divider-color);
+          border-radius: var(--ha-card-border-radius, 12px);
+          padding: 6px 12px;
+          background: var(--card-background-color);
+        }
+        .rules-help summary { cursor: pointer; font-size: 13px; }
+        .rules-help p {
+          margin: 8px 0 0; font-size: 13px;
+          color: var(--secondary-text-color);
+        }
+        .rules-help-example {
+          margin: 8px 0 0; padding: 8px 10px; font-size: 12.5px;
+          background: var(--secondary-background-color, inherit);
+          border-radius: 8px; overflow-x: auto;
+        }
         .rule-form {
           background: var(--card-background-color);
           border: 1px solid var(--divider-color);
@@ -448,6 +465,32 @@ export function applyReglesMixin(EedomusConfigPanel) {
       .join('');
   },
 
+  _rulesHelpHtml() {
+    // CAP-10 (story 107): a collapsed grammar summary, present in
+    // both edit modes; the full format lives in the repo doc page.
+    const docUrl = (
+      'https://github.com/Dan4Jer/hass-eedomus/blob/main/' +
+      'docs/mapping-format.md'
+    );
+    return `
+      <details class="rules-help">
+        <summary>${this._escapeHtml(
+          this.t('panel.regles.help.summary')
+        )}</summary>
+        <p>${this._escapeHtml(this.t('panel.regles.help.intro'))}</p>
+        <pre class="rules-help-example"><code>custom_usage_id_mappings:
+  "7":
+    ha_entity: sensor
+    ha_subtype: temperature
+    device_class: temperature
+    justification: Temperature sensor - usage 7</code></pre>
+        <p><a href="${docUrl}" target="_blank" rel="noopener">
+          ${this._escapeHtml(this.t('panel.regles.help.doc_link'))}
+        </a></p>
+      </details>
+    `;
+  },
+
   _renderRulesTab() {
     if (this._mappingError) {
       return `
@@ -483,6 +526,7 @@ export function applyReglesMixin(EedomusConfigPanel) {
           ${this.t('panel.regles.mode.yaml')}
         </button>
       </div>
+      ${this._rulesHelpHtml()}
     `;
 
     if (this._rulesMode === 'yaml') {
@@ -542,6 +586,7 @@ export function applyReglesMixin(EedomusConfigPanel) {
       .join('');
 
     return `
+      ${this._rulesHelpHtml()}
       <form class="rule-form" id="rule-form" novalidate>
         <div class="form-field">
           <label for="rule-usage-id">

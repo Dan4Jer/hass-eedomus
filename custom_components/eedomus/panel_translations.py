@@ -62,6 +62,13 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "panel.regles.mode.form": "Form",
         "panel.regles.mode.yaml": "YAML",
         "panel.regles.prefill_note": "usage_id pre-filled: {id}",
+        "panel.regles.help.summary": "Mapping format help",
+        "panel.regles.help.intro": (
+            "A usage_id rule maps an eedomus device category to a Home "
+            "Assistant platform, with an optional subtype, device class "
+            "and justification. Example:"
+        ),
+        "panel.regles.help.doc_link": "Full format documentation",
         "panel.regles.create_rule": "Create a rule",
         "panel.regles.empty": "No mapping rule. The default mapping applies.",
         "panel.regles.row.usage_id_label": "usage_id",
@@ -352,6 +359,13 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "panel.regles.mode.form": "Formulaire",
         "panel.regles.mode.yaml": "YAML",
         "panel.regles.prefill_note": "usage_id pré-rempli : {id}",
+        "panel.regles.help.summary": "Aide au format de mapping",
+        "panel.regles.help.intro": (
+            "Une règle usage_id associe une catégorie de périphériques "
+            "eedomus à une plateforme Home Assistant, avec un sous-type, "
+            "un device class et une justification optionnels. Exemple :"
+        ),
+        "panel.regles.help.doc_link": "Documentation complète du format",
         "panel.regles.create_rule": "Créer une règle",
         "panel.regles.empty": (
             "Aucune règle de mapping. Le mapping par défaut s'applique."
