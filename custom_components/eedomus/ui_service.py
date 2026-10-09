@@ -715,13 +715,22 @@ class EedomusUIService:
             connection.send_error(msg.get("id"), "error", str(e))
 
     async def _load_custom_mapping(self, hass: HomeAssistant) -> Dict[str, Any]:
-        """Load the raw custom_mapping.yaml content (not the merged config).
+        """Load the canonical custom mapping (not the merged config).
 
-        The merged config mixes the default mapping into usage_id_mappings,
-        which would flag every peripheral as "modified": the badge must only
-        reflect user-defined overrides.
+        Story 103: the badge reads through config_manager - the same
+        path get_mapping/save_mapping use - so the two can never
+        diverge. The device_mapping reader stays as the bootstrap
+        fallback when no ConfigManager is running (proxy-only mode).
+        The merged config is deliberately not used: it mixes the
+        default mapping into usage_id_mappings, which would flag every
+        peripheral as "modified"; the badge must only reflect
+        user-defined overrides.
         """
         try:
+            config_manager = self._get_config_manager()
+            if config_manager is not None:
+                return await config_manager.async_get_custom_mapping() or {}
+
             from .device_mapping import load_custom_yaml_mappings_async
 
             return await load_custom_yaml_mappings_async(hass) or {}

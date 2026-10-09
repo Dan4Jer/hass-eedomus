@@ -601,3 +601,40 @@ class TestIngestionPreservesSchemaVersion:
         stored = RecordingStore.registry["eedomus.mapping"]
         assert stored["config_schema_version"] == 1
         assert stored["current"] == {"custom_rules": []}
+
+
+@pytest.mark.asyncio
+async def test_both_canonical_readers_return_the_same_storage_dict(
+    manager, monkeypatch
+):
+    """Story 103: the badge path (config_manager.async_get_custom_mapping)
+    and the bootstrap reader (device_mapping.async_get_canonical_custom_
+    mapping) read the same eedomus.mapping storage and must return the
+    same dict - the two paths can never diverge silently."""
+    canon = {
+        "custom_usage_id_mappings": {
+            "7": {"ha_entity": "sensor", "ha_subtype": "temperature"}
+        }
+    }
+    # Seed both store registries: the config manager reads through the
+    # manager's patched Store, the device_mapping reader through the
+    # conftest's homeassistant.helpers.storage.Store stub.
+    RecordingStore.registry["eedomus.mapping"] = {"current": canon}
+    from homeassistant.helpers.storage import Store
+
+    Store.registry["eedomus.mapping"] = {"current": canon}
+
+    config_manager, _ = manager
+
+    from custom_components.eedomus.device_mapping import (
+        async_get_canonical_custom_mapping,
+    )
+
+    via_config_manager = await config_manager.async_get_custom_mapping()
+    via_device_mapping = await async_get_canonical_custom_mapping(
+        config_manager.hass
+    )
+
+    assert via_config_manager == canon
+    assert via_device_mapping == canon
+    assert via_config_manager == via_device_mapping
