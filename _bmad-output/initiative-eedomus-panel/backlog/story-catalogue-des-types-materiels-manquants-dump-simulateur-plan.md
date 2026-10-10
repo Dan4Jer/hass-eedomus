@@ -3,7 +3,7 @@ title: 'Catalog of missing eedomus hardware types in the simulator dump (ticket 
 type: 'feature'
 ticket: '114'
 created: '2026-10-10'
-status: 'in-review'
+status: 'built'
 baseline_revision: 'a5f43c3'
 route: 'full'
 route_source: 'auto'
@@ -11,7 +11,7 @@ review: 'thorough'
 review_source: 'auto'
 lenses_ran: []
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 context: []
 warnings: []
 deferred: []
@@ -78,6 +78,8 @@ deferred: []
 
 ## Implementation Notes
 
+- Plan Code Map error corrected during review: the shipped dump does NOT have zero parent/child peripherals — the explorer looked for a `parent_id` key, but the dump's key is `parent_periph_id` (10 parents, 29 parented periphs). The generator read the real key from the start; only this plan's Code Map inherited the error. Only the RGBW 4-children shape is actually unreachable.
+
 ## Plan Change Log
 
 ## Review Triage Log
@@ -114,3 +116,17 @@ deferred: []
   - `[low]` `[reject]` no "default/fallback mappings" section for usage-0 periphs — outside the intent's scope ("types manquants": default-mapped present periphs are neither missing nor unmapped); re-raising is a future ticket's call
   - `[low]` `[reject]` test_every_missing_id_is_handled is tautological under analyze's construction — harmless; docstring nuance only
   - `[false]` `[reject]` "the shipped dump has zero parent_id children" — false as a finding against this change: the diff's own CATALOG.md reports the true structure (10 parents, 29 parented periphs via parent_periph_id); the error lives in this plan's Code Map (inherited from a mis-keyed exploration), corrected in Implementation Notes — and per triage rules a finding whose fix edits the plan is rejected
+
+## Auto Run Result
+
+**Summary.** Ticket 114 built: `scripts/simulateur/03_catalog.py` (static, deterministic, fail-loud generator), the committed `scripts/simulateur/CATALOG.md` (27 handled-but-absent usage_ids prioritized in 4 tiers, 4 present-but-unmapped ids, structural gaps incl. RGBW and cover-slats tier 1, the dangling button mapping, the thermostat finding), README section 17 + workflow step 9, and 13 pinning unit tests. The "how to add a type" flow (00/01/02 + CAP-5 privacy pass) stays a documented human step — no dump data was added.
+
+**Files changed.** `scripts/simulateur/03_catalog.py` (NEW), `scripts/simulateur/CATALOG.md` (NEW, generated), `scripts/simulateur/README.md`, `tests/unit/test_simulator_catalog.py` (NEW), this plan.
+
+**Review findings breakdown.** Thorough review (4 lenses), 29 findings: 0 high, 5 medium, 23 low, 1 false. 10 patch groups applied by the implementer (commits `ac67b22`, format pass `c7538c1`): switch control-children row rescoped to switch parents (medium), RGBW threshold semantics corrected to all-children and the 82 hint fixed (medium), rubric-miss fail-loud test added (medium), rules block fail-loud + findings for absent setpoints and missing file, input-validation guards (non-dict entries, non-UTF-8, OSError, null fields, falsy value_type, duplicate periph_id), phantom-parent finding, tier-4 keyed off the mapping entry, French labels glossed + 127 blocked marker, README workflow step 9 + CLI overrides documented + hermetic test args. 3 rejected (line-number anchoring enhancement; default-mapping section out of intent scope; tautological test docstring). 1 false rejected (the "zero parent_id" claim was this plan's own Code Map error, not the change's — see Implementation Notes).
+
+**Follow-up review recommendation.** `true` — three medium entries were patched on this first pass. Named unverified risk: the priority tiers remain documented static reasoning (no coverage tool exists in the repo to measure them), and the enriched-dump + e2e_sim surface (AC2/AC3) is unexercised by design — it activates only when someone (fmo01/user) provides a new dump through the extraction flow.
+
+**Verification performed.** `python3 -m pytest tests/unit/ -q` — 431 passed, 2 warnings (pre-existing). `node tests/js/test-coherence.js` — green. `03_catalog.py --check` — catalog up to date; second full run byte-identical. `bash scripts/hooks/pre-push` — exit 0 (the ticket-115 format gate caught the implementation's non-conforming files twice; black/isort passes committed as `befca77` and `c7538c1`). Tree clean on `unstable`, commits `78f25e7` + `ac67b22` + `0f2c5cb` + `befca77` + `c7538c1`, not pushed.
+
+**Residual risks.** The hitl step is open by design: extraction of new dump cases (real box, credentials, CAP-5 privacy pass) — the catalog now tells you exactly what to extract and in what order. Rubric tiers would benefit from real coverage tooling one day (rejected finding recorded). Line-number citations in the catalog drift with platform code evolution; refresh at regeneration.
