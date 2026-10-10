@@ -118,6 +118,10 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # target and must leave the queue instead of silently burning
         # every fetched chunk.
         self._import_miss_count = {}  # {periph_id: int}
+        # Story 1.9: round-robin cursor of the seam probe over
+        # completed periphs (in-memory; a reset at restart only skips
+        # a round).
+        self._seam_cursor = 0
         self._scan_interval = scan_interval
 
         # Timing metrics for performance monitoring
@@ -1504,7 +1508,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         Same contract as the old in-cycle segment: priority jumps
         consumed at the head, the active marker covers the fetch, the
         quota counts periphs (a no-data fetch consumed its slot), the
-        mono-importer lock serializes with retry_now.
+        mono-importer lock serializes with retry_now. When the queue
+        is empty, the pass ends with one seam probe (story 1.9): the
+        drain keeps absolute priority over the probe.
         """
         if not self._history_enabled():
             return
@@ -1524,6 +1530,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             return
         history_queue = self._backfill_queue_ids()
         if not history_queue:
+            # Story 1.9: nothing to drain — probe the seam of one
+            # completed periph instead (round-robin). The probe never
+            # re-queues anything: the drain stays empty unless the
+            # user resets a progress.
+            await self._seam_probe_one()
             return
         async with self._backfill_import_lock:
             for periph_id in history_queue:
@@ -1540,6 +1551,83 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 finally:
                     self._backfill_active_periph = None
                 quota -= 1
+
+    async def _seam_probe_one(self):
+        """Story 1.9: probe the seam of the next completed periph.
+
+        A completed periph is never re-fetched by the drain; the seam
+        (hours between the walk's last imported point and the entity's
+        first native statistic — late registration, a disabled entity,
+        cloud lag at walk time) and cloud points arrived after the walk
+        would stay unimported forever. The probe fetches
+        [last_timestamp, now] and keeps ONLY points strictly newer
+        than last_timestamp: the real cloud API returns the newest
+        10,000 points whatever the window (bug 1.10), so an
+        unfiltered probe would re-import the newest window every
+        pass. The import rides the production path (AD-11 clip keeps
+        the recorder-owned hours untouched, upsert idempotent CAP-3);
+        the completed flag is never touched, the periph never
+        re-enters the drain queue.
+        """
+        completed = [
+            pid
+            for pid in self._backfill_eligible_peripherals
+            if self._history_progress.get(pid, {}).get("completed")
+            and (self._history_progress.get(pid, {}).get("last_timestamp") or 0)
+            > 0
+        ]
+        if not completed:
+            return
+        cursor = self._seam_cursor
+        self._seam_cursor = (cursor + 1) % len(completed)
+        periph_id = completed[cursor]
+        progress = self._history_progress[periph_id]
+        last = progress["last_timestamp"]
+        try:
+            chunk = await self.client.get_device_history(
+                periph_id, start_timestamp=last
+            )
+        except Exception as err:  # pylint: disable=broad-except
+            # A probe failure never poisons the periph: log and skip
+            _LOGGER.warning(
+                "Seam probe failed for %s (skipping): %s", periph_id, err
+            )
+            return
+        if not chunk:
+            return
+        newer = [
+            entry
+            for entry in chunk
+            if int(
+                datetime.fromisoformat(str(entry["timestamp"])).timestamp()
+            )
+            > last
+        ]
+        if not newer:
+            # The dead window: nothing newer than the frontier
+            return
+        _LOGGER.info(
+            "Seam probe: %d new point(s) for %s (completed periph)",
+            len(newer),
+            periph_id,
+        )
+        async with self._backfill_import_lock:
+            imported = await self.async_import_history_chunk(
+                periph_id, newer
+            )
+        # The frontier advances: the next probe resumes from here.
+        progress["last_timestamp"] = max(
+            int(
+                datetime.fromisoformat(str(entry["timestamp"])).timestamp()
+            )
+            for entry in newer
+        )
+        progress["retrieved_points"] = (
+            progress.get("retrieved_points", 0) + len(newer)
+        )
+        _LOGGER.debug(
+            "Seam probe imported %d statistics for %s", imported, periph_id
+        )
 
     async def _load_history_progress(self):
         """One-time migration: read progress from the legacy helper states.

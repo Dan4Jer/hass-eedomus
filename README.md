@@ -334,12 +334,20 @@ The test suite runs locally without a Home Assistant installation:
 ```bash
 pip install -r requirements-test.txt
 
-# Unit tests (56): mapping rules, API client, options flow, YAML merging
+# Unit tests (396): mapping rules, API client, options flow, YAML
+# merging, history backfill (dead window, seam probe), panel catalog
 python3 -m pytest tests/unit/ -v
 
-# E2E tests (12): live instance via REST API - connectivity, refresh,
-# set_value, options flow. Requires HA_TOKEN in .env and a reachable HA instance
+# E2E tests, two strates:
+# - live-Pi (29): the real instance via REST/websocket - connectivity,
+#   refresh, set_value, options flow, backfilled statistics
+# - simulator (9): boots the local API simulator on the Pi, drives the
+#   real config flow, multi-box and destructive backfill actions
+# Requires HA_TOKEN in .env and a reachable HA instance
 python3 -m pytest tests/e2e/ -v
+
+# Panel JS pure helpers (strict, wired into CI)
+node tests/js/test-coherence.js
 ```
 
 The E2E suite is non-destructive: it toggles the test peripheral and restores its initial state.

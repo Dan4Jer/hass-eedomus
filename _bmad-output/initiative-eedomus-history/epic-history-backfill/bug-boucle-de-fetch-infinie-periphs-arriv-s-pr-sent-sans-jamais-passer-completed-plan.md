@@ -3,7 +3,7 @@ title: 'Bug 1.10: dead-window fetch loop on periphs that reached the present'
 type: 'bugfix'
 ticket: '10'
 created: '2026-10-10'
-status: 'built'
+status: done
 route: 'oneshot'
 route_source: 'auto'
 review: 'none'

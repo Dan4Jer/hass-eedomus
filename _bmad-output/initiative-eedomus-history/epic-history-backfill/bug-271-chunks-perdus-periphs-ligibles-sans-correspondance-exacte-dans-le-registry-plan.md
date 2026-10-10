@@ -3,7 +3,7 @@ title: 'Bug 1.11: chunks silently lost on peripherals without an exact registry 
 type: 'bugfix'
 ticket: '11'
 created: '2026-10-10'
-status: 'built'
+status: done
 route: 'oneshot'
 route_source: 'auto'
 review: 'none'
