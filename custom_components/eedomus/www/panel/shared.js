@@ -93,6 +93,77 @@ export function truncateDetailText(text, max) {
   return `${chars.slice(0, max - 1).join('')}…`;
 }
 
+// Backfill progress indicator (story 110): a thin bar plus its
+// textual equivalent — the two surfaces (Supervision queue row and
+// Coherence detail) render the SAME object with the SAME keys
+// (popover/extended-line parity). Pure: the translator is injected,
+// every value comes from the backend payload, the panel never
+// recomputes (CAP-9: the panel displays).
+export function backfillProgressHtml(progress, t) {
+  const retrieved =
+    progress && typeof progress.retrieved_points === 'number'
+      ? progress.retrieved_points
+      : null;
+  if (retrieved === null) {
+    // No progress entry yet: no indicator, never a fake empty bar
+    return '';
+  }
+  const total =
+    progress && typeof progress.total_points === 'number'
+      ? progress.total_points
+      : null;
+  const oldest =
+    progress && progress.oldest_timestamp
+      ? new Date(progress.oldest_timestamp)
+      : null;
+  const date =
+    oldest !== null && !Number.isNaN(oldest.getTime())
+      ? oldest.toLocaleDateString()
+      : null;
+  let textKey;
+  let textParams;
+  if (retrieved === 0) {
+    textKey = 'panel.backfill.progress.not_started';
+    textParams = {};
+  } else if (total) {
+    textKey = date
+      ? 'panel.backfill.progress.text'
+      : 'panel.backfill.progress.text_no_date';
+    textParams = { retrieved, total, date };
+  } else {
+    textKey = date
+      ? 'panel.backfill.progress.text_no_estimate'
+      : 'panel.backfill.progress.text_no_estimate_no_date';
+    textParams = { retrieved, date };
+  }
+  const fraction = total && total > 0 ? retrieved / total : 0;
+  const pct = Math.max(0, Math.min(100, Math.round(fraction * 100)));
+  const fill = retrieved > 0
+    ? `<span class="progress-fill" style="width: ${pct}%"></span>`
+    : '';
+  return `
+    <span class="backfill-progress">
+      <span class="progress-track" aria-hidden="true">${fill}</span>
+      <span class="progress-text">${escapeHtml(t(textKey, textParams))}</span>
+    </span>
+  `;
+}
+
+// The progress bar styles, shared by both surfaces (each tab's style
+// constant embeds this block — same classes, same look, parity).
+export const BACKFILL_PROGRESS_STYLES = `
+  .backfill-progress { display: flex; flex-direction: column; gap: 2px; }
+  .progress-track {
+    display: block; height: 4px; border-radius: 2px;
+    background: var(--divider-color); overflow: hidden;
+  }
+  .progress-fill {
+    display: block; height: 100%;
+    background: var(--primary-color); border-radius: 2px;
+  }
+  .progress-text { font-size: 11px; opacity: 0.8; }
+`;
+
 export function applySharedMixin(EedomusConfigPanel) {
   Object.assign(EedomusConfigPanel.prototype, {
   // Result-count announcements (sweep). The visible count element

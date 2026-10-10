@@ -21,7 +21,12 @@
  * keyboard) of the historique restore pattern.
  */
 
-import { escapeHtml, truncateDetailText } from './shared.js';
+import {
+  BACKFILL_PROGRESS_STYLES,
+  backfillProgressHtml,
+  escapeHtml,
+  truncateDetailText,
+} from './shared.js';
 
 export const SUPERVISION_STYLES = `
         .supervision-section { margin: 0 0 24px; }
@@ -112,6 +117,8 @@ export const SUPERVISION_STYLES = `
           width: 100%; margin: 0 0 4px; font-size: 13px;
           color: var(--primary-text-color);
         }
+        ${BACKFILL_PROGRESS_STYLES}
+        .backfill-progress { width: 100%; margin: 0 0 4px; }
         .backfill-skeleton-row {
           height: 44px; margin-bottom: 8px;
           background: var(--card-background-color);
@@ -1017,6 +1024,7 @@ export function applySupervisionMixin(EedomusConfigPanel) {
           'panel.supervision.backfill.row.position',
           { n: row.position != null ? row.position : '—' }
         )}</span>
+        ${backfillProgressHtml(row, this._t)}
         ${detailHtml}
         <span class="backfill-actions">
           ${button('retry', 'panel.supervision.backfill.action.retry')}

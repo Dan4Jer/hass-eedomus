@@ -83,6 +83,7 @@ vm.createContext(sandbox);
 // appended hook in the same script scope.
 const hook = `
 ;globalThis.__coherence = {
+  backfillProgressHtml,
   coherenceToVerify,
   coherenceCompare,
   coherenceSortValue,
@@ -231,6 +232,7 @@ const {
   supervisionFormatCount,
   supervisionFormatTimestamp,
   truncateDetailText,
+  backfillProgressHtml,
 } = sandbox.__coherence;
 
 // Fixture translator (CAP-3): the frozen FR catalog, identical
@@ -2005,6 +2007,89 @@ assertEq(
     supDoneHtml.includes('Tout est récupéré.'),
     supDoneHtml.includes('pas d&#39;estimation disponible'),
     supDoneHtml.includes('3/3'),
+  ],
+  [true, true, true]
+);
+
+// --- Story 110: backfill progress indicator (bar + text) ----------
+// Pure helper: the four payload shapes. The bar carries the fraction,
+// the text the numbers — never the color alone.
+assertEq(
+  'progress: retrieved/total/oldest renders bar + text + date',
+  [
+    backfillProgressHtml(
+      { retrieved_points: 5000, total_points: 10000,
+        oldest_timestamp: '2025-06-01T00:00:00' },
+      t
+    ).includes('width: 50%'),
+    backfillProgressHtml(
+      { retrieved_points: 5000, total_points: 10000,
+        oldest_timestamp: '2025-06-01T00:00:00' },
+      t
+    ).includes('5000 / ~10000 points'),
+    backfillProgressHtml(
+      { retrieved_points: 5000, total_points: 10000,
+        oldest_timestamp: '2025-06-01T00:00:00' },
+      t
+    ).includes('récupérés jusqu&#39;au'),
+    // No estimate: the text never invents a total
+    backfillProgressHtml(
+      { retrieved_points: 5000, total_points: null,
+        oldest_timestamp: null },
+      t
+    ).includes('5000 points récupérés'),
+    // Not started: the honest text, no fake fill
+    backfillProgressHtml(
+      { retrieved_points: 0, total_points: 10000,
+        oldest_timestamp: null },
+      t
+    ).includes('Récupération d&#39;historique non démarrée'),
+    backfillProgressHtml(
+      { retrieved_points: 0, total_points: 10000,
+        oldest_timestamp: null },
+      t
+    ).includes('progress-fill'),
+    // No progress entry: no indicator at all
+    backfillProgressHtml({}, t),
+  ],
+  [true, true, true, true, true, false, '']
+);
+// Supervision queue row integration: the row renders the indicator
+// beside its status (the queue view of story 110).
+const bfRowHtml = supPanel._renderBackfillRow({
+  periph_id: '1091579',
+  name: 'Température rue Balcon',
+  status: 'pending',
+  position: 3,
+  retrieved_points: 20000,
+  total_points: 26000,
+  oldest_timestamp: '2025-10-21T15:21:19',
+});
+assertEq(
+  'progress: the Supervision queue row renders the indicator',
+  [
+    bfRowHtml.includes('backfill-progress'),
+    bfRowHtml.includes('width: 77%'),
+    bfRowHtml.includes('20000 / ~26000 points'),
+  ],
+  [true, true, true]
+);
+// Coherence detail parity: the SAME object, the SAME keys, the same
+// classes — the popover and the extended row show the same content.
+const progressDetail = coherenceDetailHtml(
+  Object.assign({}, DETAIL_ROW, {
+    retrieved_points: 20000,
+    total_points: 26000,
+    oldest_timestamp: '2025-10-21T15:21:19',
+  }),
+  t
+);
+assertEq(
+  'progress: the Coherence detail renders the same indicator',
+  [
+    progressDetail.includes('backfill-progress'),
+    progressDetail.includes('width: 77%'),
+    progressDetail.includes('20000 / ~26000 points'),
   ],
   [true, true, true]
 );

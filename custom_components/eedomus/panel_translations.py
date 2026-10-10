@@ -265,6 +265,23 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
             "Everything is retrieved."
         ),
         "panel.supervision.link.coherence": "See the coherence table",
+        # Backfill progress indicator (story 110, shared by the
+        # Supervision queue row and the Coherence detail)
+        "panel.backfill.progress.text": (
+            "{retrieved} / ~{total} points - retrieved back to {date}."
+        ),
+        "panel.backfill.progress.text_no_date": (
+            "{retrieved} / ~{total} points."
+        ),
+        "panel.backfill.progress.text_no_estimate": (
+            "{retrieved} points retrieved - back to {date}."
+        ),
+        "panel.backfill.progress.text_no_estimate_no_date": (
+            "{retrieved} points retrieved."
+        ),
+        "panel.backfill.progress.not_started": (
+            "History recovery not started."
+        ),
         "panel.supervision.error.load": "Failed to load metrics: {err}.",
         "panel.supervision.empty": (
             "No refresh cycle recorded yet. The charts fill in after "
@@ -601,6 +618,21 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
             "Tout est récupéré."
         ),
         "panel.supervision.link.coherence": "Voir le tableau de cohérence",
+        "panel.backfill.progress.text": (
+            "{retrieved} / ~{total} points - récupérés jusqu\'au {date}."
+        ),
+        "panel.backfill.progress.text_no_date": (
+            "{retrieved} / ~{total} points."
+        ),
+        "panel.backfill.progress.text_no_estimate": (
+            "{retrieved} points récupérés - jusqu\'au {date}."
+        ),
+        "panel.backfill.progress.text_no_estimate_no_date": (
+            "{retrieved} points récupérés."
+        ),
+        "panel.backfill.progress.not_started": (
+            "Récupération d\'historique non démarrée."
+        ),
         "panel.supervision.error.load": (
             "Impossible de charger les métriques : {err}."
         ),

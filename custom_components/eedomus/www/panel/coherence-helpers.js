@@ -9,7 +9,11 @@
  * recursive-DFS mini-loader as every other module.
  */
 
-import { escapeHtml, truncateDetailText } from './shared.js';
+import {
+  backfillProgressHtml,
+  escapeHtml,
+  truncateDetailText,
+} from './shared.js';
 
 // Coherence signals (CAP-6): exact strings from eedomus/get_coherence,
 // one chip per signal — glyph + label, never color alone (DESIGN.md).
@@ -391,6 +395,7 @@ export function coherenceDetailHtml(row, t) {
           'panel.coherence.detail.section_live'
         )}</h3>
         ${errorHtml}
+        ${backfillProgressHtml(row, t)}
         <dl>${coherenceDetailFieldsHtml(coherenceLiveFields(row, t), t)}</dl>
       </div>
       <div class="popover-section">

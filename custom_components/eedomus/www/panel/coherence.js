@@ -10,6 +10,7 @@
  */
 
 import { coherenceStatusText } from './shared.js';
+import { BACKFILL_PROGRESS_STYLES } from './shared.js';
 import {
   COHERENCE_COLUMNS,
   COHERENCE_NARROW_PX,
@@ -171,6 +172,8 @@ export const COHERENCE_STYLES = `
           color: var(--error-color, #db4437);
           font-size: 13px; margin: 0 0 8px;
         }
+        ${BACKFILL_PROGRESS_STYLES}
+        .popover-section .backfill-progress { margin: 0 0 8px; }
         .detail-row { display: flex; gap: 12px; padding: 2px 0; }
         .detail-row dt {
           flex: 0 0 38%; color: var(--secondary-text-color); font-size: 12.5px;

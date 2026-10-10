@@ -1,4 +1,9 @@
 [
+  "panel.backfill.progress.not_started",
+  "panel.backfill.progress.text",
+  "panel.backfill.progress.text_no_date",
+  "panel.backfill.progress.text_no_estimate",
+  "panel.backfill.progress.text_no_estimate_no_date",
   "panel.coherence.cell_labels.periph_id",
   "panel.coherence.chips.coherent",
   "panel.coherence.chips.douteux",
