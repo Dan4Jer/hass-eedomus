@@ -2130,21 +2130,6 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 self._handle_fetch_error(periph_id, "Invalid data format")
                 return []
 
-            if (
-                len(chunk) < 10000
-            ):  # ⚠️ To adapt to the actual eedomus API response
-                progress["completed"] = True
-                _LOGGER.info(
-                    "History fully fetched for %s (%s) (received %d entries)",
-                    periph_id,
-                    (
-                        self.data[periph_id]["name"]
-                        if periph_id in self.data
-                        else "Unknown"
-                    ),
-                    len(chunk),
-                )
-
             # Historical data points are imported via the Statistics API
             # (async_import_history_chunk). Replaying them as states
             # flooded the recorder with backdated writes that never
@@ -2153,6 +2138,31 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 int(datetime.fromisoformat(entry["timestamp"]).timestamp())
                 for entry in chunk
             ]
+            # Bug 1.10 — dead-window completion: the eedomus cloud
+            # returns the newest 10,000 points whatever the window, so
+            # a periph that reached the present gets the SAME full
+            # chunk every pass (max frozen at the cloud's latest
+            # point) and would loop forever on the len < 10000 test
+            # alone. A max that no longer advances past the previous
+            # last_timestamp means the walk holds the newest window
+            # the cloud has: the periph is done.
+            stale_window = (
+                progress["last_timestamp"] > 0
+                and max(timestamps) <= progress["last_timestamp"]
+            )
+            if len(chunk) < 10000 or stale_window:
+                progress["completed"] = True
+                _LOGGER.info(
+                    "History fully fetched for %s (%s) (received %d entries%s)",
+                    periph_id,
+                    (
+                        self.data[periph_id]["name"]
+                        if periph_id in self.data
+                        else "Unknown"
+                    ),
+                    len(chunk),
+                    ", dead window" if stale_window else "",
+                )
             progress["last_timestamp"] = max(timestamps)
             # CAP-5 (story 1.4): the cumulative point count and the
             # oldest timestamp retrieved so far.
