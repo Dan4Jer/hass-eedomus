@@ -3,7 +3,7 @@ title: 'Box-origin tag on every log line of the integration (ticket 113)'
 type: 'feature'
 ticket: '113'
 created: '2026-10-10'
-status: 'in-review'
+status: 'built'
 baseline_revision: '4e74dba316ee0214371b4bd0d1ab02d7a74242a6'
 route: 'full'
 route_source: 'auto'
@@ -11,10 +11,33 @@ review: 'thorough'
 review_source: 'auto'
 lenses_ran: []
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 context: []
 warnings: ['oversized']
-deferred: []
+deferred:
+  - summary: >-
+      Backfill worker-loop wrapper is untested: drain-pass tests call the
+      method directly, outside the loop, so deleting the box context at
+      the loop level would keep the suite green.
+    evidence: >-
+      The tagging mechanism is the same one verified by
+      test_coordinator_refresh_tags_log_lines at _async_update_data; closing
+      the loop-level gap needs a loop-body seam the repo's direct-call test
+      style does not have. Fold into any future backfill-worker test work.
+    location: >-
+      custom_components/eedomus/coordinator.py:1510
+    severity: low
+  - summary: >-
+      entity.py manifest-read except logs via _LOGGER before the assignment
+      executes, so a manifest-read failure raises NameError on the warning
+      path instead of logging it.
+    evidence: >-
+      Pre-existing latent NameError, present before this change (the old
+      code had the same order); not caused by this build. Fix is reordering
+      the assignment above the try block.
+    location: >-
+      custom_components/eedomus/entity.py:24
+    severity: low
 ---
 
 <intent-contract>
@@ -79,7 +102,7 @@ deferred: []
 
 ## Implementation Notes
 
-- Implemented by subagent impl-113-2 (first dispatch impl-113 died on a model stream failure before writing anything; tree was clean, fresh dispatch made).
+- Implemented by subagent impl-113-2 (first dispatch impl-113 died on a model stream failure before writing anything; tree was clean, fresh dispatch made; the patch round re-engaged the same agent, commit `820a7bc`). During patching the agent briefly corrupted the git index with `git stash` and recovered it with a mixed `git reset` — verified by the orchestrator afterwards: history intact, tree clean, `git fsck` clean.
 - Plan naming error adapted: the refresh entry point is `_async_update_data` (not `_async_refresh_data`); wrapped as a thin `box_log_context` wrapper around `_async_update_data_untagged`, preserving every existing call site including HA's framework calls.
 - Committed by the implementer as `47f4da7` on `unstable` (31 files, +647/−168; tree clean per repo policy). Not pushed — push+deploy stays the user's step.
 - `resolve_box_tag` also reads `entry.data["api_host"]` beyond the plan's three sources, plus a final `"unknown"` guarantee; mirrors `coordinator._box_display_name` order (title → host → entry_id).
@@ -128,3 +151,23 @@ Tag format: append ` [box: <title>]` to the record message (example: `Refresh co
 
 **Manual checks (if no CLI):**
 - E2E (`tests/e2e/`, live Pi) is not run by the build; the deploy+live check that logs show `[box: ...]` on the real install happens after, at the user's deploy step.
+
+## Auto Run Result
+
+**Summary.** Ticket 113 built: every log line the integration emits during box-scoped work now ends with ` [box: <config entry title>]` (fallback api_host → entry_id → unknown), via a single ContextVar-driven tagging engine (`log.py`), a factory sweep over all 29 real modules (no call-site rewrite), and box contexts at every per-box operation boundary: coordinator refresh (`_async_update_data`), backfill worker, `async_set_periph_value` (all callers), the four domain-service handlers, and the whole webhook handler.
+
+**Files changed.**
+- `custom_components/eedomus/log.py` — NEW: get_logger / _BoxTagFilter / box_log_context / resolve_box_tag
+- `custom_components/eedomus/coordinator.py` — factory + refresh, backfill and set-value self-tagging wrappers
+- `custom_components/eedomus/services.py` — factory + full-span per-box contexts in all four handlers
+- `custom_components/eedomus/webhook.py` — factory + whole-handler context + non-dict body 400
+- 25 other modules — mechanical factory sweep
+- `tests/unit/test_box_log_tag.py` — NEW: 22 tests (engine, coordinator, concurrent two-box service fan-out, webhook 403/400/OK, single widened sweep guard, idempotence pin)
+
+**Review findings breakdown.** Thorough review (4 lenses), 23 findings: 0 high, 6 medium, 11 low, 3 false, 3 maybe-false. 6 patch entries applied by the implementer (commit `820a7bc`): services context re-span (2 findings), coordinator set-value self-tag (2), concurrent two-box service test (2), webhook validation + tests (2), widened sweep guard (2), idempotence pin (1). 2 deferred (backfill loop test seam; entity.py pre-existing NameError). 15 rejected with reasons in the Review Triage Log — notably the "HA failure lines untagged" claim refuted (the coordinator passes its own tagged logger to `DataUpdateCoordinator`) and executor-thread concerns left maybe-false at if-true low.
+
+**Follow-up review recommendation.** `true` — three medium entries were patched on this first pass. Named unverified risk: the multi-box observable on a real install (live log lines carrying `[box: ...]` on the Pi) is untested — E2E live-Pi was not run by this build, and the patched surfaces (entity command paths, webhook) are exercised by unit stubs only.
+
+**Verification performed.** `python3 -m pytest tests/unit/ -q` — 418 passed, 2 warnings (pre-existing RuntimeWarnings). `node tests/js/test-coherence.js` — all coherence tests passed. Sweep grep — zero `logging.getLogger(` in the package outside `log.py`, enforced permanently by the widened guard test. Repository: clean tree, commits `47f4da7` + `820a7bc` on `unstable`, not pushed.
+
+**Residual risks.** E2E live-Pi check pending at the user's deploy step; untagged-by-design boundary (import-time, config flow pre-entry, cross-box domain operations) documented in the intent-contract; executor-thread and stale-task-tag scenarios remain maybe-false at if-true low.
