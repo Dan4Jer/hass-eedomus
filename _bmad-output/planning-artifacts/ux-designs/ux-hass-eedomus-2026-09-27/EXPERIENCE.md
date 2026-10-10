@@ -1,7 +1,7 @@
 ---
 name: Eedomus Config
 status: final
-updated: 2026-10-09
+updated: 2026-10-10
 sources:
   - _bmad-output/specs/spec-eedomus-mapping-panel/SPEC.md
   - _bmad-output/specs/spec-eedomus-history/SPEC.md
@@ -16,7 +16,7 @@ L'inventaire des mocks (mock-01 Périphériques, mock-02 Règles, mock-03 Histor
 
 ## Foundation
 
-Panneau web dans la barre latérale de Home Assistant (« Eedomus Config »), réservé aux administrateurs (`require_admin`). L'accès est gardé par HA lui-même : son propre traitement d'accès écarte les non-administrateurs en amont — le panneau ne rend jamais d'état « accès refusé ». **Parité desktop + mobile** : l'édition du mapping doit être confortable sur téléphone, pas seulement consultable. Le système UI est le **thème HA** — `DESIGN.md` est la référence d'identité visuelle et nomme la couche sémantique (diff, badge, cohérence, supervision) ; cette spine ne décrit que le comportement. Frontend JS vanilla sans toolchain de build, thémé par les variables CSS HA. Les nouvelles commandes websocket backend suivent toutes la même convention : `eedomus/<verb>`, `require_admin`.
+Panneau web dans la barre latérale de Home Assistant (« Eedomus Config »), réservé aux administrateurs (`require_admin`). L'accès est gardé par HA lui-même : son propre traitement d'accès écarte les non-administrateurs en amont — le panneau ne rend jamais d'état « accès refusé ». **Parité desktop + mobile** : l'édition du mapping doit être confortable sur téléphone, pas seulement consultable. Le panneau vit dans la zone de contenu de HA, qui ne rend **aucun app-header pour les panels custom** : sur viewport étroit, où la sidebar permanente disparaît, la sortie du panneau est à la charge du panneau lui-même — pattern « Menu » (voir Interaction Primitives). Le système UI est le **thème HA** — `DESIGN.md` est la référence d'identité visuelle et nomme la couche sémantique (diff, badge, cohérence, supervision) ; cette spine ne décrit que le comportement. Frontend JS vanilla sans toolchain de build, thémé par les variables CSS HA. Les nouvelles commandes websocket backend suivent toutes la même convention : `eedomus/<verb>`, `require_admin`.
 
 ## Information Architecture
 
@@ -102,6 +102,7 @@ Comportement. Les specs visuelles vivent dans `DESIGN.md` §Components — même
 - **Suppression de règle** — deux gestes : clic sur « Supprimer », puis confirmation « Supprimer la règle {nom} ? » — même discipline que la restauration destructrice ; feedback nominatif après suppression.
 - **Actions de backfill** — sur chaque ligne de la file de l'onglet Supervision, opérables au clavier de bout en bout (les quatre actions : voir Component Patterns). « Ignorer » exige deux gestes : clic, puis confirmation « Ignorer {nom} ? Sa récupération sera abandonnée. » Chaque action donne un retour nominatif, puis la file est re-rendue — jamais d'action muette.
 - **Lien d'onglet interne** — le lien « Voir le tableau de cohérence » de l'onglet Supervision bascule sur l'onglet Cohérence via le mécanisme de hash existant de la navigation d'onglets ; retour/arrière fonctionnel.
+- **Menu (sortie mobile, issue #125)** — sur viewport étroit uniquement, un bouton hamburger (`mdi:menu`) s'affiche en tête de la barre d'onglets : il bascule le drawer de HA en dispatchant l'événement standard `hass-toggle-menu` (le mécanisme du `ha-menu-button` natif) — jamais de navigation propriétaire. `aria-label` obligatoire depuis le catalogue i18n (« Ouvrir le menu Home Assistant » / traduit). Masqué sur viewport large, où la sidebar est permanente ; visibilité pilotée par l'indicateur étroit existant du panneau (celui de la cohérence) — aucun nouveau breakpoint introduit. Cible ≥ 44 px, focus visible. Le nom de l'événement est une interface interne de HA : à vérifier contre le source HA 2026.9 au build (E2E live).
 - **Clavier** — `Tab` suit l'ordre de lecture, `Échap` referme/annule, Entrée soumet depuis l'autocomplete. Le panneau est entièrement opérable au clavier.
 
 Interdit partout : accepter une entrée invalide en silence, permettre l'édition sans que la sauvegarde soit désactivée, laisser tourner un spinner sans issue (toujours un état d'erreur avec reprise).
@@ -117,6 +118,7 @@ Parité desktop + mobile engagée : tout ce qui est éditable sur desktop l'est 
 - **Vue diff** — reflow avec la colonne ; les lignes longues défilent horizontalement comme l'éditeur YAML, préfixe et barre gauche toujours visibles.
 - **Cohérence** — le survol n'existe pas au toucher : la ligne de périphérique s'étend à la demande et montre exactement le même contenu que le popover desktop (état vivant, identité de mapping, progression de récupération le cas échéant, actions « Créer une règle » / « Config HA », champs bruts repliables) — parité de contenu, surface différente. Tri, filtre et bascule restent opérables ; cibles ≥ 44 px ; l'en-tête reste collant au défilement.
 - **Supervision** — les cartes de graphique se recomposent avec la largeur de la zone de contenu (une colonne sur mobile, plusieurs sur desktop) ; les lignes de la file gardent leurs quatre actions opérables, cibles ≥ 44 px, l'action de ligne couvre la pleine hauteur de la zone tactile.
+- **Sortie mobile (issue #125)** — le hamburger de sortie du panneau est présent sur viewport étroit uniquement (voir Interaction Primitives, « Menu ») : HA ne rend aucun app-header pour les panels custom et masque la sidebar permanente sur ces viewports — sans ce bouton, l'utilisateur est piégé dans le panneau (l'issue #125 a documenté le cas réel sur mobile, captures à l'appui). Sur viewport large, la sidebar permanente de HA rend tout bouton de sortie redondant : il n'y est pas.
 
 ## Accessibility Floor
 
