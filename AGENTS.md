@@ -20,7 +20,7 @@ Home Assistant custom integration for the Eedomus box (Python 3.9+, vanilla JS p
 
 - Unit tests: `python3 -m pytest tests/unit/ -q`. Panel JS pure helpers: `node tests/js/test-coherence.js` (strict — wired into CI).
 - E2E (`tests/e2e/`) needs `.env` with `HA_TOKEN` and the live Pi — never mock it.
-- black/isort are NOT installed locally: keep lines ≤ 88 chars manually; do not claim formatting was run.
+- Formatting is enforced locally by the pinned pre-push hook and the deploy-script gate (`scripts/hooks/`, ticket 115): `uv run --no-project --with black==26.10.1 -- python -m black ...` and `isort==9.0.2` run in ephemeral uv environments. Run them over tracked Python files before committing; do not claim formatting was run unless it was.
 
 ## Conventions that differ from defaults
 
