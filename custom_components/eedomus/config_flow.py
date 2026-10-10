@@ -23,6 +23,8 @@ from .const import (
     CONF_API_PROXY_DISABLE_SECURITY,
     CONF_API_SECRET,
     CONF_API_USER,
+    CONF_HISTORY_API_HOST,
+
 
     CONF_ENABLE_API_EEDOMUS,
     CONF_ENABLE_API_PROXY,
@@ -96,6 +98,7 @@ class EedomusValidationError(Exception):
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_API_HOST, default=DEFAULT_API_HOST): str,
+        vol.Optional(CONF_HISTORY_API_HOST, default=""): str,
         vol.Required(
             CONF_ENABLE_API_EEDOMUS, default=DEFAULT_CONF_ENABLE_API_EEDOMUS
         ): bool,
@@ -303,6 +306,12 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         "api_host": data[CONF_API_HOST],
                         "api_user": data[CONF_API_USER],
                         "api_secret": data[CONF_API_SECRET],
+                        # Optional history endpoint override (empty =
+                        # eedomus cloud); the E2E-sim strate's
+                        # simulated box fills it through this flow.
+                        CONF_HISTORY_API_HOST: data.get(
+                            CONF_HISTORY_API_HOST, ""
+                        ),
                         CONF_ENABLE_HISTORY: data.get(CONF_ENABLE_HISTORY, False),
                         CONF_SCAN_INTERVAL: scan_interval,
                         CONF_ENABLE_API_EEDOMUS: api_eedomus_enabled,

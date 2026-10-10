@@ -168,3 +168,37 @@ class TestSetPeriphValue:
         client.fetch_data = AsyncMock(return_value="garbage")
         result = await client.set_periph_value("1", "1")
         assert result == "garbage"
+
+
+class TestHistoryEndpointResolution:
+    """The history endpoint honors the history_api_host override.
+
+    Default (empty/unset): the eedomus cloud — the real box does not
+    serve periph.history locally (verified 2026-10-09). The simulated
+    box of the E2E-sim strate points the knob at the local simulator
+    (spec-eedomus-simulator, story 5.3).
+    """
+
+    @pytest.mark.asyncio
+    async def test_history_defaults_to_the_cloud(self):
+        client = make_client()
+        client.fetch_data = AsyncMock(return_value={"success": 0})
+        await client.get_device_history("123")
+        url = client.fetch_data.call_args.kwargs["url"]
+        assert url == "https://api.eedomus.com/get"
+
+    @pytest.mark.asyncio
+    async def test_history_api_host_routes_to_the_override(self):
+        client = make_client(data={"history_api_host": "127.0.0.1:8199"})
+        client.fetch_data = AsyncMock(return_value={"success": 0})
+        await client.get_device_history("123")
+        url = client.fetch_data.call_args.kwargs["url"]
+        assert url == "http://127.0.0.1:8199/api/get"
+
+    def test_empty_history_api_host_resolves_to_none(self):
+        client = make_client(data={"history_api_host": ""})
+        assert client.history_api_host is None
+
+    def test_absent_history_api_host_resolves_to_none(self):
+        client = make_client()
+        assert client.history_api_host is None

@@ -84,3 +84,47 @@ class TestAsyncStepUserErrors:
         assert kwargs["step_id"] == "user"
         assert kwargs["errors"] == expected_errors
         assert result == {"type": "form"}
+
+
+class TestHistoryApiHostPassThrough:
+    """The optional history_api_host lands in the created entry's data.
+
+    async_step_user creates the entry with data=user_input verbatim —
+    the knob (schema default "") is part of that payload, so the
+    E2E-sim harness can supply it through the real flow (story 5.3).
+    """
+
+    @pytest.mark.asyncio
+    async def test_knob_lands_in_entry_data(self):
+        from unittest.mock import AsyncMock
+
+        flow = make_flow()
+        flow.validate_input = AsyncMock(return_value={"title": "127.0.0.1:8199"})
+        flow.async_create_entry = MagicMock(return_value={"type": "create_entry"})
+
+        result = await flow.async_step_user(
+            base_payload(
+                api_host="127.0.0.1:8199",
+                history_api_host="127.0.0.1:8199",
+            )
+        )
+
+        assert result == {"type": "create_entry"}
+        kwargs = flow.async_create_entry.call_args.kwargs
+        assert kwargs["data"]["history_api_host"] == "127.0.0.1:8199"
+
+    @pytest.mark.asyncio
+    async def test_empty_knob_lands_as_empty_string(self):
+        from unittest.mock import AsyncMock
+
+        flow = make_flow()
+        flow.validate_input = AsyncMock(return_value={"title": "box"})
+        flow.async_create_entry = MagicMock(return_value={"type": "create_entry"})
+
+        result = await flow.async_step_user(
+            base_payload(history_api_host="")
+        )
+
+        assert result == {"type": "create_entry"}
+        kwargs = flow.async_create_entry.call_args.kwargs
+        assert kwargs["data"]["history_api_host"] == ""

@@ -45,6 +45,7 @@ python_files = ["test_*.py"]
 addopts = "-v --tb=short"
 markers = [
     "e2e: end-to-end tests against the live Home Assistant instance (deselect with '-m \"not e2e\"')",
+    "e2e_sim: end-to-end simulator strate - boots the local API simulator on the Pi, drives the real config flow (deselect with '-m \"not e2e_sim\"')",
     "unit: fast local unit tests",
     "integration: integration tests with mocked HA",
 ]

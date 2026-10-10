@@ -73,6 +73,13 @@ class EedomusClient:
         self.api_user = _get_config_value(config_entry, "api_user")
         self.api_secret = _get_config_value(config_entry, "api_secret")
         self.api_host = _get_config_value(config_entry, "api_host")
+        # History endpoint override (default empty: the eedomus cloud —
+        # the real box does not serve periph.history locally). The
+        # simulated box of the E2E-sim strate points it at the local
+        # simulator (spec-eedomus-simulator, story 5.3).
+        self.history_api_host = _get_config_value(
+            config_entry, "history_api_host"
+        ) or None
         self.base_url_get = f"http://{self.api_host}/api/get"
         self.base_url_set = f"http://{self.api_host}/api/set"
         self.base_url_script = f"http://{self.api_host}/script/?exec="
@@ -559,7 +566,13 @@ class EedomusClient:
         Returns:
             list: List of {"value": str, "timestamp": str} dictionaries.
         """
-        base_url = f"{HISTORY_API_URL}/get"
+        # The history endpoint targets the eedomus cloud by default —
+        # unless the optional history_api_host override points it at
+        # a local host (the simulated box of the E2E-sim strate).
+        if self.history_api_host:
+            base_url = f"http://{self.history_api_host}/api/get"
+        else:
+            base_url = f"{HISTORY_API_URL}/get"
         params = {
             "action": "periph.history",
             "periph_id": periph_id,

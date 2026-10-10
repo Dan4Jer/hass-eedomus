@@ -30,6 +30,11 @@ except ImportError:
 CONF_API_USER = "api_user"
 CONF_API_SECRET = "api_secret"
 CONF_API_HOST = "api_host"
+# Optional override for the history API endpoint (default: the
+# eedomus cloud). Empty = cloud — the real box does not serve
+# periph.history locally (verified 2026-10-09). Used by the simulated
+# box of the E2E-sim strate (spec-eedomus-simulator).
+CONF_HISTORY_API_HOST = "history_api_host"
 CONF_ENABLE_HISTORY = "history"
 CONF_HISTORY_RETRY_DELAY = "history_retry_delay_hours"
 CONF_HISTORY_PERIPHERALS_PER_SCAN = "history_peripherals_per_scan"

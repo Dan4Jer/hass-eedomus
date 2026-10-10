@@ -16,6 +16,7 @@
         "description": "Configure access to your eedomus box\n\n🔄 CONNECTION MODES EXPLANATION 🔄\n\n📋 API Eedomus Mode (Direct Connection - Pull):\n   • Home Assistant pulls data from Eedomus API\n   • Requires API credentials (user/secret)\n   • Enables full functionality including history\n   • Recommended for most users\n\n🔄 API Proxy Mode (Webhook - Push):\n   • Eedomus pushes data to Home Assistant via webhooks\n   • Only requires API host for webhook registration\n   • No credentials needed for basic functionality\n   • Limited functionality (no history)\n   • Useful for real-time updates\n\n💡 You can enable both modes for redundancy and optimal performance!\n\n⚠️ SECURITY NOTE: API Proxy mode includes IP validation by default.\n   Disable only for debugging (NOT recommended for production).\n\n🔒 IMPORTANT: All communications are in PLAIN TEXT.\n   Never expose your Eedomus box or Home Assistant to the internet!\n\n📖 FOR MORE INFORMATION: Check the documentation in your language:\n   - English: https://github.com/Dan4Jer/hass-eedomus/blob/main/docs/configuration_documentation.md\n   - Français: https://github.com/Dan4Jer/hass-eedomus/blob/main/docs/configuration_documentation_fr.md",
         "data": {
           "api_host": "Eedomus box IP address",
+          "history_api_host": "History API host override (empty = eedomus cloud)",
           "api_eedomus": "Enable API Eedomus mode (direct connection)",
           "enable_api_proxy": "Enable API proxy mode",
           "api_user": "API username",
