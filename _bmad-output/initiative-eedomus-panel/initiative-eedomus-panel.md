@@ -6,6 +6,7 @@ covers: [CAP-1, CAP-2, CAP-3, CAP-4, CAP-5]
 after: []
 assignee: ""
 risk: medium
+status: in-progress
 ---
 
 # Panel de configuration eedomus dans Home Assistant

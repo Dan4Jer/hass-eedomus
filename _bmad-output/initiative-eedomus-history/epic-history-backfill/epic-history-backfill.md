@@ -6,6 +6,7 @@ covers: [CAP-1, CAP-2, CAP-3, CAP-4]
 after: []
 assignee: ""
 risk: high
+status: done
 ---
 
 # Backfill d'historique eedomus en statistics horaires

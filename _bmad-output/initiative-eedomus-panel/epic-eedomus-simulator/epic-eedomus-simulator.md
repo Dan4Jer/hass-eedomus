@@ -6,6 +6,7 @@ covers: [CAP-1, CAP-2, CAP-3, CAP-4, CAP-5]
 after: []   # l'épique Supervision (4) est done ; aucune dépendance dure
 assignee: ""
 risk: medium
+status: done
 ---
 
 # Simulateur eedomus — strate E2E multi-box et destructive
