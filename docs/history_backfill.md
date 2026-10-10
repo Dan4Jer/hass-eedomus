@@ -39,6 +39,24 @@ the expense of more cloud API calls. The exact duration of your first
 activation is measured in the integration's logs ("History fully
 fetched for ...").
 
+### Measured on a live box (2026-10, 165 peripherals)
+
+- **59 eligible sensors** (the other ~106 are discrete states, out of
+  scope by design).
+- One 10,000-point chunk takes **~2-5 s** to fetch and import
+  (cloud API round trip + recorder upsert); the 60 s worker interval
+  dominates the pace, not the import.
+- A temperature sensor with ~3 years of 10-minute history holds
+  ~26,000 points = 3 passes; a dense peripheral at 1.3 M points takes
+  130+ passes — days at the default pace.
+- The whole first activation of that box spanned **~2 days** with the
+  default quota of 1 peripheral per pass.
+- Verified end to end: a backfilled sensor answers the recorder
+  `statistics_during_period` query with 500+ hourly rows (mean/min/
+  max) for windows well before its Home Assistant installation —
+  the E2E suite asserts exactly this
+  (`tests/e2e/test_e2e_history_statistics.py`, marker `e2e`).
+
 ## Resume after a restart
 
 Nothing is lost on a restart: the per-peripheral progress (last
