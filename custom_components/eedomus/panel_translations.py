@@ -12,6 +12,7 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         # Shell / navigation
         "panel.common.title": "Eedomus Config",
         "panel.nav.aria": "Panel sections",
+        "panel.menu.aria": "Open the Home Assistant menu",
         "panel.tabs.peripheriques": "Peripherals",
         "panel.tabs.regles": "Rules",
         "panel.tabs.historique": "History",
@@ -321,6 +322,7 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         # Shell / navigation
         "panel.common.title": "Eedomus Config",
         "panel.nav.aria": "Sections du panneau",
+        "panel.menu.aria": "Ouvrir le menu Home Assistant",
         "panel.tabs.peripheriques": "Périphériques",
         "panel.tabs.regles": "Règles",
         "panel.tabs.historique": "Historique config",

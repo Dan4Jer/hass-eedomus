@@ -16,6 +16,11 @@ from .log import get_logger
 from .mapping_registry import print_mapping_summary, register_device_mapping
 from .mapping_rules import evaluate_conditions
 
+# Logger first: the manifest-read except below logs through it —
+# assigning it after the try raised NameError exactly when the
+# warning should fire (ticket 117).
+_LOGGER = get_logger(__name__)
+
 # Get version from manifest.json
 try:
     manifest_path = os.path.join(os.path.dirname(__file__), "manifest.json")
@@ -25,8 +30,6 @@ try:
 except Exception as e:
     VERSION = "unknown"
     _LOGGER.warning("Failed to read version from manifest.json: %s", e)
-
-_LOGGER = get_logger(__name__)
 
 
 def _get_config_value(entry, option_name, default_value=None):

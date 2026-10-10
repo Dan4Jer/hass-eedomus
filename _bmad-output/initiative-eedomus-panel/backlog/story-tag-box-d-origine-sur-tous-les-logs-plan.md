@@ -3,7 +3,7 @@ title: 'Box-origin tag on every log line of the integration (ticket 113)'
 type: 'feature'
 ticket: '113'
 created: '2026-10-10'
-status: 'built'
+status: done
 baseline_revision: '4e74dba316ee0214371b4bd0d1ab02d7a74242a6'
 route: 'full'
 route_source: 'auto'

@@ -3,7 +3,7 @@ title: 'Catalog of missing eedomus hardware types in the simulator dump (ticket 
 type: 'feature'
 ticket: '114'
 created: '2026-10-10'
-status: 'built'
+status: done
 baseline_revision: 'a5f43c3'
 route: 'full'
 route_source: 'auto'

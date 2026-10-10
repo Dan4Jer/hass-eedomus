@@ -3,7 +3,7 @@ title: 'Format guarantee: pre-push hook + deploy-script gate (ticket 115)'
 type: 'feature'
 ticket: '115'
 created: '2026-10-10'
-status: 'built'
+status: done
 baseline_revision: '132a719982243cd34a8ea8aad3a99546d2ab3041'
 route: 'oneshot'
 route_source: 'auto'
