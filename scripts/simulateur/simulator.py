@@ -1,7 +1,11 @@
 import argparse
+import hashlib
 import json
+import math
 import os
 import sys
+import time
+from datetime import datetime, timedelta
 from functools import wraps
 from flask import Flask, jsonify, request
 
@@ -77,6 +81,83 @@ if os.path.exists(rules_file):
     with open(rules_file, "r", encoding="utf-8") as f:
         THERMOSTAT_RULES = json.load(f)
     print(f"Thermostat rules loaded: {len(THERMOSTAT_RULES)} rule(s).")
+
+# Synthetic history knobs (CAP-2, spec-eedomus-simulator): depth in
+# years and density in points per hour, both env-overridable so the
+# first measured E2E backfill (epic entry 5) can retune them without
+# a code change. The per-chunk cap matches the real API's 10 000.
+HISTORY_YEARS = int(os.getenv("EEDOMUS_HISTORY_YEARS", "3"))
+HISTORY_DENSITY = max(int(os.getenv("EEDOMUS_HISTORY_DENSITY", "1")), 1)
+HISTORY_CHUNK_CAP = 10000
+
+
+def _float_or_none(value):
+    """Float of the value, or None when it is not numeric."""
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _history_anchor(dev):
+    """Series anchor: the periph's last_value_change from the dump.
+
+    Naive local time, like every eedomus timestamp — deterministic
+    per dump, never the wall clock.
+    """
+    try:
+        return datetime.strptime(str(dev.get("last_value_change")), "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return None
+
+
+def _synthetic_value(periph_id, ts, base):
+    """Deterministic synthetic value at ts — pure function.
+
+    Seasonal sinusoid on the day of year plus a stable hash-derived
+    noise: same dump + same anchor = same history, whatever the
+    request time (CAP-2 determinism, no wall clock).
+    """
+    day = ts.timetuple().tm_yday
+    seasonal = 3.0 * math.sin(2 * math.pi * day / 365.25)
+    digest = hashlib.md5(
+        f"{periph_id}:{ts.isoformat()}".encode("utf-8")
+    ).digest()
+    noise = (digest[0] / 255.0) * 2.0 - 1.0
+    return base + seasonal + noise
+
+
+def serve_periph_history(periph_id, start, end):
+    """Build the synthetic history chunk for one peripheral.
+
+    Contract of the production client (eedomus_client.get_device_history
+    + coordinator.async_fetch_history_chunk): epoch `start`/`end` window,
+    points strictly after `start` (a chunk whose max timestamp equals
+    `start` would loop the drain forever — the real API does this, the
+    simulator must not), ascending order, capped at 10 000 points, a
+    chunk smaller than the cap tells the client the series is complete.
+    Timestamps are naive-local ISO strings; values are strings.
+    """
+    dev = caract_by_id[periph_id]
+    base = _float_or_none(dev.get("last_value"))
+    anchor = _history_anchor(dev)
+    if base is None or anchor is None:
+        # Non-numeric or undated peripheral: no synthetic history
+        return []
+
+    step = timedelta(seconds=3600 // HISTORY_DENSITY)
+    first = anchor - timedelta(days=365 * HISTORY_YEARS)
+    history = []
+    ts = first
+    while ts <= anchor:
+        epoch = int(ts.timestamp())
+        if start < epoch <= end:
+            value = _synthetic_value(periph_id, ts, base)
+            history.append([f"{value:.2f}", ts.isoformat()])
+            if len(history) >= HISTORY_CHUNK_CAP:
+                break
+        ts = ts + step
+    return history
 
 def evaluate_thermostat_rules(changed_periph_id):
     """Evaluate the rules and toggle the heater if setpoint or temperature changes."""
@@ -204,6 +285,25 @@ def api_get():
             return jsonify({"success": 1, "body": data})
 
         return jsonify({"success": 0, "error": f"Peripheral {periph_id} not found"}), 404
+
+    # 5. Synthetic history (CAP-2) — deterministic from the dump
+    if action == "periph.history":
+        if not periph_id:
+            return jsonify({"success": 0, "error": "Missing periph_id parameter"}), 400
+        if periph_id not in caract_by_id:
+            return jsonify({"success": 0, "error": f"Peripheral {periph_id} not found"}), 404
+
+        def _int_param(name, default):
+            try:
+                return int(float(request.args.get(name, default)))
+            except (TypeError, ValueError):
+                return default
+
+        # Bad params degrade to the documented defaults, never a 500
+        start = _int_param("start", 0)
+        end = _int_param("end", int(time.time()))
+        history = serve_periph_history(periph_id, start, end)
+        return jsonify({"success": 1, "body": {"history": history}})
 
     return jsonify({"success": 0, "error": f"Action '{action}' not recognized"}), 404
 

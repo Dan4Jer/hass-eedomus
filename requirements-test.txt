@@ -11,3 +11,5 @@ async-timeout>=5.0.1
 PyYAML>=6.0.3
 # Websocket client for the E2E tests against the live instance (tests/e2e/)
 websockets>=12.0
+# Local eedomus API simulator (scripts/simulateur/, E2E-sim strate + unit tests)
+flask>=3.1

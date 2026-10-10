@@ -188,7 +188,20 @@ periph.list
 periph.value_list
 periph.caract
 periph.value
+periph.history
 ```
+
+`periph.history` serves a synthetic, deterministic history generated
+from the dump (story 5.2, spec-eedomus-simulator CAP-2): hourly points
+over `EEDOMUS_HISTORY_YEARS` years (default 3) ending at the
+peripheral's `last_value_change`, at most `EEDOMUS_HISTORY_DENSITY`
+points per hour (default 1). The response honors the production
+client's chunking contract — points strictly after the epoch `start`
+parameter and up to epoch `end`, ascending, capped at 10 000 points
+per call; a chunk shorter than the cap means the series is complete.
+Peripherals whose `last_value` is not numeric get an empty history.
+The generation is a pure function of the dump (no wall clock): the
+same dump always yields the same series.
 
 Example:
 
