@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Forge report — community idea mining</title>
+<style>
+  body { font-family: Georgia, serif; background: #f4f1ea; color: #2b2620; margin: 0; padding: 2rem; }
+  .card { max-width: 760px; margin: 0 auto; background: #fffdf7; border: 1px solid #d8d2c4; border-radius: 10px; padding: 2.5rem 3rem; box-shadow: 0 4px 18px rgba(43,38,32,.12); }
+  h1 { font-size: 1.6rem; margin: 0 0 .2rem; }
+  .sub { color: #7a6f5d; font-style: italic; margin-bottom: 1.8rem; }
+  h2 { font-size: 1.05rem; border-bottom: 2px solid #b3402e; padding-bottom: .25rem; margin-top: 1.6rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; margin-top: .5rem; }
+  th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid #e5dfd1; vertical-align: top; }
+  th { background: #efe9dc; }
+  .seal { text-align: center; margin: 1.8rem 0 .4rem; }
+  .credit { font-size: .85rem; color: #7a6f5d; margin-top: 1.4rem; border-top: 1px dashed #d8d2c4; padding-top: .8rem; }
+  .warn { background: #fdf3e3; border-left: 4px solid #c98a2b; padding: .6rem .9rem; font-size: .9rem; margin-top: .6rem; }
+  code { background: #efe9dc; padding: 0 .25rem; border-radius: 3px; font-size: .85em; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Forge report — community idea mining</h1>
+  <div class="sub">hass-eedomus · 2026-10-10 · session: community-idea-mining</div>
+
+  <div class="seal">
+    <svg width="150" height="150" viewBox="0 0 150 150" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="75" cy="75" r="70" fill="#8b1d1d"/>
+      <circle cx="75" cy="75" r="70" fill="none" stroke="#5e0f0f" stroke-width="4"/>
+      <circle cx="75" cy="75" r="58" fill="none" stroke="#e8c9a0" stroke-width="2" stroke-dasharray="4 4"/>
+      <text x="75" y="68" text-anchor="middle" fill="#f4e3c8" font-family="Georgia, serif" font-size="20" font-weight="bold">HARDENED</text>
+      <text x="75" y="90" text-anchor="middle" fill="#e8c9a0" font-family="Georgia, serif" font-size="11">forged 2026-10-10</text>
+    </svg>
+  </div>
+
+  <h2>Outcome</h2>
+  <p>Six community-sourced candidates examined one by one. Four locked decisions;
+     two deferred with reasons. The idea survives: the next work items are
+     concrete, sourced, and scoped.</p>
+
+  <h2>Locked decisions</h2>
+  <table>
+    <tr><th>#</th><th>Decision</th><th>Source</th></tr>
+    <tr><td>1</td><td>Box-origin tagging on every log line, whole integration (not just coordinator + mapping_registry)</td><td>fmo01, PR #119</td></tr>
+    <tr><td>2</td><td>Story in <code>epic-eedomus-simulator</code>: catalog missing eedomus hardware cases in the anonymized dump, prioritize by coverage</td><td>fmo01 proposal</td></tr>
+    <tr><td>3</td><td>Format guarantee moved into the local delivery chain: git pre-push hook (<code>uvx black/isort --check</code>) + same check as gate in the deploy script. No CI auto-fix.</td><td>fmo01 fork practice, adapted</td></tr>
+    <tr><td>4</td><td>One documentation recipe: push an HA value into an eedomus virtual peripheral via <code>eedomus.set_value</code></td><td>forum.eedomus.com cohabitation threads</td></tr>
+  </table>
+
+  <h2>Rejected, and why</h2>
+  <table>
+    <tr><th>Candidate</th><th>Why rejected / deferred</th></tr>
+    <tr><td>Issue #125 — panel "back" UX</td><td>Not an idea yet: awaits Ecirbaf69's screenshot; tracked as incoming bug</td></tr>
+    <tr><td>Security/trust page + forum presence</td><td>Passive adoption (README + GitHub) suffices for now</td></tr>
+    <tr><td>CI auto-fix formatting (fmo01 style)</td><td>GitHub jobs land after the local git-only deploy — too late to guarantee anything</td></tr>
+    <tr><td>HA blueprint for cohabitation</td><td>Overkill; the service already exists</td></tr>
+  </table>
+
+  <h2>Weak points that survived scrutiny</h2>
+  <div class="warn">
+    The pre-push hook needs a per-machine install; the deploy-script gate is
+    the real enforcement. The box-tag naming convention (config entry title
+    vs box id) must be settled when the logging story is written.
+  </div>
+
+  <div class="credit">
+    Pressure-tested with: fmo01 (fork author, PR #119), Ecirbaf69 (issue reporter),
+    forum.eedomus.com and forum.hacf.fr community threads. Distilled into
+    <code>forged-idea.md</code> in the same folder.
+  </div>
+</div>
+</body>
+</html>
