@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from datetime import datetime
 
 from homeassistant.components.sensor import (SensorEntity, SensorDeviceClass, SensorStateClass)
@@ -14,8 +13,9 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .entity import get_entry_prefix
+from .log import get_logger
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = get_logger(__name__)
 
 
 class EedomusHistorySensor(CoordinatorEntity, SensorEntity):

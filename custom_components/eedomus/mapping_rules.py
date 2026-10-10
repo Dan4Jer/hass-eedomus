@@ -1,10 +1,10 @@
 """Advanced mapping rules for devices."""
 
 from __future__ import annotations
-import logging
 from typing import Dict, Any
+from .log import get_logger
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = get_logger(__name__)
 
 
 def evaluate_advanced_rules(device_data: dict, all_devices: dict, advanced_rules_dict: dict) -> dict | None:

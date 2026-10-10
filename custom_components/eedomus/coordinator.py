@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 import time
 from collections import deque
 from datetime import datetime, timedelta
@@ -30,8 +29,9 @@ from .const import (
     DOMAIN,
 )
 from .entity import _get_config_value, get_entry_prefix, map_device_to_ha_entity
+from .log import box_log_context, get_logger, resolve_box_tag
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = get_logger(__name__)
 
 # CAP-5: schema version of the persisted backfill document (ignored /
 # paused periphs, global pause, and since v2 the per-periph history
@@ -464,6 +464,18 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # No need to call super().async_config_entry_first_refresh() as we've already loaded the data
 
     async def _async_update_data(self):
+        """Fetch data from eedomus API, tagging every line with the box.
+
+        Wrapper (ticket 113): the refresh runs inside a box log
+        context, so every line emitted by any module during this
+        refresh carries this box's tag.
+        """
+        with box_log_context(
+            resolve_box_tag(getattr(self, "config_entry", None), self.client)
+        ):
+            return await self._async_update_data_untagged()
+
+    async def _async_update_data_untagged(self):
         """Fetch data from eedomus API with improved error handling.
 
         Main update method that decides between full or partial refresh based on timing.
@@ -1495,12 +1507,15 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         """
         while True:
             await asyncio.sleep(BACKFILL_WORKER_INTERVAL)
-            try:
-                await self._backfill_drain_pass()
-            except asyncio.CancelledError:
-                raise
-            except Exception as err:
-                _LOGGER.warning("Backfill worker pass failed: %s", err)
+            with box_log_context(
+                resolve_box_tag(getattr(self, "config_entry", None), self.client)
+            ):
+                try:
+                    await self._backfill_drain_pass()
+                except asyncio.CancelledError:
+                    raise
+                except Exception as err:
+                    _LOGGER.warning("Backfill worker pass failed: %s", err)
 
     async def _backfill_drain_pass(self):
         """One drain pass (CAP-5 queue, AD-2 cadence).

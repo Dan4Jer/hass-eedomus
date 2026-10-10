@@ -1,5 +1,4 @@
 import json
-import logging
 
 from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
@@ -11,8 +10,9 @@ from .const import (
     DOMAIN,
     PLATFORMS,
 )
+from .log import get_logger
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = get_logger(__name__)
 
 
 class EedomusApiProxyView(HomeAssistantView):

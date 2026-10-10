@@ -1,9 +1,9 @@
 """Global mapping registry management."""
 
 from __future__ import annotations
-import logging
+from .log import get_logger
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = get_logger(__name__)
 
 # Global list to store all the mappings
 _MAPPING_REGISTRY = []

@@ -4,7 +4,6 @@ Detailed parameter documentation is available in docs/OPTIONS_DOCUMENTATION.md
 """
 
 import voluptuous as vol
-import logging
 import yaml
 import os
 import json
@@ -54,8 +53,9 @@ from .const import (
     DEFAULT_HISTORY_RETRY_DELAY,
     YAML_MAPPING_SCHEMA,
 )
+from .log import get_logger
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = get_logger(__name__)
 
 async def async_get_translations(hass, language="en"):
     """Load translations for the given language."""

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
@@ -12,8 +11,9 @@ from homeassistant.helpers.entity import DeviceInfo
 from .const import DOMAIN, SENSOR_DEVICE_CLASSES, COORDINATOR
 from .entity import EedomusEntity, map_device_to_ha_entity
 from .text_sensor import EedomusTextSensor
+from .log import get_logger
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = get_logger(__name__)
 
 # Mapping of device_class to default units
 DEVICE_CLASS_UNITS = {

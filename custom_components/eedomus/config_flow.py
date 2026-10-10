@@ -5,7 +5,6 @@ Detailed parameter documentation is available in docs/OPTIONS_DOCUMENTATION.md
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 import voluptuous as vol
@@ -59,12 +58,13 @@ from .const import (
     DOMAIN,
 )
 from .eedomus_client import EedomusClient
+from .log import get_logger
 
 # The connection modes explanation is user-facing text: it ships as the
 # config.step.user.description translation (strings.json + translations/),
 # not as a hardcoded placeholder string.
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = get_logger(__name__)
 
 # Configuration constants
 CONF_SCAN_INTERVAL = "scan_interval"

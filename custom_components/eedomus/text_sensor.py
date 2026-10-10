@@ -6,7 +6,6 @@ values from eedomus device API to human-readable descriptions.
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 from homeassistant.components.sensor import SensorEntity, SensorDeviceClass
@@ -16,8 +15,9 @@ from homeassistant.helpers.entity import DeviceInfo
 
 from .const import DOMAIN, COORDINATOR
 from .entity import EedomusEntity
+from .log import get_logger
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = get_logger(__name__)
 
 
 class EedomusTextSensor(EedomusEntity, SensorEntity):

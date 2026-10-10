@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
@@ -10,8 +9,9 @@ from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN, COORDINATOR
 from .entity import EedomusEntity
+from .log import get_logger
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = get_logger(__name__)
 
 
 async def async_setup_entry(

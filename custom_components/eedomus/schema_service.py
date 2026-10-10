@@ -1,6 +1,5 @@
 """Schema Service for Eedomus Integration with advanced validation and dynamic schema management."""
 
-import logging
 from typing import Dict, Any, List, Optional, Tuple
 
 from homeassistant.core import HomeAssistant
@@ -8,8 +7,9 @@ from homeassistant.helpers import config_validation as cv
 import voluptuous as vol
 
 from .const import YAML_MAPPING_SCHEMA, DOMAIN
+from .log import get_logger
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = get_logger(__name__)
 
 
 class SchemaService:

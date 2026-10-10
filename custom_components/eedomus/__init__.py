@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 import os
 from datetime import timedelta
 
@@ -46,9 +45,10 @@ from .entity import _get_config_value
 from .panel import async_setup_panel, async_unload_panel
 from .services import async_setup_services
 from .webhook import EedomusWebhookView
+from .log import get_logger
 
 # Initialize logger first
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = get_logger(__name__)
 
 # Get version from manifest.json
 try:

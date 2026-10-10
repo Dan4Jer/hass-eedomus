@@ -1,6 +1,5 @@
 """UI Service for Eedomus Integration with WebSocket API for frontend communication."""
 
-import logging
 import math
 from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -13,8 +12,9 @@ from .const import COORDINATOR, DOMAIN
 from .coordinator import EedomusBackfillError
 from .mapping_registry import get_mapping_registry
 from .panel_translations import get_panel_translations
+from .log import get_logger
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = get_logger(__name__)
 
 # Define WebSocket command types
 WS_TYPE_EEDOMUS_VALIDATE = f"{DOMAIN}/validate_config"

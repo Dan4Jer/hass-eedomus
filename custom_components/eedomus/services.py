@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from datetime import datetime
 from typing import Any
 
@@ -11,8 +10,17 @@ from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import entity_platform as ep
 
 from .const import DOMAIN, COORDINATOR
+from .log import box_log_context, get_logger, resolve_box_tag
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = get_logger(__name__)
+
+
+def _coordinator_box_tag(coordinator) -> str:
+    """Resolve the box tag for a coordinator (ticket 113)."""
+    return resolve_box_tag(
+        getattr(coordinator, "config_entry", None),
+        getattr(coordinator, "client", None),
+    )
 
 
 def _get_all_coordinators(hass: HomeAssistant) -> list:
@@ -100,7 +108,8 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
         errors = []
         for coord in coordinators:
             try:
-                await coord.async_request_refresh()
+                with box_log_context(_coordinator_box_tag(coord)):
+                    await coord.async_request_refresh()
             except Exception as err:
                 box_title = getattr(getattr(coord, "config_entry", None), "title", "unknown box")
                 _LOGGER.error("❌ Failed to refresh eedomus data for %s: %s", box_title, err)
@@ -132,32 +141,37 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
                 translation_placeholders={"device_id": str(device_id)},
             )
 
-        try:
-            # Send the command to eedomus using the owning box's coordinator
-            # This ensures proper fallback and retry logic is applied
-            result = await target_coordinator.async_set_periph_value(device_id, value)
-
-            if result.get("success") == 1:
-                _LOGGER.info("✅ Successfully set value for device %s", device_id)
-                # Force refresh to get updated state
-                await target_coordinator.async_request_refresh()
-            else:
-                _LOGGER.warning("⚠️ Set value returned non-success: %s", result)
-                raise HomeAssistantError(
-                    translation_domain=DOMAIN,
-                    translation_key="set_value_failed",
-                    translation_placeholders={
-                        "error": str(result.get("error", "Unknown error"))
-                    },
+        with box_log_context(_coordinator_box_tag(target_coordinator)):
+            try:
+                # Send the command to eedomus using the owning box's coordinator
+                # This ensures proper fallback and retry logic is applied
+                result = await target_coordinator.async_set_periph_value(
+                    device_id, value
                 )
 
-        except HomeAssistantError:
-            # Already user-facing and translated - not a crash, do not
-            # log it as one (double handling).
-            raise
-        except Exception as err:
-            _LOGGER.error("❌ Failed to set value for device %s: %s", device_id, err)
-            raise
+                if result.get("success") == 1:
+                    _LOGGER.info("✅ Successfully set value for device %s", device_id)
+                    # Force refresh to get updated state
+                    await target_coordinator.async_request_refresh()
+                else:
+                    _LOGGER.warning("⚠️ Set value returned non-success: %s", result)
+                    raise HomeAssistantError(
+                        translation_domain=DOMAIN,
+                        translation_key="set_value_failed",
+                        translation_placeholders={
+                            "error": str(result.get("error", "Unknown error"))
+                        },
+                    )
+
+            except HomeAssistantError:
+                # Already user-facing and translated - not a crash, do not
+                # log it as one (double handling).
+                raise
+            except Exception as err:
+                _LOGGER.error(
+                    "❌ Failed to set value for device %s: %s", device_id, err
+                )
+                raise
 
     async def handle_reload(call: ServiceCall) -> None:
         """Handle reload service call - reloads every configured eedomus box."""
@@ -173,7 +187,8 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
         errors = []
         for entry in entries:
             try:
-                await hass.config_entries.async_reload(entry.entry_id)
+                with box_log_context(resolve_box_tag(entry)):
+                    await hass.config_entries.async_reload(entry.entry_id)
                 _LOGGER.info("✅ Eedomus integration reloaded successfully (%s)", entry.title)
             except Exception as err:
                 _LOGGER.error("❌ Failed to reload eedomus integration (%s): %s", entry.title, err)
@@ -262,27 +277,34 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
             )
         
         # Set temperature through climate entity
-        try:
-            await climate_entity.async_set_temperature(temperature=rounded_temp)
-            _LOGGER.info("✅ Successfully set climate temperature to %.1f°C for %s", rounded_temp, device_id)
-            
-            # Force refresh to get updated state
-            await target_coordinator.async_request_refresh()
-            
-            return {
-                "success": True,
-                "device_id": device_id,
-                "temperature": rounded_temp,
-                "message": f"Temperature set to {rounded_temp}°C"
-            }
-            
-        except Exception as err:
-            _LOGGER.error("❌ Failed to set climate temperature for %s: %s", device_id, err)
-            raise HomeAssistantError(
-                translation_domain=DOMAIN,
-                translation_key="set_temperature_failed",
-                translation_placeholders={"error": str(err)},
-            )
+        with box_log_context(_coordinator_box_tag(target_coordinator)):
+            try:
+                await climate_entity.async_set_temperature(temperature=rounded_temp)
+                _LOGGER.info(
+                    "✅ Successfully set climate temperature to %.1f°C for %s",
+                    rounded_temp,
+                    device_id,
+                )
+
+                # Force refresh to get updated state
+                await target_coordinator.async_request_refresh()
+
+                return {
+                    "success": True,
+                    "device_id": device_id,
+                    "temperature": rounded_temp,
+                    "message": f"Temperature set to {rounded_temp}°C"
+                }
+
+            except Exception as err:
+                _LOGGER.error(
+                    "❌ Failed to set climate temperature for %s: %s", device_id, err
+                )
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN,
+                    translation_key="set_temperature_failed",
+                    translation_placeholders={"error": str(err)},
+                )
 
     async def handle_cleanup_unused_entities(call: ServiceCall) -> dict:
         """Handle cleanup of unused eedomus entities."""

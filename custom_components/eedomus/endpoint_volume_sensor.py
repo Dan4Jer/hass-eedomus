@@ -5,7 +5,6 @@ Provides virtual sensors to monitor and analyze API endpoint data volume metrics
 
 from __future__ import annotations
 from datetime import datetime
-import logging
 
 from homeassistant.components.sensor import SensorEntity, SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
@@ -16,8 +15,9 @@ from homeassistant.helpers.device_registry import async_get as async_get_device_
 
 from .const import DOMAIN
 from .entity import get_entry_prefix
+from .log import get_logger
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = get_logger(__name__)
 
 class EedomusEndpointVolumeSensor(CoordinatorEntity, SensorEntity):
     """Base class for endpoint volume sensors."""

@@ -3,7 +3,6 @@
 from __future__ import annotations
 from datetime import datetime
 import re
-import logging
 import os
 import json
 
@@ -14,6 +13,7 @@ from .const import ATTR_PERIPH_ID, DOMAIN
 from .device_mapping import load_and_merge_yaml_mappings, load_yaml_mappings
 from .mapping_registry import register_device_mapping, print_mapping_summary
 from .mapping_rules import evaluate_conditions
+from .log import get_logger
 
 # Get version from manifest.json
 try:
@@ -25,7 +25,7 @@ except Exception as e:
     VERSION = "unknown"
     _LOGGER.warning("Failed to read version from manifest.json: %s", e)
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = get_logger(__name__)
 
 
 def _get_config_value(entry, option_name, default_value=None):

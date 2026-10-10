@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 import time
 import traceback
 from typing import Any, Dict, Optional
@@ -25,8 +24,9 @@ from .const import (
     DEFAULT_MIN_REQUEST_DELAY,
 )
 from .entity import _get_config_value
+from .log import get_logger
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = get_logger(__name__)
 
 # Dictionary of known eedomus error codes
 EEDOMUS_ERROR_CODES = {

@@ -13,12 +13,12 @@ Priority order for device mapping:
 """
 
 import os
-import logging
 from typing import Dict, Any, Optional
 import yaml
+from .log import get_logger
 
 # Initialize logger
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = get_logger(__name__)
 
 # Default YAML configuration paths (relative to the module directory)
 DEFAULT_MAPPING_FILE = "config/device_mapping.yaml"

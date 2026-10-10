@@ -1,5 +1,4 @@
 import json
-import logging
 
 from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
@@ -11,8 +10,9 @@ from .const import (
     DOMAIN,
     PLATFORMS,
 )
+from .log import box_log_context, get_logger, resolve_box_tag
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = get_logger(__name__)
 
 
 ## webhook
@@ -30,65 +30,78 @@ class EedomusWebhookView(HomeAssistantView):
 
     async def post(self, request):
         client_ip = request.remote
-        _LOGGER.debug(f"Request from {client_ip}")
-
-        # IP check (unless security is disabled for debugging)
-        if not self.disable_security and client_ip not in self.allowed_ips:
-            _LOGGER.warning(f"Unauthorized IP: {client_ip}")
-            return web.Response(text="Unauthorized", status=403)
-
-        # Log warning if security is disabled
-        if self.disable_security:
-            _LOGGER.warning(
-                f"SECURITY WARNING: IP validation disabled for debugging. Request from {client_ip}"
-            )
-
         hass = request.app["hass"]
-        try:
-            # 1. Parse JSON first (fail fast if invalid)
-            data = await request.json()
-            if (
-                data.get("action") != "refresh"
-                and data.get("action") != "partial_refresh"
-                and data.get("action") != "reload"
-            ):
-                return web.Response(text="Unrecognized action", status=400)
 
-            # 2. Get coordinator safely
-            domain_data = hass.data.get(DOMAIN, {})
-            entry_data = domain_data.get(self.entry_id, {})
-            coordinator = entry_data.get(COORDINATOR)
+        # Ticket 113: the view only holds the entry_id, so the config
+        # entry is resolved first, then the whole handling runs inside
+        # a box log context - every line carries the box's tag.
+        config_entry = None
+        for entry in hass.config_entries.async_entries(DOMAIN):
+            if entry.entry_id == self.entry_id:
+                config_entry = entry
+                break
 
-            if coordinator is None:
-                _LOGGER.error("Coordinator not found for entry_id: %s", self.entry_id)
-                return web.Response(text="Coordinator not available", status=500)
+        with box_log_context(resolve_box_tag(config_entry)):
+            _LOGGER.debug(f"Request from {client_ip}")
 
-            # 3. Execute refresh or reload
-            _LOGGER.info("Triggering eedomus %s", data.get("action"))
-            if data.get("action") == "refresh":
-                await coordinator._async_full_refresh()
-            if data.get("action") == "partial_refresh":
-                await coordinator._async_partial_refresh()
-            if data.get("action") == "reload":
-                _LOGGER.info("Reloading eedomus integration")
-                # Get the config entry
-                config_entry = None
-                for entry in hass.config_entries.async_entries(DOMAIN):
-                    if entry.entry_id == self.entry_id:
-                        config_entry = entry
-                        break
-                
-                if config_entry:
-                    # Reload the config entry
-                    await hass.config_entries.async_reload(config_entry.entry_id)
-                    _LOGGER.info("Eedomus integration reloaded successfully")
-                else:
-                    _LOGGER.error("Config entry not found for entry_id: %s", self.entry_id)
-                    return web.Response(text="Config entry not found", status=500)
-            return web.Response(text="OK")
+            # IP check (unless security is disabled for debugging)
+            if not self.disable_security and client_ip not in self.allowed_ips:
+                _LOGGER.warning(f"Unauthorized IP: {client_ip}")
+                return web.Response(text="Unauthorized", status=403)
 
-        except json.JSONDecodeError:
-            return web.Response(text="Invalid JSON", status=400)
-        except Exception as e:
-            _LOGGER.error("Webhook error: %s", str(e), exc_info=True)
-            return web.Response(text="Internal error", status=500)
+            # Log warning if security is disabled
+            if self.disable_security:
+                _LOGGER.warning(
+                    f"SECURITY WARNING: IP validation disabled for debugging. "
+                    f"Request from {client_ip}"
+                )
+
+            try:
+                # 1. Parse JSON first (fail fast if invalid)
+                data = await request.json()
+                if (
+                    data.get("action") != "refresh"
+                    and data.get("action") != "partial_refresh"
+                    and data.get("action") != "reload"
+                ):
+                    return web.Response(text="Unrecognized action", status=400)
+
+                # 2. Get coordinator safely
+                domain_data = hass.data.get(DOMAIN, {})
+                entry_data = domain_data.get(self.entry_id, {})
+                coordinator = entry_data.get(COORDINATOR)
+
+                if coordinator is None:
+                    _LOGGER.error(
+                        "Coordinator not found for entry_id: %s", self.entry_id
+                    )
+                    return web.Response(text="Coordinator not available", status=500)
+
+                # 3. Execute refresh or reload
+                _LOGGER.info("Triggering eedomus %s", data.get("action"))
+                if data.get("action") == "refresh":
+                    await coordinator._async_full_refresh()
+                if data.get("action") == "partial_refresh":
+                    await coordinator._async_partial_refresh()
+                if data.get("action") == "reload":
+                    _LOGGER.info("Reloading eedomus integration")
+                    if config_entry:
+                        # Reload the config entry
+                        await hass.config_entries.async_reload(
+                            config_entry.entry_id
+                        )
+                        _LOGGER.info("Eedomus integration reloaded successfully")
+                    else:
+                        _LOGGER.error(
+                            "Config entry not found for entry_id: %s", self.entry_id
+                        )
+                        return web.Response(
+                            text="Config entry not found", status=500
+                        )
+                return web.Response(text="OK")
+
+            except json.JSONDecodeError:
+                return web.Response(text="Invalid JSON", status=400)
+            except Exception as e:
+                _LOGGER.error("Webhook error: %s", str(e), exc_info=True)
+                return web.Response(text="Internal error", status=500)

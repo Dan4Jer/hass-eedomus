@@ -1,6 +1,5 @@
 """Configuration Manager for Eedomus Integration with HA 2026 features."""
 
-import logging
 from typing import Dict, Any, Optional
 
 from homeassistant.core import HomeAssistant, callback
@@ -12,8 +11,9 @@ from .const import (
     DOMAIN,
     YAML_MAPPING_SCHEMA,
 )
+from .log import get_logger
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = get_logger(__name__)
 
 # AD-14bis: schema version of the stored custom mapping. A document saved
 # before this field existed is the birth version (1): stamped, never

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 from homeassistant.components.binary_sensor import (
@@ -14,8 +13,9 @@ from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN, COORDINATOR
 from .entity import EedomusEntity
+from .log import get_logger
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = get_logger(__name__)
 
 # Mapping of eedomus types to Home Assistant device classes
 EEDOMUS_TO_HA_DEVICE_CLASS = {

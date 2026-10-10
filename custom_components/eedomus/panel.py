@@ -13,7 +13,6 @@ Uses the supported API (verified in the HA 2026.9.3 source):
 from __future__ import annotations
 
 import json
-import logging
 from pathlib import Path
 
 from homeassistant.components.frontend import async_remove_panel
@@ -22,8 +21,9 @@ from homeassistant.components.panel_custom import async_register_panel
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN
+from .log import get_logger
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = get_logger(__name__)
 
 PANEL_URL_PATH = "eedomus-config"
 PANEL_COMPONENT_NAME = "eedomus-config-panel"
