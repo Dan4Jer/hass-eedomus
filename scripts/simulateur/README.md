@@ -36,7 +36,9 @@ simulateur/
 ├── 00_extract.py
 ├── 01_create_renom.py
 ├── 02_apply_renom.py
+├── 03_catalog.py
 ├── simulator.py
+├── CATALOG.md
 ├── eedomus_dump.json
 └── thermostat_rules.json
 ```
@@ -433,3 +435,33 @@ reference files shipped with the simulator are `eedomus_dump.json` and
 `thermostat_rules.json`; the `new_*` files produced by
 `02_apply_renom.py` serve to prepare, validate and extend that
 reference dataset.
+
+# 17. Catalog of missing hardware types
+
+`CATALOG.md` lists the hardware types the integration can map but
+the shipped dataset cannot exercise: usage_ids handled by
+`device_mapping.yaml` but absent from `eedomus_dump.json`, usage_ids
+present in the dump but unmapped, and structural gaps (parent/child
+shapes, value_type variants, dangling platform mappings), each with
+a documented priority. It also documents how to add a missing type
+through the 00/01/02 flow, which stays a human step (real box,
+credentials, privacy pass).
+
+The catalog is generated statically - no box access, no network:
+
+```bash
+python3 03_catalog.py
+```
+
+The generation is deterministic: the same inputs always produce a
+byte-identical file. `--check` compares the generated content with
+the existing file instead of writing (exit 1 on drift):
+
+```bash
+python3 03_catalog.py --check
+```
+
+Regenerate the catalog after any change to `eedomus_dump.json` or
+`custom_components/eedomus/config/device_mapping.yaml`. The unit
+suite (`tests/unit/test_simulator_catalog.py`) fails if the
+committed file drifts from the generation.
