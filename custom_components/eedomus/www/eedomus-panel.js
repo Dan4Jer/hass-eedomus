@@ -26,8 +26,7 @@ import {
   COPY_WRITE_TIMEOUT_MS,
   STRINGS_LOAD_TIMEOUT_MS,
   applySharedMixin,
-  menuButtonHtml,
-  MENU_BUTTON_STYLES,
+  escapeHtml,
 } from './panel/shared.js';
 import {
   applyCoherenceMixin,
@@ -40,6 +39,56 @@ import { applyPeripheriquesMixin, PERIPH_STYLES } from './panel/peripheriques.js
 import { applyReglesMixin, RULES_STYLES } from './panel/regles.js';
 import { applyHistoriqueMixin, HISTORY_STYLES } from './panel/historique.js';
 import { applySupervisionMixin, SUPERVISION_STYLES } from './panel/supervision.js';
+
+/**
+ * Menu button (issue #125 / ticket 116): the escape affordance for
+ * narrow viewports. Custom panels get no HA app-header, so when HA
+ * hides the sidebar the panel must offer its own way out — the click
+ * handler dispatches the standard `hass-toggle-menu` event.
+ *
+ * Lives in THIS entry (not in a panel module): only the entry URL is
+ * cache-busted (?v=<manifest version>), so anything the entry needs
+ * must be served from it — a new export in an imported module breaks
+ * against browsers' cached copy of that module (seen live in 0.15.4).
+ * The 900px media value equals COHERENCE_NARROW_PX
+ * (coherence-helpers.js); the node test pins the equality.
+ */
+function menuButtonHtml(t) {
+  const label = escapeHtml(t('panel.menu.aria'));
+  return (
+    `<button class="menu-button" data-action="toggle-menu"` +
+    ` aria-label="${label}">` +
+    `<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">` +
+    `<path fill="currentColor" ` +
+    `d="M3,6h18v2H3V6z M3,11h18v2H3V11z M3,16h18v2H3V16z" />` +
+    `</svg></button>`
+  );
+}
+
+const MENU_BUTTON_STYLES = `
+  /* Menu button (#125): hidden on wide viewports — the HA sidebar is
+     permanently visible there and a second exit would be noise. */
+  .menu-button {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    margin: 4px 0 0 -8px;
+    padding: 0;
+    border: none;
+    border-radius: var(--ha-border-radius, 4px);
+    background: transparent;
+    color: var(--primary-text-color);
+    cursor: pointer;
+  }
+  .menu-button:focus-visible {
+    outline: var(--ha-focus-outline, 2px solid currentColor);
+  }
+  @media (max-width: 900px) {
+    .menu-button { display: inline-flex; }
+  }
+`;
 
 class EedomusConfigPanel extends HTMLElement {
   constructor() {
