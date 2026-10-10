@@ -1,4 +1,4 @@
-# tickets.toml — epic-history-backfill : 9 entrées, ordre de build.
+# tickets.toml — epic-history-backfill : 11 entrées, ordre de build.
 
 [[entry]]
 id = 1
@@ -106,3 +106,27 @@ after = [4]
 hitl = false
 risk = "medium"
 notes = ["Sujet issu de la session d'elicitation du 2026-10-10 (l'utilisateur a codé l'initialisation, pas le run). Terrain factuel vérifié dans le code : walk unique, completed jamais re-fetché, recorder = vérité post-native, upsert idempotent.", "Inconnu à trancher avant build : le cloud eedomus corrige-t-il réellement des heures anciennes, et à quelle fréquence ? Si non, le run se réduit au sondage du joint.", "Antagonisme à surveiller : le bug de la boucle de fetch infinie (periphs completed re-fetchant la même fenêtre) — le design du run ne doit pas la reproduire sur les completed."]
+
+[[entry]]
+id = 10
+type = "bug"
+title = "Boucle de fetch infinie : periphs arrives a present sans jamais passer completed"
+description = "Quand le walk d'un gros periph atteint present, la fenetre API [start, now] renvoie toujours exactement 10 000 points (les plus recents du cloud) dont le max = le dernier point cloud (~30 min de retard) : last_timestamp n'avance plus, le periph re-fetch la meme fenetre a chaque passe sans jamais passer completed (len(chunk) < 10000), le quota du drain est bouffe en continu par 5-6 periphs (observe live : 1248341, 1091579, 1077374, 1123009, 1090997 en boucle depuis des heures, retrieved_points qui enfle de 10k/passe). Fix attendu : detecter la fenetre morte (chunk plein dont max <= start precedent, ou comparaison au premier native statistic AD-11) et marquer completed."
+verify = "Sur l'instance live, les periphs precedemment en boucle passent completed et quittent la file ; le drain consacre son quota a des periphs qui progressent reellement ; aucun test unitaire de regression casse."
+covers = ["CAP-2"]
+after = [4]
+hitl = false
+risk = "medium"
+notes = ["Diagnostique 2026-10-09 dans l'analyse des logs (session live). Ne pas reproduire ce comportement dans le simulateur (5.2 l'exclut deja : points strictement apres start)."]
+
+[[entry]]
+id = 11
+type = "bug"
+title = "271 chunks perdus : periphs elegibles sans correspondance exacte dans le registry"
+description = "async_import_history_chunk resout la cible statistics via le registry en correspondance exacte (AD-8bis) ; ~30 periphs elegibles n'ont pas d'entite au nom exact et leur import est skippe avec un warning ('no exact entity match') - le chunk a deja avance la progression (le fetch avance, pas l'import), donc les points sont perdus silencieusement (271 chunks observes 2026-10-03..07). Fix attendi : soit resoudre via la variante suffixee (allow_suffixed=True, la cible existe sous sensor.x_2), soit marquer ces periphs non elegibles a la source (AD-3) pour qu'ils n'entrent jamais dans la file."
+verify = "Aucun warning 'no exact entity match' sur un cycle de drain complet ; les periphs concernes soit importent dans leur entite reelle, soit sont absents de la file get_backfill_state."
+covers = ["CAP-1"]
+after = [4]
+hitl = false
+risk = "medium"
+notes = ["Diagnostique 2026-10-09 : les suffixes _2 des entites sont la cause la plus probable (registry unique_id <prefix>_<periph_id> exact mais entity_id suffixe). Decision allow_suffixed vs exclusion a prendre a la planification."]

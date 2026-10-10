@@ -3,7 +3,7 @@ title: 'Story 5.1: salvage the eedomus simulator from PR #119'
 type: 'chore'
 ticket: '1'
 created: '2026-10-09'
-status: built
+status: done
 route: 'oneshot'
 route_source: 'auto'
 review: ''

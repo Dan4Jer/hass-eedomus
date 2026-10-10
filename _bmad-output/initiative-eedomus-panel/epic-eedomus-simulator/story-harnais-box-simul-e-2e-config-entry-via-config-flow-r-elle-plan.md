@@ -3,7 +3,7 @@ title: 'Story 5.3: simulated box harness + history_api_host knob'
 type: 'feature'
 ticket: '3'
 created: '2026-10-10'
-status: 'built'
+status: done
 route: 'full'
 route_source: 'auto'
 review: ''

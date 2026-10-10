@@ -3,7 +3,7 @@ title: 'Bug 1.8: pass unit_class to async_import_statistics (HA 2026.11)'
 type: 'bugfix'
 ticket: '8'
 created: '2026-10-08'
-status: built
+status: done
 route: 'oneshot'
 route_source: 'auto'
 review: ''

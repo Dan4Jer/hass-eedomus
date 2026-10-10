@@ -3,7 +3,7 @@ title: 'Story 1.3: remove the double-import and the ghost sensor.eedomus_* artif
 type: 'chore'
 ticket: '3'
 created: '2026-10-08'
-status: built
+status: done
 route: 'oneshot'
 route_source: 'auto'
 review: ''

@@ -3,7 +3,7 @@ title: 'Story 5.4: refactor sweep (end of epic)'
 type: 'chore'
 ticket: '4'
 created: '2026-10-10'
-status: 'built'
+status: done
 route: 'oneshot'
 route_source: 'auto'
 review: 'none'

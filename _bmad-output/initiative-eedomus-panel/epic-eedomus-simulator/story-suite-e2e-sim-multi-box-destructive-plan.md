@@ -3,7 +3,7 @@ title: 'Story 5.5: E2E-sim multi-box + destructive suite'
 type: 'feature'
 ticket: '5'
 created: '2026-10-10'
-status: 'built'
+status: done
 route: 'full'
 route_source: 'auto'
 review: ''

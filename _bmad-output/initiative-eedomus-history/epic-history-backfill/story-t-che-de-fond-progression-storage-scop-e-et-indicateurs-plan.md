@@ -3,7 +3,7 @@ title: 'Story 1.4: background task, .storage progress, CAP-5 indicators, bug 109
 type: 'feature'
 ticket: '4'
 created: '2026-10-08'
-status: built
+status: done
 route: 'full'
 route_source: 'auto'
 review: ''
