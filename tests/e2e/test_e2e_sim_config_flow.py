@@ -18,56 +18,16 @@ import pytest
 
 from tests.e2e._sim_harness import (
     SIM_API_HOST,
-    SIM_SECRET,
-    SIM_USER,
+    SIM_TITLE_MARK,
     SimulatedBox,
+    build_user_input,
+    create_sim_entry,
+    discard_flow,
+    remove_entry,
+    sim_entries,
 )
 
 pytestmark = [pytest.mark.e2e, pytest.mark.e2e_sim]
-
-SIM_TITLE_MARK = SIM_API_HOST  # entry title contains the api_host
-
-
-def _flow_user_input(**overrides):
-    """A user step payload accepted by the flow's field validators."""
-    payload = {
-        "api_host": SIM_API_HOST,
-        "history_api_host": SIM_API_HOST,
-        "api_eedomus": True,
-        "enable_api_proxy": False,
-        "api_user": SIM_USER,
-        "api_secret": SIM_SECRET,
-        "scan_interval": 30,
-        "history": False,
-        "http_request_timeout": 10,
-        "max_concurrent_requests": 5,
-        "min_request_delay": 0.5,
-        "enable_set_value_retry": False,
-        "max_retries": 3,
-        "enable_webhook": False,
-        "api_proxy_disable_security": False,
-        "php_fallback_enabled": False,
-        "php_fallback_script_name": "",
-        "php_fallback_timeout": 5,
-    }
-    payload.update(overrides)
-    return payload
-
-
-def _sim_entries(ha_api):
-    """The simulated entries present on the instance (stale-run guard)."""
-    r = ha_api.get("/api/config/config_entries/entry")
-    r.raise_for_status()
-    return [
-        e for e in r.json()
-        if e["domain"] == "eedomus" and SIM_TITLE_MARK in e["title"]
-    ]
-
-
-def _remove_entry(ha_api, entry_id):
-    """Best-effort entry removal (a teardown must never raise)."""
-    r = ha_api.delete(f"/api/config/config_entries/entry/{entry_id}")
-    return r.status_code == 200
 
 
 @pytest.fixture(scope="module")
@@ -85,27 +45,15 @@ def sim_entry(ha_api, simulated_box):
     removed after the suite — even on failure."""
     # Stale-run guard: an entry left by a crashed run blocks the
     # unique_id (eedomus_<api_host>) with already_configured.
-    for entry in _sim_entries(ha_api):
-        _remove_entry(ha_api, entry["entry_id"])
+    for entry in sim_entries(ha_api):
+        remove_entry(ha_api, entry["entry_id"])
 
-    r = ha_api.post("/api/config/config_entries/flow", {"handler": "eedomus"})
-    r.raise_for_status()
-    flow_id = r.json()["flow_id"]
-    r = ha_api.post(
-        f"/api/config/config_entries/flow/{flow_id}",
-        _flow_user_input(),
-    )
-    r.raise_for_status()
-    result = r.json()
-    assert result["type"] == "create_entry", result
-    assert result["result"]["state"] == "loaded", result["result"]
-    assert SIM_TITLE_MARK in result["result"]["title"], result["result"]
-    entry_id = result["result"]["entry_id"]
+    entry_id, _ = create_sim_entry(ha_api)
 
     yield entry_id
 
     # Best-effort removal: a test may already have removed the entry.
-    _remove_entry(ha_api, entry_id)
+    remove_entry(ha_api, entry_id)
 
 
 class TestSimulatedBoxConfigFlow:
@@ -117,17 +65,17 @@ class TestSimulatedBoxConfigFlow:
         flow_id = r.json()["flow_id"]
         r = ha_api.post(
             f"/api/config/config_entries/flow/{flow_id}",
-            _flow_user_input(api_secret="wrong-secret"),
+            build_user_input(api_secret="wrong-secret"),
         )
         r.raise_for_status()
         result = r.json()
         assert result["type"] == "form", result
         assert result["errors"], "the rejected flow must carry errors"
         # Never leaves a pending flow behind
-        ha_api.delete(f"/api/config/config_entries/flow/{result['flow_id']}")
+        discard_flow(ha_api, result["flow_id"])
 
     def test_flow_creates_entry_with_knob(self, sim_entry):
-        """Config flow ok: entry created with the history knob in data."""
+        """Config flow ok: entry created through the real flow."""
         assert sim_entry
 
     def test_dump_entities_appear_beside_the_real_box(
@@ -158,14 +106,14 @@ class TestSimulatedBoxRemoval:
     def test_entry_removed_and_entities_gone(self, ha_api, sim_entry):
         """The simulated entry disappears cleanly via the config-entries
         REST API, and its dump entities are removed."""
-        assert _remove_entry(ha_api, sim_entry)
+        assert remove_entry(ha_api, sim_entry)
 
         deadline = time.time() + 60
         while time.time() < deadline:
-            if not _sim_entries(ha_api):
+            if not sim_entries(ha_api):
                 break
             time.sleep(2)
-        assert not _sim_entries(ha_api), "simulated entry still present"
+        assert not sim_entries(ha_api), "simulated entry still present"
 
         deadline = time.time() + 60
         while time.time() < deadline:

@@ -33,3 +33,9 @@ Home Assistant custom integration for the Eedomus box (Python 3.9+, vanilla JS p
 - The mapping registry is never cleared: devices re-register on every reload. Joins must be last-wins; a first-wins join shows the pre-change mapping.
 
 <!-- /bmad:context -->
+
+## Two E2E strates (AD-16)
+
+- Live-Pi (`pytest tests/e2e/ -m "e2e and not e2e_sim"`): the regression truth — the real Pi, never mocked.
+- Simulator (`pytest tests/e2e/ -m e2e_sim`): multi-box and destructive coverage — boots `scripts/simulateur/` on the Pi over SSH, drives the real config flow/REST/websocket APIs against a simulated box.
+- The simulator strate completes the live one, never replaces it; Flask stays test-only (`requirements-test.txt`).

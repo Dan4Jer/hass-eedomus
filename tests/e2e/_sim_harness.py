@@ -95,7 +95,91 @@ class SimulatedBox:
         )
 
     def stop(self):
-        """Kill the simulator process (best effort — teardown never raises)."""
+        """Kill the simulator process (best effort — teardown never raises).
+
+        The PID kill is backed by a pattern pkill: over SSH the
+        captured PID can miss (shell wrapping), and a stale simulator
+        on the port breaks the next run's health check.
+        """
         if self.pid:
             _ssh(f"kill {self.pid} 2>/dev/null; true", check=False)
-            self.pid = None
+        _ssh(
+            f"pkill -f 'simulator.py -p {SIM_PORT}' 2>/dev/null; true",
+            check=False,
+        )
+        self.pid = None
+
+
+# ------------------------------------------------------------------
+# Real config-flow drive helpers (HA 2026 REST flow API)
+# ------------------------------------------------------------------
+
+SIM_TITLE_MARK = SIM_API_HOST  # entry title contains the api_host
+
+
+def build_user_input(**overrides):
+    """A user-step payload accepted by the flow's field validators."""
+    payload = {
+        "api_host": SIM_API_HOST,
+        "history_api_host": SIM_API_HOST,
+        "api_eedomus": True,
+        "enable_api_proxy": False,
+        "api_user": SIM_USER,
+        "api_secret": SIM_SECRET,
+        "scan_interval": 30,
+        "history": False,
+        "http_request_timeout": 10,
+        "max_concurrent_requests": 5,
+        "min_request_delay": 0.5,
+        "enable_set_value_retry": False,
+        "max_retries": 3,
+        "enable_webhook": False,
+        "api_proxy_disable_security": False,
+        "php_fallback_enabled": False,
+        "php_fallback_script_name": "",
+        "php_fallback_timeout": 5,
+    }
+    payload.update(overrides)
+    return payload
+
+
+def sim_entries(ha_api):
+    """The simulated entries present on the instance (stale-run guard)."""
+    r = ha_api.get("/api/config/config_entries/entry")
+    r.raise_for_status()
+    return [
+        e for e in r.json()
+        if e["domain"] == "eedomus" and SIM_TITLE_MARK in e["title"]
+    ]
+
+
+def remove_entry(ha_api, entry_id):
+    """Best-effort entry removal (a teardown must never raise)."""
+    r = ha_api.delete(f"/api/config/config_entries/entry/{entry_id}")
+    return r.status_code == 200
+
+
+def create_sim_entry(ha_api, **payload_overrides):
+    """Create the simulated entry through the real flow (REST flow API).
+
+    Returns (entry_id, result). Raises AssertionError when the flow
+    does not end in a loaded create_entry.
+    """
+    r = ha_api.post("/api/config/config_entries/flow", {"handler": "eedomus"})
+    r.raise_for_status()
+    flow_id = r.json()["flow_id"]
+    r = ha_api.post(
+        f"/api/config/config_entries/flow/{flow_id}",
+        build_user_input(**payload_overrides),
+    )
+    r.raise_for_status()
+    result = r.json()
+    assert result["type"] == "create_entry", result
+    assert result["result"]["state"] == "loaded", result["result"]
+    assert SIM_TITLE_MARK in result["result"]["title"], result["result"]
+    return result["result"]["entry_id"], result
+
+
+def discard_flow(ha_api, flow_id):
+    """Never leave a pending flow behind."""
+    ha_api.delete(f"/api/config/config_entries/flow/{flow_id}")
