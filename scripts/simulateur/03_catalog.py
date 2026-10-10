@@ -144,12 +144,9 @@ def load_dump(dump_file: Path) -> dict[str, Any]:
         dump = json.loads(dump_file.read_text(encoding="utf-8"))
     except json.JSONDecodeError as err:
         raise CatalogError(f"Invalid JSON in {dump_file}: {err}") from err
-    if not isinstance(dump, dict) or not isinstance(
-        dump.get("periph_list"), list
-    ):
+    if not isinstance(dump, dict) or not isinstance(dump.get("periph_list"), list):
         raise CatalogError(
-            f"{dump_file} must contain a JSON object with a "
-            f"'periph_list' list."
+            f"{dump_file} must contain a JSON object with a " f"'periph_list' list."
         )
     return dump
 
@@ -171,9 +168,7 @@ def load_mapping(mapping_file: Path) -> dict[str, Any]:
             f"{mapping_file} has no 'usage_id_mappings' table — the "
             f"catalog cannot be computed. Nothing was written."
         )
-    mapping["usage_id_mappings"] = {
-        str(key): value for key, value in mappings.items()
-    }
+    mapping["usage_id_mappings"] = {str(key): value for key, value in mappings.items()}
     return mapping
 
 
@@ -253,9 +248,7 @@ def analyze(
             "usage_name": usage_names.get(usage_id, "-"),
             "count": usage_counts[usage_id],
         }
-        for usage_id in sorted(
-            set(usage_counts) - set(handled), key=_usage_sort_key
-        )
+        for usage_id in sorted(set(usage_counts) - set(handled), key=_usage_sort_key)
     ]
 
     children: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -285,8 +278,9 @@ def analyze(
     rgbw_max_children = max(rgbw_child_counts, default=0)
 
     motion_children = child_usage_by_parent.get("37", Counter())
-    control_children = {usage_id: all_child_usage.get(usage_id, 0)
-                        for usage_id in ("1", "2", "4", "52")}
+    control_children = {
+        usage_id: all_child_usage.get(usage_id, 0) for usage_id in ("1", "2", "4", "52")
+    }
 
     structural_gaps = [
         {
@@ -468,8 +462,7 @@ def _table(headers: list[str], rows: list[list[str]]) -> list[str]:
 
 def _value_type_summary(value_types: Counter) -> str:
     return ", ".join(
-        f"{value_type}: {count}"
-        for value_type, count in sorted(value_types.items())
+        f"{value_type}: {count}" for value_type, count in sorted(value_types.items())
     )
 
 
@@ -728,8 +721,7 @@ def main(argv: list[str] | None = None) -> int:
         "--dump-file",
         type=str,
         default=os.getenv("DUMP_JSON_FILE", str(DEFAULT_DUMP_FILE)),
-        help="simulator dump file (default/env: eedomus_dump.json /"
-        " DUMP_JSON_FILE)",
+        help="simulator dump file (default/env: eedomus_dump.json /" " DUMP_JSON_FILE)",
     )
     parser.add_argument(
         "-m",
@@ -751,8 +743,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--check",
         action="store_true",
-        help="compare with the existing output instead of writing;"
-        " exit 1 on drift",
+        help="compare with the existing output instead of writing;" " exit 1 on drift",
     )
     args = parser.parse_args(argv)
 
