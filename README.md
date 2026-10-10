@@ -21,6 +21,58 @@
 - **Services**: refresh, set_value, reload, climate temperature, entity cleanup
 - **Full configuration from the UI**: config flow and options flow, no YAML required
 
+## Architecture
+
+```
++--------------------------+                    +----------------------+
+|     Home Assistant       |                    |      Eedomus Box     |
+|                          |                    |                      |
+|   +-------------------+  |                    |   +--------------+   |
+|   | Coordinator       |<-|----- HTTP ------>  |   | API Endpoint |   |
+|   +-------------------+  |                    |   +--------------+   |
+|   | Light Platform    |  |                    |   |  Devices     |   |
+|   | Switch Platform   |  |                    |   |  States      |   |
+|   | Sensor Platform   |  |                    |   +--------------+   |
+|   | Binary Sensor     |  |                    +----------------------+
+|   | Cover Platform    |  |
+|   | Climate Platform  |  |
+|   | Select Platform   |  |
+|   | Battery Sensors   |  |
+|   +-------------------+  |
++--------------------------+
+```
+
+```mermaid
+flowchart LR
+    subgraph HomeAssistant[Home Assistant]
+        direction TB
+        Coordinator[Coordinator] --> Light[Light Platform]
+        Coordinator --> Switch[Switch Platform]
+        Coordinator --> Sensor[Sensor Platform]
+        Coordinator --> Binary[Binary Sensor Platform]
+        Coordinator --> Cover[Cover Platform]
+        Coordinator --> Climate[Climate Platform]
+        Coordinator --> Select[Select Platform]
+        Coordinator --> Battery[Battery Sensors]
+    end
+
+    subgraph Eedomus[Eedomus Box]
+        direction TB
+        API[API Endpoint] --> Devices[Devices]
+        Devices --> States[States]
+    end
+
+    States -->|HTTP polling| Coordinator
+
+    style HomeAssistant fill:#e8f4fd,stroke:#333
+    style Eedomus fill:#e9f3e4,stroke:#333
+    style Coordinator fill:#dbe9f9,stroke:#333
+```
+
+The coordinator groups API calls, applies the YAML mapping, and feeds
+one platform per entity type; the box keeps owning its devices and
+states.
+
 ## Installation
 
 ### Via HACS (recommended)
@@ -51,9 +103,124 @@ At least one of `api_eedomus` / `enable_api_proxy` must be enabled.
 
 ### Connection modes
 
-- **API Eedomus (pull)**: Home Assistant polls the box. Requires API credentials. Full functionality including history.
-- **API Proxy (webhook, push)**: the box pushes updates to Home Assistant in near real time. Limited functionality (no history).
-- **Combined (recommended)**: both modes together for redundancy and responsiveness.
+#### API Eedomus (pull)
+
+```
++---------------------+       HTTP        +---------------------+
+|                     |  -------------->  |                     |
+|   Home Assistant    |                   |   Eedomus Box       |
+|                     |  <--------------  |                     |
++---------------------+                   +---------------------+
+            Core                          API Endpoint
+              |                                |
+              v                                v
+        Eedomus Client                    Devices Manager
+                                             |
+                                             v
+                                        States Database
+```
+
+```mermaid
+flowchart LR
+    subgraph HomeAssistant[Home Assistant]
+        direction TB
+        HA[Core] --> Eedomus_client[Eedomus Client]
+    end
+
+    subgraph Eedomus[Eedomus Box]
+        direction TB
+        EedomusAPI[API Endpoint] --> Devices[Devices Manager]
+        Devices --> States[States Database]
+    end
+
+    Eedomus_client -->|HTTP| EedomusAPI
+
+    style HomeAssistant fill:#e8f4fd,stroke:#333
+    style Eedomus fill:#e9f3e4,stroke:#333
+```
+
+Home Assistant polls the box periodically. Requires API credentials.
+Full functionality, including history retrieval.
+
+#### API Proxy (webhook, push)
+
+```
++---------------------+       HTTP        +---------------------+
+|                     |  <--------------  |                     |
+|   Home Assistant    |                   |   Eedomus Box       |
+|                     |                   |                     |
++---------------------+                   +---------------------+
+        API Proxy                          API Endpoint
+            |                                  |
+            v                                  v
+     Webhook Receiver                   Devices Manager
+                                             |
+                                             v
+                                    HTTP Actioneur(s)
+```
+
+```mermaid
+flowchart LR
+    subgraph HomeAssistant[Home Assistant]
+        direction TB
+        APIProxy --> HA[Core]
+    end
+
+    subgraph Eedomus[Eedomus Box]
+        direction TB
+        EedomusAPI[API Endpoint] --> Devices[Devices Manager]
+        Devices --> Act[HTTP Actioneur]
+    end
+
+    Act -->|HTTP push| APIProxy
+
+    style HomeAssistant fill:#e8f4fd,stroke:#333
+    style Eedomus fill:#e9f3e4,stroke:#333
+```
+
+The box pushes state changes to Home Assistant via webhooks in near
+real time. No credentials needed for basic operation; no history.
+
+#### Combined (recommended)
+
+```
++---------------------+   HTTP pull       +---------------------+
+|                     |  -------------->  |                     |
+|   Home Assistant    |                   |   Eedomus Box       |
+|                     |  <--------------  |                     |
++---------------------+   HTTP push       +---------------------+
+            Core                          API Endpoint
+              |                                |
+              v                                v
+        Eedomus Client                    Devices Manager
+        Webhook Receiver                       |
+                                             v
+                                    HTTP Actioneur(s)
+```
+
+```mermaid
+flowchart LR
+    subgraph HomeAssistant[Home Assistant]
+        direction TB
+        HA[Core] --> Eedomus_client[Eedomus Client]
+        APIProxy[API Proxy] --> HA
+    end
+
+    subgraph Eedomus[Eedomus Box]
+        direction TB
+        EedomusAPI[API Endpoint] --> Devices[Devices Manager]
+        Devices --> Act[HTTP Actioneur]
+    end
+
+    Eedomus_client -->|HTTP pull| EedomusAPI
+    Act -->|HTTP push| APIProxy
+
+    style HomeAssistant fill:#e8f4fd,stroke:#333
+    style Eedomus fill:#e9f3e4,stroke:#333
+```
+
+Both modes together: periodic polling for completeness, webhooks for
+responsiveness, and redundancy if one path fails.
 
 ## Options
 
@@ -88,6 +255,48 @@ You can install several instances of the integration, one per eedomus box (e.g. 
 Services accept a target: pass the entity or config entry to select which box receives the command.
 
 ## YAML device mapping
+
+### Mapping granularity
+
+One eedomus peripheral maps to one Home Assistant device, with child
+entities for its specific capabilities:
+
+```
++-----------------------+       +----------------------+
+|   Eedomus Device      |       |   HA Device          |
+|                       |       |                      |
+|   +---------------+   |       |   +--------------+   |
+|   | Device 1077644|---|------>|   | RGBW Light   |   |
+|   +---------------+   |       |   +--------------+   |
+|   | Red Child     |   |       |   |Battery Entity|   |
+|   | Green Child   |   |       |   +--------------+   |
+|   | Battery Sensor|---|-------|-->|(Child Entity)|   |
+|   +---------------+   |       +----------------------+
++-----------------------+
+```
+
+```mermaid
+flowchart LR
+    subgraph EedomusDevice[Eedomus Peripheral]
+        A[Device 1077644] --> B[Red Child]
+        A --> C[Green Child]
+        A --> D[Battery Sensor]
+    end
+
+    subgraph HADevice[Home Assistant Device]
+        E[RGBW Light] --> F[Battery Entity]
+    end
+
+    A -->|maps to| E
+    D -->|maps to| F
+
+    style EedomusDevice fill:#e9f3e4,stroke:#333
+    style HADevice fill:#e8f4fd,stroke:#333
+```
+
+RGBW parents are detected by their children (a peripheral with 4+
+children of usage `1`), and capabilities like battery become child
+entities of the same device - see the rule grammar below.
 
 Device mappings are defined in YAML and loaded at startup:
 

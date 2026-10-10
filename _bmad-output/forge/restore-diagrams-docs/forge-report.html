@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Forge report — restore the diagrams</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem;color:#222}
+.seal{width:120px;height:120px;border-radius:50%;background:#7a1f1f;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.1rem;margin:1rem auto;box-shadow:0 2px 6px #0003;transform:rotate(-8deg)}
+h1{font-size:1.4rem}h2{font-size:1.1rem;margin-top:1.5rem}
+table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:.4rem .6rem;text-align:left;font-size:.9rem}
+.voice{font-style:italic;color:#555}
+</style>
+</head>
+<body>
+<h1>Forge report — restore the ASCII + mermaid diagrams</h1>
+<svg class="seal" role="img" aria-label="Hardened"><text>HARDENED</text></svg>
+
+<h2>Outcome</h2>
+<p>The idea is hardened: the early documentation's diagrams come back,
+faithful to their original doublette form, in English, verified against
+today's code.</p>
+
+<h2>Locked decisions</h2>
+<ul>
+<li>Doublettes: every diagram ships as ASCII art <em>and</em> mermaid, side by side.</li>
+<li>English labels (repo policy); FR doc may mirror later.</li>
+<li>README gets 5 doublettes (architecture, 3 connection modes, granularity); <code>docs/mapping-format.md</code> gets the exhaustive mapping diagram cleaned against <code>config/device_mapping.yaml</code>.</li>
+<li>Wireframes dropped — the ES-module panel replaced that editor.</li>
+</ul>
+
+<h2>Rejected and why</h2>
+<table>
+<tr><th>Option</th><th>Why rejected</th></tr>
+<tr><td>Mermaid only (no doublette)</td><td>User wants the original pattern; dual maintenance accepted knowingly.</td></tr>
+<tr><td>French labels (faithful to origin)</td><td>Violates the all-English policy; the README is English.</td></tr>
+<tr><td>PRODUCT_TYPE_ID=2304 for RGBW (old claim)</td><td>Stale: RGBW is detected by >= 4 children with usage_id=1.</td></tr>
+</table>
+
+<h2>Weak point that survived scrutiny</h2>
+<p>Doublettes double the maintenance surface: every future change must
+be applied to both copies or the documentation lies. Accepted by the
+user as the price of the format.</p>
+
+<h2>Voices</h2>
+<p class="voice">Pressure-tested by the forge session (2026-10-10): the archivist (what the history actually contains), the maintainer (who pays for double maintenance), the policy auditor (all-English rule).</p>
+</body>
+</html>

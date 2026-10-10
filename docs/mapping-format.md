@@ -6,6 +6,58 @@ load. The grammar below mirrors the validation schema
 (`custom_components/eedomus/const.py`): what the schema accepts is the
 format.
 
+## The default mapping at a glance
+
+The shipped `config/device_mapping.yaml` decides the entity shape of
+every peripheral. The diagram below summarizes it: `usage_id` (the
+device category the box reports) drives the platform, and a few
+advanced rules detect multi-child devices.
+
+```mermaid
+flowchart TD
+    subgraph UsageTable[usage_id to Home Assistant mapping]
+        %% Switches
+        U0[usage_id 0 / 2 / 4 / 50 / 52] --> Switch[switch]
+        %% Lights
+        U1[usage_id 1] --> Light[light - dimmable]
+        %% Sensors
+        U7[usage_id 7] --> Temp[sensor - temperature]
+        U24[usage_id 24] --> Lux[sensor - illuminance]
+        U22[usage_id 22] --> Moist[sensor - moisture]
+        U26[usage_id 26 / 29] --> Energy[sensor - energy]
+        U28[usage_id 28] --> Power[sensor - power]
+        U100[usage_id 100-114, 18, 34, 35, 84] --> Text[sensor - text]
+        U23[usage_id 23] --> Generic[sensor - generic]
+        %% Binary sensors
+        U27[usage_id 27] --> Smoke[binary_sensor - smoke]
+        U37[usage_id 37] --> Motion[binary_sensor - motion]
+        U36[usage_id 36] --> Flood[binary_sensor - moisture]
+        %% Climate
+        U15[usage_id 15] --> Setpoint[climate - temperature setpoint]
+        U19[usage_id 19 / 20] --> FilPilote[climate - fil pilote]
+        U38[usage_id 38] --> Heating[climate - heating]
+        %% Covers
+        U48[usage_id 48] --> Cover[cover - shutter]
+        %% Selects
+        U14[usage_id 14 / 42] --> ShutterGroup[select - shutter group]
+        U43[usage_id 43] --> Automation[select - automation]
+        U82[usage_id 82] --> ColorPreset[select - color preset]
+        U999[usage_id 999] --> Virtual[select - virtual]
+        %% Buttons
+        U127[usage_id 127] --> CamTrigger[button - camera trigger]
+    end
+
+    subgraph AdvancedRules[advanced rules - priority over usage_id]
+        R1[usage_id 1 with 4+ children] --> RGBW[light - rgbw]
+        R2[usage_id 1, child of an rgbw parent] --> Brightness[light - brightness]
+    end
+```
+
+Everything in the diagram is overridable: `custom_usage_id_mappings`
+replaces a usage row, `custom_rules` adds state-conditional rules, and
+both win over the default document (priority: advanced rules >
+`usage_id_mappings` > `name_patterns` > `default_mapping`).
+
 ## Top-level sections
 
 ```yaml
