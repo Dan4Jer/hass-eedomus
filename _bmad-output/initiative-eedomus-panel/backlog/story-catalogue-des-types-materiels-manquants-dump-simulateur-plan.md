@@ -3,12 +3,12 @@ title: 'Catalog of missing eedomus hardware types in the simulator dump (ticket 
 type: 'feature'
 ticket: '114'
 created: '2026-10-10'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'a5f43c3'
 route: 'full'
 route_source: 'auto'
-review: ''
-review_source: ''
+review: 'thorough'
+review_source: 'auto'
 lenses_ran: []
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -94,3 +94,23 @@ deferred: []
 - `03_catalog.py` exit 0; `--check` confirms the committed file is current.
 - Full unit suite: 430 passed (includes the 12 new catalog tests); no diff on regeneration.
 - `test-coherence.js`: all coherence tests passed.
+
+## Review Triage Log
+
+### 2026-10-10 — Review pass (thorough)
+- verdicts: 29 findings — high 0, medium 5, low 23, false 1, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` CATALOG.md switch control-children row claims "covered" while its own detail reports usage 2/4 at 0, and counts are not scoped to switch parents (switch.py:78-84 inspects children of switch-mapped parents only) — recompute scoped, status "partially covered", accurate detail (blind-hunter #1, #2, grouped)
+  - `[medium]` `[patch]` RGBW threshold semantics wrong: light.py:88-102 counts ALL children (≥4), not usage-1 children only, and the usage-82 color preset is NOT structurally required (light.py:63-64: 82 child mapping removed, standalone select) — count all children, fix detail and the 82 extraction hint (blind-hunter #3 + edge-case #11, #12, grouped)
+  - `[medium]` `[patch]` priority_for's rubric-miss fail-loud raise has no test — future mapping additions can silently get arbitrary tiers; add test_unknown_missing_usage_id_fails_loud (verification-gap #1)
+  - `[low]` `[patch]` thermostat_rules.json parsed with bare json.loads (raw traceback on malformed input), non-list rules silently treated as zero, absent setpoint_id skipped silently, missing rules file invisible — wrap in CatalogError, fail loud on non-list, emit findings for absent setpoints and missing rules file (blind-hunter #4, #5 + edge-case #3, #10 + verification-gap other, grouped)
+  - `[low]` `[patch]` input validation fail-loud gaps: non-dict periph entries, null/scalar mapping entries, non-UTF-8 files, OSError on output write/read, null usage_id/usage_name becoming literal "None" rows, falsy value_type (0/False) counted as "(empty)" — guards + CatalogError (edge-case #1, #2, #4, #5, #6, #7, grouped)
+  - `[low]` `[patch]` duplicate periph_id silently last-wins in periphs_by_id — fail loud (edge-case #9)
+  - `[low]` `[patch]` children referencing a parent absent from the dump silently inflate the parents/children counts — emit a finding and exclude from counts (edge-case #8)
+  - `[low]` `[patch]` priority_for tier 4 is a magic 100-113 range regardless of the entry's actual mapping — key tier 4 off the mapping entry (sensor/text) instead of the numeric range (blind-hunter #6)
+  - `[low]` `[patch]` catalog presentation: raw French dump labels in section 2 get English glosses (policy consistency with the Volets finding), and the 127 row gains an explicit "blocked on button.py" marker (blind-hunter #8, #10)
+  - `[low]` `[patch]` README wiring: section 15 workflow ends without the regenerate-catalog step (drift committed by verbatim followers), the -d/-m/-o CLI override surface (preview on new_* datasets) is undocumented, tests invoking main() rely on argparse env-var defaults (hermeticity), and --check on a missing file says "out of date" instead of "not generated" (blind-hunter #11, #12, #13, grouped)
+  - `[low]` `[reject]` structural-gap citations carry hard line numbers that will drift — symbol-name anchoring is an enhancement, not a defect; citations were verified accurate today and are refreshed at regeneration
+  - `[low]` `[reject]` no "default/fallback mappings" section for usage-0 periphs — outside the intent's scope ("types manquants": default-mapped present periphs are neither missing nor unmapped); re-raising is a future ticket's call
+  - `[low]` `[reject]` test_every_missing_id_is_handled is tautological under analyze's construction — harmless; docstring nuance only
+  - `[false]` `[reject]` "the shipped dump has zero parent_id children" — false as a finding against this change: the diff's own CATALOG.md reports the true structure (10 parents, 29 parented periphs via parent_periph_id); the error lives in this plan's Code Map (inherited from a mis-keyed exploration), corrected in Implementation Notes — and per triage rules a finding whose fix edits the plan is rejected
