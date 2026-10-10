@@ -188,9 +188,7 @@ def load_mapping(mapping_file: Path) -> dict[str, Any]:
                 f"usage_id_mappings entry '{key}' in {mapping_file} "
                 f"must be a mapping of ha_entity/ha_subtype fields."
             )
-    mapping["usage_id_mappings"] = {
-        str(key): value for key, value in mappings.items()
-    }
+    mapping["usage_id_mappings"] = {str(key): value for key, value in mappings.items()}
     return mapping
 
 
@@ -483,8 +481,7 @@ def analyze(
         for rule in rules:
             if not isinstance(rule, dict):
                 raise CatalogError(
-                    f"{rules_path} contains a rule that is not a "
-                    f"JSON object."
+                    f"{rules_path} contains a rule that is not a " f"JSON object."
                 )
             setpoint_id = _text(rule.get("setpoint_id"))
             periph = periphs_by_id.get(setpoint_id)
