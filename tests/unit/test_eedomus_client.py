@@ -12,7 +12,6 @@ import pytest
 
 from custom_components.eedomus.eedomus_client import EedomusClient
 
-
 pytestmark = pytest.mark.unit
 
 
@@ -98,7 +97,9 @@ class TestErrorFormatting:
 
     def test_format_error_response_full(self):
         client = make_client()
-        result = client._format_error_response("Boom", raw_response="raw", http_status=500)
+        result = client._format_error_response(
+            "Boom", raw_response="raw", http_status=500
+        )
         assert result["success"] == 0
         assert result["error"] == "Boom"
         assert result["http_status"] == 500

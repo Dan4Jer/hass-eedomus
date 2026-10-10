@@ -23,8 +23,8 @@ import pytest
 
 from custom_components.eedomus.const import COORDINATOR
 from custom_components.eedomus.coordinator import (
-    EedomusDataUpdateCoordinator,
     METRICS_BUFFER_SIZE,
+    EedomusDataUpdateCoordinator,
 )
 from custom_components.eedomus.ui_service import EedomusUIService
 
@@ -131,9 +131,7 @@ class TestCycleCapture:
             coordinator._endpoint_call_counts["get_periph_list"] += 1
             return (dict(coordinator.data), stats)
 
-        coordinator._async_full_refresh = AsyncMock(
-            side_effect=fake_full_refresh
-        )
+        coordinator._async_full_refresh = AsyncMock(side_effect=fake_full_refresh)
 
         await coordinator._async_update_data()
 
@@ -150,9 +148,7 @@ class TestCycleCapture:
         async def raise_timeout():
             raise Exception("Request timed out")
 
-        coordinator._async_partial_refresh = AsyncMock(
-            side_effect=raise_timeout
-        )
+        coordinator._async_partial_refresh = AsyncMock(side_effect=raise_timeout)
 
         result = await coordinator._async_update_data()
 
@@ -218,9 +214,7 @@ class TestGetBoxMetrics:
 
     def test_box_name_resolves_from_the_config_entry_title(self):
         coordinator = make_coordinator()
-        coordinator.config_entry = SimpleNamespace(
-            entry_id=ENTRY_ID, title="Salon"
-        )
+        coordinator.config_entry = SimpleNamespace(entry_id=ENTRY_ID, title="Salon")
         assert coordinator._box_display_name() == "Salon"
 
     def test_box_name_falls_back_to_api_host_then_host_then_none(self):
@@ -244,9 +238,7 @@ class TestGetBoxMetricsHandler:
         first._capture_cycle_metrics(1.0, 0.5)
         service, connection = make_service([first, second])
 
-        await service._handle_get_box_metrics(
-            service.hass, connection, {"id": 7}
-        )
+        await service._handle_get_box_metrics(service.hass, connection, {"id": 7})
 
         payload = connection.send_result.call_args[0][1]
         assert [box["entry_id"] for box in payload["boxes"]] == ["E1", "E2"]
@@ -272,14 +264,10 @@ class TestGetBoxMetricsHandler:
         healthy = make_coordinator(entry_id="E1")
         healthy._capture_cycle_metrics(1.0, 0.5)
         broken = make_coordinator(entry_id="E2")
-        broken.get_box_metrics = MagicMock(
-            side_effect=RuntimeError("metrics boom")
-        )
+        broken.get_box_metrics = MagicMock(side_effect=RuntimeError("metrics boom"))
         service, connection = make_service([healthy, broken])
 
-        await service._handle_get_box_metrics(
-            service.hass, connection, {"id": 11}
-        )
+        await service._handle_get_box_metrics(service.hass, connection, {"id": 11})
 
         # The broken box is skipped with a warning; the healthy box is
         # still served and no error reaches the client.
@@ -292,13 +280,9 @@ class TestGetBoxMetricsHandler:
         """A failure of the aggregation walk itself (not one box)
         surfaces as send_error, never as a half-loaded result."""
         service, connection = make_service([])
-        service._collect_coordinators = MagicMock(
-            side_effect=RuntimeError("walk down")
-        )
+        service._collect_coordinators = MagicMock(side_effect=RuntimeError("walk down"))
 
-        await service._handle_get_box_metrics(
-            service.hass, connection, {"id": 12}
-        )
+        await service._handle_get_box_metrics(service.hass, connection, {"id": 12})
 
         connection.send_error.assert_called_once_with(
             12, "internal_error", "Failed to build the box metrics view"
@@ -309,9 +293,7 @@ class TestGetBoxMetricsHandler:
     async def test_no_coordinator_is_a_nominal_service_unavailable(self):
         service, connection = make_service([])
 
-        await service._handle_get_box_metrics(
-            service.hass, connection, {"id": 8}
-        )
+        await service._handle_get_box_metrics(service.hass, connection, {"id": 8})
 
         connection.send_error.assert_called_once_with(
             8, "service_unavailable", "No eedomus coordinator available"
@@ -328,9 +310,7 @@ class TestGetBoxMetricsHandler:
         }
         service, connection = make_service([coordinator])
 
-        await service._handle_get_box_metrics(
-            service.hass, connection, {"id": 9}
-        )
+        await service._handle_get_box_metrics(service.hass, connection, {"id": 9})
 
         payload = connection.send_result.call_args[0][1]
         # _json_safe serialized the embedded datetime as ISO text -
@@ -345,9 +325,7 @@ class TestGetBoxMetricsHandler:
         stripped = MagicMock(spec=[])
         service, connection = make_service([coordinator, stripped])
 
-        await service._handle_get_box_metrics(
-            service.hass, connection, {"id": 10}
-        )
+        await service._handle_get_box_metrics(service.hass, connection, {"id": 10})
 
         payload = connection.send_result.call_args[0][1]
         assert [box["entry_id"] for box in payload["boxes"]] == [ENTRY_ID]
@@ -456,9 +434,7 @@ class TestHistoryRecoveryIndicators:
         """Completion, points, coverage and queue health aggregate the
         progress map and the derived queue; the ETA follows the worker
         cadence (pending x interval / quota)."""
-        coordinator = self._coordinator_with_history(
-            history_peripherals_per_scan=5
-        )
+        coordinator = self._coordinator_with_history(history_peripherals_per_scan=5)
         coordinator._backfill_eligible_peripherals = {
             "a": {"periph_id": "a"},
             "b": {"periph_id": "b"},
@@ -510,9 +486,7 @@ class TestHistoryRecoveryIndicators:
         """total None when nothing carries an estimate, oldest None
         when nothing was retrieved — never a fake number or date."""
         coordinator = self._coordinator_with_history()
-        coordinator._backfill_eligible_peripherals = {
-            "a": {"periph_id": "a"}
-        }
+        coordinator._backfill_eligible_peripherals = {"a": {"periph_id": "a"}}
         coordinator._history_progress = {
             "a": {"completed": False, "retrieved_points": 5}
         }
@@ -523,15 +497,9 @@ class TestHistoryRecoveryIndicators:
         assert indicators["eta_hours"] == 0.0
 
     def test_empty_queue_is_the_positive_state(self):
-        coordinator = self._coordinator_with_history(
-            history_peripherals_per_scan=5
-        )
-        coordinator._backfill_eligible_peripherals = {
-            "a": {"periph_id": "a"}
-        }
-        coordinator._history_progress = {
-            "a": {"completed": True}
-        }
+        coordinator = self._coordinator_with_history(history_peripherals_per_scan=5)
+        coordinator._backfill_eligible_peripherals = {"a": {"periph_id": "a"}}
+        coordinator._history_progress = {"a": {"completed": True}}
         indicators = coordinator._history_recovery_indicators()
         assert indicators["pending"] == 0
         assert indicators["errors"] == 0

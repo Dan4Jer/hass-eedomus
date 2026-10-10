@@ -4,77 +4,80 @@
 import os
 import re
 
+
 def analyze_code_issues():
     """Analyser les issues potentielles dans le code."""
-    print('🔍 ANALYSE DES ISSUES DANS LE CODE')
-    print('=' * 60)
-    
+    print("🔍 ANALYSE DES ISSUES DANS LE CODE")
+    print("=" * 60)
+
     issues = []
-    
+
     # Analyser coordinator.py
-    coordinator_file = 'hass-eedomus/custom_components/eedomus/coordinator.py'
+    coordinator_file = "hass-eedomus/custom_components/eedomus/coordinator.py"
     if os.path.exists(coordinator_file):
-        with open(coordinator_file, 'r') as f:
+        with open(coordinator_file, "r") as f:
             content = f.read()
-        
+
         # Vérifier les problèmes potentiels
-        
+
         # 1. Vérifier si la validation des données est complète
-        if 'def _validate_history_data' in content:
-            if 'timestamp' in content and 'value' in content:
-                print('✅ Validation des données implémentée')
+        if "def _validate_history_data" in content:
+            if "timestamp" in content and "value" in content:
+                print("✅ Validation des données implémentée")
             else:
-                issues.append('❌ Validation des données incomplète')
+                issues.append("❌ Validation des données incomplète")
         else:
-            issues.append('❌ Pas de validation des données')
-        
+            issues.append("❌ Pas de validation des données")
+
         # 2. Vérifier si la queue de réessais est implémentée
-        if '_retry_queue' in content and '_error_count' in content:
-            print('✅ Queue de réessais implémentée')
+        if "_retry_queue" in content and "_error_count" in content:
+            print("✅ Queue de réessais implémentée")
         else:
-            issues.append('❌ Queue de réessais non implémentée')
-        
+            issues.append("❌ Queue de réessais non implémentée")
+
         # 3. Vérifier si la correction de progression est appliquée
-        if 'min(100,' in content and 'global_progress' in content:
-            print('✅ Correction de progression appliquée')
+        if "min(100," in content and "global_progress" in content:
+            print("✅ Correction de progression appliquée")
         else:
-            issues.append('❌ Correction de progression non appliquée')
-        
+            issues.append("❌ Correction de progression non appliquée")
+
         # 4. Vérifier si les capteurs d'erreur sont créés
-        if 'async def _create_error_sensors' in content:
-            print('✅ Capteurs d\'erreur implémentés')
+        if "async def _create_error_sensors" in content:
+            print("✅ Capteurs d'erreur implémentés")
         else:
-            issues.append('❌ Capteurs d\'erreur non implémentés')
+            issues.append("❌ Capteurs d'erreur non implémentés")
     else:
-        issues.append(f'❌ Fichier introuvable: {coordinator_file}')
-    
+        issues.append(f"❌ Fichier introuvable: {coordinator_file}")
+
     # Analyser options_flow.py
-    options_file = 'hass-eedomus/custom_components/eedomus/options_flow.py'
+    options_file = "hass-eedomus/custom_components/eedomus/options_flow.py"
     if os.path.exists(options_file):
-        with open(options_file, 'r') as f:
+        with open(options_file, "r") as f:
             content = f.read()
-        
+
         # Vérifier si l'option de configuration est présente
-        if 'CONF_HISTORY_RETRY_DELAY' in content:
-            print('✅ Option de configuration implémentée')
+        if "CONF_HISTORY_RETRY_DELAY" in content:
+            print("✅ Option de configuration implémentée")
         else:
-            issues.append('❌ Option de configuration non implémentée')
+            issues.append("❌ Option de configuration non implémentée")
     else:
-        issues.append(f'❌ Fichier introuvable: {options_file}')
-    
+        issues.append(f"❌ Fichier introuvable: {options_file}")
+
     return issues
+
 
 def propose_corrections():
     """Proposer des corrections pour les issues identifiées."""
-    print('\n💡 CORRECTIONS PROPOSÉES')
-    print('=' * 60)
-    
+    print("\n💡 CORRECTIONS PROPOSÉES")
+    print("=" * 60)
+
     corrections = []
-    
+
     # 1. Correction pour la validation des données
-    corrections.append({
-        'issue': 'Validation des données incomplète',
-        'correction': """Ajouter une validation complète dans _validate_history_data():
+    corrections.append(
+        {
+            "issue": "Validation des données incomplète",
+            "correction": """Ajouter une validation complète dans _validate_history_data():
 
     def _validate_history_data(self, chunk: list) -> bool:
         \"\"\"Valider les données historiques reçues.\"\"\"
@@ -99,13 +102,15 @@ def propose_corrections():
 
         return True
 """,
-        'fichier': 'coordinator.py'
-    })
-    
+            "fichier": "coordinator.py",
+        }
+    )
+
     # 2. Correction pour la queue de réessais
-    corrections.append({
-        'issue': 'Queue de réessais non implémentée',
-        'correction': """Ajouter la gestion des erreurs et la queue de réessais:
+    corrections.append(
+        {
+            "issue": "Queue de réessais non implémentée",
+            "correction": """Ajouter la gestion des erreurs et la queue de réessais:
 
     def _handle_fetch_error(self, periph_id, error_message):
         \"\"\"Gérer les erreurs de récupération d'historique.\"\"\"
@@ -138,13 +143,15 @@ def propose_corrections():
             if periph_id in self._retry_queue:
                 self._retry_queue[periph_id]["attempts"] += 1
 """,
-        'fichier': 'coordinator.py'
-    })
-    
+            "fichier": "coordinator.py",
+        }
+    )
+
     # 3. Correction pour la progression
-    corrections.append({
-        'issue': 'Correction de progression non appliquée',
-        'correction': """Corriger le calcul de progression globale:
+    corrections.append(
+        {
+            "issue": "Correction de progression non appliquée",
+            "correction": """Corriger le calcul de progression globale:
 
             # Corriger le calcul pour éviter de dépasser 100%
             if total_estimated > 0:
@@ -152,13 +159,15 @@ def propose_corrections():
             else:
                 global_progress = 0
 """,
-        'fichier': 'coordinator.py'
-    })
-    
+            "fichier": "coordinator.py",
+        }
+    )
+
     # 4. Correction pour les capteurs d'erreur
-    corrections.append({
-        'issue': 'Capteurs d\'erreur non implémentés',
-        'correction': """Ajouter la création des capteurs d'erreur:
+    corrections.append(
+        {
+            "issue": "Capteurs d'erreur non implémentés",
+            "correction": """Ajouter la création des capteurs d'erreur:
 
     async def _create_error_sensors(self):
         \"\"\"Créer des capteurs pour visualiser les erreurs et la queue de réessais.\"\"\"
@@ -205,13 +214,15 @@ def propose_corrections():
         except Exception as e:
             _LOGGER.error("Error creating error sensors: %s", e)
 """,
-        'fichier': 'coordinator.py'
-    })
-    
+            "fichier": "coordinator.py",
+        }
+    )
+
     # 5. Correction pour l'option de configuration
-    corrections.append({
-        'issue': 'Option de configuration non implémentée',
-        'correction': """Ajouter l'option de configuration dans const.py:
+    corrections.append(
+        {
+            "issue": "Option de configuration non implémentée",
+            "correction": """Ajouter l'option de configuration dans const.py:
 
 CONF_HISTORY_RETRY_DELAY = "history_retry_delay"
 DEFAULT_HISTORY_RETRY_DELAY = 24  # 24 heures par défaut
@@ -220,44 +231,47 @@ Et dans options_flow.py:
 
 vol.Optional(CONF_HISTORY_RETRY_DELAY, default=DEFAULT_HISTORY_RETRY_DELAY): int,
 """,
-        'fichier': 'const.py et options_flow.py'
-    })
-    
+            "fichier": "const.py et options_flow.py",
+        }
+    )
+
     return corrections
+
 
 def main():
     """Fonction principale."""
-    print('🔍 ANALYSE DES ISSUES ET CORRECTIONS PROPOSÉES')
-    print('=' * 60)
-    
+    print("🔍 ANALYSE DES ISSUES ET CORRECTIONS PROPOSÉES")
+    print("=" * 60)
+
     # Analyser les issues
     issues = analyze_code_issues()
-    
+
     if issues:
-        print('\n❌ Issues identifiées:')
+        print("\n❌ Issues identifiées:")
         for issue in issues:
-            print(f'   - {issue}')
+            print(f"   - {issue}")
     else:
-        print('\n✅ Aucun problème critique identifié')
-    
+        print("\n✅ Aucun problème critique identifié")
+
     # Proposer des corrections
     corrections = propose_corrections()
-    
-    print('\n📋 Corrections proposées:')
-    print('=' * 40)
-    
+
+    print("\n📋 Corrections proposées:")
+    print("=" * 40)
+
     for i, correction in enumerate(corrections, 1):
         print(f'\n{i}. {correction["issue"]}')
         print(f'   Fichier: {correction["fichier"]}')
-        print('   Correction:')
+        print("   Correction:")
         print(correction["correction"])
-    
-    print('\n📝 Documentation:')
-    print('=' * 40)
-    print('Pour plus d\'informations, consultez:')
-    print('   - HISTORY_FEATURE_STATUS.md')
-    print('   - ENABLE_HISTORY_FEATURE.md')
-    print('   - DEPLOYMENT_GUIDE.md')
 
-if __name__ == '__main__':
+    print("\n📝 Documentation:")
+    print("=" * 40)
+    print("Pour plus d'informations, consultez:")
+    print("   - HISTORY_FEATURE_STATUS.md")
+    print("   - ENABLE_HISTORY_FEATURE.md")
+    print("   - DEPLOYMENT_GUIDE.md")
+
+
+if __name__ == "__main__":
     main()

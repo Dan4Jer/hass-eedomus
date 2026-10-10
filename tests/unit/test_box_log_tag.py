@@ -36,9 +36,7 @@ def test_tag_appended_inside_context(caplog):
     with caplog.at_level(logging.INFO, logger=TEST_LOGGER):
         with box_log_context("Salon"):
             _emit("Refresh complete (165 peripherals)")
-    assert (
-        "Refresh complete (165 peripherals) [box: Salon]" in caplog.text
-    ), caplog.text
+    assert "Refresh complete (165 peripherals) [box: Salon]" in caplog.text, caplog.text
 
 
 def test_untagged_outside_context(caplog):
@@ -202,9 +200,7 @@ def test_sweep_guard_no_logger_built_outside_the_factory():
     filter - under any variable name or literal logger name. log.py
     is the only module allowed to touch the logging API.
     """
-    package_dir = (
-        Path(__file__).resolve().parents[2] / "custom_components" / "eedomus"
-    )
+    package_dir = Path(__file__).resolve().parents[2] / "custom_components" / "eedomus"
     offenders = []
     for path in sorted(package_dir.glob("*.py")):
         if "backup" in path.name or path.name == "log.py":
@@ -212,8 +208,8 @@ def test_sweep_guard_no_logger_built_outside_the_factory():
         for lineno, line in enumerate(path.read_text().splitlines(), start=1):
             if "logging.getLogger(" in line:
                 offenders.append(f"{path.name}:{lineno}: {line.strip()}")
-    assert not offenders, (
-        "Loggers built outside the get_logger factory:\n" + "\n".join(offenders)
+    assert not offenders, "Loggers built outside the get_logger factory:\n" + "\n".join(
+        offenders
     )
 
 
@@ -294,14 +290,10 @@ def _make_webhook_hass(entry_id: str = "entry-1", title: str = "Salon"):
     coordinator = MagicMock()
 
     async def full_refresh() -> None:
-        get_logger("custom_components.eedomus.coordinator").info(
-            "Full refresh done"
-        )
+        get_logger("custom_components.eedomus.coordinator").info("Full refresh done")
 
     async def partial_refresh() -> None:
-        get_logger("custom_components.eedomus.coordinator").info(
-            "Partial refresh done"
-        )
+        get_logger("custom_components.eedomus.coordinator").info("Partial refresh done")
 
     coordinator._async_full_refresh = full_refresh
     coordinator._async_partial_refresh = partial_refresh
@@ -384,6 +376,4 @@ async def test_webhook_reload_returns_ok_tagged(caplog):
     assert response.status == 200
     assert response.text == "OK"
     hass.config_entries.async_reload.assert_awaited_once_with("entry-1")
-    assert (
-        "Eedomus integration reloaded successfully [box: Salon]" in caplog.text
-    )
+    assert "Eedomus integration reloaded successfully [box: Salon]" in caplog.text

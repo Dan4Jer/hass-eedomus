@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Setup script for hass-eedomus development environment."""
+
 import subprocess
 import sys
 import venv
@@ -14,8 +15,12 @@ def create_venv(venv_path=".venv"):
 
 def install_requirements(venv_path=".venv"):
     """Install development requirements."""
-    pip_path = f"{venv_path}/bin/pip" if sys.platform != "win32" else f"{venv_path}/Scripts/pip"
-    
+    pip_path = (
+        f"{venv_path}/bin/pip"
+        if sys.platform != "win32"
+        else f"{venv_path}/Scripts/pip"
+    )
+
     print("📦 Installing development requirements...")
     subprocess.run([pip_path, "install", "--upgrade", "pip"])
     subprocess.run([pip_path, "install", "-r", "requirements.txt"])
@@ -25,13 +30,13 @@ def install_requirements(venv_path=".venv"):
 def main():
     """Main setup function."""
     print("🚀 Setting up hass-eedomus development environment...")
-    
+
     # Create virtual environment
     create_venv()
-    
+
     # Install requirements
     install_requirements()
-    
+
     print("\n🎉 Development environment ready!")
     print("Activate with:")
     if sys.platform == "win32":

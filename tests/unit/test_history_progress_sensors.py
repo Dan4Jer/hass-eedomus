@@ -27,13 +27,9 @@ PERIPH_ID = "72762"
 
 def make_coordinator(progress):
     """Build a coordinator around an explicit progress map."""
-    coordinator = EedomusDataUpdateCoordinator(
-        hass=MagicMock(), client=MagicMock()
-    )
+    coordinator = EedomusDataUpdateCoordinator(hass=MagicMock(), client=MagicMock())
     coordinator.config_entry = SimpleNamespace(entry_id="01TEST")
-    coordinator.data = {
-        PERIPH_ID: {"periph_id": PERIPH_ID, "name": "Thermostat Salon"}
-    }
+    coordinator.data = {PERIPH_ID: {"periph_id": PERIPH_ID, "name": "Thermostat Salon"}}
     coordinator._history_progress = progress
     return coordinator
 

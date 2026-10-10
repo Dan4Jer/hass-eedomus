@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-
 from homeassistant.components.cover import CoverEntity, CoverEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN, COORDINATOR
+from .const import COORDINATOR, DOMAIN
 from .entity import EedomusEntity
 from .log import get_logger
 
@@ -38,7 +37,11 @@ async def async_setup_entry(
             ha_entity = coordinator.data[periph_id]["ha_entity"]
 
         parent_id = periph.get("parent_periph_id", None)
-        if parent_id and parent_id in coordinator.data and coordinator.data[parent_id]["ha_entity"] == "cover":
+        if (
+            parent_id
+            and parent_id in coordinator.data
+            and coordinator.data[parent_id]["ha_entity"] == "cover"
+        ):
             # Children are managed by parent... similar to light logic
             eedomus_mapping = None
             if periph.get("usage_id") == "26":  # Energy meter
@@ -48,8 +51,13 @@ async def async_setup_entry(
                     "justification": "Parent is a cover - energy consumption meter",
                 }
                 # Log to confirm the device was mapped
-                _LOGGER.debug("✅ Device mapped: %s (%s) → %s:%s", 
-                            periph["name"], periph_id, eedomus_mapping["ha_entity"], eedomus_mapping["ha_subtype"])
+                _LOGGER.debug(
+                    "✅ Device mapped: %s (%s) → %s:%s",
+                    periph["name"],
+                    periph_id,
+                    eedomus_mapping["ha_entity"],
+                    eedomus_mapping["ha_subtype"],
+                )
             if periph.get("usage_id") == "48":  # Slats
                 eedomus_mapping = {
                     "ha_entity": "cover",
@@ -116,9 +124,11 @@ class EedomusCover(EedomusEntity, CoverEntity):
         """Return if the cover is closed (position = 0)."""
         periph_data = self._get_periph_data()
         if periph_data is None:
-            _LOGGER.warning(f"Cannot get cover position: peripheral data not found for {self._periph_id}")
+            _LOGGER.warning(
+                f"Cannot get cover position: peripheral data not found for {self._periph_id}"
+            )
             return True  # Assume closed if data not available
-            
+
         position = periph_data.get("last_value")
         return position == "0" or position == 0
 
@@ -127,9 +137,11 @@ class EedomusCover(EedomusEntity, CoverEntity):
         """Return the current position of the cover (0-100)."""
         periph_data = self._get_periph_data()
         if periph_data is None:
-            _LOGGER.warning(f"Cannot get cover position: peripheral data not found for {self._periph_id}")
+            _LOGGER.warning(
+                f"Cannot get cover position: peripheral data not found for {self._periph_id}"
+            )
             return 0
-            
+
         position = periph_data.get("last_value")
         try:
             return int(position)
@@ -160,7 +172,11 @@ class EedomusCover(EedomusEntity, CoverEntity):
         _LOGGER.debug(
             "Setting cover position to %s for %s (periph_id=%s)",
             position,
-            self.coordinator.data.get(self._periph_id, {}).get("name", "unknown") if self.coordinator.data else "unknown",
+            (
+                self.coordinator.data.get(self._periph_id, {}).get("name", "unknown")
+                if self.coordinator.data
+                else "unknown"
+            ),
             self._periph_id,
         )
 
@@ -201,9 +217,11 @@ class EedomusAggregatedCover(EedomusCover):
         """Return the current position of the cover (0-100)."""
         periph_data = self._get_periph_data(self._parent_id)
         if periph_data is None:
-            _LOGGER.warning(f"Cannot get cover position: peripheral data not found for parent {self._parent_id}")
+            _LOGGER.warning(
+                f"Cannot get cover position: peripheral data not found for parent {self._parent_id}"
+            )
             return 0
-            
+
         position = periph_data.get("last_value")
         try:
             return int(position)
@@ -229,7 +247,7 @@ class EedomusAggregatedCover(EedomusCover):
                     "value": child_data.get("last_value"),
                     "unit": child_data.get("unit"),
                     "type": child_data.get("ha_subtype"),
-            }
+                }
 
         result_attrs["child_devices"] = child_attrs
         return result_attrs

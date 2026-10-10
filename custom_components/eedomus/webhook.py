@@ -62,13 +62,10 @@ class EedomusWebhookView(HomeAssistantView):
                 # A non-dict body (list, string...) has no action key:
                 # reject it as unrecognized instead of crashing on
                 # data.get and answering 500.
-                if (
-                    not isinstance(data, dict)
-                    or (
-                        data.get("action") != "refresh"
-                        and data.get("action") != "partial_refresh"
-                        and data.get("action") != "reload"
-                    )
+                if not isinstance(data, dict) or (
+                    data.get("action") != "refresh"
+                    and data.get("action") != "partial_refresh"
+                    and data.get("action") != "reload"
                 ):
                     return web.Response(text="Unrecognized action", status=400)
 
@@ -93,17 +90,13 @@ class EedomusWebhookView(HomeAssistantView):
                     _LOGGER.info("Reloading eedomus integration")
                     if config_entry:
                         # Reload the config entry
-                        await hass.config_entries.async_reload(
-                            config_entry.entry_id
-                        )
+                        await hass.config_entries.async_reload(config_entry.entry_id)
                         _LOGGER.info("Eedomus integration reloaded successfully")
                     else:
                         _LOGGER.error(
                             "Config entry not found for entry_id: %s", self.entry_id
                         )
-                        return web.Response(
-                            text="Config entry not found", status=500
-                        )
+                        return web.Response(text="Config entry not found", status=500)
                 return web.Response(text="OK")
 
             except json.JSONDecodeError:

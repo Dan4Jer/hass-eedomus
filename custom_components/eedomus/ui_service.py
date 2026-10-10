@@ -5,14 +5,13 @@ from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional
 
 import voluptuous as vol
-
 from homeassistant.core import HomeAssistant
 
 from .const import COORDINATOR, DOMAIN
 from .coordinator import EedomusBackfillError
+from .log import get_logger
 from .mapping_registry import get_mapping_registry
 from .panel_translations import get_panel_translations
-from .log import get_logger
 
 _LOGGER = get_logger(__name__)
 
@@ -30,9 +29,7 @@ WS_TYPE_EEDOMUS_GET_BACKFILL_STATE = f"{DOMAIN}/get_backfill_state"
 WS_TYPE_EEDOMUS_GET_BOX_METRICS = f"{DOMAIN}/get_box_metrics"
 WS_TYPE_EEDOMUS_BACKFILL_RETRY_NOW = f"{DOMAIN}/backfill_retry_now"
 WS_TYPE_EEDOMUS_BACKFILL_PRIORITIZE = f"{DOMAIN}/backfill_prioritize"
-WS_TYPE_EEDOMUS_BACKFILL_RESET_PROGRESS = (
-    f"{DOMAIN}/backfill_reset_progress"
-)
+WS_TYPE_EEDOMUS_BACKFILL_RESET_PROGRESS = f"{DOMAIN}/backfill_reset_progress"
 WS_TYPE_EEDOMUS_BACKFILL_SET_PAUSED = f"{DOMAIN}/backfill_set_paused"
 WS_TYPE_EEDOMUS_BACKFILL_SET_IGNORED = f"{DOMAIN}/backfill_set_ignored"
 
@@ -963,9 +960,7 @@ class EedomusUIService:
         # progress dict still projects a line.
         progress_map = getattr(coordinator, "_history_progress", None)
         progress = (
-            progress_map.get(periph_id)
-            if isinstance(progress_map, dict)
-            else None
+            progress_map.get(periph_id) if isinstance(progress_map, dict) else None
         ) or {}
         oldest = progress.get("oldest_timestamp")
         if isinstance(oldest, (int, float)):

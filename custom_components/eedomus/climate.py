@@ -1,8 +1,8 @@
 """Climate entity for eedomus integration."""
 
 from __future__ import annotations
-from datetime import datetime
 
+from datetime import datetime
 
 from homeassistant.components.climate import ClimateEntity
 from homeassistant.components.climate.const import (
@@ -13,7 +13,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, COORDINATOR
+from .const import COORDINATOR, DOMAIN
 from .entity import EedomusEntity
 from .log import get_logger
 
@@ -56,45 +56,59 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
             self._attr_name = periph_name
             self._adopt_derived_name()
         from .entity import get_entry_prefix
+
         self._attr_unique_id = f"{get_entry_prefix(coordinator)}_{periph_id}_climate"
 
         # Load YAML configuration for this device
-        yaml_config = coordinator.get_yaml_config_sync() if hasattr(coordinator, 'get_yaml_config_sync') else {}
+        yaml_config = (
+            coordinator.get_yaml_config_sync()
+            if hasattr(coordinator, "get_yaml_config_sync")
+            else {}
+        )
         usage_id = self.coordinator.data[periph_id].get("usage_id", "unknown")
-        
+
         # Get entity-specific configuration from YAML
         entity_specifics = {}
-        if 'usage_id_mappings' in yaml_config and usage_id in yaml_config['usage_id_mappings']:
-            entity_specifics = yaml_config['usage_id_mappings'][usage_id].get('entity_specifics', {})
-        
+        if (
+            "usage_id_mappings" in yaml_config
+            and usage_id in yaml_config["usage_id_mappings"]
+        ):
+            entity_specifics = yaml_config["usage_id_mappings"][usage_id].get(
+                "entity_specifics", {}
+            )
+
         # Climate-specific attributes with YAML overrides
-        self._attr_hvac_modes = entity_specifics.get('hvac_modes', [HVACMode.HEAT, HVACMode.OFF])
+        self._attr_hvac_modes = entity_specifics.get(
+            "hvac_modes", [HVACMode.HEAT, HVACMode.OFF]
+        )
         self._attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
-        
+
         # Temperature unit (required by Home Assistant)
-        self._attr_temperature_unit = entity_specifics.get('temperature_unit', "°C")
+        self._attr_temperature_unit = entity_specifics.get("temperature_unit", "°C")
 
         # Temperature range and precision from YAML (with defaults)
-        self._attr_min_temp = entity_specifics.get('min_temp', 7.0)
-        self._attr_max_temp = entity_specifics.get('max_temp', 30.0)
-        self._attr_target_temperature_step = entity_specifics.get('target_temp_step', 0.5)
-        
+        self._attr_min_temp = entity_specifics.get("min_temp", 7.0)
+        self._attr_max_temp = entity_specifics.get("max_temp", 30.0)
+        self._attr_target_temperature_step = entity_specifics.get(
+            "target_temp_step", 0.5
+        )
+
         # Precision for temperature display
-        self._attr_precision = entity_specifics.get('precision', 0.5)
+        self._attr_precision = entity_specifics.get("precision", 0.5)
 
         # Initialize default values
         self._attr_target_temperature = 19.0  # Default target temperature
         self._attr_current_temperature = None  # Will be set if available
-        
+
         # Load temperature sensor mapping if available
         self._linked_temperature_sensor = None
-        
+
         # Temperature sensor mapping will be loaded asynchronously in async_added_to_hass
         # to avoid blocking the event loop
-        
+
         # Fallback to device_mapping.yaml (for backward compatibility)
-        if 'temperature_setpoint_mappings' in yaml_config:
-            sensor_id = yaml_config['temperature_setpoint_mappings'].get(periph_id, '')
+        if "temperature_setpoint_mappings" in yaml_config:
+            sensor_id = yaml_config["temperature_setpoint_mappings"].get(periph_id, "")
             if sensor_id:
                 self._linked_temperature_sensor = sensor_id
                 _LOGGER.info(
@@ -114,19 +128,22 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
 
     async def async_added_to_hass(self) -> None:
         """Call when the entity is added to Home Assistant.
-        
+
         Load custom temperature sensor mappings asynchronously to avoid blocking the event loop.
         """
         await super().async_added_to_hass()
-        
+
         # Load custom mappings asynchronously
         try:
             from .device_mapping import load_custom_yaml_mappings_async
+
             custom_mappings = await load_custom_yaml_mappings_async(self.hass) or {}
-            
-            if 'temperature_setpoint_mappings' in custom_mappings:
+
+            if "temperature_setpoint_mappings" in custom_mappings:
                 periph_id = self._periph_id
-                sensor_id = custom_mappings['temperature_setpoint_mappings'].get(periph_id, '')
+                sensor_id = custom_mappings["temperature_setpoint_mappings"].get(
+                    periph_id, ""
+                )
                 if sensor_id and not self._linked_temperature_sensor:
                     self._linked_temperature_sensor = sensor_id
                     _LOGGER.info(
@@ -142,7 +159,7 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
     def extra_state_attributes(self):
         """Return device-specific state attributes for monitoring and diagnostics."""
         attrs = {}
-        
+
         try:
             periph_data = self._get_periph_data()
             if periph_data:
@@ -151,15 +168,17 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                 attrs["device_type"] = periph_data.get("usage_name", "unknown")
                 attrs["last_value"] = periph_data.get("last_value", "unknown")
                 attrs["last_updated"] = periph_data.get("last_updated", "unknown")
-                
+
                 # Temperature range information
-                attrs["temperature_range"] = f"{self._attr_min_temp}°C - {self._attr_max_temp}°C"
+                attrs["temperature_range"] = (
+                    f"{self._attr_min_temp}°C - {self._attr_max_temp}°C"
+                )
                 attrs["temperature_step"] = self._attr_target_temperature_step
-                
+
                 # Device health and status
                 attrs["device_health"] = self._get_device_health()
                 attrs["connection_status"] = self._get_connection_status()
-                
+
                 # Climate-specific attributes
                 usage_id = periph_data.get("usage_id", "")
                 if usage_id == "15":
@@ -169,24 +188,28 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                     attrs["climate_type"] = "fil_pilote"
                     attrs["control_method"] = "mode_mapping"
                     attrs["supported_modes"] = "Confort, Eco, Hors Gel, Arret"
-                
+
                 # Available values for troubleshooting
                 if "values" in periph_data and len(periph_data["values"]) > 0:
                     attrs["available_values_count"] = len(periph_data["values"])
                     # Show first few values as examples
-                    example_values = [v.get("value", "") for v in periph_data["values"][:3]]
+                    example_values = [
+                        v.get("value", "") for v in periph_data["values"][:3]
+                    ]
                     attrs["example_values"] = ", ".join(example_values)
-                
+
                 # Temperature sensor mapping information
                 if self._linked_temperature_sensor:
                     attrs["linked_temperature_sensor"] = self._linked_temperature_sensor
                     if self._attr_current_temperature is not None:
-                        attrs["current_temperature"] = f"{self._attr_current_temperature}°C"
-                
+                        attrs["current_temperature"] = (
+                            f"{self._attr_current_temperature}°C"
+                        )
+
         except Exception as e:
             _LOGGER.debug("Failed to generate extra state attributes: %s", e)
             attrs["error"] = "Failed to generate attributes"
-        
+
         return attrs
 
     def _get_device_health(self):
@@ -195,32 +218,36 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
             periph_data = self._get_periph_data()
             if not periph_data:
                 return "unavailable"
-            
+
             last_value = periph_data.get("last_value", "")
             last_updated = periph_data.get("last_updated")
-            
+
             if not last_value or last_value == "":
                 return "no_data"
-            
+
             if last_updated:
                 try:
                     last_updated_dt = datetime.fromisoformat(last_updated)
-                    time_since_update = (datetime.now() - last_updated_dt).total_seconds()
-                    
+                    time_since_update = (
+                        datetime.now() - last_updated_dt
+                    ).total_seconds()
+
                     if time_since_update > 3600:  # 1 hour
                         return "stale_data"
                     elif time_since_update > 1800:  # 30 minutes
                         return "delayed_update"
                 except:
                     pass
-            
+
             # Check if temperature is within expected range
-            if (self._attr_target_temperature < self._attr_min_temp or
-                self._attr_target_temperature > self._attr_max_temp):
+            if (
+                self._attr_target_temperature < self._attr_min_temp
+                or self._attr_target_temperature > self._attr_max_temp
+            ):
                 return "invalid_temperature"
-            
+
             return "healthy"
-            
+
         except Exception as e:
             _LOGGER.debug("Failed to assess device health: %s", e)
             return "unknown"
@@ -232,13 +259,15 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
             periph_data = self._get_periph_data()
             if not periph_data:
                 return "disconnected"
-            
+
             last_updated = periph_data.get("last_updated")
             if last_updated:
                 try:
                     last_updated_dt = datetime.fromisoformat(last_updated)
-                    time_since_update = (datetime.now() - last_updated_dt).total_seconds()
-                    
+                    time_since_update = (
+                        datetime.now() - last_updated_dt
+                    ).total_seconds()
+
                     if time_since_update < 60:
                         return "real_time"
                     elif time_since_update < 300:
@@ -249,9 +278,9 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                         return "delayed"
                 except:
                     return "unknown_timestamp"
-            
+
             return "no_timestamp"
-            
+
         except Exception as e:
             _LOGGER.debug("Failed to assess connection status: %s", e)
             return "error"
@@ -356,7 +385,8 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                             self._attr_current_temperature = float(child_value)
                             _LOGGER.debug(
                                 "🌡️ Updated current temperature from child sensor %s: %.1f°C",
-                                child_periph_id, self._attr_current_temperature
+                                child_periph_id,
+                                self._attr_current_temperature,
                             )
                             return
         else:
@@ -368,13 +398,15 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                     self._attr_current_temperature = temp_value
                     _LOGGER.debug(
                         "🌡️ Updated current temperature from linked sensor %s: %.1f°C",
-                        self._linked_temperature_sensor, self._attr_current_temperature
+                        self._linked_temperature_sensor,
+                        self._attr_current_temperature,
                     )
                     return
                 except (ValueError, TypeError) as e:
                     _LOGGER.warning(
                         "⚠️ Failed to parse temperature from linked sensor %s: %s",
-                        self._linked_temperature_sensor, e
+                        self._linked_temperature_sensor,
+                        e,
                     )
 
     @property
@@ -383,7 +415,7 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
         periph_data = self._get_periph_data()
         if periph_data is None:
             return False
-            
+
         return periph_data.get("last_value", "") != ""
 
     async def async_set_temperature(self, **kwargs):
@@ -472,7 +504,7 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                     eedomus_value,
                     type(eedomus_value),
                     temperature,
-                    list(acceptable_values.keys())[:5] if acceptable_values else 'None',
+                    list(acceptable_values.keys())[:5] if acceptable_values else "None",
                 )
 
             if eedomus_value is None:
@@ -484,7 +516,9 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
 
             try:
                 # Ensure we send an integer value (no decimals)
-                final_value = str(int(float(eedomus_value))) if eedomus_value else eedomus_value
+                final_value = (
+                    str(int(float(eedomus_value))) if eedomus_value else eedomus_value
+                )
                 result = await self.coordinator.async_set_periph_value(
                     self._periph_id, final_value
                 )
@@ -498,10 +532,10 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                     # Update local state to reflect the change immediately
                     self._attr_target_temperature = temperature
                     self.async_write_ha_state()
-                    
+
                     # Force refresh to ensure coordinator has latest data
                     await self.coordinator.async_request_refresh()
-                    
+
                 else:
                     error_msg = result.get("error", "Unknown error")
                     error_code = result.get("error_code", "unknown")
@@ -512,7 +546,7 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                         error_code,
                     )
                     raise ValueError(f"Failed to set temperature: {error_msg}")
-                    
+
             except Exception as err:
                 _LOGGER.error(
                     "❌ Exception setting temperature for %s to %.1f°C: %s",
@@ -529,7 +563,10 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
                     _LOGGER.error(
                         "💡 API request timed out - check eedomus box responsiveness"
                     )
-                elif "value refused" in str(err).lower() or "error_code" in str(err).lower():
+                elif (
+                    "value refused" in str(err).lower()
+                    or "error_code" in str(err).lower()
+                ):
                     _LOGGER.error(
                         "💡 Temperature value may be outside device's acceptable range"
                     )
@@ -580,7 +617,15 @@ class EedomusClimate(EedomusEntity, ClimateEntity):
             eedomus_value = None
             if hvac_mode == HVACMode.HEAT:
                 # Try different variations that might be in the acceptable values
-                for heat_variant in ["on", "heat", "chauffage", "marche", "1", "reprendre", "resume"]:
+                for heat_variant in [
+                    "on",
+                    "heat",
+                    "chauffage",
+                    "marche",
+                    "1",
+                    "reprendre",
+                    "resume",
+                ]:
                     if heat_variant in acceptable_values:
                         eedomus_value = acceptable_values[heat_variant]
                         break

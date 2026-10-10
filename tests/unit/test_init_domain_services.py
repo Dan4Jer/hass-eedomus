@@ -245,9 +245,7 @@ class TestAsyncSetupEntryWiring:
             MagicMock(return_value=coordinator),
         )
         monkeypatch.setattr(eedomus_init, "async_setup_services", AsyncMock())
-        monkeypatch.setattr(
-            eedomus_init, "_async_setup_domain_services", AsyncMock()
-        )
+        monkeypatch.setattr(eedomus_init, "_async_setup_domain_services", AsyncMock())
         monkeypatch.setattr(eedomus_init, "async_setup_panel", AsyncMock())
         monkeypatch.setattr(
             eedomus_init.aiohttp_client,
@@ -266,9 +264,7 @@ class TestAsyncSetupEntryWiring:
         monkeypatch.setattr(
             mapping_registry_module, "prune_mapping_registry_objects", retire
         )
-        monkeypatch.setattr(
-            mapping_registry_module, "print_mapping_table", MagicMock()
-        )
+        monkeypatch.setattr(mapping_registry_module, "print_mapping_table", MagicMock())
         return wave, retire
 
     @pytest.mark.asyncio
@@ -322,9 +318,10 @@ class TestMappingRegistryEntryTagging:
     def test_map_device_to_ha_entity_tags_registrations_with_entry_id(
         self, monkeypatch
     ):
+        from types import SimpleNamespace
+
         import custom_components.eedomus.entity as entity_module
         import custom_components.eedomus.mapping_registry as mapping_registry_module
-        from types import SimpleNamespace
 
         monkeypatch.setattr(mapping_registry_module, "_MAPPING_REGISTRY", [])
         coordinator = SimpleNamespace(
@@ -333,9 +330,7 @@ class TestMappingRegistryEntryTagging:
         # usage_id 27 takes the specific-cases path, which registers.
         device = {"periph_id": "55", "name": "Detecteur", "usage_id": "27"}
 
-        entity_module.map_device_to_ha_entity(
-            device, {}, coordinator=coordinator
-        )
+        entity_module.map_device_to_ha_entity(device, {}, coordinator=coordinator)
 
         registry = mapping_registry_module.get_mapping_registry()
         assert len(registry) == 1
@@ -352,15 +347,14 @@ class TestMappingRegistryAllPathsRegister:
 
     @staticmethod
     def _map(device):
-        import custom_components.eedomus.entity as entity_module
         from types import SimpleNamespace
+
+        import custom_components.eedomus.entity as entity_module
 
         coordinator = SimpleNamespace(
             config_entry=SimpleNamespace(entry_id="entry_108")
         )
-        entity_module.map_device_to_ha_entity(
-            device, {}, coordinator=coordinator
-        )
+        entity_module.map_device_to_ha_entity(device, {}, coordinator=coordinator)
 
     def test_standard_usage_id_path_registers(self, monkeypatch):
         import custom_components.eedomus.mapping_registry as registry_module
@@ -382,9 +376,7 @@ class TestMappingRegistryAllPathsRegister:
         monkeypatch.setattr(registry_module, "_MAPPING_REGISTRY", [])
         # Unknown usage_id and a name matching no pattern: the default
         # fallback path used to skip the registry too.
-        self._map(
-            {"periph_id": "999", "name": "Zzz Mystery 424242", "usage_id": "999"}
-        )
+        self._map({"periph_id": "999", "name": "Zzz Mystery 424242", "usage_id": "999"})
 
         registry = registry_module.get_mapping_registry()
         assert len(registry) == 1
@@ -410,9 +402,7 @@ class TestMappingRegistryAllPathsRegister:
                 }
             ],
         )
-        self._map(
-            {"periph_id": "998", "name": "Zzz Mystery Probe", "usage_id": "999"}
-        )
+        self._map({"periph_id": "998", "name": "Zzz Mystery Probe", "usage_id": "999"})
 
         registry = registry_module.get_mapping_registry()
         assert len(registry) == 1

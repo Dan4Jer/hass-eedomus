@@ -4,20 +4,26 @@ Provides virtual sensors to monitor and analyze API endpoint data volume metrics
 """
 
 from __future__ import annotations
+
 from datetime import datetime
 
-from homeassistant.components.sensor import SensorEntity, SensorDeviceClass, SensorStateClass
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.device_registry import async_get as async_get_device_registry
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.helpers.device_registry import async_get as async_get_device_registry
 
 from .const import DOMAIN
 from .entity import get_entry_prefix
 from .log import get_logger
 
 _LOGGER = get_logger(__name__)
+
 
 class EedomusEndpointVolumeSensor(CoordinatorEntity, SensorEntity):
     """Base class for endpoint volume sensors."""
@@ -31,9 +37,10 @@ class EedomusEndpointVolumeSensor(CoordinatorEntity, SensorEntity):
         self._attr_device_class = None  # Not a standard device class for volume
         self._attr_state_class = SensorStateClass.MEASUREMENT
         from homeassistant.const import EntityCategory
+
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_has_entity_name = True
-        
+
         # Set device info to attach to eedomus box (identifier prefixed per box/entry)
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"eedomus_box_main_{get_entry_prefix(coordinator)}")},
@@ -56,8 +63,10 @@ class EedomusEndpointVolumeSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self):
         """Return the current volume for this endpoint in KB."""
-        if hasattr(self.coordinator, '_endpoint_data_sizes'):
-            bytes_value = int(self.coordinator._endpoint_data_sizes.get(self._endpoint_name, 0))
+        if hasattr(self.coordinator, "_endpoint_data_sizes"):
+            bytes_value = int(
+                self.coordinator._endpoint_data_sizes.get(self._endpoint_name, 0)
+            )
             return round(bytes_value / 1024, 2)
         return 0
 
@@ -69,19 +78,27 @@ class EedomusEndpointVolumeSensor(CoordinatorEntity, SensorEntity):
     @property
     def extra_state_attributes(self):
         """Return additional state attributes."""
-        bytes_value = int(self.coordinator._endpoint_data_sizes.get(self._endpoint_name, 0)) if hasattr(self.coordinator, '_endpoint_data_sizes') else 0
+        bytes_value = (
+            int(self.coordinator._endpoint_data_sizes.get(self._endpoint_name, 0))
+            if hasattr(self.coordinator, "_endpoint_data_sizes")
+            else 0
+        )
         kb_value = bytes_value / 1024
         mb_value = kb_value / 1024
-        
+
         return {
             "last_updated": datetime.now().isoformat(),
             "endpoint": self._endpoint_name,
             "description": f"Data size returned by {self._endpoint_name} endpoint",
             "unit": "kilobytes",
-            "call_count": self.coordinator._endpoint_call_counts.get(self._endpoint_name, 0) if hasattr(self.coordinator, '_endpoint_call_counts') else 0,
+            "call_count": (
+                self.coordinator._endpoint_call_counts.get(self._endpoint_name, 0)
+                if hasattr(self.coordinator, "_endpoint_call_counts")
+                else 0
+            ),
             "bytes": bytes_value,
             "kilobytes": round(kb_value, 2),
-            "megabytes": round(mb_value, 2)
+            "megabytes": round(mb_value, 2),
         }
 
 
@@ -127,8 +144,10 @@ class EedomusTotalDataVolumeSensor(EedomusEndpointVolumeSensor):
     @property
     def native_value(self):
         """Return the total volume across all endpoints in KB."""
-        if hasattr(self.coordinator, '_endpoint_data_sizes'):
-            total_bytes = sum(int(size) for size in self.coordinator._endpoint_data_sizes.values())
+        if hasattr(self.coordinator, "_endpoint_data_sizes"):
+            total_bytes = sum(
+                int(size) for size in self.coordinator._endpoint_data_sizes.values()
+            )
             return round(total_bytes / 1024, 2)
         return 0
 
@@ -136,23 +155,23 @@ class EedomusTotalDataVolumeSensor(EedomusEndpointVolumeSensor):
     def extra_state_attributes(self):
         """Return additional state attributes."""
         attrs = super().extra_state_attributes
-        if hasattr(self.coordinator, '_endpoint_data_sizes'):
+        if hasattr(self.coordinator, "_endpoint_data_sizes"):
             endpoint_details = {}
             total_bytes = 0
             total_kb = 0
             total_mb = 0
-            
+
             for endpoint, size in self.coordinator._endpoint_data_sizes.items():
                 if size > 0:
                     endpoint_details[endpoint] = {
                         "bytes": size,
                         "kilobytes": round(size / 1024, 2),
-                        "megabytes": round(size / 1024 / 1024, 2)
+                        "megabytes": round(size / 1024 / 1024, 2),
                     }
                     total_bytes += size
                     total_kb += size / 1024
                     total_mb += size / 1024 / 1024
-            
+
             attrs["endpoint_breakdown"] = endpoint_details
             attrs["bytes"] = total_bytes
             attrs["kilobytes"] = round(total_kb, 2)
@@ -160,9 +179,11 @@ class EedomusTotalDataVolumeSensor(EedomusEndpointVolumeSensor):
         return attrs
 
 
-async def async_setup_endpoint_volume_sensors(hass: HomeAssistant, coordinator, device_registry):
+async def async_setup_endpoint_volume_sensors(
+    hass: HomeAssistant, coordinator, device_registry
+):
     """Set up endpoint volume sensors and attach them to the eedomus box device."""
-    
+
     # Get or create the main eedomus box device (identifier prefixed per box/entry)
     box_id = f"eedomus_box_main_{coordinator.config_entry.entry_id}"
     box_device = device_registry.async_get_or_create(

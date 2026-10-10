@@ -16,7 +16,6 @@ import pytest
 
 from custom_components.eedomus.options_flow import EedomusOptionsFlow
 
-
 pytestmark = pytest.mark.unit
 
 
@@ -69,22 +68,26 @@ class TestAsyncStepInitSubmit:
         flow = make_flow(options={})
         mock = capture_create_entry(flow)
 
-        await flow.async_step_init(
-            user_input={"scan_interval": 120, "history": True}
-        )
+        await flow.async_step_init(user_input={"scan_interval": 120, "history": True})
 
         data = mock.call_args.kwargs["data"]
         expected_keys = {
-            "api_eedomus", "enable_api_proxy", "history",
-            "history_peripherals_per_scan", "scan_interval",
-            "enable_set_value_retry", "enable_webhook",
-            "api_proxy_disable_security", "php_fallback_enabled",
-            "php_fallback_script_name", "php_fallback_timeout",
+            "api_eedomus",
+            "enable_api_proxy",
+            "history",
+            "history_peripherals_per_scan",
+            "scan_interval",
+            "enable_set_value_retry",
+            "enable_webhook",
+            "api_proxy_disable_security",
+            "php_fallback_enabled",
+            "php_fallback_script_name",
+            "php_fallback_timeout",
             "http_request_timeout",
         }
-        assert expected_keys.issubset(data.keys()), (
-            f"Missing options: {expected_keys - set(data.keys())}"
-        )
+        assert expected_keys.issubset(
+            data.keys()
+        ), f"Missing options: {expected_keys - set(data.keys())}"
         assert data["scan_interval"] == 120
         assert data["history"] is True
 
@@ -129,9 +132,7 @@ class TestCopyConfigToOptions:
         assert result["history"] is True
 
     def test_options_take_precedence_over_data(self):
-        flow = make_flow(
-            options={"scan_interval": 120}, data={"scan_interval": 300}
-        )
+        flow = make_flow(options={"scan_interval": 120}, data={"scan_interval": 300})
         result = flow._copy_config_to_options()
         assert result["scan_interval"] == 120
 
@@ -253,6 +254,5 @@ class TestFrRegionNormalization:
             "pour valider avant d'enregistrer."
         )
         assert placeholders["description"] == (
-            "Modifiez la configuration de l'intégration eedomus "
-            "directement en YAML."
+            "Modifiez la configuration de l'intégration eedomus " "directement en YAML."
         )

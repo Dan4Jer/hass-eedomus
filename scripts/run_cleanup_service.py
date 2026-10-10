@@ -2,19 +2,22 @@
 """Script to trigger the eedomus cleanup service."""
 
 import asyncio
-import sys
 import os
+import sys
 
 # Add the custom_components directory to the path
 script_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(script_dir)
-custom_components_path = os.path.join(parent_dir, 'custom_components')
+custom_components_path = os.path.join(parent_dir, "custom_components")
 sys.path.insert(0, custom_components_path)
+
 
 def show_usage():
     """Show usage instructions."""
     print("🧹 Eedomus Cleanup Service Trigger")
-    print("\nThis script provides alternative ways to trigger the cleanup functionality")
+    print(
+        "\nThis script provides alternative ways to trigger the cleanup functionality"
+    )
     print("since the menu option is not available in older Home Assistant versions.")
     print()
     print("🔧 Usage Options:")
@@ -54,9 +57,10 @@ def show_usage():
     print("   • Run during low-usage periods")
     print("   • Backup your configuration before major cleanup operations")
 
+
 if __name__ == "__main__":
     show_usage()
-    
+
     print("\n🎯 The cleanup service is now available!")
     print("   You can call it using any of the methods shown above.")
     print("   No need to modify configuration files or restart Home Assistant.")

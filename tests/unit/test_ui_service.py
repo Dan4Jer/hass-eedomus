@@ -1303,8 +1303,7 @@ class TestGetCoherenceHandler:
         )
         mapping_registry_module.prune_mapping_registry("entry_1")
         entries = [
-            m["periph_id"]
-            for m in mapping_registry_module.get_mapping_registry()
+            m["periph_id"] for m in mapping_registry_module.get_mapping_registry()
         ]
         assert entries == ["333"]
 
@@ -1444,9 +1443,7 @@ class TestGetBoxMetricsDispatcher:
         hass.data = {"eedomus": {"ui_service": service}}
         connection = MagicMock()
 
-        await ui_service_module._ws_get_box_metrics(
-            hass, connection, {"id": 23}
-        )
+        await ui_service_module._ws_get_box_metrics(hass, connection, {"id": 23})
 
         service._handle_get_box_metrics.assert_awaited_once_with(
             hass, connection, {"id": 23}
@@ -1459,9 +1456,7 @@ class TestGetBoxMetricsDispatcher:
         hass.data = {"eedomus": {}}
         connection = MagicMock()
 
-        await ui_service_module._ws_get_box_metrics(
-            hass, connection, {"id": 23}
-        )
+        await ui_service_module._ws_get_box_metrics(hass, connection, {"id": 23})
 
         connection.send_error.assert_called_once_with(
             23, "service_unavailable", "Eedomus UI service not initialized"

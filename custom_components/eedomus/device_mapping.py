@@ -13,8 +13,10 @@ Priority order for device mapping:
 """
 
 import os
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
 import yaml
+
 from .log import get_logger
 
 # Initialize logger
@@ -30,102 +32,132 @@ CUSTOM_MAPPING_FILE = "config/custom_mapping.yaml.example"
 
 def get_absolute_path(relative_path: str) -> str:
     """Convert relative path to absolute path based on module location.
-    
+
     Args:
         relative_path: Path relative to the module directory
-        
+
     Returns:
         Absolute path to the file
     """
-    import os
     import inspect
+    import os
+
     # Get the directory where this module is located
-    module_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+    module_dir = os.path.dirname(
+        os.path.abspath(inspect.getfile(inspect.currentframe()))
+    )
     return os.path.join(module_dir, relative_path)
+
 
 async def load_yaml_file_async(hass, file_path: str) -> Optional[Dict[str, Any]]:
     """Load YAML configuration from file asynchronously using executor job.
-    
+
     Args:
         hass: Home Assistant instance for accessing async_add_executor_job
         file_path: Path to YAML file
-        
+
     Returns:
         Dictionary with YAML content or None if file doesn't exist or is invalid
     """
     try:
         _LOGGER.debug("📖 Attempting to load YAML file asynchronously: %s", file_path)
-        
+
         if not os.path.exists(file_path):
             _LOGGER.error("❌ YAML file not found: %s", file_path)
             return None
-            
+
         _LOGGER.debug("✅ YAML file exists, attempting to parse asynchronously...")
-        
+
         # Use executor job to avoid blocking the event loop
         def _load_yaml_sync():
             try:
-                with open(file_path, 'r', encoding='utf-8') as file:
+                with open(file_path, "r", encoding="utf-8") as file:
                     content = yaml.safe_load(file)
-                    
+
                     if content:
-                        _LOGGER.debug("✅ Successfully loaded YAML mapping from %s", file_path)
-                        _LOGGER.debug("📋 YAML metadata: version=%s, last_modified=%s", 
-                                     content.get('metadata', {}).get('version', 'unknown'),
-                                     content.get('metadata', {}).get('last_modified', 'unknown'))
-                        
+                        _LOGGER.debug(
+                            "✅ Successfully loaded YAML mapping from %s", file_path
+                        )
+                        _LOGGER.debug(
+                            "📋 YAML metadata: version=%s, last_modified=%s",
+                            content.get("metadata", {}).get("version", "unknown"),
+                            content.get("metadata", {}).get("last_modified", "unknown"),
+                        )
+
                         # Convert list format to dict format if needed
                         if isinstance(content, list):
-                            _LOGGER.debug("⚠️  YAML file is in list format, converting to dict format")
+                            _LOGGER.debug(
+                                "⚠️  YAML file is in list format, converting to dict format"
+                            )
                             # Convert list of rules to dict format
                             converted_content = {
-                                'advanced_rules': content,
-                                'usage_id_mappings': {},
-                                'name_patterns': [],
-                                'dynamic_entity_properties': {},
-                                'specific_device_dynamic_overrides': {}
+                                "advanced_rules": content,
+                                "usage_id_mappings": {},
+                                "name_patterns": [],
+                                "dynamic_entity_properties": {},
+                                "specific_device_dynamic_overrides": {},
                             }
                             _LOGGER.debug("✅ Converted YAML to dict format")
-                            _LOGGER.debug("   YAML keys after conversion: %s", list(converted_content.keys()))
+                            _LOGGER.debug(
+                                "   YAML keys after conversion: %s",
+                                list(converted_content.keys()),
+                            )
                             content = converted_content
                         else:
                             _LOGGER.debug("   YAML keys: %s", list(content.keys()))
-                        
+
                         # Critical check for dynamic properties
-                        if 'dynamic_entity_properties' in content:
+                        if "dynamic_entity_properties" in content:
                             _LOGGER.debug("✅ Found dynamic_entity_properties in YAML")
                         else:
-                            _LOGGER.debug("⚠️  dynamic_entity_properties section missing from YAML (will be extracted from advanced rules)")
-                            
-                        if 'specific_device_dynamic_overrides' in content:
-                            _LOGGER.debug("✅ Found specific_device_dynamic_overrides in YAML")
+                            _LOGGER.debug(
+                                "⚠️  dynamic_entity_properties section missing from YAML (will be extracted from advanced rules)"
+                            )
+
+                        if "specific_device_dynamic_overrides" in content:
+                            _LOGGER.debug(
+                                "✅ Found specific_device_dynamic_overrides in YAML"
+                            )
                         else:
-                            _LOGGER.debug("⚠️  specific_device_dynamic_overrides section missing (normal if no overrides)")
-                        
+                            _LOGGER.debug(
+                                "⚠️  specific_device_dynamic_overrides section missing (normal if no overrides)"
+                            )
+
                         return content
                     else:
                         _LOGGER.warning("⚠️  YAML file is empty: %s", file_path)
                         return content
-                        
+
             except yaml.YAMLError as e:
-                _LOGGER.error("❌ CRITICAL: Failed to parse YAML file %s: %s", file_path, e)
-                _LOGGER.error("❌ This is likely a YAML syntax error - check file format")
+                _LOGGER.error(
+                    "❌ CRITICAL: Failed to parse YAML file %s: %s", file_path, e
+                )
+                _LOGGER.error(
+                    "❌ This is likely a YAML syntax error - check file format"
+                )
                 import traceback
+
                 _LOGGER.error("YAML parsing error details: %s", traceback.format_exc())
                 return None
             except Exception as e:
-                _LOGGER.error("❌ CRITICAL: Error in sync YAML loading %s: %s", file_path, e)
-                _LOGGER.error("❌ This prevented YAML loading - check file permissions and encoding")
+                _LOGGER.error(
+                    "❌ CRITICAL: Error in sync YAML loading %s: %s", file_path, e
+                )
+                _LOGGER.error(
+                    "❌ This prevented YAML loading - check file permissions and encoding"
+                )
                 import traceback
+
                 _LOGGER.error("Error details: %s", traceback.format_exc())
                 return None
-        
+
         return await hass.async_add_executor_job(_load_yaml_sync)
-        
+
     except Exception as e:
         _LOGGER.error("❌ CRITICAL: Error in async YAML loading %s: %s", file_path, e)
         _LOGGER.error("❌ Async executor job failed - falling back to sync loading")
         import traceback
+
         _LOGGER.error("Async error details: %s", traceback.format_exc())
         # Fallback to synchronous loading if async fails
         return load_yaml_file(file_path)
@@ -133,100 +165,113 @@ async def load_yaml_file_async(hass, file_path: str) -> Optional[Dict[str, Any]]
 
 def load_yaml_file(file_path: str) -> Optional[Dict[str, Any]]:
     """Load YAML configuration from file.
-    
+
     Args:
         file_path: Path to YAML file
-        
+
     Returns:
         Dictionary with YAML content or None if file doesn't exist or is invalid
-        
+
     Note:
         This synchronous version is used ONLY during module initialization.
         It may trigger a single blocking warning during Home Assistant startup,
         which is acceptable per Home Assistant integration guidelines.
-        
+
         The warning occurs once when the module is imported, before the event loop
         is fully active. All runtime operations use the async version via the
         coordinator, so there are no performance impacts.
-        
+
         For async contexts, use load_yaml_file_async() instead.
     """
     try:
         _LOGGER.debug("📖 Attempting to load YAML file: %s", file_path)
-        
+
         if not os.path.exists(file_path):
             _LOGGER.error("❌ YAML file not found: %s", file_path)
             return None
-            
+
         _LOGGER.debug("✅ YAML file exists, attempting to parse...")
-        
+
         # Note: File I/O during initialization is acceptable as it's not in the hot path
         # For production use, consider using hass.async_add_executor_job if available
-        with open(file_path, 'r', encoding='utf-8') as file:
+        with open(file_path, "r", encoding="utf-8") as file:
             content = yaml.safe_load(file)
-            
+
             if content:
                 _LOGGER.debug("✅ Successfully loaded YAML mapping from %s", file_path)
-                
+
                 # Convert list format to dict format if needed
                 if isinstance(content, list):
-                    _LOGGER.debug("⚠️  YAML file is in list format, converting to dict format")
+                    _LOGGER.debug(
+                        "⚠️  YAML file is in list format, converting to dict format"
+                    )
                     # Convert list of rules to dict format
                     converted_content = {
-                        'advanced_rules': content,
-                        'usage_id_mappings': {},
-                        'name_patterns': [],
-                        'dynamic_entity_properties': {},
-                        'specific_device_dynamic_overrides': {}
+                        "advanced_rules": content,
+                        "usage_id_mappings": {},
+                        "name_patterns": [],
+                        "dynamic_entity_properties": {},
+                        "specific_device_dynamic_overrides": {},
                     }
                     _LOGGER.debug("✅ Converted YAML to dict format")
-                    _LOGGER.debug("   YAML keys after conversion: %s", list(converted_content.keys()))
+                    _LOGGER.debug(
+                        "   YAML keys after conversion: %s",
+                        list(converted_content.keys()),
+                    )
                     content = converted_content
                 else:
                     _LOGGER.debug("   YAML keys: %s", list(content.keys()))
-                
+
                 # Critical check for dynamic properties
-                if 'dynamic_entity_properties' in content:
+                if "dynamic_entity_properties" in content:
                     _LOGGER.debug("✅ Found dynamic_entity_properties in YAML")
                 else:
-                    _LOGGER.debug("⚠️  dynamic_entity_properties section missing from YAML (will be extracted from advanced rules)")
-                    
-                if 'specific_device_dynamic_overrides' in content:
+                    _LOGGER.debug(
+                        "⚠️  dynamic_entity_properties section missing from YAML (will be extracted from advanced rules)"
+                    )
+
+                if "specific_device_dynamic_overrides" in content:
                     _LOGGER.debug("✅ Found specific_device_dynamic_overrides in YAML")
                 else:
-                    _LOGGER.debug("⚠️  specific_device_dynamic_overrides section missing (normal if no overrides)")
-                
+                    _LOGGER.debug(
+                        "⚠️  specific_device_dynamic_overrides section missing (normal if no overrides)"
+                    )
+
             else:
                 _LOGGER.warning("⚠️  YAML file is empty: %s", file_path)
-            
+
             return content
-            
+
     except yaml.YAMLError as e:
         _LOGGER.error("❌ CRITICAL: Failed to parse YAML file %s: %s", file_path, e)
         _LOGGER.error("❌ This is likely a YAML syntax error - check file format")
         import traceback
+
         _LOGGER.error("YAML parsing error details: %s", traceback.format_exc())
         return None
     except Exception as e:
         _LOGGER.error("❌ CRITICAL: Error loading YAML file %s: %s", file_path, e)
-        _LOGGER.error("❌ This prevented YAML loading - check file permissions and encoding")
+        _LOGGER.error(
+            "❌ This prevented YAML loading - check file permissions and encoding"
+        )
         import traceback
+
         _LOGGER.error("Error details: %s", traceback.format_exc())
         return None
 
 
 async def load_yaml_mappings_async(hass, base_path: str = "") -> Dict[str, Any]:
     """Load and merge YAML mappings from default and custom files asynchronously.
-    
+
     Args:
         hass: Home Assistant instance for async operations
         base_path: Base path where YAML files are located (optional)
-        
+
     Returns:
         Merged mapping configuration
     """
     _LOGGER.debug("🔍 Starting async YAML mappings load process")
-    
+
     # Use absolute paths if no base_path provided
     if base_path:
         default_file = os.path.join(base_path, DEFAULT_MAPPING_FILE)
@@ -235,31 +280,33 @@ async def load_yaml_mappings_async(hass, base_path: str = "") -> Dict[str, Any]:
         # Convert relative paths to absolute paths based on module location
         default_file = get_absolute_path(DEFAULT_MAPPING_FILE)
         custom_file = get_absolute_path(CUSTOM_MAPPING_FILE)
-    
+
     _LOGGER.debug("📁 Default mapping file path: %s", default_file)
     _LOGGER.debug("📁 Custom mapping file path: %s", custom_file)
-    
+
     # Check if files exist before loading
     if not os.path.exists(default_file):
         _LOGGER.error("❌ CRITICAL: Default YAML file not found at: %s", default_file)
         _LOGGER.error("❌ This will cause all dynamic properties to be empty!")
     else:
         _LOGGER.debug("✅ Default YAML file found")
-    
+
     if os.path.exists(custom_file):
         _LOGGER.debug("✅ Custom YAML file found")
     else:
-        _LOGGER.debug("⚠️  Custom YAML file not found (this is normal): %s", custom_file)
-    
+        _LOGGER.debug(
+            "⚠️  Custom YAML file not found (this is normal): %s", custom_file
+        )
+
     # Load mappings asynchronously to avoid blocking warnings
     _LOGGER.debug("📖 Loading default mapping asynchronously...")
     default_mapping = await load_yaml_file_async(hass, default_file) or {}
     _LOGGER.debug("Default mapping loaded: %s", bool(default_mapping))
-    
+
     if not default_mapping:
         _LOGGER.error("❌ CRITICAL: Default mapping could not be loaded!")
         _LOGGER.error("❌ Check file permissions and YAML syntax")
-    
+
     _LOGGER.debug("📖 Loading custom mapping asynchronously...")
     if base_path:
         custom_mapping = await load_yaml_file_async(hass, custom_file) or {}
@@ -268,28 +315,29 @@ async def load_yaml_mappings_async(hass, base_path: str = "") -> Dict[str, Any]:
         # the integrated file: the merged config must reflect panel saves.
         custom_mapping = await load_custom_yaml_mappings_async(hass) or {}
     _LOGGER.debug("Custom mapping loaded: %s", bool(custom_mapping))
-    
+
     # Merge mappings (custom overrides default)
     _LOGGER.debug("🔧 Merging mappings...")
     merged = merge_yaml_mappings(default_mapping, custom_mapping)
-    
+
     return merged
+
 
 def load_yaml_mappings(base_path: str = "") -> Dict[str, Any]:
     """Load and merge YAML mappings from default and custom files.
-    
+
     Args:
         base_path: Base path where YAML files are located (optional)
-        
+
     Returns:
         Merged mapping configuration
-        
+
     Note:
         This function uses synchronous loading and may trigger blocking warnings during initialization.
         For async contexts, use load_yaml_mappings_async() instead.
     """
     _LOGGER.info("🔍 Starting YAML mappings load process")
-    
+
     # Use absolute paths if no base_path provided
     if base_path:
         default_file = os.path.join(base_path, DEFAULT_MAPPING_FILE)
@@ -298,34 +346,40 @@ def load_yaml_mappings(base_path: str = "") -> Dict[str, Any]:
         # Convert relative paths to absolute paths based on module location
         default_file = get_absolute_path(DEFAULT_MAPPING_FILE)
         custom_file = get_absolute_path(CUSTOM_MAPPING_FILE)
-    
+
     _LOGGER.info("📁 Default mapping file path: %s", default_file)
     _LOGGER.info("📁 Custom mapping file path: %s", custom_file)
-    
+
     # Check if files exist before loading
     if not os.path.exists(default_file):
         _LOGGER.error("❌ CRITICAL: Default YAML file not found at: %s", default_file)
         _LOGGER.error("❌ This will cause all dynamic properties to be empty!")
     else:
         _LOGGER.info("✅ Default YAML file found")
-    
+
     if os.path.exists(custom_file):
         _LOGGER.info("✅ Custom YAML file found")
     else:
-        _LOGGER.debug("⚠️  Custom YAML file not found (this is normal): %s", custom_file)
-    
+        _LOGGER.debug(
+            "⚠️  Custom YAML file not found (this is normal): %s", custom_file
+        )
+
     # Load mappings using synchronous method (async version is separate)
     _LOGGER.info("📖 Loading default mapping...")
-    _LOGGER.debug("⚠️  Using synchronous loading - blocking warnings may appear during initialization")
+    _LOGGER.debug(
+        "⚠️  Using synchronous loading - blocking warnings may appear during initialization"
+    )
     default_mapping = load_yaml_file(default_file) or {}
     _LOGGER.debug("Default mapping loaded: %s", bool(default_mapping))
-    
+
     if not default_mapping:
         _LOGGER.error("❌ CRITICAL: Default mapping could not be loaded!")
         _LOGGER.error("❌ Check file permissions and YAML syntax")
-    
+
     _LOGGER.info("📖 Loading custom mapping...")
-    _LOGGER.debug("⚠️  Using synchronous loading - blocking warnings may appear during initialization")
+    _LOGGER.debug(
+        "⚠️  Using synchronous loading - blocking warnings may appear during initialization"
+    )
     if base_path:
         custom_mapping = load_yaml_file(custom_file) or {}
     else:
@@ -333,51 +387,59 @@ def load_yaml_mappings(base_path: str = "") -> Dict[str, Any]:
         # the integrated file: the merged config must reflect panel saves.
         custom_mapping = load_custom_yaml_mappings() or {}
     _LOGGER.debug("Custom mapping loaded: %s", bool(custom_mapping))
-    
+
     # Merge mappings (custom overrides default)
     _LOGGER.info("🔧 Merging mappings...")
     merged = merge_yaml_mappings(default_mapping, custom_mapping)
-    
+
     # Critical checks for dynamic properties
-    dynamic_props_loaded = bool(merged.get('dynamic_entity_properties'))
-    specific_overrides_loaded = bool(merged.get('specific_device_dynamic_overrides'))
-    
+    dynamic_props_loaded = bool(merged.get("dynamic_entity_properties"))
+    specific_overrides_loaded = bool(merged.get("specific_device_dynamic_overrides"))
+
     _LOGGER.info("📊 Load summary:")
     _LOGGER.info("   ✅ Default mapping: %s", bool(default_mapping))
     _LOGGER.info("   ✅ Custom mapping: %s", bool(custom_mapping))
     _LOGGER.info("   🎯 Dynamic entity properties: %s", dynamic_props_loaded)
     _LOGGER.info("   🎯 Specific device overrides: %s", specific_overrides_loaded)
-    
+
     if not dynamic_props_loaded:
         _LOGGER.error("❌ CRITICAL: Dynamic entity properties not loaded!")
-        _LOGGER.error("❌ All devices will be treated as static - no partial refresh will work!")
+        _LOGGER.error(
+            "❌ All devices will be treated as static - no partial refresh will work!"
+        )
         _LOGGER.error("❌ Check YAML file content and structure")
-    
+
     if not specific_overrides_loaded:
-        _LOGGER.debug("⚠️  Specific device overrides not loaded (this is normal if none defined)")
-    
+        _LOGGER.debug(
+            "⚠️  Specific device overrides not loaded (this is normal if none defined)"
+        )
+
     # Debug logging to help diagnose loading issues
     if not default_mapping:
-        _LOGGER.warning("⚠️ Default YAML mapping file could not be loaded from: %s", default_file)
+        _LOGGER.warning(
+            "⚠️ Default YAML mapping file could not be loaded from: %s", default_file
+        )
     if not custom_mapping:
         _LOGGER.debug("⚠️ Custom YAML mapping file not found or empty: %s", custom_file)
-    
+
     return merged
 
 
-def merge_yaml_mappings(default_mapping: Dict[str, Any], custom_mapping: Dict[str, Any]) -> Dict[str, Any]:
+def merge_yaml_mappings(
+    default_mapping: Dict[str, Any], custom_mapping: Dict[str, Any]
+) -> Dict[str, Any]:
     """Merge default and custom mappings, with custom mappings taking precedence.
-    
+
     Handles backward compatibility for custom_rules -> advanced_rules conversion.
     The schema was updated to use 'custom_rules' but the code still uses 'advanced_rules'.
     This function automatically converts 'custom_rules' to 'advanced_rules' for compatibility.
-    
+
     Args:
         default_mapping: Default mapping configuration
         custom_mapping: Custom mapping configuration
-        
+
     Returns:
-        Merged mapping configuration with usage_id_mappings, advanced_rules, 
+        Merged mapping configuration with usage_id_mappings, advanced_rules,
         dynamic_entity_properties, and specific_device_dynamic_overrides
     """
     # Ensure we have valid dictionaries
@@ -387,49 +449,65 @@ def merge_yaml_mappings(default_mapping: Dict[str, Any], custom_mapping: Dict[st
     if not isinstance(custom_mapping, dict):
         _LOGGER.error("Custom mapping is not a dictionary: %s", type(custom_mapping))
         custom_mapping = {}
-    
+
     # Backward compatibility: Handle schema changes from commit 21bb7a4
     # The schema was updated to use 'custom_*' prefixes but the code still uses the original names
     # This ensures both old (advanced_rules, usage_id_mappings) and new (custom_rules, custom_usage_id_mappings) work
-    
+
     def _ensure_backward_compat(mapping: Dict[str, Any]) -> Dict[str, Any]:
         """Convert new custom_* field names to old names for backward compatibility."""
         # custom_rules -> advanced_rules
-        if 'custom_rules' in mapping and 'advanced_rules' not in mapping:
-            _LOGGER.debug("🔄 Converting custom_rules to advanced_rules for backward compatibility")
-            mapping['advanced_rules'] = mapping.get('custom_rules', [])
-        
+        if "custom_rules" in mapping and "advanced_rules" not in mapping:
+            _LOGGER.debug(
+                "🔄 Converting custom_rules to advanced_rules for backward compatibility"
+            )
+            mapping["advanced_rules"] = mapping.get("custom_rules", [])
+
         # custom_usage_id_mappings -> usage_id_mappings
-        if 'custom_usage_id_mappings' in mapping and 'usage_id_mappings' not in mapping:
+        if "custom_usage_id_mappings" in mapping and "usage_id_mappings" not in mapping:
             _LOGGER.debug("🔄 Converting custom_usage_id_mappings to usage_id_mappings")
-            mapping['usage_id_mappings'] = mapping.get('custom_usage_id_mappings', {})
-        
+            mapping["usage_id_mappings"] = mapping.get("custom_usage_id_mappings", {})
+
         # custom_dynamic_entity_properties -> dynamic_entity_properties
-        if 'custom_dynamic_entity_properties' in mapping and 'dynamic_entity_properties' not in mapping:
-            _LOGGER.debug("🔄 Converting custom_dynamic_entity_properties to dynamic_entity_properties")
-            mapping['dynamic_entity_properties'] = mapping.get('custom_dynamic_entity_properties', {})
-        
+        if (
+            "custom_dynamic_entity_properties" in mapping
+            and "dynamic_entity_properties" not in mapping
+        ):
+            _LOGGER.debug(
+                "🔄 Converting custom_dynamic_entity_properties to dynamic_entity_properties"
+            )
+            mapping["dynamic_entity_properties"] = mapping.get(
+                "custom_dynamic_entity_properties", {}
+            )
+
         # custom_specific_device_dynamic_overrides -> specific_device_dynamic_overrides
-        if 'custom_specific_device_dynamic_overrides' in mapping and 'specific_device_dynamic_overrides' not in mapping:
-            _LOGGER.debug("🔄 Converting custom_specific_device_dynamic_overrides to specific_device_dynamic_overrides")
-            mapping['specific_device_dynamic_overrides'] = mapping.get('custom_specific_device_dynamic_overrides', {})
-        
+        if (
+            "custom_specific_device_dynamic_overrides" in mapping
+            and "specific_device_dynamic_overrides" not in mapping
+        ):
+            _LOGGER.debug(
+                "🔄 Converting custom_specific_device_dynamic_overrides to specific_device_dynamic_overrides"
+            )
+            mapping["specific_device_dynamic_overrides"] = mapping.get(
+                "custom_specific_device_dynamic_overrides", {}
+            )
+
         # custom_name_patterns -> name_patterns
-        if 'custom_name_patterns' in mapping and 'name_patterns' not in mapping:
+        if "custom_name_patterns" in mapping and "name_patterns" not in mapping:
             _LOGGER.debug("🔄 Converting custom_name_patterns to name_patterns")
-            mapping['name_patterns'] = mapping.get('custom_name_patterns', [])
-        
+            mapping["name_patterns"] = mapping.get("custom_name_patterns", [])
+
         return mapping
-    
+
     # Apply backward compatibility conversion to both mappings
     default_mapping = _ensure_backward_compat(default_mapping)
     custom_mapping = _ensure_backward_compat(custom_mapping)
-    
+
     merged = {}
-    
+
     # Merge advanced rules (custom rules become advanced rules)
     # Ensure we always have a list, never None
-    advanced_rules = default_mapping.get('advanced_rules', [])
+    advanced_rules = default_mapping.get("advanced_rules", [])
     if not isinstance(advanced_rules, list):
         _LOGGER.error("Advanced rules is not a list: %s", type(advanced_rules))
         advanced_rules = []
@@ -437,33 +515,45 @@ def merge_yaml_mappings(default_mapping: Dict[str, Any], custom_mapping: Dict[st
     # Merge custom rules over the default ones (custom takes precedence):
     # a custom rule with the same name overrides the default rule,
     # new custom rules are appended to the list.
-    custom_advanced_rules = custom_mapping.get('advanced_rules', [])
+    custom_advanced_rules = custom_mapping.get("advanced_rules", [])
     if not isinstance(custom_advanced_rules, list):
-        _LOGGER.error("Custom advanced rules is not a list: %s", type(custom_advanced_rules))
+        _LOGGER.error(
+            "Custom advanced rules is not a list: %s", type(custom_advanced_rules)
+        )
         custom_advanced_rules = []
     if custom_advanced_rules:
         default_rule_names = {
-            rule.get('name') for rule in advanced_rules
-            if isinstance(rule, dict) and rule.get('name')
+            rule.get("name")
+            for rule in advanced_rules
+            if isinstance(rule, dict) and rule.get("name")
         }
         kept_defaults = [
-            rule for rule in advanced_rules
-            if not (isinstance(rule, dict) and rule.get('name')
-                    and rule.get('name') in {
-                        cr.get('name') for cr in custom_advanced_rules
-                        if isinstance(cr, dict)
-                    })
+            rule
+            for rule in advanced_rules
+            if not (
+                isinstance(rule, dict)
+                and rule.get("name")
+                and rule.get("name")
+                in {
+                    cr.get("name")
+                    for cr in custom_advanced_rules
+                    if isinstance(cr, dict)
+                }
+            )
         ]
         _LOGGER.debug(
             "🔄 Merging custom advanced rules: %d default kept, %d custom added "
             "(overridden names: %s)",
             len(kept_defaults),
             len(custom_advanced_rules),
-            [cr.get('name') for cr in custom_advanced_rules
-             if isinstance(cr, dict) and cr.get('name') in default_rule_names],
+            [
+                cr.get("name")
+                for cr in custom_advanced_rules
+                if isinstance(cr, dict) and cr.get("name") in default_rule_names
+            ],
         )
         advanced_rules = kept_defaults + custom_advanced_rules
-    
+
     # Convert list format to dict format for compatibility with entity.py
     # This is critical for the mapping system to work correctly
     advanced_rules_dict = {}
@@ -471,128 +561,178 @@ def merge_yaml_mappings(default_mapping: Dict[str, Any], custom_mapping: Dict[st
         _LOGGER.debug("🔍 Converting advanced rules from list to dict format")
         dynamic_props = {}
         for rule in advanced_rules:
-            if isinstance(rule, dict) and 'mapping' in rule:
-                mapping = rule['mapping']
+            if isinstance(rule, dict) and "mapping" in rule:
+                mapping = rule["mapping"]
                 # Extract dynamic properties from child_mapping if present
-                if 'child_mapping' in rule:
-                    child_mapping = rule['child_mapping']
+                if "child_mapping" in rule:
+                    child_mapping = rule["child_mapping"]
                     for child_usage_id, child_config in child_mapping.items():
-                        if child_config.get('is_dynamic', False):
+                        if child_config.get("is_dynamic", False):
                             # This rule defines dynamic children
                             pass
-                
+
                 # Check if this rule defines dynamic properties
-                if mapping.get('is_dynamic', False):
-                    ha_entity = mapping.get('ha_entity')
+                if mapping.get("is_dynamic", False):
+                    ha_entity = mapping.get("ha_entity")
                     if ha_entity:
                         dynamic_props[ha_entity] = True
-        
+
         # Convert advanced rules list to dict format for entity.py
         # This is the actual conversion that was missing!
         for rule in advanced_rules:
-            if isinstance(rule, dict) and 'name' in rule:
-                rule_name = rule['name']
+            if isinstance(rule, dict) and "name" in rule:
+                rule_name = rule["name"]
                 advanced_rules_dict[rule_name] = rule
                 _LOGGER.debug("✅ Added rule '%s' to advanced_rules_dict", rule_name)
-        
-        _LOGGER.debug("🔍 Converted %d advanced rules to dict format", len(advanced_rules_dict))
-        
+
+        _LOGGER.debug(
+            "🔍 Converted %d advanced rules to dict format", len(advanced_rules_dict)
+        )
+
         # Merge extracted properties with existing properties (don't override)
         if dynamic_props:
-            _LOGGER.info("✅ Extracted dynamic properties from rules: %s", dynamic_props)
+            _LOGGER.info(
+                "✅ Extracted dynamic properties from rules: %s", dynamic_props
+            )
             # Merge with existing dynamic properties, don't override
-            existing_props = merged.get('dynamic_entity_properties', {})
-            merged['dynamic_entity_properties'] = {**existing_props, **dynamic_props}
+            existing_props = merged.get("dynamic_entity_properties", {})
+            merged["dynamic_entity_properties"] = {**existing_props, **dynamic_props}
         else:
             _LOGGER.debug("⚠️  No dynamic properties found in advanced rules list")
-    
+
     # Merge usage ID mappings (custom overrides default)
-    usage_id_mappings = default_mapping.get('usage_id_mappings', {})
+    usage_id_mappings = default_mapping.get("usage_id_mappings", {})
     if not isinstance(usage_id_mappings, dict):
-        _LOGGER.error("Usage ID mappings is not a dictionary: %s", type(usage_id_mappings))
+        _LOGGER.error(
+            "Usage ID mappings is not a dictionary: %s", type(usage_id_mappings)
+        )
         usage_id_mappings = {}
-    
-    merged['usage_id_mappings'] = usage_id_mappings
-    if 'custom_usage_id_mappings' in custom_mapping and isinstance(custom_mapping['custom_usage_id_mappings'], dict):
-        merged['usage_id_mappings'].update(custom_mapping['custom_usage_id_mappings'])
-    
+
+    merged["usage_id_mappings"] = usage_id_mappings
+    if "custom_usage_id_mappings" in custom_mapping and isinstance(
+        custom_mapping["custom_usage_id_mappings"], dict
+    ):
+        merged["usage_id_mappings"].update(custom_mapping["custom_usage_id_mappings"])
+
     # Merge name patterns (custom extends default)
-    name_patterns = default_mapping.get('name_patterns', [])
+    name_patterns = default_mapping.get("name_patterns", [])
     if not isinstance(name_patterns, list):
-        _LOGGER.info("Name patterns is not configured (normal for current usage): %s", type(name_patterns))
+        _LOGGER.info(
+            "Name patterns is not configured (normal for current usage): %s",
+            type(name_patterns),
+        )
         name_patterns = []
-    
-    merged['name_patterns'] = name_patterns
-    if 'custom_name_patterns' in custom_mapping and isinstance(custom_mapping['custom_name_patterns'], list):
-        merged['name_patterns'].extend(custom_mapping['custom_name_patterns'])
-    
+
+    merged["name_patterns"] = name_patterns
+    if "custom_name_patterns" in custom_mapping and isinstance(
+        custom_mapping["custom_name_patterns"], list
+    ):
+        merged["name_patterns"].extend(custom_mapping["custom_name_patterns"])
+
     # Add default mapping if present
-    if 'default_mapping' in default_mapping and isinstance(default_mapping['default_mapping'], dict):
-        merged['default_mapping'] = default_mapping['default_mapping']
-    
+    if "default_mapping" in default_mapping and isinstance(
+        default_mapping["default_mapping"], dict
+    ):
+        merged["default_mapping"] = default_mapping["default_mapping"]
+
     # Merge dynamic entity properties (custom overrides default)
-    dynamic_entity_properties = default_mapping.get('dynamic_entity_properties', {})
+    dynamic_entity_properties = default_mapping.get("dynamic_entity_properties", {})
     if not isinstance(dynamic_entity_properties, dict):
-        _LOGGER.error("Dynamic entity properties is not a dictionary: %s", type(dynamic_entity_properties))
+        _LOGGER.error(
+            "Dynamic entity properties is not a dictionary: %s",
+            type(dynamic_entity_properties),
+        )
         dynamic_entity_properties = {}
-    
-    merged['dynamic_entity_properties'] = dynamic_entity_properties
-    if 'custom_dynamic_entity_properties' in custom_mapping and isinstance(custom_mapping['custom_dynamic_entity_properties'], dict):
-        merged['dynamic_entity_properties'].update(custom_mapping['custom_dynamic_entity_properties'])
-    
+
+    merged["dynamic_entity_properties"] = dynamic_entity_properties
+    if "custom_dynamic_entity_properties" in custom_mapping and isinstance(
+        custom_mapping["custom_dynamic_entity_properties"], dict
+    ):
+        merged["dynamic_entity_properties"].update(
+            custom_mapping["custom_dynamic_entity_properties"]
+        )
+
     # Merge specific device dynamic overrides (custom overrides default)
-    specific_device_dynamic_overrides = default_mapping.get('specific_device_dynamic_overrides', {})
+    specific_device_dynamic_overrides = default_mapping.get(
+        "specific_device_dynamic_overrides", {}
+    )
     if not isinstance(specific_device_dynamic_overrides, dict):
-        _LOGGER.info("Specific device dynamic overrides is not a dictionary: %s", type(specific_device_dynamic_overrides))
+        _LOGGER.info(
+            "Specific device dynamic overrides is not a dictionary: %s",
+            type(specific_device_dynamic_overrides),
+        )
         specific_device_dynamic_overrides = {}
-    
-    merged['specific_device_dynamic_overrides'] = specific_device_dynamic_overrides
-    if 'custom_specific_device_dynamic_overrides' in custom_mapping and isinstance(custom_mapping['custom_specific_device_dynamic_overrides'], dict):
-        merged['specific_device_dynamic_overrides'].update(custom_mapping['custom_specific_device_dynamic_overrides'])
+
+    merged["specific_device_dynamic_overrides"] = specific_device_dynamic_overrides
+    if "custom_specific_device_dynamic_overrides" in custom_mapping and isinstance(
+        custom_mapping["custom_specific_device_dynamic_overrides"], dict
+    ):
+        merged["specific_device_dynamic_overrides"].update(
+            custom_mapping["custom_specific_device_dynamic_overrides"]
+        )
 
     # Merge specific device mappings (custom overrides default)
-    specific_device_mappings = default_mapping.get('specific_device_mappings', {})
+    specific_device_mappings = default_mapping.get("specific_device_mappings", {})
     if not isinstance(specific_device_mappings, dict):
-        _LOGGER.info("Specific device mappings is not a dictionary: %s", type(specific_device_mappings))
+        _LOGGER.info(
+            "Specific device mappings is not a dictionary: %s",
+            type(specific_device_mappings),
+        )
         specific_device_mappings = {}
 
-    merged['specific_device_mappings'] = specific_device_mappings
-    if 'custom_specific_device_mappings' in custom_mapping and isinstance(custom_mapping['custom_specific_device_mappings'], dict):
-        merged['specific_device_mappings'].update(custom_mapping['custom_specific_device_mappings'])
+    merged["specific_device_mappings"] = specific_device_mappings
+    if "custom_specific_device_mappings" in custom_mapping and isinstance(
+        custom_mapping["custom_specific_device_mappings"], dict
+    ):
+        merged["specific_device_mappings"].update(
+            custom_mapping["custom_specific_device_mappings"]
+        )
 
     # Merge metadata (preserve metadata from default mapping)
-    if 'metadata' in default_mapping and isinstance(default_mapping['metadata'], dict):
-        merged['metadata'] = default_mapping['metadata']
-        _LOGGER.debug("✅ Preserved metadata from default mapping: %s", default_mapping['metadata'].get('version', 'unknown'))
-    
-    if 'metadata' in custom_mapping and isinstance(custom_mapping['metadata'], dict):
+    if "metadata" in default_mapping and isinstance(default_mapping["metadata"], dict):
+        merged["metadata"] = default_mapping["metadata"]
+        _LOGGER.debug(
+            "✅ Preserved metadata from default mapping: %s",
+            default_mapping["metadata"].get("version", "unknown"),
+        )
+
+    if "metadata" in custom_mapping and isinstance(custom_mapping["metadata"], dict):
         # Custom metadata can override or supplement default metadata
-        if 'metadata' not in merged:
-            merged['metadata'] = {}
-        merged['metadata'].update(custom_mapping['metadata'])
-        _LOGGER.debug("✅ Merged custom metadata: %s", custom_mapping['metadata'].get('version', 'unknown'))
+        if "metadata" not in merged:
+            merged["metadata"] = {}
+        merged["metadata"].update(custom_mapping["metadata"])
+        _LOGGER.debug(
+            "✅ Merged custom metadata: %s",
+            custom_mapping["metadata"].get("version", "unknown"),
+        )
 
     # Add advanced_rules (list format) to merged for backward compatibility
-    merged['advanced_rules'] = advanced_rules
-    _LOGGER.debug("✅ Added advanced_rules (list format) with %d rules to merged configuration", len(advanced_rules))
+    merged["advanced_rules"] = advanced_rules
+    _LOGGER.debug(
+        "✅ Added advanced_rules (list format) with %d rules to merged configuration",
+        len(advanced_rules),
+    )
 
     # CRITICAL: Add advanced_rules_dict to merged result
     # This was missing and caused RGBW mapping to fail
-    merged['advanced_rules_dict'] = advanced_rules_dict
-    _LOGGER.debug("✅ Added advanced_rules_dict with %d rules to merged configuration", len(advanced_rules_dict))
+    merged["advanced_rules_dict"] = advanced_rules_dict
+    _LOGGER.debug(
+        "✅ Added advanced_rules_dict with %d rules to merged configuration",
+        len(advanced_rules_dict),
+    )
 
     return merged
 
 
 def load_and_merge_yaml_mappings(base_path: str = "") -> Dict[str, Any]:
     """Load YAML mappings and return merged configuration.
-    
+
     This function loads YAML configuration files and merges them.
     It should be called during initialization to get the complete mapping configuration.
-    
+
     Args:
         base_path: Base path where YAML files are located
-        
+
     Returns:
         Dictionary with merged mapping configuration containing:
         - advanced_rules: List of advanced mapping rules
@@ -604,98 +744,126 @@ def load_and_merge_yaml_mappings(base_path: str = "") -> Dict[str, Any]:
     """
     try:
         _LOGGER.info("🔍 Starting YAML mappings load and merge process")
-        
+
         # Load and merge YAML mappings
         yaml_config = load_yaml_mappings(base_path)
-        
+
         _LOGGER.debug("YAML mappings loaded: %s", bool(yaml_config))
-        
+
         if yaml_config:
             _LOGGER.info("✅ Successfully loaded YAML mappings")
-            
+
             # Log YAML metadata if present
-            if yaml_config and yaml_config.get('metadata'):
-                metadata = yaml_config['metadata']
-                _LOGGER.info("📋 YAML Metadata - Version: %s, Last Modified: %s",
-                           metadata.get('version', 'unknown'),
-                           metadata.get('last_modified', 'unknown'))
-                if metadata.get('changes'):
-                    for change in metadata['changes']:
+            if yaml_config and yaml_config.get("metadata"):
+                metadata = yaml_config["metadata"]
+                _LOGGER.info(
+                    "📋 YAML Metadata - Version: %s, Last Modified: %s",
+                    metadata.get("version", "unknown"),
+                    metadata.get("last_modified", "unknown"),
+                )
+                if metadata.get("changes"):
+                    for change in metadata["changes"]:
                         _LOGGER.info("  📝 %s", change)
-            
+
             # Debug: Log all the important sections
-            dynamic_props = yaml_config.get('dynamic_entity_properties', {})
-            specific_overrides = yaml_config.get('specific_device_dynamic_overrides', {})
-            specific_mappings = yaml_config.get('specific_device_mappings', {})
-            
-            _LOGGER.debug("Advanced rules count: %d", len(yaml_config.get('advanced_rules', [])))
-            _LOGGER.debug("Usage ID mappings count: %d", len(yaml_config.get('usage_id_mappings', {})))
+            dynamic_props = yaml_config.get("dynamic_entity_properties", {})
+            specific_overrides = yaml_config.get(
+                "specific_device_dynamic_overrides", {}
+            )
+            specific_mappings = yaml_config.get("specific_device_mappings", {})
+
+            _LOGGER.debug(
+                "Advanced rules count: %d", len(yaml_config.get("advanced_rules", []))
+            )
+            _LOGGER.debug(
+                "Usage ID mappings count: %d",
+                len(yaml_config.get("usage_id_mappings", {})),
+            )
             _LOGGER.debug("Specific device mappings count: %d", len(specific_mappings))
             _LOGGER.debug("Specific device mappings: %s", specific_mappings)
-            _LOGGER.debug("Name patterns count: %d", len(yaml_config.get('name_patterns', [])))
+            _LOGGER.debug(
+                "Name patterns count: %d", len(yaml_config.get("name_patterns", []))
+            )
             _LOGGER.debug("Dynamic entity properties: %s", dynamic_props)
             _LOGGER.debug("Specific device dynamic overrides: %s", specific_overrides)
             _LOGGER.debug("Specific device mappings: %s", specific_mappings)
-            
+
             # Critical check: if dynamic properties are empty, this is a problem
             if not dynamic_props:
-                _LOGGER.error("❌ CRITICAL: dynamic_entity_properties is empty! This will cause all devices to be treated as static.")
-                _LOGGER.error("❌ Check if YAML file contains dynamic_entity_properties section")
+                _LOGGER.error(
+                    "❌ CRITICAL: dynamic_entity_properties is empty! This will cause all devices to be treated as static."
+                )
+                _LOGGER.error(
+                    "❌ Check if YAML file contains dynamic_entity_properties section"
+                )
                 _LOGGER.error("❌ Check if YAML file is being loaded correctly")
             else:
-                _LOGGER.info("✅ Dynamic entity properties loaded successfully: %s", dynamic_props)
-            
+                _LOGGER.info(
+                    "✅ Dynamic entity properties loaded successfully: %s",
+                    dynamic_props,
+                )
+
             if not specific_overrides:
-                _LOGGER.debug("⚠️  specific_device_dynamic_overrides is empty (this is normal if no overrides are defined)")
+                _LOGGER.debug(
+                    "⚠️  specific_device_dynamic_overrides is empty (this is normal if no overrides are defined)"
+                )
             else:
-                _LOGGER.info("✅ Specific device dynamic overrides loaded: %s", specific_overrides)
-            
+                _LOGGER.info(
+                    "✅ Specific device dynamic overrides loaded: %s",
+                    specific_overrides,
+                )
+
             return yaml_config
         else:
-            _LOGGER.error("❌ CRITICAL: No YAML mappings found! Falling back to empty configuration")
-            _LOGGER.error("❌ This means load_yaml_mappings() returned None or empty dict")
+            _LOGGER.error(
+                "❌ CRITICAL: No YAML mappings found! Falling back to empty configuration"
+            )
+            _LOGGER.error(
+                "❌ This means load_yaml_mappings() returned None or empty dict"
+            )
             _LOGGER.error("❌ Check file paths and YAML parsing")
-            
+
             # Return minimal configuration with error tracking
             minimal_config = {
-                'advanced_rules': [],
-                'usage_id_mappings': {},
-                'name_patterns': [],
-                'dynamic_entity_properties': {},
-                'specific_device_dynamic_overrides': {},
-                'default_mapping': {
-                    'ha_entity': 'sensor',
-                    'ha_subtype': 'unknown',
-                    'justification': 'Default fallback mapping for unknown devices'
+                "advanced_rules": [],
+                "usage_id_mappings": {},
+                "name_patterns": [],
+                "dynamic_entity_properties": {},
+                "specific_device_dynamic_overrides": {},
+                "default_mapping": {
+                    "ha_entity": "sensor",
+                    "ha_subtype": "unknown",
+                    "justification": "Default fallback mapping for unknown devices",
                 },
-                '_load_error': 'YAML mappings not loaded - check logs for details'
+                "_load_error": "YAML mappings not loaded - check logs for details",
             }
-            
+
             _LOGGER.error("❌ Returning minimal configuration: %s", minimal_config)
             return minimal_config
-            
+
     except Exception as e:
         _LOGGER.error("❌ CRITICAL: Failed to load YAML mappings: %s", e)
         _LOGGER.error("❌ This exception prevented YAML loading - check stack trace")
         import traceback
+
         _LOGGER.error("Exception stack trace: %s", traceback.format_exc())
         _LOGGER.warning("⚠️  Falling back to minimal configuration")
-        
+
         # Return minimal configuration with error tracking
         minimal_config = {
-            'advanced_rules': [],
-            'usage_id_mappings': {},
-            'name_patterns': [],
-            'dynamic_entity_properties': {},
-            'specific_device_dynamic_overrides': {},
-            'default_mapping': {
-                'ha_entity': 'sensor',
-                'ha_subtype': 'unknown',
-                'justification': 'Default fallback mapping for unknown devices'
+            "advanced_rules": [],
+            "usage_id_mappings": {},
+            "name_patterns": [],
+            "dynamic_entity_properties": {},
+            "specific_device_dynamic_overrides": {},
+            "default_mapping": {
+                "ha_entity": "sensor",
+                "ha_subtype": "unknown",
+                "justification": "Default fallback mapping for unknown devices",
             },
-            '_load_error': f'Exception during YAML loading: {str(e)}'
+            "_load_error": f"Exception during YAML loading: {str(e)}",
         }
-        
+
         return minimal_config
 
 
@@ -719,13 +887,11 @@ def get_custom_mapping_paths():
         from homeassistant.core import async_get_hass
 
         config_dir = async_get_hass().config.config_dir
-        paths.append(os.path.join(config_dir, 'eedomus', 'custom_mapping.yaml'))
+        paths.append(os.path.join(config_dir, "eedomus", "custom_mapping.yaml"))
     except Exception:
         pass
     # AD-14: the integrated file is an example/seed, never an edit target.
-    paths.append(
-        os.path.join(current_dir, 'config', 'custom_mapping.yaml.example')
-    )
+    paths.append(os.path.join(current_dir, "config", "custom_mapping.yaml.example"))
     return paths
 
 
@@ -733,7 +899,7 @@ def get_config_dir_custom_mapping_path(hass) -> str:
     """Path of the config-dir custom mapping file (the save target)."""
     import os
 
-    return os.path.join(hass.config.config_dir, 'eedomus', 'custom_mapping.yaml')
+    return os.path.join(hass.config.config_dir, "eedomus", "custom_mapping.yaml")
 
 
 def load_custom_yaml_mappings():
@@ -758,17 +924,21 @@ def load_custom_yaml_mappings():
     for custom_mapping_path in get_custom_mapping_paths():
         try:
             if not os.path.exists(custom_mapping_path):
-                _LOGGER.debug("Custom mapping file not found at %s", custom_mapping_path)
+                _LOGGER.debug(
+                    "Custom mapping file not found at %s", custom_mapping_path
+                )
                 continue
 
-            with open(custom_mapping_path, 'r', encoding='utf-8') as f:
+            with open(custom_mapping_path, "r", encoding="utf-8") as f:
                 content = f.read()
                 custom_mappings = yaml.safe_load(content) or {}
                 _LOGGER.debug("Loaded custom mappings from %s", custom_mapping_path)
                 return custom_mappings
 
         except Exception as e:
-            _LOGGER.warning("Failed to load custom mappings from %s: %s", custom_mapping_path, e)
+            _LOGGER.warning(
+                "Failed to load custom mappings from %s: %s", custom_mapping_path, e
+            )
 
     return None
 
@@ -784,19 +954,15 @@ def read_custom_mapping_file(paths=None):
             if not os.path.exists(path):
                 _LOGGER.debug("Custom mapping file not found at %s", path)
                 continue
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(path, "r", encoding="utf-8") as f:
                 text = f.read()
             try:
                 return text, (yaml.safe_load(text) or {})
             except yaml.YAMLError as e:
-                _LOGGER.warning(
-                    "Custom mapping file %s does not parse: %s", path, e
-                )
+                _LOGGER.warning("Custom mapping file %s does not parse: %s", path, e)
                 return text, None
         except Exception as e:
-            _LOGGER.warning(
-                "Failed to read custom mapping file %s: %s", path, e
-            )
+            _LOGGER.warning("Failed to read custom mapping file %s: %s", path, e)
     return None, None
 
 

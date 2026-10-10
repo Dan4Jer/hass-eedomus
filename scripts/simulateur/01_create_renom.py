@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
+import argparse
 import csv
 import json
-import requests
 import os
-import argparse
 from pathlib import Path
+
+import requests
 
 parser = argparse.ArgumentParser(description="Extraction json Eedomus construction csv")
 parser.add_argument(
@@ -31,6 +32,7 @@ OUTPUT = Path("renom.csv")
 INPUT = Path(args.json)
 OUTPUT = Path(args.csv)
 
+
 def main():
     if not INPUT.exists():
         raise SystemExit(f"ERROR: fichier introuvable : {INPUT}")
@@ -52,24 +54,24 @@ def main():
     rows = []
 
     for p in peripherals:
-        rows.append({
-            "periph_id": str(p.get("periph_id", "")),
-            "name": p.get("name", ""),
-            "parent_periph_id": str(p.get("parent_periph_id", "") or ""),
-            "usage_id": str(p.get("usage_id", "") or ""),
-            "new_periph_id": "",
-            "new_name": "",
-        })
+        rows.append(
+            {
+                "periph_id": str(p.get("periph_id", "")),
+                "name": p.get("name", ""),
+                "parent_periph_id": str(p.get("parent_periph_id", "") or ""),
+                "usage_id": str(p.get("usage_id", "") or ""),
+                "new_periph_id": "",
+                "new_name": "",
+            }
+        )
 
-    rows.sort(key=lambda x: int(x["periph_id"])
-              if x["periph_id"].isdigit()
-              else x["periph_id"])
+    rows.sort(
+        key=lambda x: (
+            int(x["periph_id"]) if x["periph_id"].isdigit() else x["periph_id"]
+        )
+    )
 
-    with OUTPUT.open(
-        "w",
-        encoding="utf-8-sig",
-        newline=""
-    ) as f:
+    with OUTPUT.open("w", encoding="utf-8-sig", newline="") as f:
 
         writer = csv.DictWriter(
             f,

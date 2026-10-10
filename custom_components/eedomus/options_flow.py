@@ -3,59 +3,56 @@
 Detailed parameter documentation is available in docs/OPTIONS_DOCUMENTATION.md
 """
 
+import datetime
+import json
+import os
+
 import voluptuous as vol
 import yaml
-import os
-import json
-import datetime
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.helpers import config_validation as cv
+
 from .const import (
-    UI_OPTIONS_SCHEMA,
-    DEVICE_SCHEMA,
-    CONF_USE_YAML,
+    CONF_API_PROXY_DISABLE_SECURITY,
     CONF_CUSTOM_DEVICES,
-    CONF_YAML_CONTENT,
     CONF_ENABLE_API_EEDOMUS,
     CONF_ENABLE_API_PROXY,
-    CONF_ENABLE_PANEL,
     CONF_ENABLE_HISTORY,
-    CONF_HISTORY_RETRY_DELAY,
-    CONF_HISTORY_PERIPHERALS_PER_SCAN,
-    CONF_SCAN_INTERVAL,
+    CONF_ENABLE_PANEL,
     CONF_ENABLE_SET_VALUE_RETRY,
     CONF_ENABLE_WEBHOOK,
-    CONF_API_PROXY_DISABLE_SECURITY,
+    CONF_HISTORY_PERIPHERALS_PER_SCAN,
+    CONF_HISTORY_RETRY_DELAY,
+    CONF_HTTP_REQUEST_TIMEOUT,
     CONF_PHP_FALLBACK_ENABLED,
     CONF_PHP_FALLBACK_SCRIPT_NAME,
     CONF_PHP_FALLBACK_TIMEOUT,
-    CONF_HTTP_REQUEST_TIMEOUT,
-    DEFAULT_HISTORY_PERIPHERALS_PER_SCAN,
-    DEFAULT_SCAN_INTERVAL,
+    CONF_SCAN_INTERVAL,
+    CONF_USE_YAML,
+    CONF_YAML_CONTENT,
+    DEFAULT_API_PROXY_DISABLE_SECURITY,
     DEFAULT_CONF_ENABLE_API_EEDOMUS,
     DEFAULT_CONF_ENABLE_API_PROXY,
-    DEFAULT_ENABLE_PANEL,
     DEFAULT_CONF_ENABLE_HISTORY,
+    DEFAULT_ENABLE_PANEL,
     DEFAULT_ENABLE_SET_VALUE_RETRY,
     DEFAULT_ENABLE_WEBHOOK,
-    DEFAULT_API_PROXY_DISABLE_SECURITY,
+    DEFAULT_HISTORY_PERIPHERALS_PER_SCAN,
+    DEFAULT_HISTORY_RETRY_DELAY,
+    DEFAULT_HTTP_REQUEST_TIMEOUT,
     DEFAULT_PHP_FALLBACK_ENABLED,
     DEFAULT_PHP_FALLBACK_SCRIPT_NAME,
     DEFAULT_PHP_FALLBACK_TIMEOUT,
-    DEFAULT_HTTP_REQUEST_TIMEOUT,
-    CONF_API_PROXY_DISABLE_SECURITY,
-    CONF_PHP_FALLBACK_ENABLED,
-    CONF_PHP_FALLBACK_SCRIPT_NAME,
-    CONF_PHP_FALLBACK_TIMEOUT,
-    CONF_HTTP_REQUEST_TIMEOUT,
-    DEFAULT_HTTP_REQUEST_TIMEOUT,
-    DEFAULT_HISTORY_RETRY_DELAY,
+    DEFAULT_SCAN_INTERVAL,
+    DEVICE_SCHEMA,
+    UI_OPTIONS_SCHEMA,
     YAML_MAPPING_SCHEMA,
 )
 from .log import get_logger
 
 _LOGGER = get_logger(__name__)
+
 
 async def async_get_translations(hass, language="en"):
     """Load translations for the given language."""
@@ -71,7 +68,9 @@ async def async_get_translations(hass, language="en"):
                 lambda: json.load(open(translations_path, "r"))
             )
         else:
-            _LOGGER.warning(f"Translations for language {language} not found. Using English as fallback.")
+            _LOGGER.warning(
+                f"Translations for language {language} not found. Using English as fallback."
+            )
             translations_path = os.path.join(
                 os.path.dirname(__file__), "translations", "en.json"
             )
@@ -82,9 +81,10 @@ async def async_get_translations(hass, language="en"):
         _LOGGER.error(f"Failed to load translations: {e}")
         return {}
 
+
 class EedomusOptionsFlow(config_entries.OptionsFlow):
     """Handle eedomus options with UI/YAML toggle.
-    
+
     Note: Do NOT override self.hass in subclasses of OptionsFlow.
     The hass property is provided by the parent OptionsFlow class and
     should always be used directly without reinitialization.
@@ -100,7 +100,7 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
 
     def _copy_config_to_options(self):
         """Copy configuration values from config_entry.data to options.
-        
+
         This ensures that values set during config_flow are available in options_flow.
         Only copies values that haven't been explicitly set in options.
         """
@@ -109,38 +109,59 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
             options = {}
         else:
             options = dict(self._config_entry.options)
-        
+
         # Copy values from config_entry.data (config_flow values)
         # Only copy if the option hasn't been explicitly set yet
         config_data = self._config_entry.data
-        
+
         # Only copy if not already in options
         if CONF_ENABLE_API_EEDOMUS not in options:
-            options[CONF_ENABLE_API_EEDOMUS] = config_data.get(CONF_ENABLE_API_EEDOMUS, True)
+            options[CONF_ENABLE_API_EEDOMUS] = config_data.get(
+                CONF_ENABLE_API_EEDOMUS, True
+            )
         if CONF_ENABLE_API_PROXY not in options:
-            options[CONF_ENABLE_API_PROXY] = config_data.get(CONF_ENABLE_API_PROXY, False)
+            options[CONF_ENABLE_API_PROXY] = config_data.get(
+                CONF_ENABLE_API_PROXY, False
+            )
         if CONF_ENABLE_HISTORY not in options:
             options[CONF_ENABLE_HISTORY] = config_data.get(CONF_ENABLE_HISTORY, False)
         if CONF_HISTORY_PERIPHERALS_PER_SCAN not in options:
-            options[CONF_HISTORY_PERIPHERALS_PER_SCAN] = config_data.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, DEFAULT_HISTORY_PERIPHERALS_PER_SCAN)
+            options[CONF_HISTORY_PERIPHERALS_PER_SCAN] = config_data.get(
+                CONF_HISTORY_PERIPHERALS_PER_SCAN, DEFAULT_HISTORY_PERIPHERALS_PER_SCAN
+            )
         if CONF_SCAN_INTERVAL not in options:
             options[CONF_SCAN_INTERVAL] = config_data.get(CONF_SCAN_INTERVAL, 300)
         if CONF_HTTP_REQUEST_TIMEOUT not in options:
-            options[CONF_HTTP_REQUEST_TIMEOUT] = config_data.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)
+            options[CONF_HTTP_REQUEST_TIMEOUT] = config_data.get(
+                CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT
+            )
         if CONF_ENABLE_SET_VALUE_RETRY not in options:
-            options[CONF_ENABLE_SET_VALUE_RETRY] = config_data.get(CONF_ENABLE_SET_VALUE_RETRY, True)
+            options[CONF_ENABLE_SET_VALUE_RETRY] = config_data.get(
+                CONF_ENABLE_SET_VALUE_RETRY, True
+            )
         if CONF_ENABLE_WEBHOOK not in options:
             options[CONF_ENABLE_WEBHOOK] = config_data.get(CONF_ENABLE_WEBHOOK, True)
         if CONF_API_PROXY_DISABLE_SECURITY not in options:
-            options[CONF_API_PROXY_DISABLE_SECURITY] = config_data.get(CONF_API_PROXY_DISABLE_SECURITY, False)
+            options[CONF_API_PROXY_DISABLE_SECURITY] = config_data.get(
+                CONF_API_PROXY_DISABLE_SECURITY, False
+            )
         if CONF_PHP_FALLBACK_ENABLED not in options:
-            options[CONF_PHP_FALLBACK_ENABLED] = config_data.get(CONF_PHP_FALLBACK_ENABLED, False)
+            options[CONF_PHP_FALLBACK_ENABLED] = config_data.get(
+                CONF_PHP_FALLBACK_ENABLED, False
+            )
         if CONF_PHP_FALLBACK_SCRIPT_NAME not in options:
-            options[CONF_PHP_FALLBACK_SCRIPT_NAME] = config_data.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")
+            options[CONF_PHP_FALLBACK_SCRIPT_NAME] = config_data.get(
+                CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php"
+            )
         if CONF_PHP_FALLBACK_TIMEOUT not in options:
-            options[CONF_PHP_FALLBACK_TIMEOUT] = config_data.get(CONF_PHP_FALLBACK_TIMEOUT, 5)
-        
-        _LOGGER.debug("Copied config to options: %s", {k: v for k, v in options.items() if k not in ['api_user', 'api_secret']})
+            options[CONF_PHP_FALLBACK_TIMEOUT] = config_data.get(
+                CONF_PHP_FALLBACK_TIMEOUT, 5
+            )
+
+        _LOGGER.debug(
+            "Copied config to options: %s",
+            {k: v for k, v in options.items() if k not in ["api_user", "api_secret"]},
+        )
         return options
 
     @staticmethod
@@ -150,52 +171,166 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
         return EedomusOptionsFlow(config_entry)
 
     async def async_step_init(self, user_input=None):
-            """Manage the options - comprehensive configuration interface."""
-            # Get current configuration first (needed for both display and submission)
-            current_config = dict(self.config_entry.options) if self.config_entry.options else {}
-            
-            # Handle form submission
-            if user_input is not None:
-                # Save all options
-                options = {
-                    CONF_ENABLE_API_EEDOMUS: user_input.get(CONF_ENABLE_API_EEDOMUS, current_config.get(CONF_ENABLE_API_EEDOMUS, DEFAULT_CONF_ENABLE_API_EEDOMUS)),
-                    CONF_ENABLE_API_PROXY: user_input.get(CONF_ENABLE_API_PROXY, current_config.get(CONF_ENABLE_API_PROXY, DEFAULT_CONF_ENABLE_API_PROXY)),
-                    CONF_ENABLE_PANEL: user_input.get(CONF_ENABLE_PANEL, current_config.get(CONF_ENABLE_PANEL, DEFAULT_ENABLE_PANEL)),
-                    CONF_ENABLE_HISTORY: user_input.get(CONF_ENABLE_HISTORY, current_config.get(CONF_ENABLE_HISTORY, DEFAULT_CONF_ENABLE_HISTORY)),
-                    CONF_HISTORY_PERIPHERALS_PER_SCAN: user_input.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, current_config.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, DEFAULT_HISTORY_PERIPHERALS_PER_SCAN)),
-                    CONF_SCAN_INTERVAL: user_input.get(CONF_SCAN_INTERVAL, current_config.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)),
-                    CONF_ENABLE_SET_VALUE_RETRY: user_input.get(CONF_ENABLE_SET_VALUE_RETRY, current_config.get(CONF_ENABLE_SET_VALUE_RETRY, DEFAULT_ENABLE_SET_VALUE_RETRY)),
-                    CONF_ENABLE_WEBHOOK: user_input.get(CONF_ENABLE_WEBHOOK, current_config.get(CONF_ENABLE_WEBHOOK, DEFAULT_ENABLE_WEBHOOK)),
-                    CONF_API_PROXY_DISABLE_SECURITY: user_input.get(CONF_API_PROXY_DISABLE_SECURITY, current_config.get(CONF_API_PROXY_DISABLE_SECURITY, DEFAULT_API_PROXY_DISABLE_SECURITY)),
-                    CONF_PHP_FALLBACK_ENABLED: user_input.get(CONF_PHP_FALLBACK_ENABLED, current_config.get(CONF_PHP_FALLBACK_ENABLED, DEFAULT_PHP_FALLBACK_ENABLED)),
-                    CONF_PHP_FALLBACK_SCRIPT_NAME: user_input.get(CONF_PHP_FALLBACK_SCRIPT_NAME, current_config.get(CONF_PHP_FALLBACK_SCRIPT_NAME, DEFAULT_PHP_FALLBACK_SCRIPT_NAME)),
-                    CONF_PHP_FALLBACK_TIMEOUT: user_input.get(CONF_PHP_FALLBACK_TIMEOUT, current_config.get(CONF_PHP_FALLBACK_TIMEOUT, DEFAULT_PHP_FALLBACK_TIMEOUT)),
-                    CONF_HTTP_REQUEST_TIMEOUT: user_input.get(CONF_HTTP_REQUEST_TIMEOUT, current_config.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)),
+        """Manage the options - comprehensive configuration interface."""
+        # Get current configuration first (needed for both display and submission)
+        current_config = (
+            dict(self.config_entry.options) if self.config_entry.options else {}
+        )
+
+        # Handle form submission
+        if user_input is not None:
+            # Save all options
+            options = {
+                CONF_ENABLE_API_EEDOMUS: user_input.get(
+                    CONF_ENABLE_API_EEDOMUS,
+                    current_config.get(
+                        CONF_ENABLE_API_EEDOMUS, DEFAULT_CONF_ENABLE_API_EEDOMUS
+                    ),
+                ),
+                CONF_ENABLE_API_PROXY: user_input.get(
+                    CONF_ENABLE_API_PROXY,
+                    current_config.get(
+                        CONF_ENABLE_API_PROXY, DEFAULT_CONF_ENABLE_API_PROXY
+                    ),
+                ),
+                CONF_ENABLE_PANEL: user_input.get(
+                    CONF_ENABLE_PANEL,
+                    current_config.get(CONF_ENABLE_PANEL, DEFAULT_ENABLE_PANEL),
+                ),
+                CONF_ENABLE_HISTORY: user_input.get(
+                    CONF_ENABLE_HISTORY,
+                    current_config.get(
+                        CONF_ENABLE_HISTORY, DEFAULT_CONF_ENABLE_HISTORY
+                    ),
+                ),
+                CONF_HISTORY_PERIPHERALS_PER_SCAN: user_input.get(
+                    CONF_HISTORY_PERIPHERALS_PER_SCAN,
+                    current_config.get(
+                        CONF_HISTORY_PERIPHERALS_PER_SCAN,
+                        DEFAULT_HISTORY_PERIPHERALS_PER_SCAN,
+                    ),
+                ),
+                CONF_SCAN_INTERVAL: user_input.get(
+                    CONF_SCAN_INTERVAL,
+                    current_config.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+                ),
+                CONF_ENABLE_SET_VALUE_RETRY: user_input.get(
+                    CONF_ENABLE_SET_VALUE_RETRY,
+                    current_config.get(
+                        CONF_ENABLE_SET_VALUE_RETRY, DEFAULT_ENABLE_SET_VALUE_RETRY
+                    ),
+                ),
+                CONF_ENABLE_WEBHOOK: user_input.get(
+                    CONF_ENABLE_WEBHOOK,
+                    current_config.get(CONF_ENABLE_WEBHOOK, DEFAULT_ENABLE_WEBHOOK),
+                ),
+                CONF_API_PROXY_DISABLE_SECURITY: user_input.get(
+                    CONF_API_PROXY_DISABLE_SECURITY,
+                    current_config.get(
+                        CONF_API_PROXY_DISABLE_SECURITY,
+                        DEFAULT_API_PROXY_DISABLE_SECURITY,
+                    ),
+                ),
+                CONF_PHP_FALLBACK_ENABLED: user_input.get(
+                    CONF_PHP_FALLBACK_ENABLED,
+                    current_config.get(
+                        CONF_PHP_FALLBACK_ENABLED, DEFAULT_PHP_FALLBACK_ENABLED
+                    ),
+                ),
+                CONF_PHP_FALLBACK_SCRIPT_NAME: user_input.get(
+                    CONF_PHP_FALLBACK_SCRIPT_NAME,
+                    current_config.get(
+                        CONF_PHP_FALLBACK_SCRIPT_NAME, DEFAULT_PHP_FALLBACK_SCRIPT_NAME
+                    ),
+                ),
+                CONF_PHP_FALLBACK_TIMEOUT: user_input.get(
+                    CONF_PHP_FALLBACK_TIMEOUT,
+                    current_config.get(
+                        CONF_PHP_FALLBACK_TIMEOUT, DEFAULT_PHP_FALLBACK_TIMEOUT
+                    ),
+                ),
+                CONF_HTTP_REQUEST_TIMEOUT: user_input.get(
+                    CONF_HTTP_REQUEST_TIMEOUT,
+                    current_config.get(
+                        CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT
+                    ),
+                ),
+            }
+
+            # Update config entry options - using async_create_entry as per HA best practices
+            return self.async_create_entry(data=options)
+
+        # Show comprehensive options form
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(
+                        CONF_ENABLE_API_EEDOMUS,
+                        default=current_config.get(CONF_ENABLE_API_EEDOMUS, True),
+                    ): bool,
+                    vol.Optional(
+                        CONF_ENABLE_API_PROXY,
+                        default=current_config.get(CONF_ENABLE_API_PROXY, False),
+                    ): bool,
+                    vol.Optional(
+                        CONF_ENABLE_PANEL,
+                        default=current_config.get(
+                            CONF_ENABLE_PANEL, DEFAULT_ENABLE_PANEL
+                        ),
+                    ): bool,
+                    vol.Optional(
+                        CONF_HISTORY_PERIPHERALS_PER_SCAN,
+                        default=current_config.get(
+                            CONF_HISTORY_PERIPHERALS_PER_SCAN, 5
+                        ),
+                    ): int,
+                    vol.Optional(
+                        CONF_SCAN_INTERVAL,
+                        default=current_config.get(CONF_SCAN_INTERVAL, 300),
+                    ): int,
+                    vol.Optional(
+                        CONF_ENABLE_HISTORY,
+                        default=current_config.get(
+                            CONF_ENABLE_HISTORY, DEFAULT_CONF_ENABLE_HISTORY
+                        ),
+                    ): bool,
+                    vol.Optional(
+                        CONF_ENABLE_SET_VALUE_RETRY,
+                        default=current_config.get(CONF_ENABLE_SET_VALUE_RETRY, True),
+                    ): bool,
+                    vol.Optional(
+                        CONF_ENABLE_WEBHOOK,
+                        default=current_config.get(CONF_ENABLE_WEBHOOK, True),
+                    ): bool,
+                    vol.Optional(
+                        CONF_API_PROXY_DISABLE_SECURITY,
+                        default=current_config.get(
+                            CONF_API_PROXY_DISABLE_SECURITY, False
+                        ),
+                    ): bool,
+                    vol.Optional(
+                        CONF_PHP_FALLBACK_ENABLED,
+                        default=current_config.get(CONF_PHP_FALLBACK_ENABLED, False),
+                    ): bool,
+                    vol.Optional(
+                        CONF_PHP_FALLBACK_SCRIPT_NAME,
+                        default=current_config.get(
+                            CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php"
+                        ),
+                    ): str,
+                    vol.Optional(
+                        CONF_PHP_FALLBACK_TIMEOUT,
+                        default=current_config.get(CONF_PHP_FALLBACK_TIMEOUT, 5),
+                    ): int,
+                    vol.Optional(
+                        CONF_HTTP_REQUEST_TIMEOUT,
+                        default=current_config.get(CONF_HTTP_REQUEST_TIMEOUT, 30),
+                    ): int,
                 }
-                
-                # Update config entry options - using async_create_entry as per HA best practices
-                return self.async_create_entry(data=options)
-            
-            # Show comprehensive options form
-            return self.async_show_form(
-                step_id="init",
-                data_schema=vol.Schema({
-                    vol.Optional(CONF_ENABLE_API_EEDOMUS, default=current_config.get(CONF_ENABLE_API_EEDOMUS, True)): bool,
-                    vol.Optional(CONF_ENABLE_API_PROXY, default=current_config.get(CONF_ENABLE_API_PROXY, False)): bool,
-                    vol.Optional(CONF_ENABLE_PANEL, default=current_config.get(CONF_ENABLE_PANEL, DEFAULT_ENABLE_PANEL)): bool,
-                    vol.Optional(CONF_HISTORY_PERIPHERALS_PER_SCAN, default=current_config.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, 5)): int,
-                    vol.Optional(CONF_SCAN_INTERVAL, default=current_config.get(CONF_SCAN_INTERVAL, 300)): int,
-                    vol.Optional(CONF_ENABLE_HISTORY, default=current_config.get(CONF_ENABLE_HISTORY, DEFAULT_CONF_ENABLE_HISTORY)): bool,
-                    vol.Optional(CONF_ENABLE_SET_VALUE_RETRY, default=current_config.get(CONF_ENABLE_SET_VALUE_RETRY, True)): bool,
-                    vol.Optional(CONF_ENABLE_WEBHOOK, default=current_config.get(CONF_ENABLE_WEBHOOK, True)): bool,
-                    vol.Optional(CONF_API_PROXY_DISABLE_SECURITY, default=current_config.get(CONF_API_PROXY_DISABLE_SECURITY, False)): bool,
-                    vol.Optional(CONF_PHP_FALLBACK_ENABLED, default=current_config.get(CONF_PHP_FALLBACK_ENABLED, False)): bool,
-                    vol.Optional(CONF_PHP_FALLBACK_SCRIPT_NAME, default=current_config.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php")): str,
-                    vol.Optional(CONF_PHP_FALLBACK_TIMEOUT, default=current_config.get(CONF_PHP_FALLBACK_TIMEOUT, 5)): int,
-                    vol.Optional(CONF_HTTP_REQUEST_TIMEOUT, default=current_config.get(CONF_HTTP_REQUEST_TIMEOUT, 30)): int,
-                }),
-            )
-        
+            ),
+        )
+
     async def _async_yaml_editor_placeholders(
         self, preview_content, status_key=None, error=""
     ):
@@ -211,9 +346,9 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
         translations = (
             await async_get_translations(self.hass, language) if self.hass else {}
         )
-        yaml_editor = (
-            (translations.get("options") or {}).get("step") or {}
-        ).get("yaml_editor", {})
+        yaml_editor = ((translations.get("options") or {}).get("step") or {}).get(
+            "yaml_editor", {}
+        )
         if status_key:
             preview_status = yaml_editor.get(status_key, "").format(error=error)
         else:
@@ -248,6 +383,7 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 # Parse and validate
                 parsed_yaml = yaml.safe_load(yaml_content) or {}
                 from .const import YAML_MAPPING_SCHEMA
+
                 YAML_MAPPING_SCHEMA(parsed_yaml)
 
                 # Return preview
@@ -256,12 +392,14 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 )
                 return self.async_show_form(
                     step_id="yaml_editor",
-                    data_schema=vol.Schema({
-                        vol.Optional("yaml_content", default=yaml_content): str,
-                        vol.Optional("preview_mode"): bool,
-                    }),
+                    data_schema=vol.Schema(
+                        {
+                            vol.Optional("yaml_content", default=yaml_content): str,
+                            vol.Optional("preview_mode"): bool,
+                        }
+                    ),
                     description_placeholders=placeholders,
-                    errors=errors
+                    errors=errors,
                 )
             except (yaml.YAMLError, vol.Invalid) as e:
                 # Translated error key: options.error.invalid_yaml, with the
@@ -274,59 +412,88 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 placeholders["error"] = str(e)
                 return self.async_show_form(
                     step_id="yaml_editor",
-                    data_schema=vol.Schema({
-                        vol.Optional("yaml_content", default=yaml_content): str,
-                    }),
+                    data_schema=vol.Schema(
+                        {
+                            vol.Optional("yaml_content", default=yaml_content): str,
+                        }
+                    ),
                     description_placeholders=placeholders,
-                    errors=errors
+                    errors=errors,
                 )
-        
+
         # Save YAML configuration
         if user_input is not None and user_input.get("yaml_content"):
             yaml_content = user_input.get("yaml_content", "")
-            
+
             try:
                 # Parse and validate
                 parsed_yaml = yaml.safe_load(yaml_content) or {}
                 from .const import YAML_MAPPING_SCHEMA
+
                 validated = YAML_MAPPING_SCHEMA(parsed_yaml)
-                
+
                 # Save to custom_mapping.yaml
                 custom_mapping_path = os.path.join(
                     os.path.dirname(__file__), "config", "custom_mapping.yaml"
                 )
-                
+
                 # Use async_add_executor_job to avoid blocking calls
                 await self.hass.async_add_executor_job(
                     lambda: open(custom_mapping_path, "w").write(yaml_content)
                 )
-                
+
                 _LOGGER.info("YAML configuration saved successfully")
-                
+
                 # Update options
-                options = {
-                    CONF_USE_YAML: True,
-                    "yaml_content": yaml_content
-                }
-                
+                options = {CONF_USE_YAML: True, "yaml_content": yaml_content}
+
                 # Preserve API configuration options
                 current_options = self._copy_config_to_options()
-                options.update({
-                    CONF_ENABLE_API_EEDOMUS: current_options.get(CONF_ENABLE_API_EEDOMUS, True),
-                    CONF_ENABLE_API_PROXY: current_options.get(CONF_ENABLE_API_PROXY, False),
-                    CONF_ENABLE_HISTORY: current_options.get(CONF_ENABLE_HISTORY, False),
-                    CONF_HISTORY_RETRY_DELAY: current_options.get(CONF_HISTORY_RETRY_DELAY, DEFAULT_HISTORY_RETRY_DELAY),
-                    CONF_HISTORY_PERIPHERALS_PER_SCAN: current_options.get(CONF_HISTORY_PERIPHERALS_PER_SCAN, DEFAULT_HISTORY_PERIPHERALS_PER_SCAN),
-                    CONF_SCAN_INTERVAL: current_options.get(CONF_SCAN_INTERVAL, 300),
-                    CONF_ENABLE_SET_VALUE_RETRY: current_options.get(CONF_ENABLE_SET_VALUE_RETRY, True),
-                    CONF_ENABLE_WEBHOOK: current_options.get(CONF_ENABLE_WEBHOOK, True),
-                    CONF_API_PROXY_DISABLE_SECURITY: current_options.get(CONF_API_PROXY_DISABLE_SECURITY, False),
-                    CONF_PHP_FALLBACK_ENABLED: current_options.get(CONF_PHP_FALLBACK_ENABLED, False),
-                    CONF_PHP_FALLBACK_SCRIPT_NAME: current_options.get(CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php"),
-                    CONF_PHP_FALLBACK_TIMEOUT: current_options.get(CONF_PHP_FALLBACK_TIMEOUT, 5),
-                    CONF_HTTP_REQUEST_TIMEOUT: current_options.get(CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT)
-                })
-                
+                options.update(
+                    {
+                        CONF_ENABLE_API_EEDOMUS: current_options.get(
+                            CONF_ENABLE_API_EEDOMUS, True
+                        ),
+                        CONF_ENABLE_API_PROXY: current_options.get(
+                            CONF_ENABLE_API_PROXY, False
+                        ),
+                        CONF_ENABLE_HISTORY: current_options.get(
+                            CONF_ENABLE_HISTORY, False
+                        ),
+                        CONF_HISTORY_RETRY_DELAY: current_options.get(
+                            CONF_HISTORY_RETRY_DELAY, DEFAULT_HISTORY_RETRY_DELAY
+                        ),
+                        CONF_HISTORY_PERIPHERALS_PER_SCAN: current_options.get(
+                            CONF_HISTORY_PERIPHERALS_PER_SCAN,
+                            DEFAULT_HISTORY_PERIPHERALS_PER_SCAN,
+                        ),
+                        CONF_SCAN_INTERVAL: current_options.get(
+                            CONF_SCAN_INTERVAL, 300
+                        ),
+                        CONF_ENABLE_SET_VALUE_RETRY: current_options.get(
+                            CONF_ENABLE_SET_VALUE_RETRY, True
+                        ),
+                        CONF_ENABLE_WEBHOOK: current_options.get(
+                            CONF_ENABLE_WEBHOOK, True
+                        ),
+                        CONF_API_PROXY_DISABLE_SECURITY: current_options.get(
+                            CONF_API_PROXY_DISABLE_SECURITY, False
+                        ),
+                        CONF_PHP_FALLBACK_ENABLED: current_options.get(
+                            CONF_PHP_FALLBACK_ENABLED, False
+                        ),
+                        CONF_PHP_FALLBACK_SCRIPT_NAME: current_options.get(
+                            CONF_PHP_FALLBACK_SCRIPT_NAME, "fallback.php"
+                        ),
+                        CONF_PHP_FALLBACK_TIMEOUT: current_options.get(
+                            CONF_PHP_FALLBACK_TIMEOUT, 5
+                        ),
+                        CONF_HTTP_REQUEST_TIMEOUT: current_options.get(
+                            CONF_HTTP_REQUEST_TIMEOUT, DEFAULT_HTTP_REQUEST_TIMEOUT
+                        ),
+                    }
+                )
+
                 # Save options to config entry - using data parameter as per HA best practices
                 _LOGGER.debug("Saving YAML configuration")
                 return self.async_create_entry(data=options)
@@ -337,13 +504,13 @@ class EedomusOptionsFlow(config_entries.OptionsFlow):
                 errors["base"] = "invalid_yaml"
                 invalid_yaml_error = str(e)
                 _LOGGER.error(f"Failed to save YAML configuration: {e}")
-        
+
         # Load current YAML configuration
         try:
             custom_mapping_path = os.path.join(
                 os.path.dirname(__file__), "config", "custom_mapping.yaml"
             )
-            
+
             # Use async_add_executor_job to avoid blocking calls
             if os.path.exists(custom_mapping_path):
                 yaml_content = await self.hass.async_add_executor_job(
@@ -378,7 +545,7 @@ custom_devices:
             yaml_content = """# Eedomus Custom Mapping Configuration
 # Add your custom device mappings here
 """
-        
+
         # The description markdown (options.step.yaml_editor translation)
         # renders the preview of the current configuration; the placeholders
         # come from the flat loader exactly as before.
@@ -390,22 +557,23 @@ custom_devices:
 
         return self.async_show_form(
             step_id="yaml_editor",
-            data_schema=vol.Schema({
-                vol.Optional("yaml_content", default=yaml_content): str,
-            }),
+            data_schema=vol.Schema(
+                {
+                    vol.Optional("yaml_content", default=yaml_content): str,
+                }
+            ),
             description_placeholders=placeholders,
-            errors=errors
+            errors=errors,
         )
 
     # async_step_ui method removed - using YAML editor only
+
 
 # Utility functions to load/save the mappings
 async def async_load_mapping(hass, config_dir):
     """Load custom mapping from file."""
     mapping_path = os.path.join(
-        os.path.dirname(__file__),
-        "config",
-        "custom_mapping.yaml"
+        os.path.dirname(__file__), "config", "custom_mapping.yaml"
     )
     if os.path.exists(mapping_path):
         try:
@@ -415,21 +583,15 @@ async def async_load_mapping(hass, config_dir):
             _LOGGER.error(f"Failed to load mapping: {e}")
     return {}
 
+
 async def async_save_custom_mapping(hass, config_dir, mapping):
     """Save custom mapping to file."""
     mapping_path = os.path.join(
-        os.path.dirname(__file__),
-        "config",
-        "custom_mapping.yaml"
+        os.path.dirname(__file__), "config", "custom_mapping.yaml"
     )
     try:
         with open(mapping_path, "w") as f:
-            yaml.dump(
-                mapping,
-                f,
-                default_flow_style=False,
-                sort_keys=False
-            )
+            yaml.dump(mapping, f, default_flow_style=False, sort_keys=False)
         return True
     except Exception as e:
         _LOGGER.error(f"Failed to save mapping: {e}")

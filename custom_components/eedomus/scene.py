@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-
 from homeassistant.components.scene import Scene
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN, COORDINATOR
+from .const import COORDINATOR, DOMAIN
 from .entity import EedomusEntity
 from .log import get_logger
 

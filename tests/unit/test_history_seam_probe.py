@@ -20,6 +20,8 @@ from custom_components.eedomus.coordinator import EedomusDataUpdateCoordinator
 pytestmark = pytest.mark.unit
 
 PERIPH = "990012"
+
+
 def _entry(iso, value="20"):
     """A history entry with an ISO naive-local timestamp."""
     return {"value": value, "timestamp": iso}
@@ -56,7 +58,6 @@ def make_coordinator(completed=True, last_timestamp=_ts("2026-10-01T09:00:00")):
     coordinator.client.get_device_history = AsyncMock(return_value=[])
     coordinator.async_import_history_chunk = AsyncMock(return_value=0)
     return coordinator
-
 
 
 class TestSeamProbe:
@@ -149,9 +150,7 @@ class TestSeamProbe:
         async def _fetch(periph_id):
             return [{"value": "1", "timestamp": "2026-10-01T08:00:00"}]
 
-        coordinator.async_fetch_history_chunk = AsyncMock(
-            side_effect=_fetch
-        )
+        coordinator.async_fetch_history_chunk = AsyncMock(side_effect=_fetch)
 
         await coordinator._backfill_drain_pass()
 

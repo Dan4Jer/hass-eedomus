@@ -14,7 +14,6 @@ import pytest
 
 from custom_components.eedomus.config_flow import EedomusConfigFlow
 
-
 pytestmark = pytest.mark.unit
 
 
@@ -121,9 +120,7 @@ class TestHistoryApiHostPassThrough:
         flow.validate_input = AsyncMock(return_value={"title": "box"})
         flow.async_create_entry = MagicMock(return_value={"type": "create_entry"})
 
-        result = await flow.async_step_user(
-            base_payload(history_api_host="")
-        )
+        result = await flow.async_step_user(base_payload(history_api_host=""))
 
         assert result == {"type": "create_entry"}
         kwargs = flow.async_create_entry.call_args.kwargs

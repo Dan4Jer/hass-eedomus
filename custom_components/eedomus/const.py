@@ -65,10 +65,16 @@ DEFAULT_CONF_ENABLE_API_PROXY = False
 DEFAULT_ENABLE_API_PROXY = False  # API Proxy disabled by default in options
 DEFAULT_CONF_ENABLE_HISTORY = True  # History enabled
 DEFAULT_ENABLE_HISTORY = True  # History enabled
-DEFAULT_HISTORY_RETRY_DELAY = 24  # 24 hours  # History retry delay in hours (24 hours by default)
-DEFAULT_HISTORY_PERIPHERALS_PER_SCAN = 1  # History: 1 peripheral per scan interval by default
+DEFAULT_HISTORY_RETRY_DELAY = (
+    24  # 24 hours  # History retry delay in hours (24 hours by default)
+)
+DEFAULT_HISTORY_PERIPHERALS_PER_SCAN = (
+    1  # History: 1 peripheral per scan interval by default
+)
 DEFAULT_ENABLE_SET_VALUE_RETRY = True  # Set value retry enabled by default
-DEFAULT_CONF_ENABLE_SET_VALUE_RETRY = True  # Set value retry enabled by default (for config flow)
+DEFAULT_CONF_ENABLE_SET_VALUE_RETRY = (
+    True  # Set value retry enabled by default (for config flow)
+)
 DEFAULT_ENABLE_WEBHOOK = True  # Webhook enabled by default
 DEFAULT_REMOVE_ENTITIES = False  # Remove entities on uninstall disabled by default
 
@@ -83,8 +89,12 @@ DEFAULT_HTTP_REQUEST_TIMEOUT = 10  # 10 seconds timeout for HTTP requests to eed
 # Rate Limiting Configuration
 CONF_MAX_CONCURRENT_REQUESTS = "max_concurrent_requests"
 CONF_MIN_REQUEST_DELAY = "min_request_delay"
-DEFAULT_MAX_CONCURRENT_REQUESTS = 1  # Maximum concurrent requests to eedomus API (1 to prevent code 26)
-DEFAULT_MIN_REQUEST_DELAY = 0.6  # Minimum delay between requests in seconds (600ms > 500ms eedomus requirement)
+DEFAULT_MAX_CONCURRENT_REQUESTS = (
+    1  # Maximum concurrent requests to eedomus API (1 to prevent code 26)
+)
+DEFAULT_MIN_REQUEST_DELAY = (
+    0.6  # Minimum delay between requests in seconds (600ms > 500ms eedomus requirement)
+)
 
 # Platforms
 PLATFORMS = [
@@ -110,16 +120,16 @@ ATTR_LAST_UPDATED = "last_updated"
 # Note: If multiple eedomus keys map to the same HA key, the last one takes precedence.
 EEDOMUS_TO_HA_ATTR_MAPPING = {
     ATTR_VALUE_LIST: ATTR_VALUE_LIST,
-    "name" : "name",
-    "room_name": "room",       
-    "value_type": "type",      
+    "name": "name",
+    "room_name": "room",
+    "value_type": "type",
     "usage_id": "usage_id",
     "usage_name": "usage_name",
-    "last_value" : "last_value",
-    "last_value_text" : "last_value_text",
-    "last_value_change" : "last_value_change",
-    "creation_date" : "creation_date",
-#    "values" : "values", #all values from value_list
+    "last_value": "last_value",
+    "last_value_text": "last_value_text",
+    "last_value_change": "last_value_change",
+    "creation_date": "creation_date",
+    #    "values" : "values", #all values from value_list
 }
 
 # Domain
@@ -173,105 +183,140 @@ CONF_CUSTOM_DEVICES = "custom_devices"
 CONF_YAML_CONTENT = "yaml_content"
 
 # Device Mapping Schema
-DEVICE_SCHEMA = vol.Schema({
-    vol.Required("eedomus_id"): str,
-    vol.Required("ha_entity"): str,
-    vol.Required("type"): vol.In(["light", "switch", "sensor", "cover", "binary_sensor", "climate", "select"]),
-    vol.Required("name"): str,
-    vol.Optional("ha_subtype", default=""): str,
-    vol.Optional("icon"): cv.icon,
-    vol.Optional("room", default=""): str,
-    vol.Optional("justification", default=""): str,
-})
+DEVICE_SCHEMA = vol.Schema(
+    {
+        vol.Required("eedomus_id"): str,
+        vol.Required("ha_entity"): str,
+        vol.Required("type"): vol.In(
+            ["light", "switch", "sensor", "cover", "binary_sensor", "climate", "select"]
+        ),
+        vol.Required("name"): str,
+        vol.Optional("ha_subtype", default=""): str,
+        vol.Optional("icon"): cv.icon,
+        vol.Optional("room", default=""): str,
+        vol.Optional("justification", default=""): str,
+    }
+)
 
 # Schema for YAML files
-YAML_MAPPING_SCHEMA = vol.Schema({
-    vol.Optional("metadata"): {
-        vol.Optional("version"): str,
-        vol.Optional("last_modified"): str,
-        vol.Optional("changes"): list,
-    },
-    vol.Optional("custom_rules"): [
-        vol.Schema({
-            vol.Required("name"): str,
-            vol.Required("condition"): {
-                vol.Required("usage_id"): str,
-                vol.Required("state"): vol.In(["on", "off", "unavailable"]),
-            },
-            vol.Required("actions"): [
-                vol.Schema({
-                    vol.Required("type"): vol.In(["override", "ignore", "transform"]),
-                    vol.Optional("ha_entity"): str,
+YAML_MAPPING_SCHEMA = vol.Schema(
+    {
+        vol.Optional("metadata"): {
+            vol.Optional("version"): str,
+            vol.Optional("last_modified"): str,
+            vol.Optional("changes"): list,
+        },
+        vol.Optional("custom_rules"): [
+            vol.Schema(
+                {
+                    vol.Required("name"): str,
+                    vol.Required("condition"): {
+                        vol.Required("usage_id"): str,
+                        vol.Required("state"): vol.In(["on", "off", "unavailable"]),
+                    },
+                    vol.Required("actions"): [
+                        vol.Schema(
+                            {
+                                vol.Required("type"): vol.In(
+                                    ["override", "ignore", "transform"]
+                                ),
+                                vol.Optional("ha_entity"): str,
+                                vol.Optional("attributes"): dict,
+                            }
+                        )
+                    ],
+                }
+            )
+        ],
+        vol.Optional("custom_usage_id_mappings"): {
+            str: vol.Schema(
+                {
+                    vol.Required("ha_entity"): str,
+                    vol.Optional("ha_subtype"): str,
+                    vol.Optional("device_class"): str,
+                    vol.Optional("justification"): str,
+                }
+            )
+        },
+        vol.Optional("temperature_setpoint_mappings"): {
+            str: vol.Any(
+                vol.Schema(
+                    {
+                        vol.Required("ha_entity"): str,
+                        vol.Optional("unit_of_measurement"): str,
+                        vol.Optional("justification"): str,
+                    }
+                ),
+                str,
+                int,
+                float,
+            )
+        },
+        vol.Optional("custom_name_patterns"): [
+            vol.Schema(
+                {
+                    vol.Required("pattern"): str,
+                    vol.Required("replacement"): str,
+                    vol.Required("target"): vol.In(["name", "entity_id"]),
+                }
+            )
+        ],
+        vol.Optional(CONF_CUSTOM_DEVICES): [
+            vol.Schema(
+                {
+                    vol.Required("eedomus_id"): str,
+                    vol.Required("ha_entity"): str,
+                    vol.Required("type"): vol.In(
+                        [
+                            "light",
+                            "switch",
+                            "sensor",
+                            "climate",
+                            "cover",
+                            "binary_sensor",
+                            "text_sensor",
+                        ]
+                    ),
+                    vol.Optional("ha_subtype"): str,
+                    vol.Optional("icon"): str,
+                    vol.Optional("room"): str,
+                    vol.Optional("parent_periph_id"): str,
                     vol.Optional("attributes"): dict,
-                })
-            ],
-        })
-    ],
-    vol.Optional("custom_usage_id_mappings"): {
-        str: vol.Schema({
-            vol.Required("ha_entity"): str,
-            vol.Optional("ha_subtype"): str,
-            vol.Optional("device_class"): str,
-            vol.Optional("justification"): str,
-        })
-    },
-    vol.Optional("temperature_setpoint_mappings"): {
-        str: vol.Any(
-            vol.Schema({
-                vol.Required("ha_entity"): str,
-                vol.Optional("unit_of_measurement"): str,
-                vol.Optional("justification"): str,
-            }),
-            str,
-            int,
-            float
-        )
-    },
-    vol.Optional("custom_name_patterns"): [
-        vol.Schema({
-            vol.Required("pattern"): str,
-            vol.Required("replacement"): str,
-            vol.Required("target"): vol.In(["name", "entity_id"]),
-        })
-    ],
-    vol.Optional(CONF_CUSTOM_DEVICES): [
-        vol.Schema({
-            vol.Required("eedomus_id"): str,
-            vol.Required("ha_entity"): str,
-            vol.Required("type"): vol.In(["light", "switch", "sensor", "climate", "cover", "binary_sensor", "text_sensor"]),
-            vol.Optional("ha_subtype"): str,
-            vol.Optional("icon"): str,
-            vol.Optional("room"): str,
-            vol.Optional("parent_periph_id"): str,
-            vol.Optional("attributes"): dict,
-        })
-    ],
-    vol.Optional("custom_dynamic_entity_properties"): {
-        str: vol.Schema({
-            vol.Optional("ha_entity"): str,
-            vol.Optional("ha_subtype"): str,
-            vol.Optional("device_class"): str,
-            vol.Optional("unit_of_measurement"): str,
-            vol.Optional("icon"): str,
-            vol.Optional("justification"): str,
-        })
-    },
-    vol.Optional("custom_specific_device_dynamic_overrides"): {
-        str: vol.Schema({
-            vol.Optional("ha_entity"): str,
-            vol.Optional("ha_subtype"): str,
-            vol.Optional("device_class"): str,
-            vol.Optional("unit_of_measurement"): str,
-            vol.Optional("icon"): str,
-            vol.Optional("justification"): str,
-            vol.Optional("override_rules"): dict,
-        })
-    },
-})
+                }
+            )
+        ],
+        vol.Optional("custom_dynamic_entity_properties"): {
+            str: vol.Schema(
+                {
+                    vol.Optional("ha_entity"): str,
+                    vol.Optional("ha_subtype"): str,
+                    vol.Optional("device_class"): str,
+                    vol.Optional("unit_of_measurement"): str,
+                    vol.Optional("icon"): str,
+                    vol.Optional("justification"): str,
+                }
+            )
+        },
+        vol.Optional("custom_specific_device_dynamic_overrides"): {
+            str: vol.Schema(
+                {
+                    vol.Optional("ha_entity"): str,
+                    vol.Optional("ha_subtype"): str,
+                    vol.Optional("device_class"): str,
+                    vol.Optional("unit_of_measurement"): str,
+                    vol.Optional("icon"): str,
+                    vol.Optional("justification"): str,
+                    vol.Optional("override_rules"): dict,
+                }
+            )
+        },
+    }
+)
 
 # Schema for UI options
-UI_OPTIONS_SCHEMA = vol.Schema({
-    vol.Required(CONF_USE_YAML, default=False): bool,
-    vol.Optional(CONF_CUSTOM_DEVICES): vol.All(cv.ensure_list, [DEVICE_SCHEMA]),
-})
-
+UI_OPTIONS_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_USE_YAML, default=False): bool,
+        vol.Optional(CONF_CUSTOM_DEVICES): vol.All(cv.ensure_list, [DEVICE_SCHEMA]),
+    }
+)

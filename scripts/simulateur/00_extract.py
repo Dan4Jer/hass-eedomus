@@ -1,7 +1,8 @@
+import argparse
 import json
 import os
+
 import requests
-import argparse
 
 # CLI arguments / environment variables parsing
 parser = argparse.ArgumentParser(description="Query the eedomus box")
@@ -39,22 +40,22 @@ auth = f"api_user={API_USER}&api_secret={API_SECRET}"
 print("0   Test connexion...")
 
 res_test = requests.get(f"{base_url}?auth.test&{auth}").json()
-if (res_test.get("success") == '0'):
-  # Read the 'body' dict when present
-  body = res_test.get("body", {})
+if res_test.get("success") == "0":
+    # Read the 'body' dict when present
+    body = res_test.get("body", {})
 
-  # Read 'error_code' inside 'body'
-  error_code = body.get("error_code")
+    # Read 'error_code' inside 'body'
+    error_code = body.get("error_code")
 
-  # Exemple de test
-  if error_code == "1":
-      print("Authentication error detected!")
-      exit(1)
-  else:
-      print("connexion OK")
+    # Exemple de test
+    if error_code == "1":
+        print("Authentication error detected!")
+        exit(1)
+    else:
+        print("connexion OK")
 else:
-  print("Erreur connexion")
-  exit(1)
+    print("Erreur connexion")
+    exit(1)
 
 print("1/3 Fetching periph.list...")
 res_list = requests.get(f"{base_url}?action=periph.list&{auth}").json()

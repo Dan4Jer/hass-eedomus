@@ -24,9 +24,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import Any, Iterator, Optional
 
-_BOX_TAG: ContextVar[Optional[str]] = ContextVar(
-    "eedomus_box_tag", default=None
-)
+_BOX_TAG: ContextVar[Optional[str]] = ContextVar("eedomus_box_tag", default=None)
 
 
 class _BoxTagFilter(logging.Filter):

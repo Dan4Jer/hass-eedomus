@@ -20,9 +20,9 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from homeassistant.components.recorder.models import StatisticMeanType
 
 from custom_components.eedomus.coordinator import EedomusDataUpdateCoordinator
-from homeassistant.components.recorder.models import StatisticMeanType
 
 pytestmark = pytest.mark.unit
 

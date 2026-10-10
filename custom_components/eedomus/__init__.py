@@ -21,8 +21,8 @@ from .const import (
     CONF_ENABLE_API_EEDOMUS,
     CONF_ENABLE_API_PROXY,
     CONF_ENABLE_HISTORY,
-    CONF_ENABLE_WEBHOOK,
     CONF_ENABLE_PANEL,
+    CONF_ENABLE_WEBHOOK,
     CONF_REMOVE_ENTITIES,
     CONF_SCAN_INTERVAL,
     COORDINATOR,
@@ -30,8 +30,8 @@ from .const import (
     DEFAULT_CONF_ENABLE_API_EEDOMUS,
     DEFAULT_CONF_ENABLE_API_PROXY,
     DEFAULT_ENABLE_HISTORY,
-    DEFAULT_ENABLE_WEBHOOK,
     DEFAULT_ENABLE_PANEL,
+    DEFAULT_ENABLE_WEBHOOK,
     DEFAULT_REMOVE_ENTITIES,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
@@ -40,12 +40,12 @@ from .const import (
 from .coordinator import EedomusDataUpdateCoordinator
 from .eedomus_client import EedomusClient
 from .entity import _get_config_value
+from .log import get_logger
 
 # Import service setup
 from .panel import async_setup_panel, async_unload_panel
 from .services import async_setup_services
 from .webhook import EedomusWebhookView
-from .log import get_logger
 
 # Initialize logger first
 _LOGGER = get_logger(__name__)
@@ -218,9 +218,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         or "api_proxy" in entry.data
         or "api_proxy" in entry.options
     ):
-        _LOGGER.info(
-            "Automatically modernizing keys for entry %s", entry.entry_id
-        )
+        _LOGGER.info("Automatically modernizing keys for entry %s", entry.entry_id)
 
         new_data = {**entry.data}
         new_options = {**entry.options}
@@ -424,10 +422,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 # through coordinator._history_sensors).
                 from .history_sensor import async_setup_history_sensors
 
-                coordinator._history_sensors = await (
-                    async_setup_history_sensors(
-                        hass, coordinator, device_registry
-                    )
+                coordinator._history_sensors = await async_setup_history_sensors(
+                    hass, coordinator, device_registry
                 )
                 _LOGGER.info(
                     "Mounted %d history sensor entities",
@@ -465,8 +461,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             device_registry = async_get_device_registry(hass)
             # bug 109: the return is consumed - sensor.py's
             # _history_sensors branch finally sees the entities.
-            coordinator._history_sensors = await (
-                async_setup_history_sensors(hass, coordinator, device_registry)
+            coordinator._history_sensors = await async_setup_history_sensors(
+                hass, coordinator, device_registry
             )
             _LOGGER.info(
                 "✅ History sensors registered successfully: %d entities",
@@ -731,9 +727,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         coordinator = (
             entry_data.get(COORDINATOR) if isinstance(entry_data, dict) else None
         )
-        if coordinator is not None and hasattr(
-            coordinator, "async_shutdown_backfill"
-        ):
+        if coordinator is not None and hasattr(coordinator, "async_shutdown_backfill"):
             try:
                 await coordinator.async_shutdown_backfill()
             except Exception as err:

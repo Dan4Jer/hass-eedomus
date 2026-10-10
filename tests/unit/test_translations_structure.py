@@ -113,14 +113,12 @@ def _vol_marker_args(source):
     """
     tokens = _conf_token_map()
     fields = []
-    for match in re.finditer(
-        r"vol\.(?:Required|Optional)\(\s*([^\s,()]+)", source
-    ):
+    for match in re.finditer(r"vol\.(?:Required|Optional)\(\s*([^\s,()]+)", source):
         arg = match.group(1)
         if arg[:1] in ('"', "'"):
-            assert len(arg) >= 2 and arg[-1] == arg[0], (
-                f"unterminated string argument in a flow schema: {arg!r}"
-            )
+            assert (
+                len(arg) >= 2 and arg[-1] == arg[0]
+            ), f"unterminated string argument in a flow schema: {arg!r}"
             fields.append(arg[1:-1])
         elif re.fullmatch(r"CONF_[A-Z0-9_]+", arg):
             assert arg in tokens, f"unknown CONF token in a flow schema: {arg}"
@@ -319,7 +317,7 @@ class TestExceptionsSection:
 
     RAISE_RE = re.compile(
         r'translation_key="(?P<key>[a-z0-9_]+)",?\s*'
-        r'(?:translation_placeholders=\{(?P<placeholders>[^}]*)\})?'
+        r"(?:translation_placeholders=\{(?P<placeholders>[^}]*)\})?"
     )
 
     def _raised_keys(self):
@@ -341,18 +339,14 @@ class TestExceptionsSection:
             ("fr.json", _load(FR_PATH)),
         ):
             exceptions = tree.get("exceptions")
-            assert isinstance(exceptions, dict), (
-                f"{label} has no 'exceptions' section"
-            )
+            assert isinstance(exceptions, dict), f"{label} has no 'exceptions' section"
             for key, call_placeholders in raised.items():
                 assert key in exceptions, (
                     f"translation_key '{key}' raised by services.py missing "
                     f"from the exceptions section of {label}"
                 )
                 message = exceptions[key].get("message")
-                assert message, (
-                    f"{label} exceptions.{key}.message is missing"
-                )
+                assert message, f"{label} exceptions.{key}.message is missing"
                 message_placeholders = _placeholders(message)
                 assert message_placeholders == call_placeholders, (
                     f"{label} exceptions.{key}.message placeholders "
@@ -380,8 +374,7 @@ class TestFlowStepsPresent:
             assert isinstance(node, dict), f"'{dotted}' crosses a non-dict"
             parent = dotted.rsplit(".", 1)[0]
             assert part in node, (
-                f"missing translation key '{dotted}' (no '{part}' under "
-                f"'{parent}')"
+                f"missing translation key '{dotted}' (no '{part}' under " f"'{parent}')"
             )
             node = node[part]
         return node
@@ -439,9 +432,7 @@ class TestEnTreeLanguage:
                     f"marker {marker.group(0)!r} in "
                     f"{str(value)[:60]!r}: EN-tree values are English"
                 )
-                word = next(
-                    (w for w in self.FR_LEXICON if w in text.lower()), None
-                )
+                word = next((w for w in self.FR_LEXICON if w in text.lower()), None)
                 assert word is None, (
                     f"{label} value of '{key}' carries the French word "
                     f"'{word}' in {str(value)[:60]!r}: "
@@ -468,9 +459,9 @@ class TestConfigFlowSection:
     def test_step_user_fields_match_data_labels(self):
         fields = _config_flow_schema_fields()
         assert fields, "STEP_USER_DATA_SCHEMA not found in config_flow.py"
-        assert len(fields) == len(set(fields)), (
-            f"duplicated field in STEP_USER_DATA_SCHEMA: {fields}"
-        )
+        assert len(fields) == len(
+            set(fields)
+        ), f"duplicated field in STEP_USER_DATA_SCHEMA: {fields}"
         for label, tree in _trees():
             data = tree["config"]["step"]["user"]["data"]
             missing = sorted(set(fields) - set(data))
@@ -497,9 +488,9 @@ class TestConfigFlowSection:
 
     def test_step_uninstall_fields_match_data_labels(self):
         fields = _config_uninstall_schema_fields()
-        assert fields == ["remove_entities"], (
-            f"the uninstall form renders unexpected fields: {fields}"
-        )
+        assert fields == [
+            "remove_entities"
+        ], f"the uninstall form renders unexpected fields: {fields}"
         for label, tree in _trees():
             data = tree["config"]["step"]["uninstall"].get("data") or {}
             missing = sorted(set(fields) - set(data))
@@ -528,9 +519,9 @@ class TestOptionsFlowSection:
     def test_init_fields_match_data_labels(self):
         fields = _options_init_schema_fields()
         assert fields, "options init schema not found in options_flow.py"
-        assert len(fields) == len(set(fields)), (
-            f"duplicated field in the options init schema: {fields}"
-        )
+        assert len(fields) == len(
+            set(fields)
+        ), f"duplicated field in the options init schema: {fields}"
         for label, tree in _trees():
             data = tree["options"]["step"]["init"].get("data") or {}
             missing = sorted(set(fields) - set(data))

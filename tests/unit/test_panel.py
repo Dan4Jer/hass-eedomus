@@ -6,10 +6,10 @@ an http StaticPathConfig serving www/ plus a custom panel
 entry reloads, removed when the last entry is deleted.
 """
 
+import json
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
-import json
 import pytest
 
 import custom_components.eedomus.panel as panel_module
@@ -146,17 +146,11 @@ class TestPanelModuleUrlCacheBusting:
 
     def test_a_version_change_changes_the_url(self, monkeypatch, tmp_path):
         manifest = tmp_path / "manifest.json"
-        manifest.write_text(
-            json.dumps({"version": "0.99.9"}), encoding="utf-8"
-        )
-        monkeypatch.setattr(
-            panel_module, "__file__", str(tmp_path / "panel.py")
-        )
+        manifest.write_text(json.dumps({"version": "0.99.9"}), encoding="utf-8")
+        monkeypatch.setattr(panel_module, "__file__", str(tmp_path / "panel.py"))
         assert panel_module.panel_module_url().endswith("?v=0.99.9")
 
-        manifest.write_text(
-            json.dumps({"version": "0.99.10"}), encoding="utf-8"
-        )
+        manifest.write_text(json.dumps({"version": "0.99.10"}), encoding="utf-8")
         assert panel_module.panel_module_url().endswith("?v=0.99.10")
 
     def test_unreadable_manifest_falls_back_to_dev(self, monkeypatch, tmp_path):

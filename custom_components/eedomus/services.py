@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import entity_platform as ep
 
-from .const import DOMAIN, COORDINATOR
+from .const import COORDINATOR, DOMAIN
 from .log import box_log_context, get_logger, resolve_box_tag
 
 _LOGGER = get_logger(__name__)
@@ -120,7 +120,11 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
                         err,
                     )
                     errors.append(err)
-        _LOGGER.info("✅ Eedomus data refreshed (%d box(es), %d error(s))", len(coordinators), len(errors))
+        _LOGGER.info(
+            "✅ Eedomus data refreshed (%d box(es), %d error(s))",
+            len(coordinators),
+            len(errors),
+        )
         if errors and len(errors) == len(coordinators):
             raise errors[0]
 
@@ -140,7 +144,9 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
 
         target_coordinator = _find_coordinator_for_device(hass, device_id)
         if target_coordinator is None:
-            _LOGGER.error("❌ Device %s not found on any configured eedomus box", device_id)
+            _LOGGER.error(
+                "❌ Device %s not found on any configured eedomus box", device_id
+            )
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="device_not_found",
@@ -213,7 +219,7 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
         """Handle set_climate_temperature service call with validation."""
         device_id = call.data.get("device_id")
         temperature = call.data.get("temperature")
-        
+
         # Validate required parameters
         if not device_id:
             _LOGGER.error("❌ Missing required parameter: device_id")
@@ -221,29 +227,36 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
                 translation_domain=DOMAIN,
                 translation_key="missing_device_id",
             )
-        
+
         if temperature is None:
             _LOGGER.error("❌ Missing required parameter: temperature")
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="missing_temperature",
             )
-        
+
         # Validate temperature type and range
         try:
             temperature_float = float(temperature)
             if temperature_float < 7.0 or temperature_float > 30.0:
-                _LOGGER.error("❌ Temperature %.1f°C out of valid range (7.0°C-30.0°C)", temperature_float)
+                _LOGGER.error(
+                    "❌ Temperature %.1f°C out of valid range (7.0°C-30.0°C)",
+                    temperature_float,
+                )
                 raise ServiceValidationError(
                     translation_domain=DOMAIN,
                     translation_key="temperature_out_of_range",
                     translation_placeholders={"temperature": str(temperature_float)},
                 )
-            
+
             # Round to nearest 0.5°C as that's the typical eedomus precision
             rounded_temp = round(temperature_float * 2) / 2
-            _LOGGER.info("🌡️  Setting climate temperature to %.1f°C for device %s", rounded_temp, device_id)
-            
+            _LOGGER.info(
+                "🌡️  Setting climate temperature to %.1f°C for device %s",
+                rounded_temp,
+                device_id,
+            )
+
         except ValueError as ve:
             if "could not convert string to float" in str(ve):
                 _LOGGER.error("❌ Invalid temperature format: %s", temperature)
@@ -253,11 +266,13 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
                     translation_placeholders={"temperature": str(temperature)},
                 )
             raise
-        
+
         # Find which box owns this device, and validate it's a climate entity
         target_coordinator = _find_coordinator_for_device(hass, device_id)
         if target_coordinator is None:
-            _LOGGER.error("❌ Device %s not found on any configured eedomus box", device_id)
+            _LOGGER.error(
+                "❌ Device %s not found on any configured eedomus box", device_id
+            )
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="device_not_found",
@@ -267,20 +282,22 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
         periph_data = target_coordinator.data.get(device_id)
         ha_entity = periph_data.get("ha_entity")
         if ha_entity != "climate":
-            _LOGGER.error("❌ Device %s is not a climate entity (found: %s)", device_id, ha_entity)
+            _LOGGER.error(
+                "❌ Device %s is not a climate entity (found: %s)", device_id, ha_entity
+            )
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="device_not_climate",
                 translation_placeholders={"device_id": str(device_id)},
             )
-        
+
         # Find the live climate entity object and set the temperature through it,
         # so its own eedomus-specific value translation (acceptable_values /
         # entity_specifics, see climate.py) is applied rather than sending a raw
         # number - this was previously broken for everyone (see docstring of
         # _find_live_climate_entity), not just on multi-box installs.
         climate_entity = _find_live_climate_entity(hass, device_id)
-        
+
         if not climate_entity:
             _LOGGER.error("❌ No climate entity found for device %s", device_id)
             raise ServiceValidationError(
@@ -288,7 +305,7 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
                 translation_key="climate_entity_not_found",
                 translation_placeholders={"device_id": str(device_id)},
             )
-        
+
         # Set temperature through climate entity
         with box_log_context(_coordinator_box_tag(target_coordinator)):
             try:
@@ -306,7 +323,7 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
                     "success": True,
                     "device_id": device_id,
                     "temperature": rounded_temp,
-                    "message": f"Temperature set to {rounded_temp}°C"
+                    "message": f"Temperature set to {rounded_temp}°C",
                 }
 
             except Exception as err:
@@ -322,198 +339,237 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
     async def handle_cleanup_unused_entities(call: ServiceCall) -> dict:
         """Handle cleanup of unused eedomus entities."""
         _LOGGER.info("🧹 Cleanup service called via eedomus.cleanup_unused_entities")
-        
+
         try:
             # Import the cleanup function from __init__.py
-            from . import async_cleanup_unused_entities
-            
             # Call the cleanup function with explicit entity registry access
             # Use direct import to avoid hass.helpers issue
             from homeassistant.helpers import entity_registry as er
-            
+
+            from . import async_cleanup_unused_entities
+
             # Get entity registry directly using the correct method
             # async_get returns EntityRegistry directly, not a coroutine
             entity_registry = er.async_get(hass)
-            
+
             # Find entities to remove: eedomus domain, disabled, and have "deprecated" in unique_id
             entities_to_remove = []
             entities_analyzed = 0
             entities_considered = 0
-            
+
             # Get current coordinator data to check for orphaned entities
-            coordinator_data = hass.data.get(DOMAIN, {}).get("coordinator", {}).get("data", {})
-            current_peripheral_ids = set(coordinator_data.keys()) if coordinator_data else set()
-            
+            coordinator_data = (
+                hass.data.get(DOMAIN, {}).get("coordinator", {}).get("data", {})
+            )
+            current_peripheral_ids = (
+                set(coordinator_data.keys()) if coordinator_data else set()
+            )
+
             for entity_entry in entity_registry.entities.values():
                 entities_analyzed += 1
-                
+
                 # Check if this is an eedomus entity
                 if entity_entry.platform == "eedomus":
                     entities_considered += 1
-                    
+
                     # Check if entity is disabled OR has "deprecated" in unique_id OR is orphaned OR has no unique_id
                     is_disabled = entity_entry.disabled
-                    has_deprecated = entity_entry.unique_id and "deprecated" in entity_entry.unique_id.lower()
-                    has_no_unique_id = entity_entry.unique_id is None or entity_entry.unique_id == ""
-                    
+                    has_deprecated = (
+                        entity_entry.unique_id
+                        and "deprecated" in entity_entry.unique_id.lower()
+                    )
+                    has_no_unique_id = (
+                        entity_entry.unique_id is None or entity_entry.unique_id == ""
+                    )
+
                     # Check for orphaned entities (no longer provided by integration)
                     is_orphaned = False
                     if entity_entry.unique_id:
                         # Extract peripheral_id from unique_id (format usually includes the peripheral_id)
-                        unique_id_parts = entity_entry.unique_id.split('_')
+                        unique_id_parts = entity_entry.unique_id.split("_")
                         for part in unique_id_parts:
                             if part.isdigit() and part not in current_peripheral_ids:
                                 is_orphaned = True
                                 break
-                        
+
                         # Also check if the entity has no device_id (completely orphaned)
                         if not entity_entry.device_id:
                             is_orphaned = True
-                    
+
                     if is_disabled or has_deprecated or is_orphaned or has_no_unique_id:
                         if has_no_unique_id:
-                            reason = 'no_unique_id'
+                            reason = "no_unique_id"
                         elif is_orphaned:
-                            reason = 'orphaned'
+                            reason = "orphaned"
                         else:
-                            reason = 'deprecated' if has_deprecated else 'disabled'
-                        entities_to_remove.append({
-                            'entity_id': entity_entry.entity_id,
-                            'unique_id': entity_entry.unique_id,
-                            'disabled': is_disabled,
-                            'has_deprecated': has_deprecated,
-                            'is_orphaned': is_orphaned,
-                            'has_no_unique_id': has_no_unique_id,
-                            'reason': reason
-                        })
-            
-            _LOGGER.info(f"Cleanup analysis complete: {entities_analyzed} entities analyzed, "
-                       f"{entities_considered} eedomus entities considered, "
-                       f"{len(entities_to_remove)} entities to be removed")
-            
+                            reason = "deprecated" if has_deprecated else "disabled"
+                        entities_to_remove.append(
+                            {
+                                "entity_id": entity_entry.entity_id,
+                                "unique_id": entity_entry.unique_id,
+                                "disabled": is_disabled,
+                                "has_deprecated": has_deprecated,
+                                "is_orphaned": is_orphaned,
+                                "has_no_unique_id": has_no_unique_id,
+                                "reason": reason,
+                            }
+                        )
+
+            _LOGGER.info(
+                f"Cleanup analysis complete: {entities_analyzed} entities analyzed, "
+                f"{entities_considered} eedomus entities considered, "
+                f"{len(entities_to_remove)} entities to be removed"
+            )
+
             # Remove the entities
             removed_count = 0
             for entity_info in entities_to_remove:
                 try:
                     log_details = f"reason: {entity_info['reason']}"
-                    if entity_info['unique_id']:
+                    if entity_info["unique_id"]:
                         log_details += f", unique_id: {entity_info['unique_id']}"
-                    if entity_info.get('is_orphaned'):
+                    if entity_info.get("is_orphaned"):
                         log_details += " (orphaned - no longer provided by integration)"
-                    if entity_info.get('has_no_unique_id'):
+                    if entity_info.get("has_no_unique_id"):
                         log_details += " (no unique_id - cannot be managed from UI)"
-                    _LOGGER.info(f"Removing entity {entity_info['entity_id']} ({log_details})")
-                    entity_registry.async_remove(entity_info['entity_id'])
+                    _LOGGER.info(
+                        f"Removing entity {entity_info['entity_id']} ({log_details})"
+                    )
+                    entity_registry.async_remove(entity_info["entity_id"])
                     removed_count += 1
                 except Exception as e:
-                    _LOGGER.error(f"Failed to remove entity {entity_info['entity_id']}: {e}")
-            
-            _LOGGER.info(f"Cleanup completed: {removed_count} entities removed out of {len(entities_to_remove)} identified")
-            
+                    _LOGGER.error(
+                        f"Failed to remove entity {entity_info['entity_id']}: {e}"
+                    )
+
+            _LOGGER.info(
+                f"Cleanup completed: {removed_count} entities removed out of {len(entities_to_remove)} identified"
+            )
+
             return {
                 "success": True,
                 "entities_analyzed": entities_analyzed,
                 "entities_considered": entities_considered,
                 "entities_identified": len(entities_to_remove),
-                "entities_removed": removed_count
+                "entities_removed": removed_count,
             }
-            
+
         except Exception as err:
             _LOGGER.error("❌ Cleanup service failed: %s", err)
-            return {
-                "success": False,
-                "error": str(err)
-            }
+            return {"success": False, "error": str(err)}
 
     async def handle_cleanup_unused_devices(call: ServiceCall) -> dict:
         """Handle cleanup of unused eedomus devices."""
-        _LOGGER.info("🗑️  Cleanup unused devices service called via eedomus.cleanup_unused_devices")
-        
+        _LOGGER.info(
+            "🗑️  Cleanup unused devices service called via eedomus.cleanup_unused_devices"
+        )
+
         try:
             # Import device registry
             from homeassistant.helpers import device_registry as dr
-            
+
             # Get device registry (async_get returns DeviceRegistry directly, not a coroutine)
             device_registry = dr.async_get(hass)
-            
+
             # Find devices to remove: eedomus devices that are disabled or have no entities
             devices_to_remove = []
             devices_analyzed = 0
             devices_considered = 0
-            
+
             for device_entry in device_registry.devices.values():
                 devices_analyzed += 1
-                
+
                 # Check if this device has eedomus in its identifiers
                 is_eedomus_device = any(
-                    identifier[0] == "eedomus" 
+                    identifier[0] == "eedomus"
                     for identifier in device_entry.identifiers
                 )
-                
+
                 if is_eedomus_device:
                     devices_considered += 1
-                    
+
                     # Check if device is disabled OR has no entities
                     is_disabled = device_entry.disabled_by
                     # Check if device has no entities by looking at the device's entity associations
                     # We need to use the entity registry to find entities associated with this device
                     from homeassistant.helpers import entity_registry as er
+
                     entity_registry = er.async_get(hass)
-                    device_entities = [entity_id for entity_id, entity in entity_registry.entities.items() 
-                                     if entity.device_id == device_entry.id]
+                    device_entities = [
+                        entity_id
+                        for entity_id, entity in entity_registry.entities.items()
+                        if entity.device_id == device_entry.id
+                    ]
                     has_no_entities = len(device_entities) == 0
-                    
+
                     if is_disabled or has_no_entities:
-                        devices_to_remove.append({
-                            'device_id': device_entry.id,
-                            'name': device_entry.name,
-                            'disabled': bool(is_disabled),
-                            'has_no_entities': has_no_entities,
-                            'reason': 'no_entities' if has_no_entities else 'disabled'
-                        })
-            
-            _LOGGER.info(f"Device cleanup analysis complete: {devices_analyzed} devices analyzed, "
-                       f"{devices_considered} eedomus devices considered, "
-                       f"{len(devices_to_remove)} devices to be removed")
-            
+                        devices_to_remove.append(
+                            {
+                                "device_id": device_entry.id,
+                                "name": device_entry.name,
+                                "disabled": bool(is_disabled),
+                                "has_no_entities": has_no_entities,
+                                "reason": (
+                                    "no_entities" if has_no_entities else "disabled"
+                                ),
+                            }
+                        )
+
+            _LOGGER.info(
+                f"Device cleanup analysis complete: {devices_analyzed} devices analyzed, "
+                f"{devices_considered} eedomus devices considered, "
+                f"{len(devices_to_remove)} devices to be removed"
+            )
+
             # Remove the devices
             removed_count = 0
             for device_info in devices_to_remove:
                 try:
-                    _LOGGER.info(f"Removing device {device_info['name']} (id: {device_info['device_id']}, "
-                               f"reason: {device_info['reason']})")
-                    device_registry.async_remove_device(device_info['device_id'])
+                    _LOGGER.info(
+                        f"Removing device {device_info['name']} (id: {device_info['device_id']}, "
+                        f"reason: {device_info['reason']})"
+                    )
+                    device_registry.async_remove_device(device_info["device_id"])
                     removed_count += 1
                 except Exception as e:
-                    _LOGGER.error(f"Failed to remove device {device_info['device_id']}: {e}")
-            
-            _LOGGER.info(f"Device cleanup completed: {removed_count} devices removed "
-                       f"out of {len(devices_to_remove)} identified")
-            
+                    _LOGGER.error(
+                        f"Failed to remove device {device_info['device_id']}: {e}"
+                    )
+
+            _LOGGER.info(
+                f"Device cleanup completed: {removed_count} devices removed "
+                f"out of {len(devices_to_remove)} identified"
+            )
+
             return {
                 "success": True,
                 "devices_analyzed": devices_analyzed,
                 "devices_considered": devices_considered,
                 "devices_identified": len(devices_to_remove),
-                "devices_removed": removed_count
+                "devices_removed": removed_count,
             }
-            
+
         except Exception as err:
             _LOGGER.error("❌ Device cleanup service failed: %s", err)
-            return {
-                "success": False,
-                "error": str(err)
-            }
+            return {"success": False, "error": str(err)}
 
     # Register services
     try:
         hass.services.async_register("eedomus", "refresh", handle_refresh)
         hass.services.async_register("eedomus", "set_value", handle_set_value)
         hass.services.async_register("eedomus", "reload", handle_reload)
-        hass.services.async_register("eedomus", "set_climate_temperature", handle_set_climate_temperature)
-        hass.services.async_register("eedomus", "cleanup_unused_entities", handle_cleanup_unused_entities)
-        hass.services.async_register("eedomus", "cleanup_unused_devices", handle_cleanup_unused_devices)
-        _LOGGER.info("🛠️  Eedomus services registered: refresh, set_value, reload, set_climate_temperature, cleanup_unused_entities, cleanup_unused_devices")
+        hass.services.async_register(
+            "eedomus", "set_climate_temperature", handle_set_climate_temperature
+        )
+        hass.services.async_register(
+            "eedomus", "cleanup_unused_entities", handle_cleanup_unused_entities
+        )
+        hass.services.async_register(
+            "eedomus", "cleanup_unused_devices", handle_cleanup_unused_devices
+        )
+        _LOGGER.info(
+            "🛠️  Eedomus services registered: refresh, set_value, reload, set_climate_temperature, cleanup_unused_entities, cleanup_unused_devices"
+        )
     except Exception as err:
         _LOGGER.error("❌ Failed to register eedomus services: %s", err)
         raise err

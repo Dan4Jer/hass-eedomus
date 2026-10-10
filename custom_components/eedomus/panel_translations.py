@@ -225,21 +225,15 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "panel.supervision.value.refresh_time": (
             "Last cycle: {n} s total, {api} s on the API."
         ),
-        "panel.supervision.value.periphs": (
-            "{total} peripherals, {dynamic} dynamic."
-        ),
+        "panel.supervision.value.periphs": ("{total} peripherals, {dynamic} dynamic."),
         "panel.supervision.value.periphs_categories": (
             "{total} peripherals across {n} categories."
         ),
         "panel.supervision.value.activity": (
             "{n} peripherals reported a value in the last hour."
         ),
-        "panel.supervision.value.system": (
-            "CPU {cpu} % - {kb} kB free on the box."
-        ),
-        "panel.supervision.value.system_cpu": (
-            "CPU {cpu} % on the box."
-        ),
+        "panel.supervision.value.system": ("CPU {cpu} % - {kb} kB free on the box."),
+        "panel.supervision.value.system_cpu": ("CPU {cpu} % on the box."),
         "panel.supervision.value.history_completion": (
             "{done} of {total} eligible peripherals completed."
         ),
@@ -249,39 +243,29 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "panel.supervision.value.history_points_no_estimate": (
             "{retrieved} points retrieved (no estimate available)."
         ),
-        "panel.supervision.value.history_coverage": (
-            "Data retrieved back to {date}."
-        ),
-        "panel.supervision.value.history_coverage_empty": (
-            "Nothing retrieved yet."
-        ),
+        "panel.supervision.value.history_coverage": ("Data retrieved back to {date}."),
+        "panel.supervision.value.history_coverage_empty": ("Nothing retrieved yet."),
         "panel.supervision.value.history_queue": (
             "{pending} waiting, {errors} in error - about {eta} h left."
         ),
         "panel.supervision.value.history_queue_no_eta": (
             "{pending} waiting, {errors} in error."
         ),
-        "panel.supervision.value.history_queue_empty": (
-            "Everything is retrieved."
-        ),
+        "panel.supervision.value.history_queue_empty": ("Everything is retrieved."),
         "panel.supervision.link.coherence": "See the coherence table",
         # Backfill progress indicator (story 110, shared by the
         # Supervision queue row and the Coherence detail)
         "panel.backfill.progress.text": (
             "{retrieved} / ~{total} points - retrieved back to {date}."
         ),
-        "panel.backfill.progress.text_no_date": (
-            "{retrieved} / ~{total} points."
-        ),
+        "panel.backfill.progress.text_no_date": ("{retrieved} / ~{total} points."),
         "panel.backfill.progress.text_no_estimate": (
             "{retrieved} points retrieved - back to {date}."
         ),
         "panel.backfill.progress.text_no_estimate_no_date": (
             "{retrieved} points retrieved."
         ),
-        "panel.backfill.progress.not_started": (
-            "History recovery not started."
-        ),
+        "panel.backfill.progress.not_started": ("History recovery not started."),
         "panel.supervision.error.load": "Failed to load metrics: {err}.",
         "panel.supervision.empty": (
             "No refresh cycle recorded yet. The charts fill in after "
@@ -290,12 +274,8 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "panel.supervision.skeleton.aria": "Loading supervision…",
         # Supervision — backfill queue (CAP-5)
         "panel.supervision.backfill.title": "History backfill queue",
-        "panel.supervision.backfill.skeleton.aria": (
-            "Loading the backfill queue…"
-        ),
-        "panel.supervision.backfill.empty": (
-            "All recovered. No pending history."
-        ),
+        "panel.supervision.backfill.skeleton.aria": ("Loading the backfill queue…"),
+        "panel.supervision.backfill.empty": ("All recovered. No pending history."),
         "panel.supervision.backfill.error.load": (
             "Failed to load the backfill queue: {err}."
         ),
@@ -324,23 +304,15 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "panel.supervision.backfill.row.retry_after": "— retry at {retry_after}",
         "panel.supervision.backfill.row.error_fallback": "import error",
         "panel.supervision.backfill.ignored.title": "Ignored peripherals",
-        "panel.supervision.backfill.feedback.retry": (
-            "Retry started for {name}."
-        ),
+        "panel.supervision.backfill.feedback.retry": ("Retry started for {name}."),
         "panel.supervision.backfill.feedback.prioritize": (
             "{name} moved to the head of the queue."
         ),
         "panel.supervision.backfill.feedback.pause": "{name} paused.",
         "panel.supervision.backfill.feedback.resume": "{name} resumed.",
-        "panel.supervision.backfill.feedback.ignore": (
-            "Recovery of {name} abandoned."
-        ),
-        "panel.supervision.backfill.feedback.reactivate": (
-            "{name} reactivated."
-        ),
-        "panel.supervision.backfill.feedback.global": (
-            "Backfill engine {state}."
-        ),
+        "panel.supervision.backfill.feedback.ignore": ("Recovery of {name} abandoned."),
+        "panel.supervision.backfill.feedback.reactivate": ("{name} reactivated."),
+        "panel.supervision.backfill.feedback.global": ("Backfill engine {state}."),
         "panel.supervision.backfill.feedback.error": (
             "Action refused for {name}: {err}."
         ),
@@ -587,12 +559,8 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "panel.supervision.value.activity": (
             "{n} périphériques ont remonté une valeur dans la dernière heure."
         ),
-        "panel.supervision.value.system": (
-            "CPU {cpu} % - {kb} Ko libres sur la box."
-        ),
-        "panel.supervision.value.system_cpu": (
-            "CPU {cpu} % sur la box."
-        ),
+        "panel.supervision.value.system": ("CPU {cpu} % - {kb} Ko libres sur la box."),
+        "panel.supervision.value.system_cpu": ("CPU {cpu} % sur la box."),
         "panel.supervision.value.history_completion": (
             "{done} périphériques éligibles complétés sur {total}."
         ),
@@ -614,24 +582,20 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "panel.supervision.value.history_queue_no_eta": (
             "{pending} en attente, {errors} en erreur."
         ),
-        "panel.supervision.value.history_queue_empty": (
-            "Tout est récupéré."
-        ),
+        "panel.supervision.value.history_queue_empty": ("Tout est récupéré."),
         "panel.supervision.link.coherence": "Voir le tableau de cohérence",
         "panel.backfill.progress.text": (
-            "{retrieved} / ~{total} points - récupérés jusqu\'au {date}."
+            "{retrieved} / ~{total} points - récupérés jusqu'au {date}."
         ),
-        "panel.backfill.progress.text_no_date": (
-            "{retrieved} / ~{total} points."
-        ),
+        "panel.backfill.progress.text_no_date": ("{retrieved} / ~{total} points."),
         "panel.backfill.progress.text_no_estimate": (
-            "{retrieved} points récupérés - jusqu\'au {date}."
+            "{retrieved} points récupérés - jusqu'au {date}."
         ),
         "panel.backfill.progress.text_no_estimate_no_date": (
             "{retrieved} points récupérés."
         ),
         "panel.backfill.progress.not_started": (
-            "Récupération d\'historique non démarrée."
+            "Récupération d'historique non démarrée."
         ),
         "panel.supervision.error.load": (
             "Impossible de charger les métriques : {err}."

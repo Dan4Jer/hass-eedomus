@@ -97,7 +97,9 @@ def test_generation_is_pure_of_request_time(client, sim):
     probe = anchor - timedelta(days=365 * sim.HISTORY_YEARS)
     wide = _get_history(client, periph_id, end=9999999999).get_json()
     narrow = _get_history(
-        client, periph_id, start=int(probe.timestamp()) - 1,
+        client,
+        periph_id,
+        start=int(probe.timestamp()) - 1,
         end=int(probe.timestamp()),
     ).get_json()
     wide_value = next(
@@ -125,15 +127,13 @@ def test_client_resume_pagination_is_gapless(client, sim):
     points = []
     start = 0
     for _ in range(10):
-        body = _get_history(client, periph_id, start=start,
-                            end=9999999999).get_json()
+        body = _get_history(client, periph_id, start=start, end=9999999999).get_json()
         history = body["body"]["history"]
         assert len(history) <= 10000
         points.extend(history)
         if len(history) < 10000:
             break
-        start = int(max(datetime.fromisoformat(p[1]).timestamp()
-                        for p in history))
+        start = int(max(datetime.fromisoformat(p[1]).timestamp() for p in history))
     assert len(points) == expected_total
     stamps = [p[1] for p in points]
     # Uniqueness/gaplessness live in naive local time — the series space.
@@ -143,9 +143,7 @@ def test_client_resume_pagination_is_gapless(client, sim):
     assert len(set(stamps)) == len(stamps)
     epochs = [datetime.fromisoformat(s).timestamp() for s in stamps]
     assert epochs == sorted(epochs)
-    assert points[-1][1] == sim._history_anchor(
-        sim.caract_by_id[periph_id]
-    ).isoformat()
+    assert points[-1][1] == sim._history_anchor(sim.caract_by_id[periph_id]).isoformat()
 
 
 def test_start_at_series_end_returns_empty(client, sim):
@@ -196,9 +194,7 @@ def test_missing_periph_id_is_400(client):
 def test_bad_params_never_500(client, sim):
     """Non-integer start degrades to 0; non-integer end to now."""
     periph_id = _first_numeric_periph(sim)
-    bad_start = _get_history(
-        client, periph_id, start="not-a-number", end=9999999999
-    )
+    bad_start = _get_history(client, periph_id, start="not-a-number", end=9999999999)
     ok_start = _get_history(client, periph_id, start=0, end=9999999999)
     assert bad_start.status_code == 200
     assert bad_start.get_json() == ok_start.get_json()

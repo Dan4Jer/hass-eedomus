@@ -631,9 +631,7 @@ async def test_both_canonical_readers_return_the_same_storage_dict(
     )
 
     via_config_manager = await config_manager.async_get_custom_mapping()
-    via_device_mapping = await async_get_canonical_custom_mapping(
-        config_manager.hass
-    )
+    via_device_mapping = await async_get_canonical_custom_mapping(config_manager.hass)
 
     assert via_config_manager == canon
     assert via_device_mapping == canon

@@ -8,7 +8,12 @@ import pytest
 from homeassistant.components.cover import CoverDeviceClass, CoverEntityFeature
 from homeassistant.const import STATE_CLOSED, STATE_CLOSING, STATE_OPEN, STATE_OPENING
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "custom_components/eedomus")))
+sys.path.insert(
+    0,
+    os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "custom_components/eedomus")
+    ),
+)
 from cover import EedomusCover
 
 
@@ -119,7 +124,12 @@ async def test_cover_with_missing_parent():
     """Test cover when parent device is not loaded (Issue #26)."""
     mock_coordinator = AsyncMock()
     mock_coordinator.data = {
-        "cover_child": {"name": "Child Cover", "value": "closed", "position": 0, "parent_periph_id": "missing_parent"}
+        "cover_child": {
+            "name": "Child Cover",
+            "value": "closed",
+            "position": 0,
+            "parent_periph_id": "missing_parent",
+        }
         # Note: missing_parent is NOT in coordinator.data
     }
 
@@ -127,7 +137,7 @@ async def test_cover_with_missing_parent():
         "periph_id": "cover_child",
         "name": "Child Cover",
         "usage_id": "48",
-        "parent_periph_id": "missing_parent"
+        "parent_periph_id": "missing_parent",
     }
 
     # This should not raise KeyError

@@ -41,6 +41,7 @@ _LOGGER = get_logger(__name__)
 # "<config_entry_id>_<periph_id>" (spec-eedomus-history constraint).
 BACKFILL_CONFIG_SCHEMA_VERSION = 2
 
+
 # Ordered schema migrations: target_version -> pure transform (dict) -> dict.
 # A migration for target N upgrades the stored document from N-1 to N.
 def _migrate_backfill_v1_to_v2(data: dict) -> dict:
@@ -494,9 +495,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         # guarded like the capture itself: a metrics problem never
         # breaks the refresh.
         try:
-            self._metrics_cycle_start_calls = sum(
-                self._endpoint_call_counts.values()
-            )
+            self._metrics_cycle_start_calls = sum(self._endpoint_call_counts.values())
         except Exception as err:  # pragma: no cover
             self._metrics_cycle_start_calls = None
             _LOGGER.warning("Box metrics cycle baseline capture failed: %s", err)
@@ -1240,9 +1239,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             if "CPU" in name and cpu is None:
                 cpu = self._parse_box_system_value(periph.get("last_value"))
             elif "Espace libre" in name and free_space_kb is None:
-                free_space_kb = self._parse_box_system_value(
-                    periph.get("last_value")
-                )
+                free_space_kb = self._parse_box_system_value(periph.get("last_value"))
         return cpu, free_space_kb
 
     def _count_active_periphs_last_hour(self) -> int:
@@ -1398,10 +1395,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         for pid in self._backfill_queue_ids(for_drain=True):
             pending += 1
             retry_info = self._retry_queue.get(pid)
-            if (
-                isinstance(retry_info, dict)
-                and now < retry_info.get("retry_after", 0)
-            ):
+            if isinstance(retry_info, dict) and now < retry_info.get("retry_after", 0):
                 errors += 1
 
         eta_hours = None
@@ -1415,9 +1409,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 or 0
             )
             if quota > 0:
-                eta_hours = round(
-                    pending * BACKFILL_WORKER_INTERVAL / quota / 3600, 1
-                )
+                eta_hours = round(pending * BACKFILL_WORKER_INTERVAL / quota / 3600, 1)
 
         return {
             "eligible": len(eligible),
@@ -1588,8 +1580,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             pid
             for pid in self._backfill_eligible_peripherals
             if self._history_progress.get(pid, {}).get("completed")
-            and (self._history_progress.get(pid, {}).get("last_timestamp") or 0)
-            > 0
+            and (self._history_progress.get(pid, {}).get("last_timestamp") or 0) > 0
         ]
         if not completed:
             return
@@ -1604,19 +1595,14 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             )
         except Exception as err:  # pylint: disable=broad-except
             # A probe failure never poisons the periph: log and skip
-            _LOGGER.warning(
-                "Seam probe failed for %s (skipping): %s", periph_id, err
-            )
+            _LOGGER.warning("Seam probe failed for %s (skipping): %s", periph_id, err)
             return
         if not chunk:
             return
         newer = [
             entry
             for entry in chunk
-            if int(
-                datetime.fromisoformat(str(entry["timestamp"])).timestamp()
-            )
-            > last
+            if int(datetime.fromisoformat(str(entry["timestamp"])).timestamp()) > last
         ]
         if not newer:
             # The dead window: nothing newer than the frontier
@@ -1627,22 +1613,14 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             periph_id,
         )
         async with self._backfill_import_lock:
-            imported = await self.async_import_history_chunk(
-                periph_id, newer
-            )
+            imported = await self.async_import_history_chunk(periph_id, newer)
         # The frontier advances: the next probe resumes from here.
         progress["last_timestamp"] = max(
-            int(
-                datetime.fromisoformat(str(entry["timestamp"])).timestamp()
-            )
+            int(datetime.fromisoformat(str(entry["timestamp"])).timestamp())
             for entry in newer
         )
-        progress["retrieved_points"] = (
-            progress.get("retrieved_points", 0) + len(newer)
-        )
-        _LOGGER.debug(
-            "Seam probe imported %d statistics for %s", imported, periph_id
-        )
+        progress["retrieved_points"] = progress.get("retrieved_points", 0) + len(newer)
+        _LOGGER.debug("Seam probe imported %d statistics for %s", imported, periph_id)
 
     async def _load_history_progress(self):
         """One-time migration: read progress from the legacy helper states.
@@ -1932,8 +1910,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 for periph_id, progress in self._history_progress.items()
             }
             retry_doc = {
-                periph_id: dict(retry)
-                for periph_id, retry in self._retry_queue.items()
+                periph_id: dict(retry) for periph_id, retry in self._retry_queue.items()
             }
             await store.async_save(
                 {
@@ -2200,7 +2177,9 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             if periph_id in self._retry_queue:
                 self._retry_queue[periph_id]["attempts"] += 1
 
-    def _estimate_total_points(self, periph_data: dict) -> tuple[int | None, str | None]:
+    def _estimate_total_points(
+        self, periph_data: dict
+    ) -> tuple[int | None, str | None]:
         """CAP-5: estimate the total history points (marked ESTIMATED).
 
         Window = now - creation_date (the periph's data availability),
@@ -2248,9 +2227,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
         if periph_id not in self._history_progress:
             periph_data = (self.data or {}).get(periph_id, {})
-            total_points, retention_start = self._estimate_total_points(
-                periph_data
-            )
+            total_points, retention_start = self._estimate_total_points(periph_data)
             self._history_progress[periph_id] = {
                 "last_timestamp": 0,
                 "completed": False,
@@ -2261,9 +2238,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
                 "oldest_timestamp": None,
                 "retention_start": retention_start,
                 # AD-6bis: the value_list frozen at the first fetch
-                "value_list_fingerprint": self._value_list_fingerprint(
-                    periph_data
-                ),
+                "value_list_fingerprint": self._value_list_fingerprint(periph_data),
             }
 
         progress = self._history_progress[periph_id]
@@ -2363,8 +2338,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             progress["last_timestamp"] = max(timestamps)
             # CAP-5 (story 1.4): the cumulative point count and the
             # oldest timestamp retrieved so far.
-            progress["retrieved_points"] = (
-                progress.get("retrieved_points", 0) + len(chunk)
+            progress["retrieved_points"] = progress.get("retrieved_points", 0) + len(
+                chunk
             )
             oldest = min(timestamps)
             if progress.get("oldest_timestamp") is None or (
@@ -2381,9 +2356,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             return chunk
 
         except Exception as e:
-            _LOGGER.error(
-                f"❌ Error retrieving history for {periph_id}: {e}"
-            )
+            _LOGGER.error(f"❌ Error retrieving history for {periph_id}: {e}")
             self._handle_fetch_error(periph_id, str(e))
             return []
 
@@ -2593,8 +2566,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
             if skipped_points:
                 _LOGGER.warning(
-                    "Skipped %d of %d history points for %s (periph %s): "
-                    "%s",
+                    "Skipped %d of %d history points for %s (periph %s): " "%s",
                     skipped_points,
                     len(chunk),
                     entity_id,
@@ -2623,6 +2595,8 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             # never the recorder.import_statistics service (Spook)
             from homeassistant.components.recorder import (
                 get_instance as get_recorder_instance,
+            )
+            from homeassistant.components.recorder import (
                 statistics as recorder_statistics,
             )
             from homeassistant.components.recorder.models import StatisticMeanType
@@ -2650,9 +2624,7 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             # same table the recorder itself resolves converters from.
             # A unit without a converter keeps unit_class None — the key
             # stays present, only its absence deprecates.
-            converter = (
-                recorder_statistics.STATISTIC_UNIT_TO_UNIT_CONVERTER.get(unit)
-            )
+            converter = recorder_statistics.STATISTIC_UNIT_TO_UNIT_CONVERTER.get(unit)
             unit_class = getattr(converter, "UNIT_CLASS", None)
 
             # AD-11: the recorder compiler owns every hour from the sensor's
@@ -2916,8 +2888,6 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
         except ValueError:
             raise ValueError(f"The target value '{value}' is not a valid number.")
         if not available_entries:
-            raise ValueError(
-                f"No valid numeric value found for peripheral {periph_id}"
-            )
+            raise ValueError(f"No valid numeric value found for peripheral {periph_id}")
 
         return min(available_entries, key=lambda x: abs(x[0] - target_value))[1]

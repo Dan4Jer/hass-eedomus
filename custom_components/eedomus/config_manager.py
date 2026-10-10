@@ -1,11 +1,11 @@
 """Configuration Manager for Eedomus Integration with HA 2026 features."""
 
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
-from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.storage import Store
-from homeassistant.helpers import config_validation as cv
 import voluptuous as vol
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.storage import Store
 
 from .const import (
     DOMAIN,
@@ -29,7 +29,7 @@ _MAPPING_MIGRATIONS: Dict[int, Any] = {}
 
 class EedomusConfigManager:
     """Central configuration management with HA 2026 features."""
-    
+
     def __init__(self, hass: HomeAssistant):
         """Initialize the configuration manager."""
         self.hass = hass
@@ -40,7 +40,7 @@ class EedomusConfigManager:
         # most recent custom mapping versions live in HA storage.
         self.versions_store = Store(hass, 1, f"{DOMAIN}.mapping_versions")
         self._initialized = False
-    
+
     async def async_init(self) -> None:
         """Initialize the configuration manager.
 
@@ -74,9 +74,7 @@ class EedomusConfigManager:
 
         return await async_get_canonical_custom_mapping(self.hass)
 
-    async def async_save_custom_mapping(
-        self, config: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def async_save_custom_mapping(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """Persist the custom mapping to the canonical storage (AD-13).
 
         Validates against the mapping schema, archives the replaced
@@ -213,9 +211,7 @@ async def _async_migrate_mapping_document(hass: HomeAssistant) -> None:
         }
     )
     await _write_mapping_mirror(hass, dumped)
-    _LOGGER.info(
-        "Mapping schema migrated to v%d (previous canon archived)", version
-    )
+    _LOGGER.info("Mapping schema migrated to v%d (previous canon archived)", version)
 
 
 async def _archive_mapping_version(
@@ -295,9 +291,7 @@ async def async_ingest_custom_mapping(hass: HomeAssistant) -> None:
     paths = [config_dir_file] + [
         p for p in get_custom_mapping_paths() if p != config_dir_file
     ]
-    text, parsed = await hass.async_add_executor_job(
-        read_custom_mapping_file, paths
-    )
+    text, parsed = await hass.async_add_executor_job(read_custom_mapping_file, paths)
 
     if not isinstance(current, dict):
         # Bootstrap: the file becomes the initial canon, stamped with the

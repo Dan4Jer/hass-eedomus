@@ -1,0 +1,51 @@
+#!/bin/bash
+# pre-push hook (ticket 115): refuse any push whose tracked Python
+# files fail the format checks. Applies to every remote and every
+# branch of this repository. black and isort are version-pinned and
+# run in ephemeral uv environments — nothing is installed permanently
+# (uvx shims are avoided: they rely on realpath, missing on stock
+# macOS). If uv is unavailable the hook fails OPEN (warns, allows the
+# push): the deploy-script gate is the enforcement backstop.
+
+ROOT="$(git rev-parse --show-toplevel)" || exit 1
+cd "$ROOT" || exit 1
+
+# Fail open when uv is not installed on this machine
+if ! command -v uv > /dev/null 2>&1; then
+    echo "⚠️  uv not found — format gate skipped (install uv to enforce it)"
+    exit 0
+fi
+
+# Only tracked files: untracked scratch files are never pushed
+FILES="$(git ls-files -- '*.py' | grep -E '^(custom_components|tests/unit|scripts)/' || true)"
+if [ -z "$FILES" ]; then
+    exit 0
+fi
+
+# Version-pinned (the versions that formatted the tree)
+BLACK_REQ="black==26.10.1"
+ISORT_REQ="isort==9.0.2"
+
+echo "  - Format gate (black + isort via uv, ephemeral, tracked files only)..."
+
+if ! echo "$FILES" | xargs uv run --quiet --no-project --with "$BLACK_REQ" -- \
+    python -m black --check > /dev/null 2>&1; then
+    echo "❌ ERROR: black --check failed — refusing this push."
+    echo ""
+    echo "   To fix:"
+    echo "     uv run --no-project --with black==26.10.1 -- \\"
+    echo "         python -m black \$(git ls-files -- '*.py')"
+    exit 1
+fi
+
+if ! echo "$FILES" | xargs uv run --quiet --no-project --with "$ISORT_REQ" -- \
+    python -m isort --check-only > /dev/null 2>&1; then
+    echo "❌ ERROR: isort --check-only failed — refusing this push."
+    echo ""
+    echo "   To fix:"
+    echo "     uv run --no-project --with isort==9.0.2 -- \\"
+    echo "         python -m isort \$(git ls-files -- '*.py')"
+    exit 1
+fi
+
+exit 0

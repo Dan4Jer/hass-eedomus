@@ -41,9 +41,7 @@ def _panel_module_version() -> str:
     """
     try:
         manifest = json.loads(
-            (Path(__file__).parent / "manifest.json").read_text(
-                encoding="utf-8"
-            )
+            (Path(__file__).parent / "manifest.json").read_text(encoding="utf-8")
         )
         return str(manifest.get("version") or "dev")
     except (OSError, ValueError):

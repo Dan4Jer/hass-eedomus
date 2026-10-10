@@ -34,9 +34,7 @@ def make_coordinator():
     coordinator = EedomusDataUpdateCoordinator(hass=MagicMock(), client=client)
     coordinator.config_entry = SimpleNamespace(entry_id="01TEST")
     coordinator.data = {PERIPH: {"periph_id": PERIPH, "name": "Sensor"}}
-    coordinator._history_progress = {
-        PERIPH: {"last_timestamp": 10, "completed": False}
-    }
+    coordinator._history_progress = {PERIPH: {"last_timestamp": 10, "completed": False}}
     coordinator._backfill_eligible_peripherals = {
         PERIPH: {"periph_id": PERIPH, "ha_entity": "sensor"}
     }
@@ -58,9 +56,7 @@ class TestImportMissCounter:
         coordinator._resolve_main_entity_id = lambda *a, **k: None
 
         for _ in range(2):
-            imported = await coordinator.async_import_history_chunk(
-                PERIPH, CHUNK
-            )
+            imported = await coordinator.async_import_history_chunk(PERIPH, CHUNK)
             assert imported == 0
             assert PERIPH in coordinator._history_progress
 

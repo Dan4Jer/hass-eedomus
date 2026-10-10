@@ -160,9 +160,7 @@ async def test_partial_refresh_history_quota_limits_per_scan():
     # 111 returns an empty chunk: it consumes its quota slot but stays
     # pending, so it is retried on a later scan
     coordinator.async_fetch_history_chunk = AsyncMock(
-        side_effect=lambda periph_id: []
-        if periph_id == "111"
-        else [{"value": 1}]
+        side_effect=lambda periph_id: [] if periph_id == "111" else [{"value": 1}]
     )
     coordinator.async_import_history_chunk = AsyncMock(return_value=1)
 

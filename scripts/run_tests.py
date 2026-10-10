@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Alternative test runner that doesn't require pytest."""
+
 import asyncio
 import importlib.util
 import os
@@ -43,7 +44,12 @@ async def test_energy_sensor():
 
     try:
         # Import the energy sensor class
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'custom_components', 'eedomus'))
+        sys.path.insert(
+            0,
+            os.path.join(
+                os.path.dirname(__file__), "..", "custom_components", "eedomus"
+            ),
+        )
         from sensor import EedomusEnergySensor
 
         # Test 1: Basic initialization
@@ -92,7 +98,12 @@ async def test_switch_with_consumption():
 
     try:
         print("🧪 Testing switch with consumption child...")
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'custom_components', 'eedomus'))
+        sys.path.insert(
+            0,
+            os.path.join(
+                os.path.dirname(__file__), "..", "custom_components", "eedomus"
+            ),
+        )
         from switch import EedomusSwitch
 
         mock_coordinator = AsyncMock()
@@ -143,7 +154,12 @@ async def test_light_with_consumption():
 
     try:
         print("🧪 Testing light with consumption child...")
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'custom_components', 'eedomus'))
+        sys.path.insert(
+            0,
+            os.path.join(
+                os.path.dirname(__file__), "..", "custom_components", "eedomus"
+            ),
+        )
         from light import EedomusLight
 
         mock_coordinator = AsyncMock()
@@ -196,7 +212,12 @@ async def test_cover_with_consumption():
 
     try:
         print("🧪 Testing cover with consumption child...")
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'custom_components', 'eedomus'))
+        sys.path.insert(
+            0,
+            os.path.join(
+                os.path.dirname(__file__), "..", "custom_components", "eedomus"
+            ),
+        )
         from cover import EedomusCover
 
         mock_coordinator = AsyncMock()

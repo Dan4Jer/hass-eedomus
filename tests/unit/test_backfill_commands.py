@@ -76,8 +76,7 @@ def make_coordinator(entry_id=ENTRY_ID, enable_history=True):
         for periph_id in PERIPH_IDS
     }
     coordinator._history_progress = {
-        periph_id: {"last_timestamp": 0, "completed": False}
-        for periph_id in PERIPH_IDS
+        periph_id: {"last_timestamp": 0, "completed": False} for periph_id in PERIPH_IDS
     }
     # The completed periph never re-enters the queue.
     coordinator._history_progress[PERIPH_COMPLETED]["completed"] = True
@@ -328,9 +327,7 @@ class TestPrioritize:
 
         await coordinator._backfill_drain_pass()
 
-        coordinator.async_fetch_history_chunk.assert_awaited_once_with(
-            PERIPH_PRIORITY
-        )
+        coordinator.async_fetch_history_chunk.assert_awaited_once_with(PERIPH_PRIORITY)
         # The priority jump is consumed by the drain that used it.
         assert coordinator._backfill_priority == []
 
@@ -427,9 +424,7 @@ class TestPause:
     async def test_set_paused_persists_and_returns_nominal(self):
         coordinator = make_coordinator()
 
-        result = await coordinator.async_backfill_set_paused(
-            PERIPH_PAUSED, paused=True
-        )
+        result = await coordinator.async_backfill_set_paused(PERIPH_PAUSED, paused=True)
 
         assert result == {
             "success": True,
@@ -1014,9 +1009,9 @@ class TestBackfillProgressV2:
         coordinator.data[PERIPH_PENDING] = {
             "periph_id": PERIPH_PENDING,
             "name": "Device",
-            "creation_date": (
-                datetime.now() - timedelta(days=10)
-            ).strftime("%Y-%m-%d %H:%M:%S"),
+            "creation_date": (datetime.now() - timedelta(days=10)).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),
             "POLLING": "3600",
         }
         coordinator._history_progress = {}
@@ -1029,9 +1024,7 @@ class TestBackfillProgressV2:
         )
         # make_coordinator mocks the fetch method: rebind the real one.
         coordinator.async_fetch_history_chunk = (
-            EedomusDataUpdateCoordinator.async_fetch_history_chunk.__get__(
-                coordinator
-            )
+            EedomusDataUpdateCoordinator.async_fetch_history_chunk.__get__(coordinator)
         )
 
         chunk = await coordinator.async_fetch_history_chunk(PERIPH_PENDING)
@@ -1043,9 +1036,10 @@ class TestBackfillProgressV2:
         assert progress["estimated"] is True
         assert progress["retrieved_points"] == 2
         assert progress["oldest_timestamp"] is not None
-        assert progress["retention_start"] == coordinator.data[
-            PERIPH_PENDING
-        ]["creation_date"]
+        assert (
+            progress["retention_start"]
+            == coordinator.data[PERIPH_PENDING]["creation_date"]
+        )
 
     def test_estimation_without_creation_date_is_none(self):
         coordinator = make_coordinator()
@@ -1077,9 +1071,7 @@ class TestBackfillProgressV2:
         coordinator.client.get_device_history = AsyncMock(return_value=[])
         # make_coordinator mocks the fetch method: rebind the real one.
         coordinator.async_fetch_history_chunk = (
-            EedomusDataUpdateCoordinator.async_fetch_history_chunk.__get__(
-                coordinator
-            )
+            EedomusDataUpdateCoordinator.async_fetch_history_chunk.__get__(coordinator)
         )
 
         # The value_list changes between two fetches
@@ -1110,20 +1102,14 @@ class TestBackfillProgressV2:
             "attempts": 3,
         }
 
-        result = await coordinator.async_backfill_reset_progress(
-            PERIPH_PENDING
-        )
+        result = await coordinator.async_backfill_reset_progress(PERIPH_PENDING)
 
         assert result["reset"] is True
         assert result["status"] == "pending"
         assert PERIPH_PENDING not in coordinator._history_progress
         assert PERIPH_PENDING not in coordinator._retry_queue
         row = next(
-            (
-                r
-                for r in result["state"]["queue"]
-                if r["periph_id"] == PERIPH_PENDING
-            ),
+            (r for r in result["state"]["queue"] if r["periph_id"] == PERIPH_PENDING),
             None,
         )
         assert row is not None, "the reset periph re-enters the queue"
@@ -1158,9 +1144,7 @@ class TestBackfillProgressV2:
             "retention_start": "2018-09-02 00:28:59",
         }
         state = coordinator.get_backfill_state()
-        row = next(
-            r for r in state["queue"] if r["periph_id"] == PERIPH_PENDING
-        )
+        row = next(r for r in state["queue"] if r["periph_id"] == PERIPH_PENDING)
         assert row["retrieved_points"] == 12
         assert row["total_points"] == 30
         assert row["estimated"] is True

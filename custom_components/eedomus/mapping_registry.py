@@ -1,6 +1,7 @@
 """Global mapping registry management."""
 
 from __future__ import annotations
+
 from .log import get_logger
 
 _LOGGER = get_logger(__name__)
@@ -71,9 +72,7 @@ def prune_mapping_registry(entry_id: str = None) -> None:
     if entry_id is None:
         return
     _MAPPING_REGISTRY[:] = [
-        mapping
-        for mapping in _MAPPING_REGISTRY
-        if mapping.get("entry_id") != entry_id
+        mapping for mapping in _MAPPING_REGISTRY if mapping.get("entry_id") != entry_id
     ]
 
 
@@ -86,9 +85,7 @@ def prune_mapping_registry_objects(entries: list) -> None:
     """
     stale = {id(entry) for entry in entries}
     _MAPPING_REGISTRY[:] = [
-        mapping
-        for mapping in _MAPPING_REGISTRY
-        if id(mapping) not in stale
+        mapping for mapping in _MAPPING_REGISTRY if id(mapping) not in stale
     ]
 
 

@@ -13,23 +13,17 @@ from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-# Import the options flow handler for the async_get_options_flow method
-from .options_flow import EedomusOptionsFlow
-from .entity import _get_config_value
-
 from .const import (
     CONF_API_HOST,
     CONF_API_PROXY_DISABLE_SECURITY,
     CONF_API_SECRET,
     CONF_API_USER,
-    CONF_HISTORY_API_HOST,
-
-
     CONF_ENABLE_API_EEDOMUS,
     CONF_ENABLE_API_PROXY,
     CONF_ENABLE_HISTORY,
     CONF_ENABLE_SET_VALUE_RETRY,
     CONF_ENABLE_WEBHOOK,
+    CONF_HISTORY_API_HOST,
     CONF_HTTP_REQUEST_TIMEOUT,
     CONF_MAX_CONCURRENT_REQUESTS,
     CONF_MIN_REQUEST_DELAY,
@@ -44,21 +38,24 @@ from .const import (
     DEFAULT_CONF_ENABLE_API_EEDOMUS,
     DEFAULT_CONF_ENABLE_API_PROXY,
     DEFAULT_CONF_ENABLE_HISTORY,
-
     DEFAULT_ENABLE_SET_VALUE_RETRY,
     DEFAULT_ENABLE_WEBHOOK,
-    DEFAULT_PHP_FALLBACK_ENABLED,
-    DEFAULT_PHP_FALLBACK_SCRIPT_NAME,
-    DEFAULT_PHP_FALLBACK_TIMEOUT,
     DEFAULT_HTTP_REQUEST_TIMEOUT,
     DEFAULT_MAX_CONCURRENT_REQUESTS,
     DEFAULT_MIN_REQUEST_DELAY,
+    DEFAULT_PHP_FALLBACK_ENABLED,
+    DEFAULT_PHP_FALLBACK_SCRIPT_NAME,
+    DEFAULT_PHP_FALLBACK_TIMEOUT,
     DEFAULT_REMOVE_ENTITIES,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
 )
 from .eedomus_client import EedomusClient
+from .entity import _get_config_value
 from .log import get_logger
+
+# Import the options flow handler for the async_get_options_flow method
+from .options_flow import EedomusOptionsFlow
 
 # The connection modes explanation is user-facing text: it ships as the
 # config.step.user.description translation (strings.json + translations/),
@@ -87,13 +84,12 @@ class EedomusValidationError(Exception):
     on error_field ("base" when the error is not field-specific).
     """
 
-    def __init__(
-        self, message: str, error_key: str, error_field: str = "base"
-    ) -> None:
+    def __init__(self, message: str, error_key: str, error_field: str = "base") -> None:
         """Keep the raw message for logs; the key and field for the form."""
         super().__init__(message)
         self.error_key = error_key
         self.error_field = error_field
+
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
@@ -120,9 +116,7 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
             CONF_ENABLE_SET_VALUE_RETRY, default=DEFAULT_ENABLE_SET_VALUE_RETRY
         ): bool,
         vol.Optional("max_retries", default=3): int,
-        vol.Optional(
-            CONF_ENABLE_WEBHOOK, default=DEFAULT_ENABLE_WEBHOOK
-        ): bool,
+        vol.Optional(CONF_ENABLE_WEBHOOK, default=DEFAULT_ENABLE_WEBHOOK): bool,
         vol.Optional(
             CONF_API_PROXY_DISABLE_SECURITY, default=DEFAULT_API_PROXY_DISABLE_SECURITY
         ): bool,
@@ -160,7 +154,7 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
 
         user_show = user_input.copy()
-        user_show['api_secret'] = "********"
+        user_show["api_secret"] = "********"
         _LOGGER.info("Config flow received user input: %s", user_show)
         _LOGGER.debug("Full user input details: %s", user_show)
 
@@ -252,9 +246,7 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 error_field=CONF_MAX_CONCURRENT_REQUESTS,
             )
 
-        min_request_delay = data.get(
-            CONF_MIN_REQUEST_DELAY, DEFAULT_MIN_REQUEST_DELAY
-        )
+        min_request_delay = data.get(CONF_MIN_REQUEST_DELAY, DEFAULT_MIN_REQUEST_DELAY)
         if min_request_delay < 0.1 or min_request_delay > 5.0:
             raise EedomusValidationError(
                 "Minimum request delay must be between 0.1 and 5.0 seconds",
@@ -309,9 +301,7 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         # Optional history endpoint override (empty =
                         # eedomus cloud); the E2E-sim strate's
                         # simulated box fills it through this flow.
-                        CONF_HISTORY_API_HOST: data.get(
-                            CONF_HISTORY_API_HOST, ""
-                        ),
+                        CONF_HISTORY_API_HOST: data.get(CONF_HISTORY_API_HOST, ""),
                         CONF_ENABLE_HISTORY: data.get(CONF_ENABLE_HISTORY, False),
                         CONF_SCAN_INTERVAL: scan_interval,
                         CONF_ENABLE_API_EEDOMUS: api_eedomus_enabled,
@@ -371,7 +361,8 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if not api_eedomus_enabled and not api_proxy_enabled:
             raise EedomusValidationError(
                 "At least one connection mode (API Eedomus or API Proxy) "
-                "must be enabled", error_key="no_mode_enabled"
+                "must be enabled",
+                error_key="no_mode_enabled",
             )
 
         # Generate appropriate title based on enabled modes
@@ -393,8 +384,7 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 data_schema=vol.Schema(
                     {
                         vol.Optional(
-                            CONF_REMOVE_ENTITIES,
-                            default=DEFAULT_REMOVE_ENTITIES
+                            CONF_REMOVE_ENTITIES, default=DEFAULT_REMOVE_ENTITIES
                         ): bool,
                     }
                 ),
@@ -402,11 +392,14 @@ class EedomusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         # If user confirms uninstallation
         remove_entities = user_input.get(CONF_REMOVE_ENTITIES, DEFAULT_REMOVE_ENTITIES)
-        
+
         # Store the uninstallation options in the config entry
         self.hass.config_entries.async_update_entry(
             self.config_entry,
-            options={**self.config_entry.options, CONF_REMOVE_ENTITIES: remove_entities}
+            options={
+                **self.config_entry.options,
+                CONF_REMOVE_ENTITIES: remove_entities,
+            },
         )
 
         # Proceed with uninstallation

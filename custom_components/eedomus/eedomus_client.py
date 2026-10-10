@@ -13,15 +13,15 @@ from async_timeout import timeout as async_timeout
 from homeassistant.config_entries import ConfigEntry
 
 from .const import (
-    DEFAULT_PHP_FALLBACK_ENABLED,
-    DEFAULT_PHP_FALLBACK_SCRIPT_NAME,
-    DEFAULT_PHP_FALLBACK_TIMEOUT,
-    DEFAULT_HTTP_REQUEST_TIMEOUT,
     CONF_HTTP_REQUEST_TIMEOUT,
     CONF_MAX_CONCURRENT_REQUESTS,
     CONF_MIN_REQUEST_DELAY,
+    DEFAULT_HTTP_REQUEST_TIMEOUT,
     DEFAULT_MAX_CONCURRENT_REQUESTS,
     DEFAULT_MIN_REQUEST_DELAY,
+    DEFAULT_PHP_FALLBACK_ENABLED,
+    DEFAULT_PHP_FALLBACK_SCRIPT_NAME,
+    DEFAULT_PHP_FALLBACK_TIMEOUT,
 )
 from .entity import _get_config_value
 from .log import get_logger
@@ -57,7 +57,7 @@ HISTORY_API_URL = "https://api.eedomus.com"
 
 class EedomusClient:
     """Client for interacting with eedomus API with proper encoding handling."""
-    
+
     # Global request timing for rate limiting across all instances
     _global_last_request_time = 0.0
     _global_rate_limit_lock = None
@@ -66,7 +66,7 @@ class EedomusClient:
         """Initialize the client."""
         self.session = session
         self.config_entry = config_entry
-        
+
         # Initialize global rate limiting lock if not already done
         if EedomusClient._global_rate_limit_lock is None:
             EedomusClient._global_rate_limit_lock = asyncio.Lock()
@@ -77,9 +77,9 @@ class EedomusClient:
         # the real box does not serve periph.history locally). The
         # simulated box of the E2E-sim strate points it at the local
         # simulator (spec-eedomus-simulator, story 5.3).
-        self.history_api_host = _get_config_value(
-            config_entry, "history_api_host"
-        ) or None
+        self.history_api_host = (
+            _get_config_value(config_entry, "history_api_host") or None
+        )
         self.base_url_get = f"http://{self.api_host}/api/get"
         self.base_url_set = f"http://{self.api_host}/api/set"
         self.base_url_script = f"http://{self.api_host}/script/?exec="
@@ -148,7 +148,9 @@ class EedomusClient:
                             try:
                                 error_text = raw_data.decode("utf-8", errors="replace")
                             except UnicodeDecodeError:
-                                error_text = raw_data.decode("iso-8859-1", errors="replace")
+                                error_text = raw_data.decode(
+                                    "iso-8859-1", errors="replace"
+                                )
                             _LOGGER.error(
                                 "HTTP %s error for %s: %s",
                                 resp.status,
@@ -185,14 +187,19 @@ class EedomusClient:
 
                         except json.JSONDecodeError:
                             _LOGGER.error(
-                                "Invalid JSON response for %s: %s", endpoint, response_text
+                                "Invalid JSON response for %s: %s",
+                                endpoint,
+                                response_text,
                             )
                             return self._format_error_response(
                                 "Invalid JSON response", response_text
                             )
 
             except asyncio.TimeoutError:
-                _LOGGER.warning("⏳ Request timed out for %s - will retry on next refresh cycle", endpoint)
+                _LOGGER.warning(
+                    "⏳ Request timed out for %s - will retry on next refresh cycle",
+                    endpoint,
+                )
                 return self._format_error_response("Request timed out", http_status=408)
 
             except aiohttp.ClientError as e:
@@ -202,7 +209,7 @@ class EedomusClient:
             except Exception as e:
                 _LOGGER.error("Unexpected error for %s: %s", endpoint, str(e))
                 return self._format_error_response(str(e))
-            
+
             finally:
                 # Update global timestamp AFTER request completes to ensure minimum delay from end of previous request
                 EedomusClient._global_last_request_time = time.time()
@@ -408,7 +415,7 @@ class EedomusClient:
                             "error": "Invalid JSON response from PHP fallback script",
                             "details": response_text,
                         }
-                
+
                 finally:
                     # Update global timestamp AFTER request completes to ensure minimum delay from end of previous request
                     EedomusClient._global_last_request_time = time.time()
@@ -498,24 +505,24 @@ class EedomusClient:
 
     async def get_periph_info(self, periph_id: str) -> Optional[Dict[str, Any]]:
         """Get information about a specific peripheral.
-        
+
         Args:
             periph_id: The peripheral ID
-            
+
         Returns:
             Dictionary with peripheral information or None if error
         """
         _LOGGER.debug("Getting info for peripheral %s", periph_id)
-        
+
         try:
             # Use getPeriphList to get device info
             # We'll filter by periph_id from the list
             params = {
                 "action": "getPeriphList",
             }
-            
+
             response = await self.fetch_data("peripherals", params)
-            
+
             if response and response.get("success") == 1:
                 peripherals = response.get("body", [])
                 for periph in peripherals:
@@ -543,9 +550,9 @@ class EedomusClient:
         # Use a simple default estimation since we can't reliably get device info
         # The API doesn't provide a method to get individual device info
         # or the full list of devices with their details
-        
+
         _LOGGER.debug("Using default history count estimation for %s", periph_id)
-        
+
         # Default estimation: 1 year of data at 1 point per hour
         return 8760  # 365 days * 24 hours
 

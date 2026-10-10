@@ -47,12 +47,46 @@ GUILLEMET_RE = re.compile(r"[«»]")
 # English (the timezone abbreviation; "Hors Gel" is covered by its
 # full-literal exemption).
 FRENCH_LEXICON = [
-    "le", "la", "les", "des", "du", "une", "pas", "avec", "pour",
-    "dans", "cette", "que", "qui", "sur", "au", "vous", "nous", "être",
-    "échec", "erreur", "inconnu", "inconnue", "aucun", "aucune",
-    "veuillez", "sauvegarde", "fichier", "valider", "échoué", "libre",
-    "espace", "porte", "fenêtre", "fumée", "présence", "arrêt",
-    "désactiver", "confort", "hors", "arret",
+    "le",
+    "la",
+    "les",
+    "des",
+    "du",
+    "une",
+    "pas",
+    "avec",
+    "pour",
+    "dans",
+    "cette",
+    "que",
+    "qui",
+    "sur",
+    "au",
+    "vous",
+    "nous",
+    "être",
+    "échec",
+    "erreur",
+    "inconnu",
+    "inconnue",
+    "aucun",
+    "aucune",
+    "veuillez",
+    "sauvegarde",
+    "fichier",
+    "valider",
+    "échoué",
+    "libre",
+    "espace",
+    "porte",
+    "fenêtre",
+    "fumée",
+    "présence",
+    "arrêt",
+    "désactiver",
+    "confort",
+    "hors",
+    "arret",
 ]
 LEXICON_RE = re.compile(r"\b(" + "|".join(FRENCH_LEXICON) + r")\b", re.IGNORECASE)
 
@@ -229,9 +263,9 @@ def test_exemptions_still_apply():
 def test_scan_covers_the_source_tree():
     """Loud failure if the scan walks nothing (SOURCE_DIR moved)."""
     files = list(_iter_source_files(SOURCE_DIR))
-    assert len(files) >= MIN_SCANNED_FILES, (
-        f"implausible scan: only {len(files)} .py files under {SOURCE_DIR}"
-    )
+    assert (
+        len(files) >= MIN_SCANNED_FILES
+    ), f"implausible scan: only {len(files)} .py files under {SOURCE_DIR}"
 
 
 def test_no_french_outside_exemptions():

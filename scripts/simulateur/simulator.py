@@ -7,12 +7,14 @@ import sys
 import time
 from datetime import datetime, timedelta
 from functools import wraps
+
 from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
 # Absolute directory of this script
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 
 def get_script_file_path(filename: str) -> str:
     """Return the full path of a file next to this script."""
@@ -120,9 +122,7 @@ def _synthetic_value(periph_id, ts, base):
     """
     day = ts.timetuple().tm_yday
     seasonal = 3.0 * math.sin(2 * math.pi * day / 365.25)
-    digest = hashlib.md5(
-        f"{periph_id}:{ts.isoformat()}".encode("utf-8")
-    ).digest()
+    digest = hashlib.md5(f"{periph_id}:{ts.isoformat()}".encode("utf-8")).digest()
     noise = (digest[0] / 255.0) * 2.0 - 1.0
     return base + seasonal + noise
 
@@ -159,6 +159,7 @@ def serve_periph_history(periph_id, start, end):
         ts = ts + step
     return history
 
+
 def evaluate_thermostat_rules(changed_periph_id):
     """Evaluate the rules and toggle the heater if setpoint or temperature changes."""
     for rule in THERMOSTAT_RULES:
@@ -168,9 +169,7 @@ def evaluate_thermostat_rules(changed_periph_id):
         # If the changed peripheral impacts this rule
         if str(changed_periph_id) in (setpoint_id, sensor_id):
             try:
-                setpoint_val = float(
-                    caract_by_id[setpoint_id].get("last_value", 0)
-                )
+                setpoint_val = float(caract_by_id[setpoint_id].get("last_value", 0))
                 sensor_val = float(caract_by_id[sensor_id].get("last_value", 0))
                 switch_id = str(rule["switch_id"])
 
@@ -181,9 +180,7 @@ def evaluate_thermostat_rules(changed_periph_id):
                     new_switch_val = str(rule.get("off_value", "0"))
 
                 # Apply the new state when it changes
-                current_switch_val = str(
-                    caract_by_id[switch_id].get("last_value", "")
-                )
+                current_switch_val = str(caract_by_id[switch_id].get("last_value", ""))
                 if current_switch_val != new_switch_val:
                     caract_by_id[switch_id]["last_value"] = new_switch_val
                     print(
@@ -200,6 +197,7 @@ def evaluate_thermostat_rules(changed_periph_id):
 
 def require_eedomus_auth(f):
     """Eedomus API access-control decorator."""
+
     @wraps(f)
     def decorated_function(*args, **kwargs):
         user = request.args.get("api_user")
@@ -207,6 +205,7 @@ def require_eedomus_auth(f):
         if user != API_USER or secret != API_SECRET:
             return jsonify({"success": 0, "error": "Authentication failed"}), 401
         return f(*args, **kwargs)
+
     return decorated_function
 
 
@@ -250,12 +249,11 @@ def api_get():
     if action == "periph.value_list":
         if periph_id == "all":
             return jsonify({"success": 1, "body": value_list_data})
-        
+
         # Single ID or comma-separated list
         requested_ids = set(pid.strip() for pid in periph_id.split(",") if pid.strip())
         filtered = [
-            v for v in value_list_data
-            if str(v.get("periph_id")) in requested_ids
+            v for v in value_list_data if str(v.get("periph_id")) in requested_ids
         ]
         return jsonify({"success": 1, "body": filtered})
 
@@ -284,14 +282,20 @@ def api_get():
             data = format_caract(caract_by_id[periph_id], show_config)
             return jsonify({"success": 1, "body": data})
 
-        return jsonify({"success": 0, "error": f"Peripheral {periph_id} not found"}), 404
+        return (
+            jsonify({"success": 0, "error": f"Peripheral {periph_id} not found"}),
+            404,
+        )
 
     # 5. Synthetic history (CAP-2) — deterministic from the dump
     if action == "periph.history":
         if not periph_id:
             return jsonify({"success": 0, "error": "Missing periph_id parameter"}), 400
         if periph_id not in caract_by_id:
-            return jsonify({"success": 0, "error": f"Peripheral {periph_id} not found"}), 404
+            return (
+                jsonify({"success": 0, "error": f"Peripheral {periph_id} not found"}),
+                404,
+            )
 
         def _int_param(name, default):
             try:
@@ -339,12 +343,16 @@ def simulate_change():
 
     if periph_id in caract_by_id:
         caract_by_id[periph_id]["last_value"] = new_value
-        print(f"[SIMULATION] -> sensor {periph_id} ({caract_by_id[periph_id].get('name')}) changed to: {new_value}")
+        print(
+            f"[SIMULATION] -> sensor {periph_id} ({caract_by_id[periph_id].get('name')}) changed to: {new_value}"
+        )
 
         # Evaluate the thermostats when an ambient temperature changes
         evaluate_thermostat_rules(periph_id)
 
-        return jsonify({"status": "updated", "periph_id": periph_id, "new_value": new_value})
+        return jsonify(
+            {"status": "updated", "periph_id": periph_id, "new_value": new_value}
+        )
 
     return jsonify({"error": "Device not found"}), 404
 

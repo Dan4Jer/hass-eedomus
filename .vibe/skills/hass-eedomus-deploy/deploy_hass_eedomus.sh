@@ -61,6 +61,61 @@ if [ "$UNTRACTED" -gt 0 ]; then
     git status --short 2>/dev/null | grep "^??"
 fi
 
+# 🚨 MANDATORY (ticket 115): format gate — black + isort must pass
+# Same checks as scripts/hooks/pre-push (tracked files only,
+# version-pinned, ephemeral uv environments). What deploys is
+# origin/$BRANCH (the Pi pulls it), so the local HEAD must equal it
+# before the local-tree check means anything.
+echo ""
+echo "🔒 Format Gate (black + isort):"
+
+if ! command -v uv > /dev/null 2>&1; then
+    echo "⚠️  Warning: uv not found — format gate skipped."
+elif ! command -v git > /dev/null 2>&1; then
+    echo "⚠️  Warning: git not found — format gate skipped."
+else
+    # The gate must check what actually deploys: local HEAD == origin/$BRANCH
+    git fetch origin "$BRANCH" > /dev/null 2>&1 || true
+    LOCAL_HEAD=$(git rev-parse HEAD 2>/dev/null || echo "")
+    REMOTE_HEAD=$(git rev-parse "origin/$BRANCH" 2>/dev/null || echo "")
+    if [ -n "$REMOTE_HEAD" ] && [ "$LOCAL_HEAD" != "$REMOTE_HEAD" ]; then
+        echo "❌ ERROR: local HEAD ($LOCAL_HEAD) differs from origin/$BRANCH"
+        echo "   ($REMOTE_HEAD). The gate must check what deploys —"
+        echo "   push (or pull) so local HEAD equals origin/$BRANCH, then retry."
+        exit 1
+    fi
+
+    # Only tracked files: untracked files are never deployed (see above)
+    FORMAT_FILES=$(git ls-files -- '*.py' | grep -E '^(custom_components|tests/unit|scripts)/' || true)
+    if [ -n "$FORMAT_FILES" ]; then
+        if ! echo "$FORMAT_FILES" | xargs uv run --quiet --no-project \
+            --with "black==26.10.1" -- python -m black --check \
+            > /dev/null 2>&1; then
+            echo "❌ ERROR: black --check failed — deployment aborted."
+            echo ""
+            echo "   To fix:"
+            echo "     uv run --no-project --with black==26.10.1 -- \\"
+            echo "         python -m black \$(git ls-files -- '*.py')"
+            echo "   Then commit the fix and run this script again."
+            exit 1
+        fi
+        if ! echo "$FORMAT_FILES" | xargs uv run --quiet --no-project \
+            --with "isort==9.0.2" -- python -m isort --check-only \
+            > /dev/null 2>&1; then
+            echo "❌ ERROR: isort --check-only failed — deployment aborted."
+            echo ""
+            echo "   To fix:"
+            echo "     uv run --no-project --with isort==9.0.2 -- \\"
+            echo "         python -m isort \$(git ls-files -- '*.py')"
+            echo "   Then commit the fix and run this script again."
+            exit 1
+        fi
+        echo "  - Format checks passed (local HEAD == origin/$BRANCH)"
+    else
+        echo "  - No tracked Python files to check"
+    fi
+fi
+
 # Check current branch
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 if [ "$CURRENT_BRANCH" != "$BRANCH" ]; then

@@ -11,7 +11,7 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN, COORDINATOR
+from .const import COORDINATOR, DOMAIN
 from .entity import EedomusEntity
 from .log import get_logger
 
@@ -121,9 +121,11 @@ class EedomusBinarySensor(EedomusEntity, BinarySensorEntity):
         """Return true if the binary sensor is on."""
         periph_data = self._get_periph_data()
         if periph_data is None:
-            _LOGGER.warning(f"Cannot get binary sensor state: peripheral data not found for {self._periph_id}")
+            _LOGGER.warning(
+                f"Cannot get binary sensor state: peripheral data not found for {self._periph_id}"
+            )
             return None
-            
+
         value = periph_data.get("last_value")
         _LOGGER.debug("Binary sensor %s is_on: %s", self._periph_id, value)
 

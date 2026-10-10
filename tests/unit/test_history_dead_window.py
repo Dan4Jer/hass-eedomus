@@ -30,21 +30,15 @@ def make_coordinator():
     """A coordinator whose periph is mid-walk (history enabled)."""
     client = MagicMock()
     client.config_entry = SimpleNamespace(options={"history": True}, data={})
-    coordinator = EedomusDataUpdateCoordinator(
-        hass=MagicMock(), client=client
-    )
+    coordinator = EedomusDataUpdateCoordinator(hass=MagicMock(), client=client)
     coordinator.config_entry = SimpleNamespace(entry_id="01TEST")
-    coordinator.data = {
-        PERIPH: {"periph_id": PERIPH, "name": "Device under walk"}
-    }
+    coordinator.data = {PERIPH: {"periph_id": PERIPH, "name": "Device under walk"}}
     coordinator._history_progress = {}
     coordinator._retry_queue = {}
     coordinator._error_count = {}
     coordinator.client.get_device_history = AsyncMock(return_value=[])
     coordinator.async_fetch_history_chunk = (
-        EedomusDataUpdateCoordinator.async_fetch_history_chunk.__get__(
-            coordinator
-        )
+        EedomusDataUpdateCoordinator.async_fetch_history_chunk.__get__(coordinator)
     )
     return coordinator
 
@@ -101,13 +95,12 @@ class TestDeadWindowCompletion:
         assert not coordinator._history_progress[PERIPH]["completed"]
 
         advancing = _chunk(CAP, 10)  # max well past previous_last
-        assert max(
-            datetime.fromisoformat(e["timestamp"]).timestamp() for e in advancing
-        ) > previous_last
-        await _fetch(coordinator, advancing)
         assert (
-            coordinator._history_progress[PERIPH]["completed"] is False
+            max(datetime.fromisoformat(e["timestamp"]).timestamp() for e in advancing)
+            > previous_last
         )
+        await _fetch(coordinator, advancing)
+        assert coordinator._history_progress[PERIPH]["completed"] is False
 
     @pytest.mark.asyncio
     async def test_first_pass_full_chunk_is_not_stale(self):
@@ -115,9 +108,7 @@ class TestDeadWindowCompletion:
         first chunk must not complete the walk."""
         coordinator = make_coordinator()
         await _fetch(coordinator, _chunk(CAP, 0))
-        assert (
-            coordinator._history_progress[PERIPH]["completed"] is False
-        )
+        assert coordinator._history_progress[PERIPH]["completed"] is False
 
     @pytest.mark.asyncio
     async def test_short_chunk_still_completes(self):

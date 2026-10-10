@@ -11,7 +11,6 @@ from custom_components.eedomus.mapping_rules import (
     evaluate_conditions,
 )
 
-
 pytestmark = pytest.mark.unit
 
 
@@ -59,7 +58,11 @@ class TestMinChildrenCondition:
         relations = {"parent": ["c1", "c2", "c3"]}
         devices = {"c1": {"parent_periph_id": "parent"}}
         assert evaluate_conditions(
-            [{"min_children": 3}], self._device(), devices, "parent", "r",
+            [{"min_children": 3}],
+            self._device(),
+            devices,
+            "parent",
+            "r",
             parent_child_relations=relations,
         )
 
@@ -116,7 +119,10 @@ class TestHasChildrenWithNames:
         }
         assert evaluate_conditions(
             [{"has_children_with_names": ["rouge", "bleu"]}],
-            device, devices, "p", "r",
+            device,
+            devices,
+            "p",
+            "r",
         )
 
     def test_missing_required_name(self):
@@ -124,7 +130,10 @@ class TestHasChildrenWithNames:
         devices = {"c1": {"parent_periph_id": "p", "name": "RGBW Rouge"}}
         assert not evaluate_conditions(
             [{"has_children_with_names": ["rouge", "bleu"]}],
-            device, devices, "p", "r",
+            device,
+            devices,
+            "p",
+            "r",
         )
 
     def test_single_name_as_string(self):

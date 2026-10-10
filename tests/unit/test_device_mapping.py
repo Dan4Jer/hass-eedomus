@@ -15,7 +15,6 @@ from custom_components.eedomus.device_mapping import (
     merge_yaml_mappings,
 )
 
-
 pytestmark = pytest.mark.unit
 
 

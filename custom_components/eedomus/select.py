@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN, COORDINATOR
+from .const import COORDINATOR, DOMAIN
 from .entity import EedomusEntity
 from .log import get_logger
 
@@ -61,6 +60,7 @@ class EedomusSelect(EedomusEntity, SelectEntity):
             self._attr_name = periph_name
             self._adopt_derived_name()
         from .entity import get_entry_prefix
+
         self._attr_unique_id = f"{get_entry_prefix(coordinator)}_{periph_id}_select"
         self._attr_current_option = self.coordinator.data[periph_id].get(
             "last_value", ""
@@ -151,7 +151,9 @@ class EedomusSelect(EedomusEntity, SelectEntity):
             )
 
             # Send the selected option to eedomus
-            result = await self.coordinator.client.set_periph_value(self._periph_id, eedomus_value)
+            result = await self.coordinator.client.set_periph_value(
+                self._periph_id, eedomus_value
+            )
 
             if result.get("success", 0) == 1:
                 _LOGGER.debug(

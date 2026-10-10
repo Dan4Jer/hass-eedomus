@@ -11,12 +11,13 @@ This script provides functionality to:
 Requires: requests library
 """
 
-import requests
 import json
-import sys
 import subprocess
-from typing import List, Dict, Optional
+import sys
+from typing import Dict, List, Optional
 from urllib.parse import urlparse
+
+import requests
 
 # Configuration
 REPO_OWNER = "Dan4Jer"
@@ -25,6 +26,7 @@ REPO_NAME = "hass-eedomus"
 # Essayez de lire le token depuis le fichier .git-credentials
 try:
     import os
+
     with open(os.path.expanduser("~/.git-credentials")) as f:
         for line in f:
             parsed = urlparse(line.strip())
@@ -44,14 +46,16 @@ if not GITHUB_TOKEN:
 
 HEADERS = {
     "Authorization": f"token {GITHUB_TOKEN}",
-    "Accept": "application/vnd.github.v3+json"
+    "Accept": "application/vnd.github.v3+json",
 }
 
 
-def make_github_request(method: str, endpoint: str, data: Optional[Dict] = None) -> Dict:
+def make_github_request(
+    method: str, endpoint: str, data: Optional[Dict] = None
+) -> Dict:
     """Make a request to GitHub API."""
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/{endpoint}"
-    
+
     if method.upper() == "GET":
         response = requests.get(url, headers=HEADERS)
     elif method.upper() == "POST":
@@ -60,7 +64,7 @@ def make_github_request(method: str, endpoint: str, data: Optional[Dict] = None)
         response = requests.patch(url, headers=HEADERS, json=data)
     else:
         raise ValueError(f"Unsupported method: {method}")
-    
+
     if response.status_code == 200 or response.status_code == 201:
         return response.json()
     else:
@@ -86,7 +90,12 @@ def add_comment(issue_number: int, comment: str) -> Dict:
     return make_github_request("POST", endpoint, data)
 
 
-def update_issue(issue_number: int, title: Optional[str] = None, body: Optional[str] = None, state: Optional[str] = None) -> Dict:
+def update_issue(
+    issue_number: int,
+    title: Optional[str] = None,
+    body: Optional[str] = None,
+    state: Optional[str] = None,
+) -> Dict:
     """Update an issue."""
     endpoint = f"issues/{issue_number}"
     data = {}
@@ -96,11 +105,11 @@ def update_issue(issue_number: int, title: Optional[str] = None, body: Optional[
         data["body"] = body
     if state:
         data["state"] = state
-    
+
     if not data:
         print("No data provided for update")
         return {}
-    
+
     return make_github_request("PATCH", endpoint, data)
 
 
@@ -119,9 +128,9 @@ def main():
         print("  close <issue#> - Close an issue")
         print("  get <issue#> - Get issue details")
         return
-    
+
     command = sys.argv[1]
-    
+
     if command == "list":
         print("Listing open issues...")
         issues = list_open_issues()
@@ -134,7 +143,7 @@ def main():
                 print()
         else:
             print("No open issues found.")
-    
+
     elif command == "comment" and len(sys.argv) >= 4:
         issue_number = int(sys.argv[2])
         comment = " ".join(sys.argv[3:])
@@ -145,7 +154,7 @@ def main():
             print(f"URL: {result.get('html_url', 'Unknown')}")
         else:
             print("Failed to add comment.")
-    
+
     elif command == "close" and len(sys.argv) >= 3:
         issue_number = int(sys.argv[2])
         print(f"Closing issue #{issue_number}...")
@@ -155,7 +164,7 @@ def main():
             print(f"State: {result.get('state', 'Unknown')}")
         else:
             print("Failed to close issue.")
-    
+
     elif command == "get" and len(sys.argv) >= 3:
         issue_number = int(sys.argv[2])
         print(f"Getting issue #{issue_number}...")
@@ -168,7 +177,7 @@ def main():
             print(f"\nBody:\n{issue['body']}")
         else:
             print("Failed to get issue.")
-    
+
     else:
         print(f"Unknown command: {command}")
         print("Usage: python github_issue_manager.py <command> [args]")

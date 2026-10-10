@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
+import argparse
 import csv
 import json
-import sys
 import os
-import argparse
+import sys
 from pathlib import Path
 
 parser = argparse.ArgumentParser(description="generation new dump anonymiser")
@@ -76,6 +76,7 @@ CSV_COLUMNS = {
 # Utilitaires
 # ----------------------------------------------------------------------
 
+
 def fail(message):
     print()
     print("ERROR:")
@@ -94,6 +95,7 @@ def clean(value):
 # ----------------------------------------------------------------------
 # Load the dump
 # ----------------------------------------------------------------------
+
 
 def load_dump():
     if not DUMP_FILE.exists():
@@ -115,6 +117,7 @@ def load_dump():
 # Load the CSV
 # ----------------------------------------------------------------------
 
+
 def load_csv():
     if not RENOM_FILE.exists():
         fail(f"File not found : {RENOM_FILE}")
@@ -131,11 +134,7 @@ def load_csv():
 
     for encoding in encodings:
         try:
-            with RENOM_FILE.open(
-                "r",
-                encoding=encoding,
-                newline=""
-            ) as f:
+            with RENOM_FILE.open("r", encoding=encoding, newline="") as f:
 
                 sample = f.read(4096)
                 f.seek(0)
@@ -146,10 +145,7 @@ def load_csv():
                 if sample.count(";") > sample.count(","):
                     delimiter = ";"
 
-                reader = csv.DictReader(
-                    f,
-                    delimiter=delimiter
-                )
+                reader = csv.DictReader(f, delimiter=delimiter)
 
                 if reader.fieldnames is None:
                     fail("renom.csv has no header line.")
@@ -187,12 +183,10 @@ def load_csv():
 # Validation du CSV
 # ----------------------------------------------------------------------
 
+
 def validate_mapping(dump, csv_rows):
 
-    dump_devices = {
-        clean(p.get("periph_id")): p
-        for p in dump["periph_list"]
-    }
+    dump_devices = {clean(p.get("periph_id")): p for p in dump["periph_list"]}
 
     if "" in dump_devices:
         fail("A dump peripheral has an empty periph_id.")
@@ -210,15 +204,11 @@ def validate_mapping(dump, csv_rows):
         new_name = clean(row.get("new_name"))
 
         if not old_id:
-            errors.append(
-                f"Ligne {line_number}: periph_id vide"
-            )
+            errors.append(f"Ligne {line_number}: periph_id vide")
             continue
 
         if old_id in csv_map:
-            errors.append(
-                f"Ligne {line_number}: periph_id {old_id} en duplicate"
-            )
+            errors.append(f"Ligne {line_number}: periph_id {old_id} en duplicate")
             continue
 
         if old_id not in dump_devices:
@@ -234,8 +224,7 @@ def validate_mapping(dump, csv_rows):
 
         if not new_id:
             errors.append(
-                f"Ligne {line_number}: "
-                f"new_periph_id est vide pour {old_id}"
+                f"Ligne {line_number}: " f"new_periph_id est vide pour {old_id}"
             )
             continue
 
@@ -323,17 +312,14 @@ def validate_mapping(dump, csv_rows):
             continue
 
         if parent_id not in csv_map:
-            errors.append(
-                f"{old_id}: parent {parent_id} absent du CSV"
-            )
+            errors.append(f"{old_id}: parent {parent_id} absent du CSV")
             continue
 
         parent_new_id = csv_map[parent_id]["new_periph_id"]
 
         if parent_new_id.lower() == "non":
             errors.append(
-                f"{old_id}: le parent {parent_id} "
-                f"est deleted (new_periph_id=non)"
+                f"{old_id}: le parent {parent_id} " f"est deleted (new_periph_id=non)"
             )
 
     if errors:
@@ -346,9 +332,7 @@ def validate_mapping(dump, csv_rows):
             print(f"- {error}")
 
         print()
-        print(
-            "No new_* file was generated."
-        )
+        print("No new_* file was generated.")
 
         sys.exit(1)
 
@@ -359,6 +343,7 @@ def validate_mapping(dump, csv_rows):
 # Remapping d'un ID
 # ----------------------------------------------------------------------
 
+
 def remap_id(old_id, mapping, context):
 
     old_id = clean(old_id)
@@ -367,18 +352,12 @@ def remap_id(old_id, mapping, context):
         return old_id
 
     if old_id not in mapping:
-        fail(
-            f"{context}: periph_id {old_id} "
-            f"absent de la table de migration."
-        )
+        fail(f"{context}: periph_id {old_id} " f"absent de la table de migration.")
 
     new_id = mapping[old_id]["new_periph_id"]
 
     if new_id.lower() == "non":
-        fail(
-            f"{context}: reference to {old_id}, "
-            f"mais ce peripheral est deleted."
-        )
+        fail(f"{context}: reference to {old_id}, " f"mais ce peripheral est deleted.")
 
     return new_id
 
@@ -386,6 +365,7 @@ def remap_id(old_id, mapping, context):
 # ----------------------------------------------------------------------
 # Transformation d'un peripheral
 # ----------------------------------------------------------------------
+
 
 def transform_device(device, mapping):
 
@@ -411,11 +391,7 @@ def transform_device(device, mapping):
 
     if old_parent:
 
-        parent_new_id = remap_id(
-            old_parent,
-            mapping,
-            f"Peripheral {old_id}"
-        )
+        parent_new_id = remap_id(old_parent, mapping, f"Peripheral {old_id}")
 
         result["parent_periph_id"] = parent_new_id
 
@@ -428,6 +404,7 @@ def transform_device(device, mapping):
 # ----------------------------------------------------------------------
 # Transformation du dump complet
 # ----------------------------------------------------------------------
+
 
 def transform_dump(dump, mapping):
 
@@ -446,10 +423,7 @@ def transform_dump(dump, mapping):
 
     for device in dump.get("periph_list", []):
 
-        new_device = transform_device(
-            device,
-            mapping
-        )
+        new_device = transform_device(device, mapping)
 
         if new_device is not None:
             result["periph_list"].append(new_device)
@@ -465,9 +439,7 @@ def transform_dump(dump, mapping):
         old_id = clean(device.get("periph_id"))
 
         if old_id not in mapping:
-            fail(
-                f"caract: periph_id {old_id} absent du CSV."
-            )
+            fail(f"caract: periph_id {old_id} absent du CSV.")
 
         m = mapping[old_id]
 
@@ -479,16 +451,12 @@ def transform_dump(dump, mapping):
         new_device["periph_id"] = m["new_periph_id"]
         new_device["name"] = m["new_name"]
 
-        old_parent = clean(
-            device.get("parent_periph_id")
-        )
+        old_parent = clean(device.get("parent_periph_id"))
 
         if old_parent:
 
             new_device["parent_periph_id"] = remap_id(
-                old_parent,
-                mapping,
-                f"caract {old_id}"
+                old_parent, mapping, f"caract {old_id}"
             )
 
         result["caract"].append(new_device)
@@ -515,9 +483,7 @@ def transform_dump(dump, mapping):
             old_id = clean(item["periph_id"])
 
             if old_id not in mapping:
-                fail(
-                    f"value_list: periph_id {old_id} absent du CSV."
-                )
+                fail(f"value_list: periph_id {old_id} absent du CSV.")
 
             new_id = mapping[old_id]["new_periph_id"]
 
@@ -535,6 +501,7 @@ def transform_dump(dump, mapping):
 # Creation de simple_device_data
 # ----------------------------------------------------------------------
 
+
 def create_simple_device_data(dump):
 
     result = []
@@ -549,10 +516,7 @@ def create_simple_device_data(dump):
             "last_value_text": p.get("last_value_text", ""),
             "unit": p.get("unit", ""),
             "battery": p.get("battery", ""),
-            "last_value_change": p.get(
-                "last_value_change",
-                ""
-            ),
+            "last_value_change": p.get("last_value_change", ""),
         }
 
         result.append(item)
@@ -564,23 +528,17 @@ def create_simple_device_data(dump):
 # Transformation thermostat_rules.json
 # ----------------------------------------------------------------------
 
+
 def transform_thermostat_rules(mapping):
 
     if not THERMOSTAT_FILE.exists():
-        fail(
-            f"File not found : {THERMOSTAT_FILE}"
-        )
+        fail(f"File not found : {THERMOSTAT_FILE}")
 
-    with THERMOSTAT_FILE.open(
-        "r",
-        encoding="utf-8"
-    ) as f:
+    with THERMOSTAT_FILE.open("r", encoding="utf-8") as f:
         rules = json.load(f)
 
     if not isinstance(rules, list):
-        fail(
-            "thermostat_rules.json must contenir une liste."
-        )
+        fail("thermostat_rules.json must contenir une liste.")
 
     result = []
 
@@ -605,9 +563,7 @@ def transform_thermostat_rules(mapping):
                 continue
 
             new_rule[field] = remap_id(
-                old_id,
-                mapping,
-                f"thermostat_rules.json rule {index}, {field}"
+                old_id, mapping, f"thermostat_rules.json rule {index}, {field}"
             )
 
         result.append(new_rule)
@@ -619,19 +575,12 @@ def transform_thermostat_rules(mapping):
 # Ecriture JSON
 # ----------------------------------------------------------------------
 
+
 def write_json(path, data):
 
-    with path.open(
-        "w",
-        encoding="utf-8"
-    ) as f:
+    with path.open("w", encoding="utf-8") as f:
 
-        json.dump(
-            data,
-            f,
-            indent=2,
-            ensure_ascii=False
-        )
+        json.dump(data, f, indent=2, ensure_ascii=False)
 
         f.write("\n")
 
@@ -639,6 +588,7 @@ def write_json(path, data):
 # ----------------------------------------------------------------------
 # Main
 # ----------------------------------------------------------------------
+
 
 def main():
 
@@ -650,24 +600,15 @@ def main():
 
     csv_rows = list(load_csv())
 
-    print(
-        f"Peripherals dans le dump : "
-        f"{len(dump['periph_list'])}"
-    )
+    print(f"Peripherals dans le dump : " f"{len(dump['periph_list'])}")
 
-    print(
-        f"Lignes dans renom.csv      : "
-        f"{len(csv_rows)}"
-    )
+    print(f"Lignes dans renom.csv      : " f"{len(csv_rows)}")
 
     # ------------------------------------------------------------------
     # VALIDATION COMPLETE
     # ------------------------------------------------------------------
 
-    mapping = validate_mapping(
-        dump,
-        csv_rows
-    )
+    mapping = validate_mapping(dump, csv_rows)
 
     print()
     print("Validation du CSV : OK")
@@ -676,38 +617,23 @@ def main():
     # TRANSFORMATION
     # ------------------------------------------------------------------
 
-    new_dump = transform_dump(
-        dump,
-        mapping
-    )
+    new_dump = transform_dump(dump, mapping)
 
-    new_thermostat = transform_thermostat_rules(
-        mapping
-    )
+    new_thermostat = transform_thermostat_rules(mapping)
 
     # ------------------------------------------------------------------
     # ECRITURE
     # ------------------------------------------------------------------
 
-    write_json(
-        NEW_DUMP_FILE,
-        new_dump
-    )
+    write_json(NEW_DUMP_FILE, new_dump)
 
-    write_json(
-        NEW_THERMOSTAT_FILE,
-        new_thermostat
-    )
+    write_json(NEW_THERMOSTAT_FILE, new_thermostat)
 
     # ------------------------------------------------------------------
     # Summary
     # ------------------------------------------------------------------
 
-    kept = sum(
-        1
-        for m in mapping.values()
-        if m["new_periph_id"].lower() != "non"
-    )
+    kept = sum(1 for m in mapping.values() if m["new_periph_id"].lower() != "non")
 
     removed = len(mapping) - kept
 

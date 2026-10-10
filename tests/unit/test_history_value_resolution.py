@@ -16,9 +16,9 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from homeassistant.components.recorder.models import StatisticMeanType
 
 from custom_components.eedomus.coordinator import EedomusDataUpdateCoordinator
-from homeassistant.components.recorder.models import StatisticMeanType
 
 pytestmark = pytest.mark.unit
 
@@ -170,9 +170,7 @@ async def test_statistics_import_skips_unresolvable_label(caplog):
     )
 
     skip_warnings = [
-        record
-        for record in caplog.records
-        if "history points for" in record.message
+        record for record in caplog.records if "history points for" in record.message
     ]
     assert len(skip_warnings) == 1
     message = skip_warnings[0].getMessage()
@@ -345,9 +343,7 @@ class TestNextBestValue:
     """next_best_value raises the plain-EN setpoint errors (ticket 3.5)."""
 
     def make_coordinator(self, values):
-        coordinator = EedomusDataUpdateCoordinator(
-            hass=MagicMock(), client=MagicMock()
-        )
+        coordinator = EedomusDataUpdateCoordinator(hass=MagicMock(), client=MagicMock())
         coordinator.data = {
             PERIPH_ID: {
                 "periph_id": PERIPH_ID,
