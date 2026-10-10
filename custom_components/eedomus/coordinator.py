@@ -113,6 +113,11 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             {}
         )  # {periph_id: {"error_time": timestamp, "retry_after": timestamp, "error_message": str, "attempts": int}}
         self._error_count = {}  # {periph_id: int}
+        # Bug 1.11: consecutive registry-resolution misses per periph —
+        # an eligible sensor that never resolves has no importable
+        # target and must leave the queue instead of silently burning
+        # every fetched chunk.
+        self._import_miss_count = {}  # {periph_id: int}
         self._scan_interval = scan_interval
 
         # Timing metrics for performance monitoring
@@ -2218,12 +2223,35 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             periph_id, allow_suffixed=False
         )
         if not entity_id:
-            _LOGGER.warning(
-                "Skipping history import for %s: no exact entity match in "
-                "the entity registry",
-                periph_id,
-            )
+            # Bug 1.11: a resolution miss means the fetched chunk has no
+            # importable target. A couple of misses are tolerated
+            # (registry timing at startup); a persistent miss removes
+            # the periph from the queue — the fetch would otherwise
+            # burn every chunk for nothing, losing the points silently.
+            misses = self._import_miss_count.get(periph_id, 0) + 1
+            self._import_miss_count[periph_id] = misses
+            if misses >= 3:
+                self._history_progress.pop(periph_id, None)
+                self._import_miss_count.pop(periph_id, None)
+                await self._save_history_progress()
+                _LOGGER.warning(
+                    "Removing %s (%s) from the history queue: no exact "
+                    "entity match in the entity registry after %d "
+                    "attempts (fix the mapping, then reset its progress)",
+                    periph_id,
+                    periph_name,
+                    misses,
+                )
+            else:
+                _LOGGER.warning(
+                    "Skipping history import for %s: no exact entity "
+                    "match in the entity registry",
+                    periph_id,
+                )
             return 0
+
+        # A resolved target resets the miss streak
+        self._import_miss_count.pop(periph_id, None)
 
         _LOGGER.info("Importing historical data using Statistics API for %s", entity_id)
 
