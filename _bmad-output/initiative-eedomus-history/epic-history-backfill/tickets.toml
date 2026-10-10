@@ -1,4 +1,4 @@
-# tickets.toml — epic-history-backfill : 6 entrées, ordre de build.
+# tickets.toml — epic-history-backfill : 9 entrées, ordre de build.
 
 [[entry]]
 id = 1
@@ -94,3 +94,15 @@ after = []
 hitl = false
 risk = "low"
 notes = ["Decision utilisateur 2026-10-08 : ticketter sans fixer maintenant.", "A livrer avant la prochaine mise a jour majeure de HA."]
+
+[[entry]]
+id = 9
+type = "story"
+title = "Run périodique de re-compare cloud et ré-intégration (joint + corrections tardives)"
+description = "Le backfill actuel est un walk unique : un periph completed n'est jamais re-fetché (« already fully imported »). Les heures post-natives appartiennent au recorder HA (AD-11, couvert sans code), mais deux fenêtres restent sans mécanisme : le joint entre la dernière heure backfillée et la première statistique native, et les corrections/ajouts tardifs du cloud sur la fenêtre pré-native. Ce run périodique re-compare le cloud et ré-intègre les écarts — sûr par construction (upsert idempotent CAP-3, clip AD-11 jamais violé). Périmètre exact à trancher à la planification : sondage du joint seul (léger) vs re-walk complet (lourd), fréquence, et s'il ne couvre que les periphs eligible non complétés ou aussi les completed."
+verify = "Une correction injectée côté cloud (ou un point du joint manquant) est détectée au passage du run et atterrit dans les statistics de l'entité sans dupliquer les heures natives ; le run ne bouffe pas le quota du drain initial (les periphs pending du premier backfill restent prioritaires)."
+covers = []
+after = [4]
+hitl = false
+risk = "medium"
+notes = ["Sujet issu de la session d'elicitation du 2026-10-10 (l'utilisateur a codé l'initialisation, pas le run). Terrain factuel vérifié dans le code : walk unique, completed jamais re-fetché, recorder = vérité post-native, upsert idempotent.", "Inconnu à trancher avant build : le cloud eedomus corrige-t-il réellement des heures anciennes, et à quelle fréquence ? Si non, le run se réduit au sondage du joint.", "Antagonisme à surveiller : le bug de la boucle de fetch infinie (periphs completed re-fetchant la même fenêtre) — le design du run ne doit pas la reproduire sur les completed."]
