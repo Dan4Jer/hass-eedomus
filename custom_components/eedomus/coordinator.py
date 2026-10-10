@@ -8,7 +8,7 @@ import logging
 import time
 from collections import deque
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Optional
 
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
@@ -1323,6 +1323,95 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             "cycles": list(self._metrics_history),
             "active_periphs_last_hour": self._count_active_periphs_last_hour(),
             "periphs_by_category": self._count_periphs_by_category(),
+            # CAP-9 story 112: the history-recovery indicator row is
+            # conditional — the key is absent when the option is off.
+            "history": self._history_recovery_indicators(),
+        }
+
+    def _history_recovery_indicators(self) -> Optional[dict[str, Any]]:
+        """Aggregated history-recovery indicators (CAP-9, story 112).
+
+        None when the history option is off (the panel row is
+        conditional on the key). Pure computation over the progress
+        map and the derived queue — every field already lives in
+        memory, no new collection.
+
+        - completion: eligible non-ignored periphs, completed among
+          them (the gauge shows X/Y);
+        - points: sum of retrieved_points over the sum of the
+          ESTIMATED totals (AD-6bis: window x density; periphs
+          without an estimate never enter the denominator — None
+          when no estimate exists at all);
+        - coverage: the oldest retrieved timestamp across periphs
+          (None when nothing has been retrieved yet — never a fake
+          date);
+        - queue health: pending (drainable) and in-error counts; the
+          ETA assumes the worker cadence is constant
+          (BACKFILL_WORKER_INTERVAL per pass, quota periphs per
+          pass). Paused periphs are excluded from pending (they do
+          not drain).
+        """
+        if not self._history_enabled():
+            return None
+        now = datetime.now().timestamp()
+        eligible = [
+            pid
+            for pid in self._backfill_eligible_peripherals
+            if pid not in self._backfill_ignored
+        ]
+        completed = 0
+        retrieved = 0
+        total = 0
+        has_estimate = False
+        oldest = None
+        for pid in eligible:
+            progress = self._history_progress.get(pid) or {}
+            if progress.get("completed"):
+                completed += 1
+            retrieved += progress.get("retrieved_points") or 0
+            estimate = progress.get("total_points")
+            if estimate:
+                total += estimate
+                has_estimate = True
+            stamp = progress.get("oldest_timestamp")
+            if stamp is not None and (oldest is None or stamp < oldest):
+                oldest = stamp
+
+        pending = 0
+        errors = 0
+        for pid in self._backfill_queue_ids(for_drain=True):
+            pending += 1
+            retry_info = self._retry_queue.get(pid)
+            if (
+                isinstance(retry_info, dict)
+                and now < retry_info.get("retry_after", 0)
+            ):
+                errors += 1
+
+        eta_hours = None
+        if pending > 0:
+            quota = int(
+                _get_config_value(
+                    self.client.config_entry,
+                    CONF_HISTORY_PERIPHERALS_PER_SCAN,
+                    DEFAULT_HISTORY_PERIPHERALS_PER_SCAN,
+                )
+                or 0
+            )
+            if quota > 0:
+                eta_hours = round(
+                    pending * BACKFILL_WORKER_INTERVAL / quota / 3600, 1
+                )
+
+        return {
+            "eligible": len(eligible),
+            "completed": completed,
+            "retrieved_points": retrieved,
+            "total_points": total if has_estimate else None,
+            "oldest_timestamp": oldest,
+            "pending": pending,
+            "errors": errors,
+            "eta_hours": eta_hours,
         }
 
     def _box_display_name(self) -> str | None:

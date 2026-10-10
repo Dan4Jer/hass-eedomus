@@ -203,14 +203,18 @@ class TestGetBoxMetrics:
         assert metrics["cycles"] == list(coordinator._metrics_history)
         assert len(metrics["cycles"]) == 2
         # The payload stops at what the panel renders: every card value
-        # comes from the cycle records themselves.
+        # comes from the cycle records themselves (plus the
+        # conditional history-recovery block, story 112).
         assert set(metrics) == {
             "entry_id",
             "name",
             "cycles",
             "active_periphs_last_hour",
             "periphs_by_category",
+            "history",
         }
+        # History disabled in this harness: the key carries None
+        assert metrics["history"] is None
 
     def test_box_name_resolves_from_the_config_entry_title(self):
         coordinator = make_coordinator()
@@ -249,13 +253,15 @@ class TestGetBoxMetricsHandler:
         only_buffered = payload["boxes"][0]
         assert len(only_buffered["cycles"]) == 1
         assert only_buffered["cycles"][0]["refresh_time"] == 1.0
-        # Trimmed payload: nothing the panel does not render.
+        # Trimmed payload: nothing the panel does not render (history
+        # rides along, None when the option is off — story 112).
         assert set(only_buffered) == {
             "entry_id",
             "name",
             "cycles",
             "active_periphs_last_hour",
             "periphs_by_category",
+            "history",
         }
         # The empty box still gets its section: the panel renders the
         # positive empty state for it, never hides the box.
@@ -429,3 +435,104 @@ class TestBoxSystemMetrics:
         assert payload["periphs_by_category"] == {"unmapped": 2}
         assert "cpu" in payload["cycles"][0]
         assert "free_space_kb" in payload["cycles"][0]
+
+
+class TestHistoryRecoveryIndicators:
+    """Story 112: the conditional history-recovery block of the
+    box-metrics payload — pure aggregation, no new collection."""
+
+    def _coordinator_with_history(self, **options):
+        coordinator = make_coordinator()
+        coordinator.client.config_entry = SimpleNamespace(
+            options={"history": True, **options}, data={}
+        )
+        return coordinator
+
+    def test_history_option_off_carries_none(self):
+        coordinator = make_coordinator()  # options empty: history off
+        assert coordinator._history_recovery_indicators() is None
+
+    def test_indicator_aggregation(self):
+        """Completion, points, coverage and queue health aggregate the
+        progress map and the derived queue; the ETA follows the worker
+        cadence (pending x interval / quota)."""
+        coordinator = self._coordinator_with_history(
+            history_peripherals_per_scan=5
+        )
+        coordinator._backfill_eligible_peripherals = {
+            "a": {"periph_id": "a"},
+            "b": {"periph_id": "b"},
+            "c": {"periph_id": "c"},
+            "d": {"periph_id": "d"},
+        }
+        coordinator._backfill_ignored = {"d": True}
+        coordinator._backfill_paused = {"c": True}
+        coordinator._retry_queue = {
+            "b": {"retry_after": 9999999999.0, "error_message": "x"}
+        }
+        coordinator._history_progress = {
+            "a": {
+                "completed": True,
+                "retrieved_points": 100,
+                "total_points": 120,
+                "oldest_timestamp": "2025-01-02T00:00:00",
+            },
+            "b": {
+                "completed": False,
+                "retrieved_points": 40,
+                "total_points": None,
+                "oldest_timestamp": "2025-03-01T00:00:00",
+            },
+            "c": {
+                "completed": False,
+                "retrieved_points": 10,
+                "total_points": None,
+                "oldest_timestamp": None,
+            },
+        }
+
+        indicators = coordinator._history_recovery_indicators()
+
+        assert indicators["eligible"] == 3  # d is ignored
+        assert indicators["completed"] == 1
+        assert indicators["retrieved_points"] == 150
+        # Only estimated totals enter the denominator
+        assert indicators["total_points"] == 120
+        # The oldest retrieved timestamp across periphs
+        assert indicators["oldest_timestamp"] == "2025-01-02T00:00:00"
+        # a is completed, c is paused: only b is drainable (in error)
+        assert indicators["pending"] == 1
+        assert indicators["errors"] == 1
+        # ETA = pending x 60 s / quota 5 -> 0.0 h, rounded
+        assert indicators["eta_hours"] == 0.0
+
+    def test_no_estimate_and_no_coverage_are_honest(self):
+        """total None when nothing carries an estimate, oldest None
+        when nothing was retrieved — never a fake number or date."""
+        coordinator = self._coordinator_with_history()
+        coordinator._backfill_eligible_peripherals = {
+            "a": {"periph_id": "a"}
+        }
+        coordinator._history_progress = {
+            "a": {"completed": False, "retrieved_points": 5}
+        }
+        indicators = coordinator._history_recovery_indicators()
+        assert indicators["total_points"] is None
+        assert indicators["oldest_timestamp"] is None
+        # Quota defaults to 1: one pending periph -> ~0 h ETA
+        assert indicators["eta_hours"] == 0.0
+
+    def test_empty_queue_is_the_positive_state(self):
+        coordinator = self._coordinator_with_history(
+            history_peripherals_per_scan=5
+        )
+        coordinator._backfill_eligible_peripherals = {
+            "a": {"periph_id": "a"}
+        }
+        coordinator._history_progress = {
+            "a": {"completed": True}
+        }
+        indicators = coordinator._history_recovery_indicators()
+        assert indicators["pending"] == 0
+        assert indicators["errors"] == 0
+        assert indicators["eta_hours"] is None

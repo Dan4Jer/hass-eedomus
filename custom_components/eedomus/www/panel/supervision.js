@@ -706,6 +706,92 @@ export function applySupervisionMixin(EedomusConfigPanel) {
         )
       );
     }
+    // Story 112: the history-recovery indicator row — conditional on
+    // the payload's history key (absent when the option is off). Four
+    // value cards, pure display: every number comes from the backend,
+    // the panel never recomputes (CAP-9: the panel displays).
+    const history =
+      box && typeof box.history === 'object' ? box.history : null;
+    if (history) {
+      const eligible = history.eligible || 0;
+      const done = history.completed || 0;
+      cards.push(
+        supervisionValueCardHtml(
+          {
+            titleKey: 'panel.supervision.card.history_completion',
+            kind: 'gauge',
+            fraction: eligible > 0 ? done / eligible : 0,
+            value: `${done}/${eligible}`,
+            textKey: 'panel.supervision.value.history_completion',
+            textParams: { done, total: eligible },
+          },
+          this._t
+        )
+      );
+      const retrievedPoints = history.retrieved_points || 0;
+      const totalPoints = history.total_points;
+      cards.push(
+        supervisionValueCardHtml(
+          {
+            titleKey: 'panel.supervision.card.history_points',
+            value: supervisionFormatCount(retrievedPoints),
+            textKey:
+              totalPoints !== null && totalPoints !== undefined
+                ? 'panel.supervision.value.history_points'
+                : 'panel.supervision.value.history_points_no_estimate',
+            textParams: {
+              retrieved: supervisionFormatCount(retrievedPoints),
+              total: supervisionFormatCount(totalPoints || 0),
+            },
+          },
+          this._t
+        )
+      );
+      const oldestRaw = history.oldest_timestamp;
+      const oldest =
+        oldestRaw !== null && oldestRaw !== undefined
+          ? new Date(oldestRaw)
+          : null;
+      const oldestValid = oldest !== null && !Number.isNaN(oldest.getTime());
+      cards.push(
+        supervisionValueCardHtml(
+          {
+            titleKey: 'panel.supervision.card.history_coverage',
+            value: oldestValid
+              ? oldest.toLocaleDateString()
+              : supervisionFormatCount(null),
+            textKey: oldestValid
+              ? 'panel.supervision.value.history_coverage'
+              : 'panel.supervision.value.history_coverage_empty',
+            textParams: {
+              date: oldestValid
+                ? oldest.toLocaleDateString()
+                : String(oldestRaw),
+            },
+          },
+          this._t
+        )
+      );
+      const pending = history.pending || 0;
+      const errors = history.errors || 0;
+      const eta = history.eta_hours;
+      cards.push(
+        supervisionValueCardHtml(
+          {
+            titleKey: 'panel.supervision.card.history_queue',
+            value: pending > 0 ? supervisionFormatCount(pending) : '0',
+            textKey:
+              pending === 0
+                ? 'panel.supervision.value.history_queue_empty'
+                : eta !== null && eta !== undefined
+                  ? 'panel.supervision.value.history_queue'
+                  : 'panel.supervision.value.history_queue_no_eta',
+            textParams: { pending, errors, eta: String(eta) },
+          },
+          this._t
+        )
+      );
+    }
     const cardsHtml = cards.join('');
     return `
       <section class="supervision-section">

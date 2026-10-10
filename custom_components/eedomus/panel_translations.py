@@ -218,6 +218,10 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "panel.supervision.card.periphs": "Peripherals",
         "panel.supervision.card.activity": "Peripheral activity",
         "panel.supervision.card.system": "Box system",
+        "panel.supervision.card.history_completion": "History recovery",
+        "panel.supervision.card.history_points": "History points",
+        "panel.supervision.card.history_coverage": "Oldest data",
+        "panel.supervision.card.history_queue": "Recovery queue",
         "panel.supervision.value.refresh_time": (
             "Last cycle: {n} s total, {api} s on the API."
         ),
@@ -235,6 +239,30 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         ),
         "panel.supervision.value.system_cpu": (
             "CPU {cpu} % on the box."
+        ),
+        "panel.supervision.value.history_completion": (
+            "{done} of {total} eligible peripherals completed."
+        ),
+        "panel.supervision.value.history_points": (
+            "{retrieved} points retrieved, of about {total} estimated."
+        ),
+        "panel.supervision.value.history_points_no_estimate": (
+            "{retrieved} points retrieved (no estimate available)."
+        ),
+        "panel.supervision.value.history_coverage": (
+            "Data retrieved back to {date}."
+        ),
+        "panel.supervision.value.history_coverage_empty": (
+            "Nothing retrieved yet."
+        ),
+        "panel.supervision.value.history_queue": (
+            "{pending} waiting, {errors} in error - about {eta} h left."
+        ),
+        "panel.supervision.value.history_queue_no_eta": (
+            "{pending} waiting, {errors} in error."
+        ),
+        "panel.supervision.value.history_queue_empty": (
+            "Everything is retrieved."
         ),
         "panel.supervision.link.coherence": "See the coherence table",
         "panel.supervision.error.load": "Failed to load metrics: {err}.",
@@ -526,6 +554,10 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "panel.supervision.card.periphs": "Périphériques",
         "panel.supervision.card.activity": "Activité des périphériques",
         "panel.supervision.card.system": "Système box",
+        "panel.supervision.card.history_completion": "Récupération d'historique",
+        "panel.supervision.card.history_points": "Points d'historique",
+        "panel.supervision.card.history_coverage": "Données les plus anciennes",
+        "panel.supervision.card.history_queue": "File de récupération",
         "panel.supervision.value.refresh_time": (
             "Dernier cycle : {n} s au total, {api} s sur l'API."
         ),
@@ -543,6 +575,30 @@ PANEL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         ),
         "panel.supervision.value.system_cpu": (
             "CPU {cpu} % sur la box."
+        ),
+        "panel.supervision.value.history_completion": (
+            "{done} périphériques éligibles complétés sur {total}."
+        ),
+        "panel.supervision.value.history_points": (
+            "{retrieved} points récupérés, sur environ {total} estimés."
+        ),
+        "panel.supervision.value.history_points_no_estimate": (
+            "{retrieved} points récupérés (pas d'estimation disponible)."
+        ),
+        "panel.supervision.value.history_coverage": (
+            "Données récupérées jusqu'au {date}."
+        ),
+        "panel.supervision.value.history_coverage_empty": (
+            "Rien de récupéré pour l'instant."
+        ),
+        "panel.supervision.value.history_queue": (
+            "{pending} en attente, {errors} en erreur - environ {eta} h restantes."
+        ),
+        "panel.supervision.value.history_queue_no_eta": (
+            "{pending} en attente, {errors} en erreur."
+        ),
+        "panel.supervision.value.history_queue_empty": (
+            "Tout est récupéré."
         ),
         "panel.supervision.link.coherence": "Voir le tableau de cohérence",
         "panel.supervision.error.load": (

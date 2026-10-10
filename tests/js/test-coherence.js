@@ -1925,6 +1925,89 @@ assertEq(
   ],
   [2, true, true]
 );
+// Story 112: the history-recovery row is conditional — no history key
+// in the payload, no row (the option is off on that box).
+assertEq(
+  'supervision: no history key, no recovery row',
+  [
+    supMultiHtml.includes('panel.supervision.card.history_completion'),
+    supMultiHtml.includes('Récupération d\'historique'),
+  ],
+  [false, false]
+);
+// History on: the four indicator cards render with their values and
+// textual equivalents — numbers come from the backend, never recomputed.
+supPanel._metrics = {
+  boxes: [
+    {
+      entry_id: 'E1',
+      name: 'Salon',
+      cycles: [
+        {
+          ts: '2026-10-03T09:05:00',
+          refresh_time: 2.1,
+          api_time: 1.1,
+          api_calls: 2,
+          periphs_total: 165,
+          periphs_dynamic: 6,
+        },
+      ],
+      history: {
+        eligible: 10,
+        completed: 4,
+        retrieved_points: 123456,
+        total_points: 999999,
+        oldest_timestamp: '2025-01-02T00:00:00',
+        pending: 6,
+        errors: 2,
+        eta_hours: 6.0,
+      },
+    },
+  ],
+};
+const supHistoryHtml = supPanel._renderSupervisionTab();
+assertEq(
+  'supervision: the history payload renders the four indicator cards',
+  [
+    // escapeHtml encodes the apostrophes — the rendered text carries
+    // them as entities, never as raw quotes
+    supHistoryHtml.includes('Récupération d&#39;historique'),
+    supHistoryHtml.includes('4/10'),
+    supHistoryHtml.includes('4 périphériques éligibles complétés sur 10'),
+    supHistoryHtml.includes('Points d&#39;historique'),
+    supHistoryHtml.includes('123456'),
+    supHistoryHtml.includes('999999'),
+    supHistoryHtml.includes('Données les plus anciennes'),
+    supHistoryHtml.includes('Données récupérées jusqu&#39;au'),
+    supHistoryHtml.includes('File de récupération'),
+    supHistoryHtml.includes('6 en attente, 2 en erreur'),
+    supHistoryHtml.includes('environ 6 h restantes'),
+    // No raw catalog key ever leaks into the rendered row
+    supHistoryHtml.includes('panel.supervision.card.history_'),
+  ],
+  [true, true, true, true, true, true, true, true, true, true, true, false]
+);
+// Empty queue: the positive state, never a zeroed ETA card.
+supPanel._metrics.boxes[0].history = {
+  eligible: 3,
+  completed: 3,
+  retrieved_points: 9000,
+  total_points: null,
+  oldest_timestamp: '2025-01-02T00:00:00',
+  pending: 0,
+  errors: 0,
+  eta_hours: null,
+};
+const supDoneHtml = supPanel._renderSupervisionTab();
+assertEq(
+  'supervision: a fully retrieved box renders the positive queue state',
+  [
+    supDoneHtml.includes('Tout est récupéré.'),
+    supDoneHtml.includes('pas d&#39;estimation disponible'),
+    supDoneHtml.includes('3/3'),
+  ],
+  [true, true, true]
+);
 // Deep link: the #supervision hash activates the tab from location,
 // an unknown hash falls back (the hash is the source of truth).
 sandbox.window.location.hash = '#supervision';
