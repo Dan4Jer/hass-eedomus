@@ -59,10 +59,16 @@ class EedomusWebhookView(HomeAssistantView):
             try:
                 # 1. Parse JSON first (fail fast if invalid)
                 data = await request.json()
+                # A non-dict body (list, string...) has no action key:
+                # reject it as unrecognized instead of crashing on
+                # data.get and answering 500.
                 if (
-                    data.get("action") != "refresh"
-                    and data.get("action") != "partial_refresh"
-                    and data.get("action") != "reload"
+                    not isinstance(data, dict)
+                    or (
+                        data.get("action") != "refresh"
+                        and data.get("action") != "partial_refresh"
+                        and data.get("action") != "reload"
+                    )
                 ):
                     return web.Response(text="Unrecognized action", status=400)
 

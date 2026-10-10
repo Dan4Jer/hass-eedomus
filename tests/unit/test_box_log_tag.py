@@ -8,14 +8,15 @@ records emitted outside any box context.
 
 import asyncio
 import logging
-import re
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from custom_components.eedomus.coordinator import EedomusDataUpdateCoordinator
 from custom_components.eedomus.log import (
+    _BoxTagFilter,
     box_log_context,
     get_logger,
     resolve_box_tag,
@@ -112,10 +113,13 @@ def test_logger_name_passes_through():
 
 
 def test_get_logger_filter_attached_once():
-    """Repeated factory calls never stack duplicate filters."""
-    first = get_logger("custom_components.eedomus.log_test_idempotent")
-    second = get_logger("custom_components.eedomus.log_test_idempotent")
-    assert first is second
+    """Repeated factory calls attach exactly one box tag filter."""
+    logger_name = "custom_components.eedomus.log_test_idempotent"
+    get_logger(logger_name)
+    get_logger(logger_name)
+    logger = get_logger(logger_name)
+    attached = [flt for flt in logger.filters if isinstance(flt, _BoxTagFilter)]
+    assert len(attached) == 1
 
 
 def test_resolve_box_tag_title_first():
@@ -190,37 +194,196 @@ async def test_coordinator_refresh_tags_log_lines(caplog):
         assert record.getMessage().endswith(" [box: Salon]"), record.getMessage()
 
 
-def test_sweep_guard_every_logger_uses_factory():
-    """No real module logs through a logger that bypasses the factory.
+def test_sweep_guard_no_logger_built_outside_the_factory():
+    """No real module builds a logger outside the factory.
 
-    Walks custom_components/eedomus/*.py (stale *.backup* files are
-    never swept) and asserts every _LOGGER assignment uses get_logger.
+    Any logging.getLogger( occurrence in custom_components/eedomus/*.py
+    (stale *.backup* files are never swept) bypasses the box tag
+    filter - under any variable name or literal logger name. log.py
+    is the only module allowed to touch the logging API.
     """
     package_dir = (
         Path(__file__).resolve().parents[2] / "custom_components" / "eedomus"
     )
     offenders = []
     for path in sorted(package_dir.glob("*.py")):
-        if "backup" in path.name:
+        if "backup" in path.name or path.name == "log.py":
             continue
         for lineno, line in enumerate(path.read_text().splitlines(), start=1):
-            if re.match(r"^\s*_LOGGER\s*=", line) and "get_logger(" not in line:
+            if "logging.getLogger(" in line:
                 offenders.append(f"{path.name}:{lineno}: {line.strip()}")
-    assert not offenders, "Raw logger assignments bypassing get_logger:\n" + "\n".join(
-        offenders
+    assert not offenders, (
+        "Loggers built outside the get_logger factory:\n" + "\n".join(offenders)
     )
 
 
-def test_sweep_guard_no_raw_get_logger_call():
-    """No real module calls logging.getLogger(__name__) directly."""
-    package_dir = (
-        Path(__file__).resolve().parents[2] / "custom_components" / "eedomus"
+@pytest.mark.asyncio
+async def test_domain_service_two_boxes_distinguished_by_tag(caplog):
+    """Matrix row 'Domain service, 2 boxes': each box's lines carry that
+    box's tag, never the other's - even with concurrent service runs."""
+    from custom_components.eedomus import services
+    from custom_components.eedomus.const import COORDINATOR, DOMAIN
+
+    registered = {}
+    hass = MagicMock()
+    hass.services.has_service.return_value = False
+    hass.services.async_register.side_effect = (
+        lambda domain, name, handler: registered.__setitem__(name, handler)
     )
-    offenders = []
-    for path in sorted(package_dir.glob("*.py")):
-        if "backup" in path.name:
-            continue
-        text = path.read_text()
-        if "logging.getLogger(__name__)" in text:
-            offenders.append(path.name)
-    assert not offenders, f"Direct logging.getLogger(__name__) in: {offenders}"
+
+    def make_coordinator(title: str):
+        coord = MagicMock()
+        coord.config_entry = SimpleNamespace(
+            title=title, entry_id=title.lower(), data={}
+        )
+
+        async def refresh() -> None:
+            logger = get_logger("custom_components.eedomus.coordinator")
+            logger.info("Refresh cycle start (%s)", title)
+            await asyncio.sleep(0)
+            logger.info("Refresh complete (%s)", title)
+
+        coord.async_request_refresh = refresh
+        return coord
+
+    coord_salon = make_coordinator("Salon")
+    coord_cave = make_coordinator("Cave")
+    hass.data = {
+        DOMAIN: {
+            "entry_salon": {COORDINATOR: coord_salon},
+            "entry_cave": {COORDINATOR: coord_cave},
+        }
+    }
+
+    await services.async_setup_services(hass, coord_salon)
+    handler = registered["refresh"]
+    assert handler is not None, "refresh service handler not registered"
+
+    caplog.set_level(logging.INFO, logger="custom_components.eedomus.coordinator")
+    call = SimpleNamespace(data={})
+    # Two concurrent service runs interleave both boxes' turns; the
+    # ContextVar must stay per-task and per-box throughout.
+    await asyncio.gather(handler(call), handler(call))
+
+    text = caplog.text
+    assert "Refresh cycle start (Salon) [box: Salon]" in text
+    assert "Refresh complete (Salon) [box: Salon]" in text
+    assert "Refresh cycle start (Cave) [box: Cave]" in text
+    assert "Refresh complete (Cave) [box: Cave]" in text
+    assert "(Salon) [box: Cave]" not in text
+    assert "(Cave) [box: Salon]" not in text
+    for record in caplog.records:
+        message = record.getMessage()
+        if "Refresh cycle" in message or "Refresh complete" in message:
+            assert "[box: " in message, message
+            if "Salon" in message:
+                assert message.endswith("[box: Salon]"), message
+            else:
+                assert message.endswith("[box: Cave]"), message
+
+
+def _make_webhook_hass(entry_id: str = "entry-1", title: str = "Salon"):
+    """Build the hass side a webhook request resolves against."""
+    from custom_components.eedomus.const import COORDINATOR, DOMAIN
+
+    hass = MagicMock()
+    entry = SimpleNamespace(entry_id=entry_id, title=title, data={})
+    hass.config_entries.async_entries.return_value = [entry]
+    hass.config_entries.async_reload = AsyncMock()
+
+    coordinator = MagicMock()
+
+    async def full_refresh() -> None:
+        get_logger("custom_components.eedomus.coordinator").info(
+            "Full refresh done"
+        )
+
+    async def partial_refresh() -> None:
+        get_logger("custom_components.eedomus.coordinator").info(
+            "Partial refresh done"
+        )
+
+    coordinator._async_full_refresh = full_refresh
+    coordinator._async_partial_refresh = partial_refresh
+    hass.data = {DOMAIN: {entry_id: {COORDINATOR: coordinator}}}
+    return hass
+
+
+def _make_webhook_request(hass, payload, remote: str = "1.2.3.4"):
+    request = MagicMock()
+    request.remote = remote
+    request.app = {"hass": hass}
+    request.json = AsyncMock(return_value=payload)
+    return request
+
+
+@pytest.mark.asyncio
+async def test_webhook_unauthorized_ip_returns_403_tagged(caplog):
+    """A request from an IP outside the allowlist gets a 403, tagged."""
+    from custom_components.eedomus.webhook import EedomusWebhookView
+
+    view = EedomusWebhookView("entry-1", allowed_ips=["9.9.9.9"])
+    request = _make_webhook_request(_make_webhook_hass(), {"action": "refresh"})
+    caplog.set_level(logging.WARNING, logger="custom_components.eedomus.webhook")
+    response = await view.post(request)
+    assert response.status == 403
+    assert response.text == "Unauthorized"
+    assert "Unauthorized IP: 1.2.3.4 [box: Salon]" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_webhook_unrecognized_action_returns_400(caplog):
+    """An unknown action gets a clean 400, not a coordinator crash."""
+    from custom_components.eedomus.webhook import EedomusWebhookView
+
+    view = EedomusWebhookView("entry-1", allowed_ips=["1.2.3.4"])
+    request = _make_webhook_request(_make_webhook_hass(), {"action": "bogus"})
+    response = await view.post(request)
+    assert response.status == 400
+    assert response.text == "Unrecognized action"
+
+
+@pytest.mark.asyncio
+async def test_webhook_non_dict_body_returns_400(caplog):
+    """A JSON body that is not an object gets a clean 400, not a 500."""
+    from custom_components.eedomus.webhook import EedomusWebhookView
+
+    view = EedomusWebhookView("entry-1", allowed_ips=["1.2.3.4"])
+    for payload in ([1, 2], "refresh", 42):
+        request = _make_webhook_request(_make_webhook_hass(), payload)
+        response = await view.post(request)
+        assert response.status == 400, payload
+        assert response.text == "Unrecognized action", payload
+
+
+@pytest.mark.asyncio
+async def test_webhook_refresh_returns_ok_tagged(caplog):
+    """The refresh action drives the coordinator and logs its tag."""
+    from custom_components.eedomus.webhook import EedomusWebhookView
+
+    view = EedomusWebhookView("entry-1", allowed_ips=["1.2.3.4"])
+    hass = _make_webhook_hass()
+    request = _make_webhook_request(hass, {"action": "refresh"})
+    caplog.set_level(logging.INFO, logger="custom_components.eedomus.coordinator")
+    response = await view.post(request)
+    assert response.status == 200
+    assert response.text == "OK"
+    assert "Full refresh done [box: Salon]" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_webhook_reload_returns_ok_tagged(caplog):
+    """The reload action reloads the entry and logs its tag."""
+    from custom_components.eedomus.webhook import EedomusWebhookView
+
+    view = EedomusWebhookView("entry-1", allowed_ips=["1.2.3.4"])
+    hass = _make_webhook_hass()
+    request = _make_webhook_request(hass, {"action": "reload"})
+    caplog.set_level(logging.INFO, logger="custom_components.eedomus.webhook")
+    response = await view.post(request)
+    assert response.status == 200
+    assert response.text == "OK"
+    hass.config_entries.async_reload.assert_awaited_once_with("entry-1")
+    assert (
+        "Eedomus integration reloaded successfully [box: Salon]" in caplog.text
+    )

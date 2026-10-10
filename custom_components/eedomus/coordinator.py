@@ -2731,6 +2731,18 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
 
     # Add method to set value for a specific peripheral
     async def async_set_periph_value(self, periph_id: str, value: str):
+        """Set the value of a specific peripheral.
+
+        Wrapped in a box log context (ticket 113): entity commands and
+        service calls both land here, so every line this method (and
+        its fallback/retry path) emits carries this box's tag.
+        """
+        with box_log_context(
+            resolve_box_tag(getattr(self, "config_entry", None), self.client)
+        ):
+            return await self._async_set_periph_value_untagged(periph_id, value)
+
+    async def _async_set_periph_value_untagged(self, periph_id: str, value: str):
         """Set the value of a specific peripheral."""
         _LOGGER.debug(
             "Setting value '%s' for peripheral '%s' (%s) ",

@@ -3,12 +3,12 @@ title: 'Box-origin tag on every log line of the integration (ticket 113)'
 type: 'feature'
 ticket: '113'
 created: '2026-10-10'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '4e74dba316ee0214371b4bd0d1ab02d7a74242a6'
 route: 'full'
 route_source: 'auto'
-review: ''
-review_source: ''
+review: 'thorough'
+review_source: 'auto'
 lenses_ran: []
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -79,9 +79,39 @@ deferred: []
 
 ## Implementation Notes
 
+- Implemented by subagent impl-113-2 (first dispatch impl-113 died on a model stream failure before writing anything; tree was clean, fresh dispatch made).
+- Plan naming error adapted: the refresh entry point is `_async_update_data` (not `_async_refresh_data`); wrapped as a thin `box_log_context` wrapper around `_async_update_data_untagged`, preserving every existing call site including HA's framework calls.
+- Committed by the implementer as `47f4da7` on `unstable` (31 files, +647/−168; tree clean per repo policy). Not pushed — push+deploy stays the user's step.
+- `resolve_box_tag` also reads `entry.data["api_host"]` beyond the plan's three sources, plus a final `"unknown"` guarantee; mirrors `coordinator._box_display_name` order (title → host → entry_id).
+- Cross-box cleanup services (`cleanup_unused_entities/devices`) stay untagged by design: they act on the whole instance, not one box (plan boundary, noted here for the reviewer).
+- Matrix row "Domain service, 2 boxes" is covered by mechanism tests (`test_inner_context_wins` alternation + `test_tag_reaches_every_module_logger` + coordinator refresh test) rather than a service-fan-out test; the service handlers use the same context manager. Residual risk: the service fan-out path itself has no direct unit test — the live deploy log will show it.
+- Verification re-run by the orchestrator, not trusted from the report: `pytest tests/unit/ -q` 413 passed; `node tests/js/test-coherence.js` green; grep `logging.getLogger(__name__)` zero hits outside backups.
+- entity.py pre-existing latent issue (manifest-read `except` logs before `_LOGGER` assignment) left untouched, per minimal-diff.
+
 ## Plan Change Log
 
 ## Review Triage Log
+
+### 2026-10-10 — Review pass
+- verdicts: 23 findings — high 0, medium 6, low 11, false 3, maybe-false 3
+- findings:
+  - `[medium]` `[patch]` services.py: box contexts span only the awaited call — the handlers' own failure/success lines (the ones multi-box diagnosis most needs) emit untagged; the refresh-wrapper also duplicates the coordinator's own tagging — re-span each handler's context over the full per-box handling (blind-hunter #2, #3, grouped)
+  - `[medium]` `[patch]` coordinator.py: `async_set_periph_value` (and the climate set path) emit untagged when called from entity commands (light.py, climate.py direct calls) while the same call via `eedomus.set_value` is tagged — self-tag at the coordinator method level, mirroring `_async_update_data` (blind-hunter #4 + verification-gap #3, grouped)
+  - `[medium]` `[patch]` no test executes a domain-service handler nor any concurrent two-box scenario — add a caplog test over two stub coordinators run concurrently, asserting each box's lines carry only its tag (blind-hunter #9 + verification-gap #1, grouped; closes the matrix row "Domain service, 2 boxes")
+  - `[medium]` `[patch]` webhook post() rewrite has zero test coverage and accepts a non-dict JSON body (AttributeError → 500 instead of 400) — add isinstance(data, dict) → 400 and a stub-request unit test covering 403/400/OK with tag assertions (blind-hunter #8 + verification-gap #2, grouped)
+  - `[low]` `[patch]` sweep guards match only the `_LOGGER` name and the exact `logging.getLogger(__name__)` literal — widen to flag any `logging.getLogger(` outside `log.py` (blind-hunter #10 + verification-gap #4, grouped)
+  - `[low]` `[patch]` `test_get_logger_filter_attached_once` asserts the getLogger singleton, not idempotence — assert exactly one `_BoxTagFilter` in `logger.filters` after repeated calls (blind-hunter #1)
+  - `[low]` `[defer]` backfill worker-loop wrapper untested — the mechanism is verified at `_async_update_data`; closing this needs a loop-body seam the direct-call test style lacks (verification-gap #5, filed disposition defer)
+  - `[low]` `[defer]` entity.py manifest-read `except` logs `_LOGGER` before its assignment — pre-existing latent NameError on an error path, not caused by this change (blind-hunter #12)
+  - `[false]` `[reject]` HA base-class coordinator failure lines untagged — refuted: the coordinator passes its own factory-built `_LOGGER` to `DataUpdateCoordinator` (coordinator.py:94-99), so "Timeout fetching"/"Error fetching" flow through the tagged logger (blind-hunter #5)
+  - `[low]` `[reject]` tag as structured attribute instead of `record.msg` — design settled in the plan's Design Notes (HA stock format visibility, caplog assertability); named harm is hypothetical future shippers (blind-hunter #6)
+  - `[low]` `[reject]` webhook entry resolution before IP check — the scan cost is negligible and the current order is what tags the unauthorized-IP warning; the proposed fix would untag it (blind-hunter #7)
+  - `[low]` `[reject]` duplicated tag resolution — the fallback order lives in one place (`resolve_box_tag`); only the accessor pattern repeats, no named divergence (blind-hunter #11)
+  - `[maybe-false]` `[reject]` executor-thread logging untagged — no demonstrated box-contexted logging from a thread; if true, harm is low (rare setup-time mapping warnings) (blind-hunter #13 + edge-case #1, same mechanism)
+  - `[maybe-false]` `[reject]` task spawned inside a context outlives it → stale tag — no long-lived task spawn inside a box context shown; if true, low (short-lived children) (edge-case #4)
+  - `[low]` `[reject]` config entry removed between webhook capture and reload — millisecond window inside one request; consequence is an HA-side warning (edge-case #2)
+  - `[false]` `[reject]` `[box: unknown]` tag misleading when entry is gone — the tag states exactly what is known; no misattribution to a wrong box occurs (edge-case #3)
+  - `[false]` `[reject]` non-string `record.msg` coerced by the f-string — no crash, behavior identical to standard %-formatting; no non-string call site exists in the package (edge-case #5)
 
 ## Design Notes
 

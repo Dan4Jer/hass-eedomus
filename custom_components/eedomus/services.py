@@ -107,13 +107,19 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
             return
         errors = []
         for coord in coordinators:
-            try:
-                with box_log_context(_coordinator_box_tag(coord)):
+            with box_log_context(_coordinator_box_tag(coord)):
+                try:
                     await coord.async_request_refresh()
-            except Exception as err:
-                box_title = getattr(getattr(coord, "config_entry", None), "title", "unknown box")
-                _LOGGER.error("❌ Failed to refresh eedomus data for %s: %s", box_title, err)
-                errors.append(err)
+                except Exception as err:
+                    box_title = getattr(
+                        getattr(coord, "config_entry", None), "title", "unknown box"
+                    )
+                    _LOGGER.error(
+                        "❌ Failed to refresh eedomus data for %s: %s",
+                        box_title,
+                        err,
+                    )
+                    errors.append(err)
         _LOGGER.info("✅ Eedomus data refreshed (%d box(es), %d error(s))", len(coordinators), len(errors))
         if errors and len(errors) == len(coordinators):
             raise errors[0]
@@ -186,13 +192,20 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
 
         errors = []
         for entry in entries:
-            try:
-                with box_log_context(resolve_box_tag(entry)):
+            with box_log_context(resolve_box_tag(entry)):
+                try:
                     await hass.config_entries.async_reload(entry.entry_id)
-                _LOGGER.info("✅ Eedomus integration reloaded successfully (%s)", entry.title)
-            except Exception as err:
-                _LOGGER.error("❌ Failed to reload eedomus integration (%s): %s", entry.title, err)
-                errors.append(err)
+                    _LOGGER.info(
+                        "✅ Eedomus integration reloaded successfully (%s)",
+                        entry.title,
+                    )
+                except Exception as err:
+                    _LOGGER.error(
+                        "❌ Failed to reload eedomus integration (%s): %s",
+                        entry.title,
+                        err,
+                    )
+                    errors.append(err)
         if errors and len(errors) == len(entries):
             raise errors[0]
 
