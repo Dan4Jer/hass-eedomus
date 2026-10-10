@@ -425,7 +425,14 @@ python3 02_apply_renom.py \
 
 # 8. Test
 python3 simulator.py
+
+# 9. Regenerate the missing-types catalog
+python3 03_catalog.py
 ```
+
+The dataset and `device_mapping.yaml` changed, so the catalog must be
+regenerated — `CATALOG.md` stays the single source of truth for what
+is still missing (see section 17).
 
 # 16. Limits
 
@@ -465,3 +472,18 @@ Regenerate the catalog after any change to `eedomus_dump.json` or
 `custom_components/eedomus/config/device_mapping.yaml`. The unit
 suite (`tests/unit/test_simulator_catalog.py`) fails if the
 committed file drifts from the generation.
+
+The input and output paths can be overridden on the command line
+(`-d/--dump-file`, `-m/--mapping-file`, `-o/--output`, `-` for
+stdout) or through the environment (`DUMP_JSON_FILE`, `MAPPING_FILE`,
+`CATALOG_FILE`). This is the way to preview the catalog on a `new_*`
+dataset before merging it into the shipped files: generate with the
+`new_*` dump, review which missing rows disappear and which new
+unmapped ids appear, then merge and regenerate the committed
+`CATALOG.md`:
+
+```bash
+python3 03_catalog.py \
+  --dump-file new_eedomus_dump_box_192_168_1_10.json \
+  --output -
+```

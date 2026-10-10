@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 
 import pytest
+import yaml
 
 pytestmark = pytest.mark.unit
 
@@ -112,17 +113,24 @@ def test_generation_is_byte_stable(catalog):
     assert first.endswith("\n")
 
 
-def test_main_rewrites_identical_output(catalog, tmp_path):
+def test_main_rewrites_identical_output(catalog, tmp_path, capsys):
+    """main() takes explicit paths (hermetic to env overrides)."""
     out1 = tmp_path / "catalog1.md"
     out2 = tmp_path / "catalog2.md"
-    assert catalog.main(["-o", str(out1)]) == 0
-    assert catalog.main(["-o", str(out2)]) == 0
+    common = ["-d", str(DUMP_FILE), "-m", str(MAPPING_FILE)]
+    assert catalog.main([*common, "-o", str(out1)]) == 0
+    assert catalog.main([*common, "-o", str(out2)]) == 0
     assert out1.read_bytes() == out2.read_bytes()
 
     # --check passes on a fresh write, fails on drift.
-    assert catalog.main(["-o", str(out1), "--check"]) == 0
+    assert catalog.main([*common, "-o", str(out1), "--check"]) == 0
     out1.write_text("drifted", encoding="utf-8")
-    assert catalog.main(["-o", str(out1), "--check"]) == 1
+    assert catalog.main([*common, "-o", str(out1), "--check"]) == 1
+
+    # --check on a file that was never generated says "not generated".
+    missing_out = tmp_path / "never-generated.md"
+    assert catalog.main([*common, "-o", str(missing_out), "--check"]) == 1
+    assert "not generated" in capsys.readouterr().err
 
 
 def test_committed_catalog_matches_generation(catalog):
@@ -166,6 +174,36 @@ def test_missing_usage_id_mappings_fails_loud(catalog, tmp_path):
             str(DUMP_FILE),
             "--mapping-file",
             str(bad_mapping),
+            "-o",
+            str(out),
+        ]
+    )
+    assert exit_code == 1
+    assert not out.exists(), "no partial catalog on failure"
+
+
+def test_unknown_missing_usage_id_fails_loud(catalog, tmp_path):
+    """A handled id absent from dump AND rubric fails loud, no output."""
+    mapping = catalog.load_mapping(MAPPING_FILE)
+    mapping["usage_id_mappings"]["91"] = {
+        "ha_entity": "switch",
+        "ha_subtype": "",
+        "justification": "future usage id",
+        "is_dynamic": True,
+    }
+    extra_mapping = tmp_path / "extra_mapping.yaml"
+    extra_mapping.write_text(yaml.safe_dump(mapping), encoding="utf-8")
+
+    with pytest.raises(catalog.CatalogError):
+        catalog.build(DUMP_FILE, extra_mapping)
+
+    out = tmp_path / "catalog.md"
+    exit_code = catalog.main(
+        [
+            "-d",
+            str(DUMP_FILE),
+            "-m",
+            str(extra_mapping),
             "-o",
             str(out),
         ]

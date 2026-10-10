@@ -103,12 +103,12 @@ EXTRACTION_HINTS = {
     "48": "a shutter/blind, ideally with a usage-48 slats child",
     "50": "a camera privacy switch",
     "82": (
-        "an RGBW lamp: a usage-1 parent with at least 4 usage-1 "
-        "children plus its usage-82 color preset"
+        "a standalone usage-82 color-preset select — not part of the "
+        "RGBW parent/child structure (light.py maps no 82 child)"
     ),
     "127": (
-        "a camera snapshot trigger (usage 127 — see findings: the "
-        "button platform file does not exist)"
+        "a camera snapshot trigger — blocked on the missing button.py "
+        "platform (see findings); do not extract until it exists"
     ),
     "999": "a virtual scene-trigger device",
 }
@@ -130,6 +130,16 @@ VOLETS_FINDING = {
 }
 
 
+# Short English glosses for the French dump labels of usage ids the
+# mapping does not handle (same treatment as the Volets finding).
+USAGE_GLOSSES = {
+    "16": "alarm arming",
+    "32": "pressure",
+    "41": "rainfall",
+    "119": "fog",
+}
+
+
 # ---------------------------------------------------------------------
 # Inputs
 # ---------------------------------------------------------------------
@@ -142,6 +152,8 @@ def load_dump(dump_file: Path) -> dict[str, Any]:
         raise CatalogError(f"File not found: {dump_file}")
     try:
         dump = json.loads(dump_file.read_text(encoding="utf-8"))
+    except UnicodeDecodeError as err:
+        raise CatalogError(f"{dump_file} is not valid UTF-8: {err}") from err
     except json.JSONDecodeError as err:
         raise CatalogError(f"Invalid JSON in {dump_file}: {err}") from err
     if not isinstance(dump, dict) or not isinstance(dump.get("periph_list"), list):
@@ -158,6 +170,8 @@ def load_mapping(mapping_file: Path) -> dict[str, Any]:
         raise CatalogError(f"File not found: {mapping_file}")
     try:
         mapping = yaml.safe_load(mapping_file.read_text(encoding="utf-8"))
+    except UnicodeDecodeError as err:
+        raise CatalogError(f"{mapping_file} is not valid UTF-8: {err}") from err
     except yaml.YAMLError as err:
         raise CatalogError(f"Invalid YAML in {mapping_file}: {err}") from err
     if not isinstance(mapping, dict):
@@ -168,7 +182,15 @@ def load_mapping(mapping_file: Path) -> dict[str, Any]:
             f"{mapping_file} has no 'usage_id_mappings' table — the "
             f"catalog cannot be computed. Nothing was written."
         )
-    mapping["usage_id_mappings"] = {str(key): value for key, value in mappings.items()}
+    for key, value in mappings.items():
+        if not isinstance(value, dict):
+            raise CatalogError(
+                f"usage_id_mappings entry '{key}' in {mapping_file} "
+                f"must be a mapping of ha_entity/ha_subtype fields."
+            )
+    mapping["usage_id_mappings"] = {
+        str(key): value for key, value in mappings.items()
+    }
     return mapping
 
 
@@ -183,7 +205,12 @@ def _usage_sort_key(usage_id: str) -> tuple[int, int, str]:
     return (1, 0, usage_id)
 
 
-def priority_for(usage_id: str) -> tuple[int, str]:
+def _text(value: Any) -> str:
+    """Dump field as text: null reads as '' (never literal 'None')."""
+    return "" if value is None else str(value)
+
+
+def priority_for(usage_id: str, entry: Any) -> tuple[int, str]:
     """Return the (tier, label) pair from the static rubric."""
     if usage_id in TIER_1_CRITICAL:
         tier = 1
@@ -191,7 +218,13 @@ def priority_for(usage_id: str) -> tuple[int, str]:
         tier = 2
     elif usage_id in TIER_3_NORMAL:
         tier = 3
-    elif usage_id.isdigit() and 100 <= int(usage_id) <= 113:
+    elif (
+        isinstance(entry, dict)
+        and entry.get("ha_entity") == "sensor"
+        and entry.get("ha_subtype") == "text"
+    ):
+        # Tier 4 keys off the mapping entry (a text sensor), not off
+        # a magic numeric usage_id range.
         tier = 4
     else:
         raise CatalogError(
@@ -210,16 +243,27 @@ def analyze(
 ) -> dict[str, Any]:
     """Compute every catalog section from the dump and the mapping."""
     periphs = dump["periph_list"]
+    for periph in periphs:
+        if not isinstance(periph, dict):
+            raise CatalogError(
+                "periph_list entries must be JSON objects, found "
+                f"{type(periph).__name__}"
+            )
 
     usage_counts: Counter = Counter()
     usage_names: dict[str, str] = {}
     value_types: Counter = Counter()
     for periph in periphs:
-        usage_id = str(periph.get("usage_id", ""))
+        usage_id = _text(periph.get("usage_id"))
         usage_counts[usage_id] += 1
-        usage_names.setdefault(usage_id, str(periph.get("usage_name", "")))
+        usage_names.setdefault(usage_id, _text(periph.get("usage_name")))
         value_type = periph.get("value_type")
-        key = str(value_type) if value_type else "(empty)"
+        # Only null or the empty string counts as empty; 0/False are
+        # value types of their own.
+        if value_type is None or value_type == "":
+            key = "(empty)"
+        else:
+            key = str(value_type)
         value_types[key] += 1
 
     handled = mapping["usage_id_mappings"]
@@ -227,7 +271,7 @@ def analyze(
     missing = []
     for usage_id in sorted(set(handled) - set(usage_counts), key=_usage_sort_key):
         entry = handled[usage_id]
-        tier, label = priority_for(usage_id)
+        tier, label = priority_for(usage_id, entry)
         missing.append(
             {
                 "usage_id": usage_id,
@@ -253,34 +297,67 @@ def analyze(
 
     children: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for periph in periphs:
-        parent = str(periph.get("parent_periph_id") or "").strip()
+        parent = _text(periph.get("parent_periph_id")).strip()
         if parent:
             children[parent].append(periph)
 
-    periphs_by_id = {str(periph.get("periph_id")): periph for periph in periphs}
+    periphs_by_id: dict[str, dict[str, Any]] = {}
+    for periph in periphs:
+        periph_id = _text(periph.get("periph_id"))
+        if periph_id in periphs_by_id:
+            raise CatalogError(f"duplicate periph_id '{periph_id}' in the dump")
+        periphs_by_id[periph_id] = periph
+
+    # Phantom parents: a parent_periph_id with no matching peripheral.
+    # Their children are excluded from every parent/child count below.
+    phantom_parents = sorted(
+        parent_id for parent_id in children if parent_id not in periphs_by_id
+    )
+    children = {
+        parent_id: kids
+        for parent_id, kids in children.items()
+        if parent_id in periphs_by_id
+    }
 
     # Children usage counts, scoped by the parent's usage_id.
     child_usage_by_parent: dict[str, Counter] = defaultdict(Counter)
-    all_child_usage: Counter = Counter()
     for parent_id, kids in children.items():
-        parent_usage = str(periphs_by_id.get(parent_id, {}).get("usage_id", ""))
+        parent_usage = _text(periphs_by_id[parent_id].get("usage_id"))
         for child in kids:
-            child_usage = str(child.get("usage_id", ""))
+            child_usage = _text(child.get("usage_id"))
             child_usage_by_parent[parent_usage][child_usage] += 1
-            all_child_usage[child_usage] += 1
 
-    # RGBW aggregate: a usage-1 parent with at least 4 usage-1 children.
+    # Mapped ha_entity of a usage_id ('' when unmapped).
+    def mapped_entity(usage_id: str) -> str:
+        entry = handled.get(usage_id)
+        return _text(entry.get("ha_entity")) if isinstance(entry, dict) else ""
+
+    # switch.py inspects children of switch-mapped parents only.
+    control_children = {usage_id: 0 for usage_id in ("1", "2", "4", "52")}
+    for parent_id, kids in children.items():
+        parent_usage = _text(periphs_by_id[parent_id].get("usage_id"))
+        if mapped_entity(parent_usage) != "switch":
+            continue
+        for child in kids:
+            child_usage = _text(child.get("usage_id"))
+            if child_usage in control_children:
+                control_children[child_usage] += 1
+    control_status = (
+        "covered"
+        if all(count > 0 for count in control_children.values())
+        else "partially covered"
+    )
+
+    # RGBW aggregate: light.py counts ALL children of the parent
+    # (len(children) >= 4), not usage-1 children only.
     rgbw_child_counts = [
-        len([child for child in kids if str(child.get("usage_id")) == "1"])
+        len(kids)
         for parent_id, kids in children.items()
-        if str(periphs_by_id.get(parent_id, {}).get("usage_id")) == "1"
+        if _text(periphs_by_id[parent_id].get("usage_id")) == "1"
     ]
     rgbw_max_children = max(rgbw_child_counts, default=0)
 
     motion_children = child_usage_by_parent.get("37", Counter())
-    control_children = {
-        usage_id: all_child_usage.get(usage_id, 0) for usage_id in ("1", "2", "4", "52")
-    }
 
     structural_gaps = [
         {
@@ -291,9 +368,9 @@ def analyze(
             "status": "unreachable",
             "detail": (
                 f"light.py builds an RGBW light from a usage-1 parent "
-                f"with at least 4 usage-1 children; the dump's usage-1 "
-                f"parents have at most {rgbw_max_children}. Usage 82 "
-                f"(color preset) is absent as well."
+                f"with at least 4 children of any usage "
+                f"(len(children) >= 4); the dump's usage-1 parents "
+                f"have at most {rgbw_max_children}."
             ),
         },
         {
@@ -327,15 +404,22 @@ def analyze(
             "id": "switch-control-children",
             "gap": "Switch control-capable children",
             "code_path": "switch.py:78-84",
-            "priority": None,
-            "status": "covered",
+            "priority": None if control_status == "covered" else 2,
+            "status": control_status,
             "detail": (
-                "Children with usage 1/2/4/52 exist in the dump ("
+                "switch.py counts control-capable children (usage "
+                "1/2/4/52) of switch-mapped parents only: "
                 + ", ".join(
                     f"usage {usage_id}: {count}"
                     for usage_id, count in control_children.items()
                 )
-                + ") — the control-children branch is reachable."
+                + (
+                    " — some control usages never appear as children "
+                    "of a switch-mapped parent, so the branch is only "
+                    "partially exercisable."
+                    if control_status == "partially covered"
+                    else " — the control-children branch is reachable."
+                )
             ),
         },
         {
@@ -375,18 +459,55 @@ def analyze(
 
     # Thermostat rules: climate.py only creates entities whose mapped
     # ha_entity is 'climate'; flag every rule whose setpoint maps
-    # elsewhere (so the rule never produces a climate entity).
+    # elsewhere, is absent from the dump, or cannot be checked at all.
     rules_path = Path(rules_file)
-    if rules_path.exists():
-        rules = json.loads(rules_path.read_text(encoding="utf-8"))
-        for rule in rules if isinstance(rules, list) else []:
-            setpoint_id = str(rule.get("setpoint_id", ""))
+    if not rules_path.exists():
+        findings.append(
+            {
+                "finding": "thermostat rules file is missing",
+                "priority": 1,
+                "detail": (
+                    f"{rules_path} does not exist — the shipped "
+                    f"thermostat rules cannot be checked for climate "
+                    f"coverage."
+                ),
+            }
+        )
+    else:
+        try:
+            rules = json.loads(rules_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as err:
+            raise CatalogError(f"Cannot read {rules_path}: {err}") from err
+        if not isinstance(rules, list):
+            raise CatalogError(f"{rules_path} must contain a JSON list of rules.")
+        for rule in rules:
+            if not isinstance(rule, dict):
+                raise CatalogError(
+                    f"{rules_path} contains a rule that is not a "
+                    f"JSON object."
+                )
+            setpoint_id = _text(rule.get("setpoint_id"))
             periph = periphs_by_id.get(setpoint_id)
             if periph is None:
+                findings.append(
+                    {
+                        "finding": (
+                            f"thermostat rule setpoint '{setpoint_id}' "
+                            f"is absent from the dump"
+                        ),
+                        "priority": 1,
+                        "detail": (
+                            f"{rules_path} references setpoint "
+                            f"'{setpoint_id}' but no peripheral carries "
+                            f"that id; the rule can never produce a "
+                            f"climate entity."
+                        ),
+                    }
+                )
                 continue
-            usage_id = str(periph.get("usage_id", ""))
+            usage_id = _text(periph.get("usage_id"))
             entry = handled.get(usage_id)
-            ha_entity = str(entry.get("ha_entity", "")) if entry else "(unmapped)"
+            ha_entity = _text(entry.get("ha_entity")) if entry else "(unmapped)"
             if ha_entity != "climate":
                 findings.append(
                     {
@@ -399,13 +520,29 @@ def analyze(
                             f"climate.py only creates entities whose "
                             f"ha_entity is 'climate'; the rule's setpoint "
                             f"has usage {usage_id} "
-                            f"('{periph.get('usage_name', '')}') mapped "
+                            f"('{_text(periph.get('usage_name'))}') mapped "
                             f"to {ha_entity}, so the shipped "
                             f"thermostat_rules.json produces no climate "
                             f"entity."
                         ),
                     }
                 )
+
+    for parent_id in phantom_parents:
+        findings.append(
+            {
+                "finding": (
+                    f"peripheral '{parent_id}' is referenced as a "
+                    f"parent but absent from the dump"
+                ),
+                "priority": 2,
+                "detail": (
+                    "parent_periph_id references a peripheral that does "
+                    "not exist; its children are excluded from the "
+                    "parent/child counts and the child-usage analysis."
+                ),
+            }
+        )
 
     for entry in dangling:
         findings.append(
@@ -464,6 +601,12 @@ def _value_type_summary(value_types: Counter) -> str:
     return ", ".join(
         f"{value_type}: {count}" for value_type, count in sorted(value_types.items())
     )
+
+
+def _glossed_label(usage_id: str, usage_name: str) -> str:
+    """Dump label plus a short English gloss when one is curated."""
+    gloss = USAGE_GLOSSES.get(usage_id)
+    return f"{usage_name} ({gloss})" if gloss else usage_name
 
 
 def render(analysis: dict[str, Any]) -> str:
@@ -553,7 +696,11 @@ def render(analysis: dict[str, Any]) -> str:
         _table(
             ["usage_id", "Usage name (dump label)", "Peripherals"],
             [
-                [row["usage_id"], row["usage_name"], str(row["count"])]
+                [
+                    row["usage_id"],
+                    _glossed_label(row["usage_id"], row["usage_name"]),
+                    str(row["count"]),
+                ]
                 for row in analysis["unmapped"]
             ],
         )
@@ -758,9 +905,22 @@ def main(argv: list[str] | None = None) -> int:
             print("ERROR: --check needs an output file, not '-'", file=sys.stderr)
             return 1
         output_path = Path(args.output)
-        existing = None
-        if output_path.exists():
-            existing = output_path.read_text(encoding="utf-8")
+        try:
+            existing = (
+                output_path.read_text(encoding="utf-8")
+                if output_path.exists()
+                else None
+            )
+        except (OSError, UnicodeDecodeError) as err:
+            print(f"ERROR: cannot read {args.output}: {err}", file=sys.stderr)
+            return 1
+        if existing is None:
+            print(
+                f"ERROR: {args.output} does not exist — not generated; "
+                f"run 03_catalog.py without --check first",
+                file=sys.stderr,
+            )
+            return 1
         if existing != content:
             print(
                 f"ERROR: {args.output} is out of date — regenerate it "
@@ -774,7 +934,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.output == "-":
         sys.stdout.write(content)
     else:
-        Path(args.output).write_text(content, encoding="utf-8")
+        try:
+            Path(args.output).write_text(content, encoding="utf-8")
+        except OSError as err:
+            print(f"ERROR: cannot write {args.output}: {err}", file=sys.stderr)
+            return 1
         print(f"Wrote {args.output}")
     return 0
 

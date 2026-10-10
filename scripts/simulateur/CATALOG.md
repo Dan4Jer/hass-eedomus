@@ -29,14 +29,14 @@ unreachable in the `e2e_sim` strate. Sorted by priority.
 | 20 | climate | fil_pilote | 1 - critical | a fil pilote heater (usage 20) |
 | 38 | climate | heating | 1 - critical | a heating device (usage 38, fil pilote) |
 | 48 | cover | shutter | 1 - critical | a shutter/blind, ideally with a usage-48 slats child |
-| 82 | select | color_preset | 1 - critical | an RGBW lamp: a usage-1 parent with at least 4 usage-1 children plus its usage-82 color preset |
+| 82 | select | color_preset | 1 - critical | a standalone usage-82 color-preset select — not part of the RGBW parent/child structure (light.py maps no 82 child) |
 | 14 | select | shutter_group | 2 - high | a virtual shutter-group select (eedomus centralization) |
 | 28 | sensor | power | 2 - high | a real-time power meter peripheral |
 | 29 | sensor | energy | 2 - high | a cumulative energy meter peripheral |
 | 36 | binary_sensor | moisture | 2 - high | a flood/water leak detector (usage 36 child) |
 | 42 | select | shutter_group | 2 - high | a shutter centralization virtual device |
 | 50 | switch | - | 3 - normal | a camera privacy switch |
-| 127 | button | camera_trigger | 3 - normal | a camera snapshot trigger (usage 127 — see findings: the button platform file does not exist) |
+| 127 | button | camera_trigger | 3 - normal | a camera snapshot trigger — blocked on the missing button.py platform (see findings); do not extract until it exists |
 | 999 | select | virtual | 3 - normal | a virtual scene-trigger device |
 | 100 | sensor | text | 4 - low | an eedomus box internal/app-data peripheral |
 | 101 | sensor | text | 4 - low | an eedomus box internal/app-data peripheral |
@@ -62,10 +62,10 @@ reports them.
 
 | usage_id | Usage name (dump label) | Peripherals |
 | --- | --- | --- |
-| 16 | Armement alarme | 1 |
-| 32 | Pression | 1 |
-| 41 | Précipitations | 1 |
-| 119 | Brouillage | 1 |
+| 16 | Armement alarme (alarm arming) | 1 |
+| 32 | Pression (pressure) | 1 |
+| 41 | Précipitations (rainfall) | 1 |
+| 119 | Brouillage (fog) | 1 |
 
 ## 3. Structural gaps
 
@@ -73,10 +73,10 @@ reports them.
 
 | Gap | Code path | Priority | Status | Detail |
 | --- | --- | --- | --- | --- |
-| RGBW aggregate light (parent/child color structure) | light.py:88-102 | 1 - critical | unreachable | light.py builds an RGBW light from a usage-1 parent with at least 4 usage-1 children; the dump's usage-1 parents have at most 1. Usage 82 (color preset) is absent as well. |
+| RGBW aggregate light (parent/child color structure) | light.py:88-102 | 1 - critical | unreachable | light.py builds an RGBW light from a usage-1 parent with at least 4 children of any usage (len(children) >= 4); the dump's usage-1 parents have at most 3. |
 | Cover platform and slats child | cover.py:47,61 | 1 - critical | unreachable | No peripheral with usage_id 48 exists in the dump: the cover platform and its slats-child branch (a usage-48 child of a cover parent) cannot be exercised. |
 | Binary sensor child mappings | binary_sensor.py:69-81 | 2 - high | partially covered | binary_sensor.py maps children of motion parents by usage id: 7 (temperature, 1 in the dump), 24 (illuminance, 1) and 36 (flood, 0); the flood child branch is unreachable. |
-| Switch control-capable children | switch.py:78-84 | - | covered | Children with usage 1/2/4/52 exist in the dump (usage 1: 2, usage 2: 0, usage 4: 0, usage 52: 4) — the control-children branch is reachable. |
+| Switch control-capable children | switch.py:78-84 | 2 - high | partially covered | switch.py counts control-capable children (usage 1/2/4/52) of switch-mapped parents only: usage 1: 1, usage 2: 0, usage 4: 0, usage 52: 3 — some control usages never appear as children of a switch-mapped parent, so the branch is only partially exercisable. |
 | int/integer value_type variants | sensor.py:397, coordinator.py:1155 | 2 - high | unreachable | coordinator.py treats value_type in (float, int, integer) as numeric; the dump only carries float (plus list/string/empty) — the int/integer branch is never exercised. |
 
 ### 3.2 Dangling platform mappings
@@ -96,7 +96,7 @@ unreachable branches ranks first.
 | Tier | Meaning | Ids concerned |
 | --- | --- | --- |
 | 1 - critical | A whole platform (climate, cover) or a core structure (the RGBW parent/child light) has zero representation in the dump: the platform code paths are unreachable in the e2e_sim strate. | 15, 19, 20, 38, 48, 82, rgbw-light, cover-slats |
-| 2 - high | A structural variant of a partially covered platform is missing (flood child, int/integer value types, shutter-group and power/energy sensors). | 14, 28, 29, 36, 42, bsensor-children, value-type-int |
+| 2 - high | A structural variant of a partially covered platform is missing (flood child, int/integer value types, shutter-group and power/energy sensors). | 14, 28, 29, 36, 42, bsensor-children, switch-control-children, value-type-int |
 | 3 - normal | A single missing branch with limited reach (camera privacy switch, dangling button mapping, virtual scene trigger). | 50, 127, 999 |
 | 4 - low | Eedomus box internal/app-data text sensors: the sensor/text path is already covered by present usage ids. | 100, 101, 102, 103, 104, 105, 106, 107, 108, 110, 111, 112, 113 |
 
