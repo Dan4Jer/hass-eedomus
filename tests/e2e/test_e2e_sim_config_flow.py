@@ -3,9 +3,9 @@
 First suite of the simulator strate (marker `e2e_sim`, distinct from
 the live-Pi `e2e` strate — AD-16). The harness boots the local API
 simulator on the Pi itself, then this suite drives the REAL config
-flow over websocket: creation with valid credentials, rejection with
-bad credentials, entity coexistence beside the real box, and clean
-removal of the simulated entry afterwards.
+flow through HA's REST flow API: creation with valid credentials,
+rejection with bad credentials, entity coexistence beside the real
+box, and clean removal of the simulated entry afterwards.
 
 Never exercised here: the real box's entry (not reloaded, not
 removed), the backfill (5.5's scope — the simulated entry is created
@@ -64,6 +64,12 @@ def _sim_entries(ha_api):
     ]
 
 
+def _remove_entry(ha_api, entry_id):
+    """Best-effort entry removal (a teardown must never raise)."""
+    r = ha_api.delete(f"/api/config/config_entries/entry/{entry_id}")
+    return r.status_code == 200
+
+
 @pytest.fixture(scope="module")
 def simulated_box():
     """The simulator process on the Pi, started and stopped by the harness."""
@@ -74,52 +80,51 @@ def simulated_box():
 
 
 @pytest.fixture(scope="module")
-def sim_entry(ha_api, ws_call, simulated_box):
+def sim_entry(ha_api, simulated_box):
     """The simulated config entry, created through the real flow and
     removed after the suite — even on failure."""
     # Stale-run guard: an entry left by a crashed run blocks the
     # unique_id (eedomus_<api_host>) with already_configured.
     for entry in _sim_entries(ha_api):
-        ws_call("config_entries/remove", {"entry_id": entry["entry_id"]})
+        _remove_entry(ha_api, entry["entry_id"])
 
-    result = ws_call(
-        "config_entries/flow", {"domain": "eedomus"}
+    r = ha_api.post("/api/config/config_entries/flow", {"handler": "eedomus"})
+    r.raise_for_status()
+    flow_id = r.json()["flow_id"]
+    r = ha_api.post(
+        f"/api/config/config_entries/flow/{flow_id}",
+        _flow_user_input(),
     )
-    flow_id = result["flow_id"]
-    result = ws_call(
-        "config_entries/flow",
-        {"flow_id": flow_id, "user_input": _flow_user_input()},
-    )
+    r.raise_for_status()
+    result = r.json()
     assert result["type"] == "create_entry", result
+    assert result["result"]["state"] == "loaded", result["result"]
+    assert SIM_TITLE_MARK in result["result"]["title"], result["result"]
     entry_id = result["result"]["entry_id"]
-    assert result["data"].get("history_api_host") == SIM_API_HOST
 
     yield entry_id
 
-    # Best-effort removal: a test may already have removed the entry,
-    # and a teardown must never mask the real failure with a websocket
-    # error.
-    try:
-        ws_call("config_entries/remove", {"entry_id": entry_id})
-    except AssertionError:
-        pass
+    # Best-effort removal: a test may already have removed the entry.
+    _remove_entry(ha_api, entry_id)
 
 
 class TestSimulatedBoxConfigFlow:
-    def test_flow_rejects_bad_credentials(self, ws_call, simulated_box):
+    def test_flow_rejects_bad_credentials(self, ha_api, simulated_box):
         """Config flow ko: wrong secret re-shows the form with an error
         and never creates an entry."""
-        result = ws_call("config_entries/flow", {"domain": "eedomus"})
-        flow_id = result["flow_id"]
-        result = ws_call(
-            "config_entries/flow",
-            {
-                "flow_id": flow_id,
-                "user_input": _flow_user_input(api_secret="wrong-secret"),
-            },
+        r = ha_api.post("/api/config/config_entries/flow", {"handler": "eedomus"})
+        r.raise_for_status()
+        flow_id = r.json()["flow_id"]
+        r = ha_api.post(
+            f"/api/config/config_entries/flow/{flow_id}",
+            _flow_user_input(api_secret="wrong-secret"),
         )
+        r.raise_for_status()
+        result = r.json()
         assert result["type"] == "form", result
         assert result["errors"], "the rejected flow must carry errors"
+        # Never leaves a pending flow behind
+        ha_api.delete(f"/api/config/config_entries/flow/{result['flow_id']}")
 
     def test_flow_creates_entry_with_knob(self, sim_entry):
         """Config flow ok: entry created with the history knob in data."""
@@ -138,10 +143,7 @@ class TestSimulatedBoxConfigFlow:
         while time.time() < deadline:
             r = ha_api.get("/api/states")
             r.raise_for_status()
-            found = [
-                s for s in r.json()
-                if "fibaro" in s["entity_id"]
-            ]
+            found = [s for s in r.json() if "fibaro" in s["entity_id"]]
             if found:
                 break
             time.sleep(2)
@@ -153,15 +155,14 @@ class TestSimulatedBoxConfigFlow:
 
 
 class TestSimulatedBoxRemoval:
-    def test_entry_removed_and_entities_gone(self, ha_api, ws_call, sim_entry):
-        """The simulated entry disappears cleanly: removal via the
-        config-entries websocket API, dump entities removed."""
-        ws_call("config_entries/remove", {"entry_id": sim_entry})
+    def test_entry_removed_and_entities_gone(self, ha_api, sim_entry):
+        """The simulated entry disappears cleanly via the config-entries
+        REST API, and its dump entities are removed."""
+        assert _remove_entry(ha_api, sim_entry)
 
         deadline = time.time() + 60
         while time.time() < deadline:
-            entries = _sim_entries(ha_api)
-            if not entries:
+            if not _sim_entries(ha_api):
                 break
             time.sleep(2)
         assert not _sim_entries(ha_api), "simulated entry still present"

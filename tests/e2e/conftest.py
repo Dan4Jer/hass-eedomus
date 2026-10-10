@@ -54,6 +54,11 @@ def ha_api(ha_headers):
                 f"{HA_URL}{path}", headers=ha_headers, json=json, timeout=60, **kwargs
             )
 
+        def delete(self, path, **kwargs):
+            return requests.delete(
+                f"{HA_URL}{path}", headers=ha_headers, timeout=60, **kwargs
+            )
+
         def get_state(self, entity_id):
             r = self.get(f"/api/states/{entity_id}")
             if r.status_code == 404:

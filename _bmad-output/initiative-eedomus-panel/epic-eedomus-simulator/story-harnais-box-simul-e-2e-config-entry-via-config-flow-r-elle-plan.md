@@ -101,6 +101,18 @@ confirmation-locked on the Pi — the simulator runs on the Pi host).
 - Unit: 6 new tests (4 client URL resolution + 2 flow pass-through),
   suite 379 green. e2e_sim: 4 tests collected; runtime validation
   needs the deploy (the flow must serve the new field).
+- HA 2026.9 drives config flows through the REST flow API
+  (`/api/config/config_entries/flow[/id]`), NOT the websocket
+  `config_entries/flow` (unknown_command on the live instance) — the
+  frontend source confirmed; the suite was rewritten against REST and
+  entry removal uses `DELETE /api/config/config_entries/entry/<id>`.
+- The REST entries listing never exposes entry data (privacy): the
+  knob's presence in entry data is asserted at unit level
+  (flow pass-through), the E2E asserts the observable contract
+  (create_entry + state loaded + title + entities).
+- Live validation after deploy: e2e_sim 4/4 green, live-Pi strate
+  unchanged (full `-m e2e` run 33/33, simulator lifecycle boots on
+  the Pi via the SSH harness, venv bootstrap worked first try).
 
 ## Plan Change Log
 
