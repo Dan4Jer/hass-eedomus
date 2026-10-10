@@ -127,6 +127,9 @@ const hook = `
   supervisionFormatCount,
   supervisionFormatTimestamp,
   truncateDetailText,
+  menuButtonHtml,
+  MENU_BUTTON_STYLES,
+  COHERENCE_NARROW_PX,
 };`;
 
 // Mini module loader (story 102): the panel is real ES modules — the
@@ -233,6 +236,9 @@ const {
   supervisionFormatTimestamp,
   truncateDetailText,
   backfillProgressHtml,
+  menuButtonHtml,
+  MENU_BUTTON_STYLES,
+  COHERENCE_NARROW_PX,
 } = sandbox.__coherence;
 
 // Fixture translator (CAP-3): the frozen FR catalog, identical
@@ -3607,6 +3613,28 @@ async function runCopyJsonTests() {
   }
 }
 
+// --- Menu button (issue #125 / ticket 116) ----------------------------
+// The narrow-viewport escape affordance: markup from the catalog,
+// hidden on wide viewports, same breakpoint as coherence.
+
+const MENU_HTML = menuButtonHtml(t);
+assertEq('menu: aria-label from the FR catalog',
+  MENU_HTML.includes(`aria-label="${t('panel.menu.aria')}"`), true);
+assertEq('menu: carries the toggle-menu action',
+  MENU_HTML.includes('data-action="toggle-menu"'), true);
+assertEq('menu: is a button element',
+  MENU_HTML.startsWith('<button') && MENU_HTML.endsWith('</button>'), true);
+assertEq('menu: no hardcoded label (catalog-driven)',
+  MENU_HTML.includes('panel.menu.aria'), false);
+assertEq('menu styles: hidden on wide viewports',
+  MENU_BUTTON_STYLES.includes('display: none;'), true);
+assertEq('menu styles: shown only at the coherence narrow breakpoint',
+  MENU_BUTTON_STYLES.includes(`@media (max-width: ${COHERENCE_NARROW_PX}px)`),
+  true);
+assertEq('menu styles: 44px target',
+  MENU_BUTTON_STYLES.includes('width: 44px;')
+    && MENU_BUTTON_STYLES.includes('height: 44px;'), true);
+
 runCatalogLifecycleTests()
   .then(runSupervisionAsyncTests)
   .then(runBackfillAsyncTests)
@@ -3624,3 +3652,4 @@ runCatalogLifecycleTests()
     process.exit(1);
   }
 );
+

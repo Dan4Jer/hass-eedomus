@@ -26,6 +26,8 @@ import {
   COPY_WRITE_TIMEOUT_MS,
   STRINGS_LOAD_TIMEOUT_MS,
   applySharedMixin,
+  menuButtonHtml,
+  MENU_BUTTON_STYLES,
 } from './panel/shared.js';
 import {
   applyCoherenceMixin,
@@ -411,6 +413,7 @@ class EedomusConfigPanel extends HTMLElement {
         .panel-header h1 { font-size: 20px; font-weight: 400; margin: 0; }
 
         .tabs { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 0 20px; }
+${MENU_BUTTON_STYLES}
         .tab {
           min-height: 44px; padding: 10px 20px; cursor: pointer;
           font: inherit; text-decoration: none;
@@ -515,6 +518,7 @@ ${SUPERVISION_STYLES}
       </style>
 
       <div class="panel">
+        ${menuButtonHtml(this._t)}
         <header class="panel-header">
           <h1>${this.t('panel.common.title')}</h1>
         </header>
@@ -543,6 +547,17 @@ ${SUPERVISION_STYLES}
   }
 
   _onClick(ev) {
+    const menu = ev.target.closest('[data-action="toggle-menu"]');
+    if (menu) {
+      // Issue #125 / ticket 116: custom panels get no HA app-header,
+      // so on narrow viewports this button is the only way out. It
+      // opens HA's drawer through the standard ha-menu-button event —
+      // no proprietary navigation.
+      this.dispatchEvent(
+        new Event('hass-toggle-menu', { bubbles: true, composed: true })
+      );
+      return;
+    }
     const tab = ev.target.closest('.tab');
     if (tab) {
       this._setTab(tab.dataset.tab);

@@ -215,3 +215,51 @@ export function applySharedMixin(EedomusConfigPanel) {
   },
   });
 }
+
+/**
+ * Menu button (issue #125 / ticket 116): the escape affordance for
+ * narrow viewports. Custom panels get no HA app-header, so when HA
+ * hides the sidebar the panel must offer its own way out — this
+ * button opens HA's drawer (the click handler in the entry dispatches
+ * the standard `hass-toggle-menu` event).
+ *
+ * The 900px media value equals COHERENCE_NARROW_PX
+ * (coherence-helpers.js); the node test pins the equality — no new
+ * breakpoint (EXPERIENCE.md, Responsive).
+ */
+export function menuButtonHtml(t) {
+  const label = escapeHtml(t('panel.menu.aria'));
+  return (
+    `<button class="menu-button" data-action="toggle-menu"` +
+    ` aria-label="${label}">` +
+    `<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">` +
+    `<path fill="currentColor" ` +
+    `d="M3,6h18v2H3V6z M3,11h18v2H3V11z M3,16h18v2H3V16z" />` +
+    `</svg></button>`
+  );
+}
+
+export const MENU_BUTTON_STYLES = `
+  /* Menu button (#125): hidden on wide viewports — the HA sidebar is
+     permanently visible there and a second exit would be noise. */
+  .menu-button {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    margin: 4px 0 0 -8px;
+    padding: 0;
+    border: none;
+    border-radius: var(--ha-border-radius, 4px);
+    background: transparent;
+    color: var(--primary-text-color);
+    cursor: pointer;
+  }
+  .menu-button:focus-visible {
+    outline: var(--ha-focus-outline, 2px solid currentColor);
+  }
+  @media (max-width: 900px) {
+    .menu-button { display: inline-flex; }
+  }
+`;
