@@ -440,6 +440,16 @@ def map_device_to_ha_entity(
         Dictionary with ha_entity, ha_subtype, and justification keys
     """
     periph_id = device_data["periph_id"]
+
+    # Read the mapping the coordinator loaded at setup (HA storage canon).
+    # The module-level DEVICE_MAPPINGS is loaded once at import time and
+    # never refreshed, so it can miss the user's custom mapping.
+    _mappings = DEVICE_MAPPINGS
+    if coordinator is not None and hasattr(coordinator, "get_yaml_config_sync"):
+        try:
+            _mappings = coordinator.get_yaml_config_sync() or DEVICE_MAPPINGS
+        except Exception:  # cache not loaded yet: keep the import-time mapping
+            _mappings = DEVICE_MAPPINGS
     periph_name = device_data["name"]
     usage_id = device_data.get("usage_id")
     # Registry lifecycle: the coordinator belongs to one config entry -
@@ -471,24 +481,24 @@ def map_device_to_ha_entity(
         _LOGGER.debug(
             "SPECIAL DEBUG (v%s): Device 1269454 - advanced_rules type: %s",
             VERSION,
-            type(DEVICE_MAPPINGS.get("advanced_rules")),
+            type(_mappings.get("advanced_rules")),
         )
         _LOGGER.debug(
             "SPECIAL DEBUG (v%s): Device 1269454 - advanced_rules_dict type: %s",
             VERSION,
-            type(DEVICE_MAPPINGS.get("advanced_rules_dict")),
+            type(_mappings.get("advanced_rules_dict")),
         )
         _LOGGER.debug(
             "SPECIAL DEBUG (v%s): Device 1269454 - advanced_rules_dict content: %s",
             VERSION,
-            DEVICE_MAPPINGS.get("advanced_rules_dict"),
+            _mappings.get("advanced_rules_dict"),
         )
 
     # Use the pre-converted dict format if available, otherwise fall back to old conversion
-    if "advanced_rules_dict" in DEVICE_MAPPINGS and isinstance(
-        DEVICE_MAPPINGS["advanced_rules_dict"], dict
+    if "advanced_rules_dict" in _mappings and isinstance(
+        _mappings["advanced_rules_dict"], dict
     ):
-        advanced_rules_dict = DEVICE_MAPPINGS["advanced_rules_dict"]
+        advanced_rules_dict = _mappings["advanced_rules_dict"]
         _LOGGER.debug(
             "✅ Using pre-converted advanced_rules_dict with %d rules",
             len(advanced_rules_dict),
@@ -496,13 +506,13 @@ def map_device_to_ha_entity(
     else:
         # Fallback to old conversion method for backward compatibility
         advanced_rules_dict = {}
-        if isinstance(DEVICE_MAPPINGS.get("advanced_rules"), list):
+        if isinstance(_mappings.get("advanced_rules"), list):
             # Convert list of rules to dict format for compatibility
-            for rule in DEVICE_MAPPINGS.get("advanced_rules", []):
+            for rule in _mappings.get("advanced_rules", []):
                 if isinstance(rule, dict) and "name" in rule:
                     advanced_rules_dict[rule["name"]] = rule
         else:
-            advanced_rules_dict = DEVICE_MAPPINGS.get("advanced_rules", {})
+            advanced_rules_dict = _mappings.get("advanced_rules", {})
         _LOGGER.debug("⚠️  Using fallback conversion method for advanced rules")
 
     # Debug: Log if advanced_rules_dict is empty
@@ -535,6 +545,12 @@ def map_device_to_ha_entity(
         _LOGGER.debug("SPECIAL DEBUG: Device 1269454 - analyzing children")
 
     for rule_name, rule_config in advanced_rules_dict.items():
+        if "mapping" not in rule_config:
+            # State-conditional custom_rules (condition/actions) carry no
+            # mapping and are not evaluated by this engine: skip them
+            # rather than call a dict as a function.
+            _LOGGER.debug("Skipping rule '%s': it defines no mapping", rule_name)
+            continue
         # Debug: Log which rule is being evaluated
         _LOGGER.debug(
             "🔍 Evaluating rule '%s' for device %s (%s)",
@@ -706,11 +722,11 @@ def map_device_to_ha_entity(
     # Priority 2.5: Specific per-periph_id mapping (overrides usage_id mapping)
     if (
         periph_id
-        and DEVICE_MAPPINGS
-        and "specific_device_mappings" in DEVICE_MAPPINGS
-        and periph_id in DEVICE_MAPPINGS["specific_device_mappings"]
+        and _mappings
+        and "specific_device_mappings" in _mappings
+        and periph_id in _mappings["specific_device_mappings"]
     ):
-        mapping = DEVICE_MAPPINGS["specific_device_mappings"][periph_id].copy()
+        mapping = _mappings["specific_device_mappings"][periph_id].copy()
         _LOGGER.debug(
             "🎯 Specific device mapping applied for %s (%s): %s:%s",
             periph_name,
@@ -729,12 +745,8 @@ def map_device_to_ha_entity(
         )
 
     # Priority 3: usage_id-based mapping
-    if (
-        usage_id
-        and DEVICE_MAPPINGS
-        and usage_id in DEVICE_MAPPINGS["usage_id_mappings"]
-    ):
-        mapping = DEVICE_MAPPINGS["usage_id_mappings"][usage_id].copy()
+    if usage_id and _mappings and usage_id in _mappings["usage_id_mappings"]:
+        mapping = _mappings["usage_id_mappings"][usage_id].copy()
 
         # Debug: Log the mapping structure for usage_id 23 (DEBUG level)
         if str(usage_id) == "23":
@@ -848,8 +860,8 @@ def map_device_to_ha_entity(
         # Apply the advanced rules when defined
         if "advanced_rules" in mapping:
             for rule_name in mapping["advanced_rules"]:
-                if DEVICE_MAPPINGS and rule_name in DEVICE_MAPPINGS["advanced_rules"]:
-                    rule_config = DEVICE_MAPPINGS["advanced_rules"][rule_name]
+                if _mappings and rule_name in _mappings["advanced_rules"]:
+                    rule_config = _mappings["advanced_rules"][rule_name]
                     advanced_rule_result = rule_config["condition"](
                         device_data, all_devices or {}
                     )
@@ -914,7 +926,7 @@ def map_device_to_ha_entity(
     name_lower = device_data["name"].lower()
 
     # Check YAML name patterns first
-    for pattern in NAME_PATTERNS:
+    for pattern in _mappings.get("name_patterns", NAME_PATTERNS):
         if re.search(pattern["pattern"], name_lower, re.IGNORECASE):
             mapping = {
                 "ha_entity": pattern["ha_entity"],

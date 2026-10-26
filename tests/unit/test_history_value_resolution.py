@@ -379,3 +379,42 @@ class TestNextBestValue:
             match=f"No valid numeric value found for peripheral {PERIPH_ID}",
         ):
             coordinator.next_best_value(PERIPH_ID, "50")
+
+
+def test_resolve_main_entity_id_prefers_mapped_domain(monkeypatch):
+    """With sensor and switch sharing a unique_id, the mapped domain wins."""
+    _fake_registry(
+        monkeypatch,
+        [
+            ("eedomus", "01TEST_72762", "sensor.prog_old"),
+            ("eedomus", "01TEST_72762", "switch.prog"),
+        ],
+    )
+    coordinator = make_coordinator()
+    coordinator.config_entry = SimpleNamespace(entry_id="01TEST")
+    coordinator.data = {PERIPH_ID: {"ha_entity": "switch"}}
+    assert coordinator._resolve_main_entity_id(PERIPH_ID) == "switch.prog"
+
+
+def test_resolve_main_entity_id_without_data_keeps_first_exact(monkeypatch):
+    """No mapped data: the first exact match is returned as before."""
+    _fake_registry(
+        monkeypatch,
+        [
+            ("eedomus", "01TEST_72762", "sensor.prog_old"),
+            ("eedomus", "01TEST_72762", "switch.prog"),
+        ],
+    )
+    coordinator = make_coordinator()
+    coordinator.config_entry = SimpleNamespace(entry_id="01TEST")
+    coordinator.data = None
+    assert coordinator._resolve_main_entity_id(PERIPH_ID) == "sensor.prog_old"
+
+
+def test_resolve_main_entity_id_mapped_domain_absent(monkeypatch):
+    """Mapped domain not registered: fall back to the exact match."""
+    _fake_registry(monkeypatch, [("eedomus", "01TEST_72762", "sensor.prog_old")])
+    coordinator = make_coordinator()
+    coordinator.config_entry = SimpleNamespace(entry_id="01TEST")
+    coordinator.data = {PERIPH_ID: {"ha_entity": "switch"}}
+    assert coordinator._resolve_main_entity_id(PERIPH_ID) == "sensor.prog_old"

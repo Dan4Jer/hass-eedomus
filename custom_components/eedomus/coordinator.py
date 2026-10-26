@@ -1468,6 +1468,14 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             getattr(self._backfill_worker_task, "done", lambda: True)()
         ):
             return
+        # The worker is an endless loop: a tracked task (async_create_task)
+        # makes Home Assistant wait for it until the bootstrap timeout.
+        create = getattr(self.hass, "async_create_background_task", None)
+        if create is not None:
+            self._backfill_worker_task = create(
+                self._async_backfill_worker(), "eedomus_backfill_worker"
+            )
+            return
         create = getattr(self.hass, "async_create_task", None)
         if create is None:
             return
@@ -2470,19 +2478,29 @@ class EedomusDataUpdateCoordinator(DataUpdateCoordinator):
             return None
         prefix = get_entry_prefix(self)
         base_unique_id = f"{prefix}_{periph_id}"
+        # A peripheral can leave several registry entries with the same
+        # unique_id in different domains (e.g. an orphan sensor kept after
+        # the user remapped it to a switch). Prefer the mapped domain.
+        mapped = (self.data or {}).get(periph_id)
+        wanted_domain = mapped.get("ha_entity") if isinstance(mapped, dict) else None
+        first_exact = None
         suffixed_fallback = None
         for entry in registry.entities.values():
             if entry.platform != DOMAIN or not entry.unique_id:
                 continue
             if entry.unique_id == base_unique_id:
-                return entry.entity_id
+                if entry.entity_id.split(".")[0] == wanted_domain:
+                    return entry.entity_id
+                if first_exact is None:
+                    first_exact = entry.entity_id
+                continue
             if (
                 allow_suffixed
                 and entry.unique_id.startswith(f"{base_unique_id}_")
                 and suffixed_fallback is None
             ):
                 suffixed_fallback = entry.entity_id
-        return suffixed_fallback
+        return first_exact or suffixed_fallback
 
     def _resolve_history_value(self, periph_id: str, value) -> float | None:
         """Convert a history value to a float.
