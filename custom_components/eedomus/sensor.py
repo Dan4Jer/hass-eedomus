@@ -11,6 +11,7 @@ from .const import COORDINATOR, DOMAIN, SENSOR_DEVICE_CLASSES
 from .entity import EedomusEntity, map_device_to_ha_entity
 from .log import get_logger
 from .text_sensor import EedomusTextSensor
+from .value_resolver import resolve_display_value
 
 _LOGGER = get_logger(__name__)
 
@@ -86,7 +87,9 @@ async def async_setup_entry(
         if "ha_entity" in coordinator.data[periph_id]:
             ha_entity = coordinator.data[periph_id]["ha_entity"]
 
-        if ha_entity is None or not ha_entity == "sensor":
+        # "text_sensor" is offered by the rules panel but has no platform of
+        # its own: it is served here as a text sensor.
+        if ha_entity not in ("sensor", "text_sensor"):
             continue
 
         _LOGGER.debug(
@@ -282,6 +285,11 @@ class EedomusSensor(EedomusEntity, SensorEntity):
                 periph_info.get("ha_subtype"),
             )
 
+        # "text_sensor" rules carry no subtype: they are text by definition
+        self._is_text = False
+        if periph_info.get("ha_entity") == "text_sensor" and not periph_type:
+            periph_type = "text"
+
         # Set default device class for all sensors
         self._attr_device_class = None
         self._attr_native_unit_of_measurement = None
@@ -308,8 +316,8 @@ class EedomusSensor(EedomusEntity, SensorEntity):
             self._attr_device_class = "data_size"
             self._attr_native_unit_of_measurement = "B"
         elif periph_type == "text":
-            # Text sensors explicitly have no device class
-            pass
+            # Text sensors have no device class and publish non-numeric states
+            self._is_text = True
         # Add more specific types as needed
 
         # Set icon from entity_specifics if available
@@ -339,17 +347,16 @@ class EedomusSensor(EedomusEntity, SensorEntity):
             value,
         )
 
-        # Check if this is a text sensor - return as-is without conversion
-        if self._attr_device_class == "text" or (
-            hasattr(self, "_attr_ha_subtype") and self._attr_ha_subtype == "text"
-        ):
+        # Text sensor: publish the description / text, never convert to a number
+        if getattr(self, "_is_text", False):
+            text_value = resolve_display_value(periph_data)
             _LOGGER.debug(
-                "📝 Text sensor %s (periph_id=%s) - returning raw value: '%s'",
-                self.coordinator.data[self._periph_id].get("name", "unknown"),
+                "📝 Text sensor %s (periph_id=%s) - value: '%s'",
+                periph_data.get("name", "unknown"),
                 self._periph_id,
-                value,
+                text_value,
             )
-            return value
+            return text_value
 
         # Handle empty or invalid values
         if not value or value == "":
