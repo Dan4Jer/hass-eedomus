@@ -3,7 +3,7 @@ title: 'Security pins: requirements_prod.txt vulnerable aiohttp + stale requirem
 type: 'bugfix'
 ticket: '120'
 created: '2026-11-01'
-status: 'in-review'
+status: 'built'
 baseline_revision: '5aa024340c9ea271c6ca6cb4dcccd6651cd335fc'
 route: 'oneshot'
 route_source: 'auto'
@@ -64,3 +64,26 @@ Oneshot: one pin line, one file deletion, one guard test — no subagent needed.
 - `bash scripts/hooks/pre-push` -- expected: exit 0
 - `git ls-files requirements.lock` -- expected: empty (deleted)
 - `grep aiohttp requirements_prod.txt` -- expected: `aiohttp==3.14.5`
+
+## Review Triage Log
+
+### 2026-11-01 — Review pass (quick)
+- verdicts: 3 findings — high 0, medium 2, low 1, false 0, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` the pyproject.toml scan target was a no-op — the requirements-style regex cannot see TOML-quoted pins ("aiohttp==3.14.5"), so a regression there would pass the guard silently; added a TOML-aware branch plus a load-bearing test asserting the TOML scan extracts the real pins (quick lens, verified by running the old parser against the real file: zero pins)
+  - `[medium]` `[patch]` "or newer" (AC2) was implemented as a bounded regex accepting only 3.14.5-3.14.99 — a legitimate future bump would fail the guard, turning it into an upgrade blocker; replaced with a parsed version-floor comparison (>= 3.14.5)
+  - `[low]` `[patch]` the raw substring assertion scanned the whole file (a comment mentioning the old pin would trip it) and duplicated the line-aware coverage; rewritten on the pin parser output
+
+## Auto Run Result
+
+**Summary.** Ticket 120 built: requirements_prod.txt pins aiohttp==3.14.5 (the file ships in the HACS package — release.yml:48), requirements.lock deleted as a dead artifact (stale pip-compile output, zero consumers — decision recorded), and a 4-test security guard scans every tracked requirements surface, requirements-style AND TOML-quoted, with a version-floor check and a load-bearing anti-no-op test.
+
+**Files changed.** requirements_prod.txt (aiohttp 3.14.3 → 3.14.5), requirements.lock (deleted), tests/unit/test_requirements_security_pins.py (NEW, 4 tests), this plan.
+
+**Review findings breakdown.** Quick review (1 lens), 3 findings, all patched by the orchestrator (oneshot route): TOML scan no-op (medium), bounded "or newer" regex (medium), over-broad substring assert (low). 0 rejected, 0 deferred.
+
+**Follow-up review recommendation.** `false` — no high patched, two mediums but both are test-quality corrections to a guard whose proof of work is its own execution; the load-bearing test pins the main risk. No unverified risk can be named beyond what 121's live alert verification covers.
+
+**Verification performed.** `python3 -m pytest tests/unit/ -q` — 470 passed (466 + 4 guard tests). `node tests/js/test-coherence.js` — green. `bash scripts/hooks/pre-push` — exit 0. `git ls-files requirements.lock` — empty. `grep aiohttp requirements_prod.txt` — aiohttp==3.14.5.
+
+**Residual.** None on this ticket; the 25 open Dependabot alerts are ticket 121's scope (they scan main, which the release alignment brings up to date).
