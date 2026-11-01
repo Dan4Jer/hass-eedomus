@@ -1,6 +1,6 @@
 ---
 ticket: "116"
-status: built
+status: done
 ---
 
 # Plan — ticket 116 (mobile menu escape, issue #125)
@@ -23,3 +23,7 @@ Built 2026-10-10 inline by the orchestrator (oneshot-sized fix, plan written pos
 ## Residual
 
 - `hass-toggle-menu` is a HA-internal event name: the E2E live deploy must confirm the drawer opens on a real narrow viewport (the spine's documented check).
+
+## Auto Run Result (0.15.5 close-out)
+
+Live validation complete: user confirmed on mobile (2026-11-01); the drawer opens via hass-toggle-menu on a real narrow viewport. Released in v0.15.5; issue #125 closed with attribution. Marked done.

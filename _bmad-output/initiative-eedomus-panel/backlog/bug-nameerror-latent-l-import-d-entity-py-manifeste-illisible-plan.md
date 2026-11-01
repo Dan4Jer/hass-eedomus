@@ -1,6 +1,6 @@
 ---
 ticket: "117"
-status: built
+status: done
 ---
 
 # Plan — ticket 117 (entity.py NameError on manifest-read failure)
