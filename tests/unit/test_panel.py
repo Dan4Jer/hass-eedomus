@@ -7,6 +7,7 @@ entry reloads, removed when the last entry is deleted.
 """
 
 import json
+import re
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
@@ -26,6 +27,15 @@ from custom_components.eedomus.panel import (
 pytestmark = pytest.mark.unit
 
 WWW_DIR = Path(panel_module.__file__).parent / "www"
+# Deliberately broader than the rewrite regex: double quotes and
+# side-effect imports count as imports here, so any import form the
+# rewrite misses fails the coverage test below.
+_SPECIFIER_SCANNER_RE = re.compile(r"(?:from|import)\s+['\"](\.\.?/[^'\"]+)['\"]")
+
+
+def all_served_js_files():
+    """The entry plus every panel module served through the view."""
+    return [WWW_DIR / "eedomus-panel.js", *sorted((WWW_DIR / "panel").glob("*.js"))]
 
 
 def make_hass(registered=False):
@@ -99,6 +109,7 @@ class TestSetupPanel:
 
         await async_setup_panel(hass)
 
+        hass.http.register_view.assert_not_called()
         hass.http.async_register_static_paths.assert_not_awaited()
         register_panel.assert_not_awaited()
         assert hass.data[DOMAIN]["panel_registered"] is True
@@ -158,3 +169,159 @@ class TestPanelModuleUrlCacheBusting:
             panel_module, "__file__", str(tmp_path / "nowhere" / "panel.py")
         )
         assert panel_module.panel_module_url().endswith("?v=dev")
+
+
+class TestPanelEntryView:
+    """Ticket 118: the served entry versions its whole module graph."""
+
+    @pytest.mark.asyncio
+    async def test_view_registered_before_the_static_path(self, monkeypatch):
+        """aiohttp resolves in registration order: view first, or the
+        static prefix swallows the entry URL and no rewrite happens."""
+        hass = make_hass()
+        register_panel = AsyncMock()
+        monkeypatch.setattr(panel_module, "async_register_panel", register_panel)
+        calls: list[str] = []
+        hass.http.register_view = MagicMock(side_effect=lambda v: calls.append("view"))
+        hass.http.async_register_static_paths = AsyncMock(
+            side_effect=lambda cfg: calls.append("static")
+        )
+
+        await async_setup_panel(hass)
+
+        assert calls == ["view", "static"]
+        (view,) = hass.http.register_view.call_args.args
+        assert isinstance(view, panel_module.PanelEntryView)
+        assert view.url == f"{PANEL_ASSETS_URL}/eedomus-panel.js"
+        assert f"{PANEL_ASSETS_URL}/panel/{{filename}}" in view.extra_urls
+        assert view.requires_auth is False
+
+    @pytest.mark.asyncio
+    async def test_get_serves_versioned_entry(self):
+        """GET on the entry URL returns JavaScript whose first-hop
+        specifiers carry the manifest version, no heuristic caching."""
+        manifest = json.loads(
+            (WWW_DIR.parent / "manifest.json").read_text(encoding="utf-8")
+        )
+        version = manifest["version"]
+        view = panel_module.PanelEntryView()
+        hass = make_hass()
+        hass.async_add_executor_job = AsyncMock(side_effect=lambda fn, *a: fn(*a))
+        request = MagicMock()
+        request.app = {"hass": hass}
+
+        response = await view.get(request)
+
+        assert response.status == 200
+        assert response.content_type == "text/javascript"
+        assert response.headers["Cache-Control"] == "no-cache"
+        body = response.text
+        # Every module the entry imports is fetched with the version.
+        for module in (
+            "shared.js",
+            "coherence.js",
+            "peripheriques.js",
+            "regles.js",
+            "historique.js",
+            "supervision.js",
+        ):
+            assert f"./panel/{module}?v={version}" in body, module
+            assert f"from './panel/{module}';" not in body, module
+        # The repo file on disk stays plain (rewrite is serve-time only).
+        assert ".js?v=" not in (WWW_DIR / "eedomus-panel.js").read_text(
+            encoding="utf-8"
+        )
+
+    @pytest.mark.asyncio
+    async def test_get_serves_versioned_panel_modules(self):
+        """GET on a panel module rewrites ITS imports too - a URL's
+        query does not reach a module's own imports (RFC 3986 drops
+        the base query), so second-hop files must be served through
+        the view, not the static path."""
+        manifest = json.loads(
+            (WWW_DIR.parent / "manifest.json").read_text(encoding="utf-8")
+        )
+        version = manifest["version"]
+        view = panel_module.PanelEntryView()
+        hass = make_hass()
+        hass.async_add_executor_job = AsyncMock(side_effect=lambda fn, *a: fn(*a))
+        request = MagicMock()
+        request.app = {"hass": hass}
+
+        for module in ("coherence.js", "coherence-helpers.js", "peripheriques.js"):
+            source = (WWW_DIR / "panel" / module).read_text(encoding="utf-8")
+            specifiers = _SPECIFIER_SCANNER_RE.findall(source)
+            assert specifiers, f"{module} imports nothing - stale test data?"
+
+            response = await view.get(request, filename=module)
+
+            assert response.status == 200, module
+            assert response.content_type == "text/javascript", module
+            body = response.text
+            for specifier in specifiers:
+                assert f"{specifier}?v={version}" in body, (module, specifier)
+
+    @pytest.mark.asyncio
+    async def test_get_rejects_non_module_paths(self):
+        """Only plain .js files directly inside panel/ are served: no
+        traversal, no other extensions, no well-shaped missing names -
+        anything else is a 404."""
+        view = panel_module.PanelEntryView()
+        hass = make_hass()
+        hass.async_add_executor_job = AsyncMock(side_effect=lambda fn, *a: fn(*a))
+        request = MagicMock()
+        request.app = {"hass": hass}
+
+        for bad in ("..", "eedomus-panel.js", "styles.css", "sub/dir.js"):
+            response = await view.get(request, filename=bad)
+            assert response.status == 404, bad
+
+    @pytest.mark.asyncio
+    async def test_get_unreadable_entry_returns_500(self):
+        """A broken install fails loudly instead of serving stale JS -
+        both a missing file (OSError) and a corrupted one
+        (UnicodeDecodeError, a ValueError)."""
+        view = panel_module.PanelEntryView()
+        request = MagicMock()
+
+        for exc in (OSError("gone"), ValueError("bad bytes")):
+            hass = make_hass()
+
+            async def fail_job(fn, *args, _exc=exc):
+                raise _exc
+
+            hass.async_add_executor_job = fail_job
+            request.app = {"hass": hass}
+
+            response = await view.get(request)
+
+            assert response.status == 500, exc
+
+    def test_repo_entry_file_stays_plain(self):
+        """The rewrite is serve-time only: the repo file keeps plain
+        specifiers, so the node harness and direct loads are untouched."""
+        source = (WWW_DIR / "eedomus-panel.js").read_text(encoding="utf-8")
+        assert ".js?v=" not in source
+        assert "from './panel/shared.js';" in source
+
+    def test_rewrite_covers_every_import_of_every_served_file(self):
+        """Fails loudly if a future import form escapes the rewrite: the
+        scanner is deliberately broader (double quotes, side-effect
+        imports) than the rewrite regex, and runs over the entry and
+        every panel module the view serves."""
+        for path in all_served_js_files():
+            source = path.read_text(encoding="utf-8")
+            rewritten = panel_module._rewrite_panel_imports(source, "9.9.9")
+            for specifier in _SPECIFIER_SCANNER_RE.findall(source):
+                assert f"{specifier}?v=9.9.9" in rewritten, (path.name, specifier)
+
+    def test_rewrite_handles_multiline_imports_and_leaves_strings(self):
+        """Multi-line import blocks are rewritten; non-import text is
+        not touched apart from specifier-shaped strings."""
+        source = (
+            "import {\n  a,\n  b,\n} from './panel/shared.js';\n"
+            "const label = 'import from shared';\n"
+        )
+        rewritten = panel_module._rewrite_panel_imports(source, "1.2.3")
+        assert "from './panel/shared.js?v=1.2.3';" in rewritten
+        assert "const label = 'import from shared';" in rewritten
