@@ -16,6 +16,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from .const import COORDINATOR, DOMAIN
 from .entity import EedomusEntity
 from .log import get_logger
+from .value_resolver import resolve_display_value
 
 _LOGGER = get_logger(__name__)
 
@@ -61,43 +62,8 @@ class EedomusTextSensor(EedomusEntity, SensorEntity):
         if not periph_data:
             return None
 
-        # Get the current value
-        last_value = periph_data.get("last_value")
-
-        # If dynamic mapping is enabled, find the corresponding description
-        if self._dynamic_value_mapping and "values" in periph_data:
-            try:
-                # Convert last_value to string for comparison
-                last_value_str = str(last_value)
-
-                # Search through values to find matching value
-                for value_item in periph_data["values"]:
-                    if str(value_item.get("value")) == last_value_str:
-                        description = value_item.get("description", "Unknown")
-                        _LOGGER.debug(
-                            "📋 Mapped value %s → %s for %s",
-                            last_value_str,
-                            description,
-                            self._periph_id,
-                        )
-                        return description
-
-                # If no match found, return the raw value
-                _LOGGER.warning(
-                    "⚠️  No description found for value %s in device %s",
-                    last_value_str,
-                    self._periph_id,
-                )
-                return f"Unknown ({last_value})"
-
-            except Exception as e:
-                _LOGGER.error(
-                    "❌ Error in dynamic value mapping for %s: %s", self._periph_id, e
-                )
-                return f"Error: {last_value}"
-
-        # For non-dynamic mapping, return last_value_text if available
-        return periph_data.get("last_value_text", last_value)
+        # Description of the raw value, then last_value_text, then raw value
+        return resolve_display_value(periph_data)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:

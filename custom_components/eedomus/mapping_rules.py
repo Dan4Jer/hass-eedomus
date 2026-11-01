@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from .log import get_logger
+from .value_resolver import unit_matches, value_type_matches
 
 _LOGGER = get_logger(__name__)
 
@@ -136,6 +137,14 @@ def evaluate_conditions(
                     break
             elif cond_key == "PRODUCT_TYPE_ID":
                 if device_data.get("PRODUCT_TYPE_ID") != cond_value:
+                    condition_result = False
+                    break
+            elif cond_key == "value_type":
+                if not value_type_matches(device_data.get("value_type"), cond_value):
+                    condition_result = False
+                    break
+            elif cond_key == "unit":
+                if not unit_matches(device_data.get("unit"), cond_value):
                     condition_result = False
                     break
             elif cond_key == "has_parent":
