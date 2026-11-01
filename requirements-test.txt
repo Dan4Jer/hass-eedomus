@@ -6,10 +6,10 @@ pytest-asyncio>=0.23.0
 requests>=2.31.0
 # Required by the integration modules under unit test
 voluptuous>=0.16.0
-aiohttp>=3.9.0
+aiohttp>=3.14.5
 async-timeout>=5.0.1
 PyYAML>=6.0.3
 # Websocket client for the E2E tests against the live instance (tests/e2e/)
-websockets>=12.0
+websockets>=17.2
 # Local eedomus API simulator (scripts/simulateur/, E2E-sim strate + unit tests)
-flask>=3.1
+flask>=3.1.3
