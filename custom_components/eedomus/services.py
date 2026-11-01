@@ -341,12 +341,9 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
         _LOGGER.info("🧹 Cleanup service called via eedomus.cleanup_unused_entities")
 
         try:
-            # Import the cleanup function from __init__.py
             # Call the cleanup function with explicit entity registry access
             # Use direct import to avoid hass.helpers issue
             from homeassistant.helpers import entity_registry as er
-
-            from . import async_cleanup_unused_entities
 
             # Get entity registry directly using the correct method
             # async_get returns EntityRegistry directly, not a coroutine
@@ -357,13 +354,35 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
             entities_analyzed = 0
             entities_considered = 0
 
-            # Get current coordinator data to check for orphaned entities
-            coordinator_data = (
-                hass.data.get(DOMAIN, {}).get("coordinator", {}).get("data", {})
-            )
-            current_peripheral_ids = (
-                set(coordinator_data.keys()) if coordinator_data else set()
-            )
+            # Current peripherals, multi-box (#136): union of every box's
+            # coordinator data, with per periph_id the set of mapped domains
+            # (remap-aware: a periph remapped sensor->switch maps to the
+            # new domain only). The mono-box lookup that used
+            # hass.data[DOMAIN]["coordinator"] never existed and left the
+            # id set empty - every entity would have been an orphan.
+            provided_domains: dict[str, set[str]] = {}
+            for coord in _get_all_coordinators(hass):
+                data = getattr(coord, "data", None)
+                if not isinstance(data, dict):
+                    continue
+                for periph_id, payload in data.items():
+                    if not isinstance(payload, dict):
+                        continue
+                    ha_entity = payload.get("ha_entity")
+                    if isinstance(ha_entity, str) and ha_entity:
+                        provided_domains.setdefault(str(periph_id), set()).add(
+                            ha_entity
+                        )
+
+            # Domains per unique_id among eedomus registry entries: the
+            # twin test for remap duplicates (the correctly-mapped entity
+            # must exist before its old-domain twin is removed).
+            domains_by_unique_id: dict[str, set[str]] = {}
+            for entry in entity_registry.entities.values():
+                if entry.platform == DOMAIN and entry.unique_id:
+                    domains_by_unique_id.setdefault(entry.unique_id, set()).add(
+                        entry.entity_id.split(".")[0]
+                    )
 
             for entity_entry in entity_registry.entities.values():
                 entities_analyzed += 1
@@ -382,25 +401,50 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
                         entity_entry.unique_id is None or entity_entry.unique_id == ""
                     )
 
-                    # Check for orphaned entities (no longer provided by integration)
+                    # Check for orphaned entities (no longer provided by
+                    # integration) and remap duplicates (#136 point 3).
+                    # The peripheral id is the LONGEST digit segment of the
+                    # unique_id - a digit anywhere else (entry prefixes,
+                    # generation suffixes) must never orphan an entity.
                     is_orphaned = False
+                    is_remap_duplicate = False
                     if entity_entry.unique_id:
-                        # Extract peripheral_id from unique_id (format usually includes the peripheral_id)
-                        unique_id_parts = entity_entry.unique_id.split("_")
-                        for part in unique_id_parts:
-                            if part.isdigit() and part not in current_peripheral_ids:
+                        digit_parts = [
+                            p for p in entity_entry.unique_id.split("_") if p.isdigit()
+                        ]
+                        periph_id = max(digit_parts, key=len) if digit_parts else None
+                        if periph_id is not None:
+                            if periph_id not in provided_domains:
                                 is_orphaned = True
-                                break
+                            else:
+                                entity_domain = entity_entry.entity_id.split(".")[0]
+                                wanted = provided_domains[periph_id]
+                                if entity_domain not in wanted:
+                                    # Domain mismatch: an old entry left by a
+                                    # remap. Remove it only when the correctly
+                                    # mapped twin exists (same unique_id).
+                                    twin_domains = domains_by_unique_id.get(
+                                        entity_entry.unique_id, set()
+                                    )
+                                    is_remap_duplicate = bool(twin_domains & wanted)
 
                         # Also check if the entity has no device_id (completely orphaned)
                         if not entity_entry.device_id:
                             is_orphaned = True
 
-                    if is_disabled or has_deprecated or is_orphaned or has_no_unique_id:
+                    if (
+                        is_disabled
+                        or has_deprecated
+                        or is_orphaned
+                        or is_remap_duplicate
+                        or has_no_unique_id
+                    ):
                         if has_no_unique_id:
                             reason = "no_unique_id"
                         elif is_orphaned:
                             reason = "orphaned"
+                        elif is_remap_duplicate:
+                            reason = "remap_duplicate"
                         else:
                             reason = "deprecated" if has_deprecated else "disabled"
                         entities_to_remove.append(
@@ -410,6 +454,7 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
                                 "disabled": is_disabled,
                                 "has_deprecated": has_deprecated,
                                 "is_orphaned": is_orphaned,
+                                "is_remap_duplicate": is_remap_duplicate,
                                 "has_no_unique_id": has_no_unique_id,
                                 "reason": reason,
                             }
@@ -420,6 +465,35 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
                 f"{entities_considered} eedomus entities considered, "
                 f"{len(entities_to_remove)} entities to be removed"
             )
+
+            # Mass-deletion guard (#136): this service once had a trap that
+            # would have flagged every entity at once. Refuse a run that
+            # wants to delete over half of a substantial set - small
+            # registries legitimately clean most of their entities, a real
+            # install flagging hundreds at once is the trap. The user
+            # re-invokes after inspecting the log if it is really wanted.
+            if (
+                entities_to_remove
+                and len(entities_to_remove) >= 10
+                and len(entities_to_remove) * 2 > entities_considered
+            ):
+                _LOGGER.error(
+                    "Cleanup refused: %d of %d eedomus entities flagged - "
+                    "over half the integration's entities. Inspect the "
+                    "log above before running again.",
+                    len(entities_to_remove),
+                    entities_considered,
+                )
+                return {
+                    "success": False,
+                    "error": (
+                        "refused: over half of the eedomus entities "
+                        "were flagged - inspect the log and re-run"
+                    ),
+                    "entities_considered": entities_considered,
+                    "entities_identified": len(entities_to_remove),
+                    "entities_removed": 0,
+                }
 
             # Remove the entities
             removed_count = 0
