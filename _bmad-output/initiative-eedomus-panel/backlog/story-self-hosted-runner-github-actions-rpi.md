@@ -56,3 +56,5 @@ l'enregistrement effectif, sinon les jobs CI font queue indéfiniment.
 
 - Decision: embarqué dans la 0.15.4 avec hitl par l'utilisateur (2026-10-10) ; l'installation précède la bascule de workflow.
 - Open question: le runner utilise-t-il le même utilisateur que HA sur le Pi (droits sur les dossiers de test) — à trancher à l'installation.
+
+- Dropped: décision utilisateur (2026-11-01) — pas de runner permanent : l'E2E reste une phase de test locale ad hoc contre le Pi (`pytest tests/e2e/ -m "e2e and not e2e_sim"`), la discipline déjà en place. Découverte de clôture : l'installation sur le Pi était de toute façon impossible (HAOS/Alpine, musl — le runner officiel ne s'y exécute pas ; `docs/self-hosted-runner.md` désignait le Mac LAN comme hôte, avec launchd). Le job `e2e` dormant dans tests.yml (`if: vars.E2E_RUNNER == 'enabled'`) et le doc de design restent : la décision se renverse en settant trois variables repo, sans nouveau développement.
