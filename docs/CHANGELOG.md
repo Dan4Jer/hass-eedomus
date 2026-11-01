@@ -65,3 +65,29 @@ Historical release notes are preserved in the [docs/](docs/) folder. This page i
   and a stale `main` keeps security alerts red (and their badges lying)
   long after the fixes shipped. Sequencing: fix pins → tag the release →
   push `unstable:main` → check the alerts turn `fixed`.
+
+## Branching model (0.15.6)
+
+Trunk-based: `unstable` is the trunk, `main` is the release mirror (always
+identical to the last tag). One developer, occasional external PRs — two
+long-lived lines would be ceremony.
+
+- **Trunk-first with a local barrier**: commit to `unstable` only after the
+  unit suite, the JS harness and the pre-push format gate are green. The Pi
+  follows `unstable` automatically (git-only deploy, AD-10): pushing IS
+  deploying.
+- **Short branches for risk only** (`feat/<slug>`, `fix/<slug>`, one
+  session, deleted after merge): changes touching the panel module graph
+  (the ticket-118 trap) or the coordinator earn the full local validation
+  before reaching the trunk. Documentation, tests and small fixes go
+  straight to the trunk.
+- **External PRs target `unstable`**; accept with a local review merge
+  (`git fetch origin pull/N/head` → read the diff → merge → suites →
+  push), as PRs #133/#135/#137 were.
+- **Hotfixes land on `unstable`** — `main` equals the last release and is
+  its ancestor, so a fix there releases as a patch and the mirror follows.
+- **Dependabot PRs**: apply the bump directly on `unstable` and close the
+  PR as superseded (it opens against the default branch by design).
+- **Release runbook** (mechanical): suites → tag `vX.Y.Z` → push the tag
+  (HACS build) → patch the GitHub release body with
+  `docs/release_notes_vX.md` → fast-forward `main`.
