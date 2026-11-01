@@ -60,3 +60,8 @@ Historical release notes are preserved in the [docs/](docs/) folder. This page i
 
 - **Stable releases**: even minor numbers (`0.14.0`), tagged from `main`
 - **Unstable releases**: odd minor numbers (`0.15.0`), tagged from `unstable`
+- **Release alignment policy** (0.15.6): every release cut also fast-forwards
+  `main` to the tagged state — Dependabot alerts scan the default branch,
+  and a stale `main` keeps security alerts red (and their badges lying)
+  long after the fixes shipped. Sequencing: fix pins → tag the release →
+  push `unstable:main` → check the alerts turn `fixed`.

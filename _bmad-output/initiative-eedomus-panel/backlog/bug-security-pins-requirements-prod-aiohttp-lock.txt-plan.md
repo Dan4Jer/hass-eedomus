@@ -3,7 +3,7 @@ title: 'Security pins: requirements_prod.txt vulnerable aiohttp + stale requirem
 type: 'bugfix'
 ticket: '120'
 created: '2026-11-01'
-status: 'built'
+status: done
 baseline_revision: '5aa024340c9ea271c6ca6cb4dcccd6651cd335fc'
 route: 'oneshot'
 route_source: 'auto'

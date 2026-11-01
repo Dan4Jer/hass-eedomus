@@ -46,3 +46,11 @@ Les 25 alertes dependabot ouvertes ne le sont pas à cause d'unstable : elles sc
 
 - Decision: périmètre 0.15.6, après la coupe du tag (utilisateur, 2026-11-01) ; le séquencement est : 120 (pins) → coupe 0.15.6 → 121 (alignement main) — ainsi main reçoit directement l'état final.
 - Open question: merge --ff-only si l'historique le permet, sinon merge commit — trancher à l'exécution selon l'état de main ; en cas de conflits résiduels (l'écart est ancien), le merge est fait avec revue du diff sur les fichiers sensibles (workflows, requirements).
+
+## Auto Run Result (executed 2026-11-01, 0.15.6 close-out)
+
+- AC1: main fast-forwarded 6dff34f → 2103b47 (the 0.15.6 release state) — merge-base check proved main a strict ancestor, ff-only push `unstable:main`, no cherry-pick. Main IS the release.
+- AC3: release-alignment policy recorded in docs/CHANGELOG.md (conventions section): every release cut fast-forwards main to the tagged state, with the rationale (Dependabot scans the default branch).
+- AC4: the guard test of ticket 120 rides main via the ff — CI suites are the same green ones that validated the release.
+- AC2 (alerts): the objective condition is fixed and verified — origin/main pins read directly: aiohttp==3.14.5 and black==26.10.1 on every alert-listed surface (requirements.txt, requirements_dev.txt, requirements_prod.txt, pyproject.toml), and the vulnerable ranges are exact (=3.14.3, =26.10.0), so main's pins are outside them. GitHub's alert rescan runs on its own multi-hour cycle and cannot be forced via API: the alerts still read open at execution time but will flip to fixed at the next scan against the now-clean default branch. The security-pin guard test (also on main) enforces the condition permanently.
+- Decision: ff-only chosen per the merge-base evidence; no conflicts to review.
