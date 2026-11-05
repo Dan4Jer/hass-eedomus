@@ -2,7 +2,7 @@
 # Unit tests (tests/unit/) and E2E tests (tests/e2e/)
 pytest>=7.0.0
 pytest-timeout>=2.4.0
-pytest-asyncio>=0.23.0
+pytest-asyncio>=1.4.1.post1
 requests>=2.31.0
 # Required by the integration modules under unit test
 voluptuous>=0.16.0
