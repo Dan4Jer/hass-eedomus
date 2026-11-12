@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Q&A — questions and answers (English or French)
+    url: https://github.com/Dan4Jer/hass-eedomus/discussions
+    about: Ask and answer questions in the Discussions tab.
+  - name: Security vulnerability — private report
+    url: https://github.com/Dan4Jer/hass-eedomus/security/advisories/new
+    about: Report a vulnerability privately. Never open a public issue for a security problem (see SECURITY.md).

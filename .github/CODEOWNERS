@@ -1,0 +1,2 @@
+# Default reviewer for everything; PRs are reviewed by the maintainer before merge to unstable.
+* @Dan4Jer
