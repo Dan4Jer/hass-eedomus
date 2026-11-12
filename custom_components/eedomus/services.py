@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import entity_platform as ep
 
@@ -339,6 +339,9 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
     async def handle_cleanup_unused_entities(call: ServiceCall) -> dict:
         """Handle cleanup of unused eedomus entities."""
         _LOGGER.info("🧹 Cleanup service called via eedomus.cleanup_unused_entities")
+        dry_run = bool(call.data.get("dry_run", False))
+        if dry_run:
+            _LOGGER.info("🧹 Dry run: entities will be listed, not removed")
 
         try:
             # Call the cleanup function with explicit entity registry access
@@ -353,6 +356,7 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
             entities_to_remove = []
             entities_analyzed = 0
             entities_considered = 0
+            skipped_user_disabled = 0
 
             # Current peripherals, multi-box (#136): union of every box's
             # coordinator data, with per periph_id the set of mapped domains
@@ -390,6 +394,14 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
                 # Check if this is an eedomus entity
                 if entity_entry.platform == "eedomus":
                     entities_considered += 1
+
+                    # Guard (#136 follow-up): an entity the USER disabled on
+                    # purpose (disabled_by == "user") must be left alone -
+                    # removing the registry entry erases the flag and the
+                    # peripheral recreates its entity enabled at next setup.
+                    if getattr(entity_entry, "disabled_by", None) == "user":
+                        skipped_user_disabled += 1
+                        continue
 
                     # Check if entity is disabled OR has "deprecated" in unique_id OR is orphaned OR has no unique_id
                     is_disabled = entity_entry.disabled
@@ -477,6 +489,13 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
                 and len(entities_to_remove) >= 10
                 and len(entities_to_remove) * 2 > entities_considered
             ):
+                if dry_run:
+                    for entity_info in entities_to_remove:
+                        _LOGGER.info(
+                            "Dry run: would remove entity %s (reason: %s)",
+                            entity_info["entity_id"],
+                            entity_info["reason"],
+                        )
                 _LOGGER.error(
                     "Cleanup refused: %d of %d eedomus entities flagged - "
                     "over half the integration's entities. Inspect the "
@@ -490,6 +509,8 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
                         "refused: over half of the eedomus entities "
                         "were flagged - inspect the log and re-run"
                     ),
+                    "dry_run": dry_run,
+                    "skipped_user_disabled": skipped_user_disabled,
                     "entities_considered": entities_considered,
                     "entities_identified": len(entities_to_remove),
                     "entities_removed": 0,
@@ -506,6 +527,13 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
                         log_details += " (orphaned - no longer provided by integration)"
                     if entity_info.get("has_no_unique_id"):
                         log_details += " (no unique_id - cannot be managed from UI)"
+                    if dry_run:
+                        _LOGGER.info(
+                            "Dry run: would remove entity %s (%s)",
+                            entity_info["entity_id"],
+                            log_details,
+                        )
+                        continue
                     _LOGGER.info(
                         f"Removing entity {entity_info['entity_id']} ({log_details})"
                     )
@@ -518,10 +546,14 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
 
             _LOGGER.info(
                 f"Cleanup completed: {removed_count} entities removed out of {len(entities_to_remove)} identified"
+                + (" (dry run - nothing removed)" if dry_run else "")
+                + f", {skipped_user_disabled} user-disabled entities left untouched"
             )
 
             return {
                 "success": True,
+                "dry_run": dry_run,
+                "skipped_user_disabled": skipped_user_disabled,
                 "entities_analyzed": entities_analyzed,
                 "entities_considered": entities_considered,
                 "entities_identified": len(entities_to_remove),
@@ -636,7 +668,12 @@ async def async_setup_services(hass: HomeAssistant, coordinator) -> None:
             "eedomus", "set_climate_temperature", handle_set_climate_temperature
         )
         hass.services.async_register(
-            "eedomus", "cleanup_unused_entities", handle_cleanup_unused_entities
+            "eedomus",
+            "cleanup_unused_entities",
+            handle_cleanup_unused_entities,
+            # The handler returns a report dict (counts, skipped_user_disabled,
+            # dry_run) - OPTIONAL lets callers ask for it with return_response.
+            supports_response=SupportsResponse.OPTIONAL,
         )
         hass.services.async_register(
             "eedomus", "cleanup_unused_devices", handle_cleanup_unused_devices

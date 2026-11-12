@@ -188,7 +188,13 @@
     },
     "cleanup_unused_entities": {
       "name": "Nettoyer les entités eedomus inutilisées",
-      "description": "Supprimer les entités eedomus désactivées, obsolètes et orphelines"
+      "description": "Supprimer les entités eedomus désactivées, obsolètes et orphelines",
+      "fields": {
+        "dry_run": {
+          "name": "Simulation",
+          "description": "Lister les entités correspondantes sans rien supprimer"
+        }
+      }
     },
     "set_climate_temperature": {
       "name": "Régler la température d'un périphérique climatique",
