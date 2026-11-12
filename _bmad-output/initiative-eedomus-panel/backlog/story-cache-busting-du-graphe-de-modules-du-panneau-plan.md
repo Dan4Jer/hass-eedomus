@@ -3,7 +3,7 @@ title: "Cache-busting du graphe de modules du panneau"
 type: 'bugfix'
 ticket: 118
 created: 2026-11-01
-status: 'built'
+status: done
 route: 'oneshot'
 route_source: 'auto'
 review: 'quick'
