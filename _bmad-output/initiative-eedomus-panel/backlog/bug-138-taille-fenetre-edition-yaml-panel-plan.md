@@ -3,7 +3,7 @@ title: "Fix 122 — éditeur YAML Règles : zone affichée = zone modifiable"
 type: 'bugfix'
 ticket: 122
 created: 2026-11-01
-status: 'built'
+status: done
 route: 'oneshot'
 route_source: 'auto'
 review: 'quick'
