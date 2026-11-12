@@ -3,7 +3,7 @@ title: "Fix 123 — cleanup_unused_entities : protéger disabled_by:user + dry_r
 type: 'bugfix'
 ticket: 123
 created: 2026-11-01
-status: 'built'
+status: done
 route: 'oneshot'
 route_source: 'auto'
 review: 'quick'
