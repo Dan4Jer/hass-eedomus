@@ -1,5 +1,5 @@
 <!-- bmad:context -->
-<!-- Verified 2026-11-01 against 4936ab3. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
+<!-- Verified 2026-11-01 against bbb9ae8. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
 
 ## hass-eedomus
 
@@ -14,12 +14,12 @@ Home Assistant custom integration for the Eedomus box (Python 3.9+, vanilla JS p
 ## Where things are
 
 - Core: `coordinator.py` (refresh + history import), `ui_service.py` (panel websocket commands).
-- Panel frontend: `custom_components/eedomus/www/eedomus-panel.js` is the ES-module entry (the URL panel.py registers; it keeps the core: constructor/state, `t()` catalog loading, tab/hash navigation, `_render` shell, event delegation). It imports 7 modules from `custom_components/eedomus/www/panel/`: `shared.js` (cross-tab constants/helpers/mixin), one per tab — `peripheriques.js`, `regles.js`, `historique.js`, `coherence.js`, `supervision.js` — and `coherence-helpers.js` (coherence pure helpers; `coherence.js` imports and re-exports them).
+- Panel frontend: `custom_components/eedomus/www/eedomus-panel.js` is the ES-module entry (the URL panel.py registers; it keeps the core: constructor/state, `t()` catalog loading, tab/hash navigation, `_render` shell, event delegation). The graph has 7 modules in `custom_components/eedomus/www/panel/`: the entry directly imports 6 — `shared.js` (cross-tab constants/helpers/mixin), one per tab: `peripheriques.js`, `regles.js`, `historique.js`, `coherence.js`, `supervision.js` — and `coherence-helpers.js` (coherence pure helpers; `coherence.js` imports and re-exports them).
 - Starting a feature? Read `_bmad-output/specs/spec-eedomus-mapping-panel/SPEC.md` (or the sibling specs: history, i18n, simulator, docs) first — capabilities and constraints live there.
 
 ## Running and verifying
 
-- Unit tests: `python3 -m pytest tests/unit/ -q`. Panel JS pure helpers: `node tests/js/test-coherence.js` (strict — wired into CI).
+- Unit tests: `python3 -m pytest tests/unit/ -q`. Panel JS harnesses: `node tests/js/test-coherence.js` and `node tests/js/test-i18n-guard.js` (strict — both wired into CI).
 - E2E (`tests/e2e/`) needs `.env` with `HA_TOKEN` and the live Pi — never mock it. Two strates (AD-16): live-Pi (`pytest tests/e2e/ -m "e2e and not e2e_sim"`) is the regression truth, never mocked; the simulator (`-m e2e_sim`) covers multi-box and destructive — it completes the live strate, never replaces it; Flask stays test-only (`requirements-test.txt`).
 - 2 live-Pi E2E tests are state-dependent: they require a non-empty backfill queue; on an up-to-date (drained) box they fail — expected, not regressions.
 - `ha core logs` over plain SSH returns unauthorized — use `sudo -i ha core logs` or the log-bridge scripts (`get_rasp_logs.sh`, `watch_logs.sh`).
