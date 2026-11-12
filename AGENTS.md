@@ -1,5 +1,5 @@
 <!-- bmad:context -->
-<!-- Verified 2026-11-01 against bbb9ae8. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
+<!-- Verified 2026-11-01 against a630434. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
 
 ## hass-eedomus
 
