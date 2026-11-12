@@ -82,6 +82,8 @@ export const RULES_STYLES = `
         .yaml-editor-wrap {
           position: relative;
           display: flex;
+          height: 420px;
+          resize: vertical;
           background: var(--card-background-color);
           border: 1px solid var(--divider-color);
           border-radius: var(--ha-card-border-radius, 12px);
@@ -95,25 +97,25 @@ export const RULES_STYLES = `
           background: var(--input-fill-color, var(--card-background-color));
           font-family: var(--code-font-family, ui-monospace, Menlo, monospace);
           font-size: 12.5px; line-height: 1.5;
-          white-space: pre;
+          white-space: pre; overflow: hidden;
           border-right: 1px solid var(--divider-color);
         }
-        .yaml-code-area { position: relative; flex: 1; min-width: 0; }
+        .yaml-code-area { position: relative; flex: 1; min-width: 0; overflow: hidden; }
         .yaml-highlight {
           position: absolute; inset: 0;
           margin: 0; padding: 12px;
           font-family: var(--code-font-family, ui-monospace, Menlo, monospace);
           font-size: 12.5px; line-height: 1.5;
-          white-space: pre; overflow: auto;
+          white-space: pre; overflow: hidden;
           color: var(--primary-text-color);
           pointer-events: none;
         }
         .yaml-editor {
           position: relative;
           display: block; width: 100%;
-          min-height: 420px;
+          height: 100%; min-height: 0;
           margin: 0; padding: 12px;
-          border: none; resize: vertical;
+          border: none; resize: none;
           background: transparent;
           color: transparent; caret-color: var(--primary-text-color);
           font-family: var(--code-font-family, ui-monospace, Menlo, monospace);

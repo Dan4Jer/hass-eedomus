@@ -53,6 +53,8 @@ jobs:
         node tests/js/test-coherence.js
         echo "Running i18n guard..."
         node tests/js/test-i18n-guard.js
+        echo "Running regles-styles contract..."
+        node tests/js/test-regles-styles.js
 
     - name: Test energy sensor (Issue #9)
       run: |
