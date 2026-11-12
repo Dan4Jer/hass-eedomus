@@ -53,7 +53,9 @@ def _install_homeassistant_stubs():
     ha_core.HomeAssistant = MagicMock
     ha_core.ServiceCall = MagicMock
     ha_core.ServiceResponse = MagicMock
-    ha_core.SupportsResponse = MagicMock
+    ha_core.SupportsResponse = types.SimpleNamespace(
+        NONE="none", OPTIONAL="optional", ONLY="only"
+    )
 
     # homeassistant.helpers
     ha_helpers = module("homeassistant.helpers")

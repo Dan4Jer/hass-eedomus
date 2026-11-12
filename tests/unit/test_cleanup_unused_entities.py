@@ -55,12 +55,13 @@ def _hass_with_coordinators(*coordinator_datas):
     return hass
 
 
-def _entity(entity_id, unique_id, *, device_id="dev", disabled=False):
+def _entity(entity_id, unique_id, *, device_id="dev", disabled=False, disabled_by=None):
     return {
         "entity_id": entity_id,
         "unique_id": unique_id,
         "platform": "eedomus",
         "disabled": disabled,
+        "disabled_by": disabled_by,
         "device_id": device_id,
     }
 
@@ -70,18 +71,18 @@ async def _get_cleanup_handler(hass):
 
     registered = {}
     hass.services.async_register.side_effect = (
-        lambda domain, name, handler: registered.__setitem__(name, handler)
+        lambda domain, name, handler, **kwargs: registered.__setitem__(name, handler)
     )
     await services.async_setup_services(hass, MagicMock())
     return registered["cleanup_unused_entities"]
 
 
-async def _run(monkeypatch, entries, *coordinator_datas):
+async def _run(monkeypatch, entries, *coordinator_datas, call_data=None):
     registry, removed = _registry(entries)
     _install_entity_registry(monkeypatch, registry)
     hass = _hass_with_coordinators(*coordinator_datas)
     handler = await _get_cleanup_handler(hass)
-    result = await handler(MagicMock(data={}))
+    result = await handler(MagicMock(data=call_data or {}))
     return result, removed
 
 
@@ -199,4 +200,69 @@ async def test_multi_box_union_protects_both_boxes(monkeypatch):
     )
     assert result["success"] is True
     assert result["entities_identified"] == 0
+    assert removed == []
+
+
+@pytest.mark.asyncio
+async def test_user_disabled_entity_is_never_removed(monkeypatch):
+    """#136 follow-up: disabled_by == "user" is the user's own choice -
+    removing the registry entry would erase the flag and the peripheral
+    would recreate its entity ENABLED at next setup."""
+    result, removed = await _run(
+        monkeypatch,
+        [
+            _entity(
+                "sensor.invisible", "eedomus_1234567", disabled=True, disabled_by="user"
+            ),
+            _entity("sensor.gone", "eedomus_9999999"),
+        ],
+        {"1234567": {"ha_entity": "sensor"}},
+    )
+    assert result["success"] is True
+    assert result["skipped_user_disabled"] == 1
+    assert "sensor.invisible" not in removed
+    assert removed == ["sensor.gone"]  # the real orphan is still cleaned
+
+
+@pytest.mark.asyncio
+async def test_integration_disabled_entity_is_still_removed(monkeypatch):
+    """disabled_by == "integration" is the integration's own doing:
+    those entities stay removable."""
+    result, removed = await _run(
+        monkeypatch,
+        [
+            _entity(
+                "sensor.off",
+                "eedomus_1234567",
+                disabled=True,
+                disabled_by="integration",
+            )
+        ],
+        {"1234567": {"ha_entity": "sensor"}},
+    )
+    assert result["success"] is True
+    assert result["skipped_user_disabled"] == 0
+    assert removed == ["sensor.off"]
+
+
+@pytest.mark.asyncio
+async def test_dry_run_lists_without_removing(monkeypatch):
+    """dry_run: true identifies the entities but removes nothing and
+    says so in the response."""
+    result, removed = await _run(
+        monkeypatch,
+        [
+            _entity("sensor.gone", "eedomus_9999999"),
+            _entity(
+                "sensor.invisible", "eedomus_1234567", disabled=True, disabled_by="user"
+            ),
+        ],
+        {"1234567": {"ha_entity": "sensor"}},
+        call_data={"dry_run": True},
+    )
+    assert result["success"] is True
+    assert result["dry_run"] is True
+    assert result["entities_identified"] == 1
+    assert result["entities_removed"] == 0
+    assert result["skipped_user_disabled"] == 1
     assert removed == []

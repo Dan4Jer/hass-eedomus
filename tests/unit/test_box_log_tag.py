@@ -224,7 +224,7 @@ async def test_domain_service_two_boxes_distinguished_by_tag(caplog):
     hass = MagicMock()
     hass.services.has_service.return_value = False
     hass.services.async_register.side_effect = (
-        lambda domain, name, handler: registered.__setitem__(name, handler)
+        lambda domain, name, handler, **kwargs: registered.__setitem__(name, handler)
     )
 
     def make_coordinator(title: str):

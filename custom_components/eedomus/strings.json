@@ -188,7 +188,13 @@
     },
     "cleanup_unused_entities": {
       "name": "Cleanup unused eedomus entities",
-      "description": "Remove disabled, deprecated, and orphaned eedomus entities"
+      "description": "Remove disabled, deprecated, and orphaned eedomus entities",
+      "fields": {
+        "dry_run": {
+          "name": "Dry run",
+          "description": "List matching entities without removing anything"
+        }
+      }
     },
     "set_climate_temperature": {
       "name": "Set climate temperature",
