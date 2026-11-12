@@ -1,5 +1,5 @@
 <!-- bmad:context -->
-<!-- Verified 2026-11-01 against 9636e1b. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
+<!-- Verified 2026-11-01 against 4936ab3. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
 
 ## hass-eedomus
 
@@ -35,7 +35,8 @@ Home Assistant custom integration for the Eedomus box (Python 3.9+, vanilla JS p
 ## Known pitfalls
 
 - The SSH log bridge (`get_rasp_logs.sh`) reports RUNNING while its stream is dead: if `~/…/rasp.log` stops moving, restart the bridge — status alone lies.
-- Only the entry URL is cache-busted (`?v=<manifest version>`): a NEW import the entry needs must live in the entry itself — a new export in a panel module breaks against browsers' cached copy (live SyntaxError in 0.15.5; real fix tracked in ticket 118).
+- Panel JS import specifiers are version-rewritten at serve time (`PanelEntryView`, ticket 118): keep them in the single-quoted `from './x.js'` form — `tests/unit/test_panel.py` scans every served file with a broader pattern and fails loudly if a new import form escapes the rewrite.
+- The Pi checkout is a deploy mirror but once carried 33 pre-policy hand-edits that blocked deploy (`git pull`: "local changes would be overwritten"): if that happens, archive the drift (`sudo git diff`) and, with the user's approval, `sudo git reset --hard origin/unstable`. Git on the Pi needs `sudo` — the checkout is root-owned, plain `git` dies with "dubious ownership".
 - The mapping registry is pruned per entry at unload and devices re-register on every reload: joins must be last-wins; a first-wins join shows the pre-change mapping.
 
 <!-- /bmad:context -->
